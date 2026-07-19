@@ -3,17 +3,28 @@
 AI-native language learning platform. Phase 0 = Japanese only, single learner flow.
 
 - **`PHASE-0-BLUEPRINT.md`** — the spec. Read it before any architectural decision.
-- **`CLAUDE.md`** — project rules and conventions.
+- **`CLAUDE.md`** — workspace rules; each app has its own on top of it.
 - **`OPEN-ITEMS.md`** — decisions taken on your behalf, deferred work, and debt.
+
+## Layout
+
+```
+api/    NestJS backend
+web/    frontend — not yet scaffolded
+```
+
+No workspace tooling — each app installs and builds on its own. Only
+`docker-compose.yml` is shared, and it must be run from the repo root.
 
 ## Running it
 
 ```bash
-docker compose up -d      # mongo + redis, localhost-only ports
-cp .env.example .env      # then fill in the two JWT secrets
+docker compose up -d          # from the repo root: mongo + redis, localhost-only
+cd api
+cp .env.example .env          # then fill in the two JWT secrets
 npm install
-npm run seed              # loads the Hiragana content pack
-npm run start:dev         # api on :3000
+npm run seed                  # loads the Hiragana content pack
+npm run start:dev             # api on :3000
 ```
 
 Generate the JWT secrets with `openssl rand -base64 48` — they must be at least
@@ -21,6 +32,8 @@ Generate the JWT secrets with `openssl rand -base64 48` — they must be at leas
 
 > **Mongo is on host port 27018**, not the default 27017, because a system-level
 > `mongod` commonly occupies 27017. See `docker-compose.yml`.
+
+All `npm` commands below run from `api/`.
 
 | Command | What it does |
 |---|---|
@@ -38,7 +51,7 @@ goes through the owning module's exported service class. That single rule is wha
 makes later extraction cheap.
 
 ```
-src/
+api/src/
   auth/              register / login / refresh, argon2id, rotating refresh tokens
   user/              users collection, /me, embedded profile+gamification+settings
   content/           kana, vocab, grammar, kanji, lessons + exercise generation
@@ -124,8 +137,8 @@ the deploy clone at `~/deploy/langapp`, rebuilds, and restarts the service.
 | Piece | Where |
 |---|---|
 | Deploy clone | `~/deploy/langapp` (read-only deploy key) |
-| Deploy script | `~/deploy/langapp-deploy.sh` |
-| Service | `langapp-api.service` → `node dist/main` on **:7702** |
+| Deploy script | `~/deploy/langapp-deploy.sh` (builds in `api/`) |
+| Service | `langapp-api.service` → `node dist/main` from `~/deploy/langapp/api` on **:7702** |
 | Timer | `langapp-deploy.timer`, every 60s |
 | Funnel mount | path `/langapp` → `127.0.0.1:7702` |
 
@@ -148,6 +161,10 @@ Notes:
 - The deploy clone's `.env` is **not in git**, so it survives `git reset --hard`.
   Its JWT secrets are deliberately *different* from the dev ones — that instance
   is internet-facing and this one isn't. Rotating dev secrets does not affect it.
+  It lives at `~/deploy/langapp/api/.env`, next to the app's working directory.
+  Because it is untracked, **no git operation will move it** — a restructure that
+  changes the API's working directory has to move it by hand or the service will
+  fail `validateEnv` on restart.
 - **Mongo and Redis are shared with dev** and owned by
   `~/Projects/langapp/docker-compose.yml`. Never `docker compose up` from the
   deploy clone; both directories are named `langapp`, so compose would resolve to

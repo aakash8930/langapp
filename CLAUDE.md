@@ -1,65 +1,51 @@
-# Project rules
+# Workspace rules
 
 AI-native language learning platform. Phase 0 = Japanese only, single learner flow.
-Full spec lives in `PHASE-0-BLUEPRINT.md`. Read it before making architectural decisions.
+Full spec lives in `PHASE-0-BLUEPRINT.md`. Read it before making architectural
+decisions.
 
-## Stack (do not substitute without asking)
+This is a **monorepo with no workspace tooling** — no npm workspaces, no Nx, no
+Turborepo, no shared root `package.json`. Each app owns its own dependencies and
+is built independently. Don't introduce a workspace manager without asking.
 
-- **NestJS + TypeScript** (strict mode on)
-- **MongoDB** via `@nestjs/mongoose` — local Docker in dev
-- **Redis** via `ioredis` — local Docker in dev
-- **ts-fsrs** for spaced repetition scheduling
-- **argon2** for password hashing (not bcrypt)
-- **@nestjs/jwt** for access/refresh tokens
-- **class-validator + class-transformer** for DTO validation
+## Layout
 
-## Architecture: modular monolith
-
-One NestJS app. Modules map to future services but deploy as one unit.
-**Do not** create microservices, message brokers, or separate deployables.
-
-Modules: `auth`, `user`, `content`, `learning`, `knowledge-graph`, `analytics`
-(later: `ai-orchestrator`, `chat`)
-
-### The one rule that matters
-
-**A module never touches another module's collections.** Cross-module access goes
-through the owning module's exported service class only.
-
-```ts
-// WRONG — learning module reaching into user's collection
-constructor(@InjectModel('User') private userModel: Model<User>) {}
-
-// RIGHT — go through the owning service
-constructor(private readonly userService: UserService) {}
+```
+api/                    NestJS backend — see api/CLAUDE.md for its rules
+web/                    frontend — NOT YET SCAFFOLDED, stack undecided
+docker-compose.yml      mongo + redis, shared by both apps
+PHASE-0-BLUEPRINT.md    the spec
+OPEN-ITEMS.md           deferred decisions and trade-offs, ordered by urgency
 ```
 
-This is what makes future extraction cheap. Enforce it in every review.
-
-## Conventions
-
-- Every endpoint has a DTO with `class-validator` decorators. No untyped `body: any`.
-- Every Mongoose schema gets explicit indexes. `SrsCard` **must** have `{ userId: 1, due: 1 }`.
-- Object/file storage goes behind a `StorageService` interface (`put/get/delete`).
-  Dev implementation writes to `./storage/`. Never call `fs` directly from a feature module.
-- Secrets come from env via `@nestjs/config`. Never commit `.env`.
-- Errors: throw Nest's built-in HTTP exceptions. No custom error framework.
-- Keep responses lean — don't return `passwordHash` ever. Use a serializer/DTO.
-
-## What NOT to build in Phase 0
-
-No microservices, no Kubernetes, no GraphQL, no event bus, no marketplace, no teacher
-portal, no i18n framework, no admin panel, no voice/STT/TTS, no AR, no second language.
-If a task seems to need one of these, stop and ask.
+Each app has its own `CLAUDE.md`. When working inside an app, that file's rules
+apply on top of these.
 
 ## Commands
 
+Infra is shared and runs from the root:
+
 ```bash
-docker compose up -d      # mongo + redis
-npm run start:dev         # api on :3000
-npm run test              # unit
-npm run seed              # load Japanese content pack
+docker compose up -d      # mongo :27018, redis :6379
 ```
+
+Compose **must** be run from this directory. The project name is derived from the
+directory name (`langapp`), and the containers use explicit names
+(`langapp-mongo`, `langapp-redis`). Running compose from a subdirectory creates a
+different project and collides on those container names.
+
+Per-app commands live in each app's `CLAUDE.md`. Nothing at the root builds or
+tests the apps — `cd` into one first.
+
+## Deployment
+
+Stage A runs on the laptop: a systemd timer polls `origin/main` every minute and
+redeploys on change. `git push origin main` is the deploy trigger.
+
+The deploy clone lives at `~/deploy/langapp` and is a **separate checkout** with
+its own untracked `.env` holding its own JWT secrets. Anything that changes where
+the API's working directory or entrypoint lives must be mirrored in
+`~/deploy/langapp-deploy.sh` and the `langapp-api.service` unit, or deploys break.
 
 ## Working style
 
@@ -67,3 +53,4 @@ npm run seed              # load Japanese content pack
 - Don't add npm dependencies without asking first.
 - Prefer boring, obvious code over clever abstractions. This is a solo-maintained repo.
 - When something in `PHASE-0-BLUEPRINT.md` is ambiguous, ask rather than assume.
+- A change that touches both apps still lands as one commit — they version together.

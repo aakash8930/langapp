@@ -34,7 +34,7 @@ policy about what a streak *means* when a learner moves.
 
 ### 1. `/lessons` endpoints are unauthenticated
 
-`src/content/lesson.controller.ts` has no `JwtAuthGuard`. Reasoning: lessons are
+`api/src/content/lesson.controller.ts` has no `JwtAuthGuard`. Reasoning: lessons are
 shared reference content with no per-user state, and §9 lists them without an
 auth marker. But Stage A puts them on a public Funnel URL, so anyone with the
 link can enumerate your whole content pack.
@@ -57,7 +57,7 @@ for.
 ### 3. Rate limiting fails **open** when Redis is down
 
 `RedisThrottlerStorage.increment` catches errors and returns "not blocked"
-(`src/common/throttler/redis-throttler.storage.ts`). A Redis outage therefore
+(`api/src/common/throttler/redis-throttler.storage.ts`). A Redis outage therefore
 disables rate limiting rather than locking everyone out of login.
 
 That's the right default for a solo app where Redis going down shouldn't mean
