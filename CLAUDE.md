@@ -58,7 +58,7 @@ which field was wrong, because the API does not know and neither do you.
 
 ```
 GET   /me            bearer -> <UserResponse>
-PATCH /me/settings   bearer  { audioSpeed?, theme?, tz? }  -> <UserResponse>
+PATCH /me/settings   bearer  { audioSpeed?, theme?, tz?, dailyGoalXp? }  -> <UserResponse>
 GET   /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
                                  streakDays, lastStudyDate,
                                  daily: { xpToday, goalXp, percentOfGoal, goalMet },
@@ -71,7 +71,24 @@ UserResponse = { id, email, createdAt,
 ```
 
 `PATCH /me/settings` returns the **whole user**, not just the settings block.
-`audioSpeed` is 0.5–2.0, `theme` is `light`/`dark`, `tz` an IANA zone name.
+`audioSpeed` is 0.5–2.0, `theme` is `light`/`dark`/`system`, `tz` an IANA zone name,
+`dailyGoalXp` an integer 10–1000.
+
+`dailyGoalXp` is patched through `/me/settings` but **stored on `gamification`, not
+`settings`** — it is the target `/me/progress` measures the day against, so it lives
+with the numbers it is compared to. It appears under `gamification` in `UserResponse`
+for the same reason. Added 2026-07-19; before that it was fixed at 50 with no way to
+change it.
+
+`theme: 'system'` means follow the OS, which is what the client did unconditionally
+before the setting existed. It was added to the enum on 2026-07-19 — existing rows hold
+`light` or `dark` and stay valid, so no migration was needed. **The server does not
+resolve `system`**; it stores the preference and the client picks the palette.
+
+The default moved from `light` to `system` in the same change, so that honouring the
+field is not a regression for anyone on a dark-mode phone. **Accounts created before
+2026-07-19 have an explicit `light` stored** and will look light until changed once in
+Settings — that is a stored value, not a bug.
 
 Progress nests the daily numbers under `daily` — there is no top-level `todayXp` or
 `dailyGoalXp`. `xpToday` is recomputed on read, because the stored counter still holds

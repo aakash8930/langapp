@@ -2,6 +2,13 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 /**
+ * Declared here, with the storage that constrains it, so the schema enum, the
+ * update DTO and the response DTO cannot drift apart.
+ */
+export const THEMES = ['light', 'dark', 'system'] as const;
+export type Theme = (typeof THEMES)[number];
+
+/**
  * §5: embed what is read together and bounded. Profile, gamification and
  * settings are always read with the user, so they are sub-documents, not refs.
  * `_id: false` keeps them plain embedded objects.
@@ -54,8 +61,21 @@ export class Settings {
   @Prop({ required: true, default: 1.0, min: 0.5, max: 2.0 })
   audioSpeed: number;
 
-  @Prop({ type: String, required: true, enum: ['light', 'dark'], default: 'light' })
-  theme: 'light' | 'dark';
+  /**
+   * 'system' means "follow the OS", which is what the client did unconditionally
+   * before this was settable. Adding an enum value is backward compatible —
+   * existing documents hold 'light' or 'dark' and stay valid.
+   */
+  /**
+   * Defaults to 'system' rather than 'light'. Before the client honoured this
+   * field it followed the OS unconditionally, so a 'light' default would have
+   * turned respecting the setting into a regression: every dark-mode phone
+   * would have snapped to light on upgrade. Rows written before 2026-07-19 hold
+   * an explicit 'light' and are unaffected — they have to be changed in
+   * Settings once.
+   */
+  @Prop({ type: String, required: true, enum: THEMES, default: 'system' })
+  theme: Theme;
 
   @Prop({ required: true, default: 'Asia/Kolkata' })
   tz: string;

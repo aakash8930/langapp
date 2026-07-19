@@ -196,32 +196,44 @@ copy. A nightly `mongodump` into a cloud-synced folder is a cron line and 20
 minutes. Right now the only thing in Mongo is seed data you can regenerate, so
 the real deadline is **the first real user account you'd be sad to lose.**
 
-### 19. There is no frontend, and that is a deliberate pause
+### 19. RESOLVED (client M0–M5) — the frontend pause ended
 
-The blueprint's §3 diagram plans **Web (Next.js)** and **Mobile (Flutter)**, but
-§14's build order never schedules either — steps 1–8 are all API work. So six
-completed milestones correctly produced zero UI. The repo has no `.tsx/.html/.css`
-at all.
+Paused through six API milestones on Aakash's "wait for now" (2026-07-19), then
+resumed the same day. Built as **React Native + Expo** in `client/` — not the
+Next.js of blueprint §3 nor the Flutter of §11, because the target is a phone
+and Expo Go removes the build-and-sideload step entirely.
 
-Asked on 2026-07-19 whether to build one, Aakash said **"wait for now."** So this
-is paused on purpose, not forgotten. Do not start a client without asking again.
+Shipped: auth, home with lesson lock state, the exercise flow, the review
+session, and settings. `client/CLAUDE.md` holds its rules.
 
-The status page at `/` is **not** a frontend — no login, no lessons, no review.
-It exists so the deployed URL doesn't 404 in a browser.
+Two API changes were needed for M5 and were approved before being made: a write
+path for `dailyGoalXp`, and `'system'` added to the theme enum. Both are in the
+root CLAUDE.md contract.
 
-When it resumes, the three shapes considered were:
+### 21. `POST /reviews/:cardId/grade` violates the leak rule
 
-1. **Minimal vanilla HTML/JS page served by the existing NestJS app.** No new
-   deps, no build step, no second deployable, same funnel mount. Smallest path
-   to something a person can use; also the §11 answer for iOS, which is "web app
-   as PWA via Funnel".
-2. **Next.js per §3.** What the blueprint actually plans; a second deployable
-   with its own build and deploy script. Needs `next`/`react` — and CLAUDE.md
-   says dependencies need Aakash's approval first.
-3. **Flutter mobile**, per §11's `flutter build apk` sideload line.
+`GradeReviewResponse` declares — and `review.service.ts` returns — `stability`
+and `difficulty`. The root CLAUDE.md says FSRS internals must never reach the
+client, so the API is in violation of its own rule.
 
-Whichever is chosen, the API is already complete for it: auth, lessons,
-exercises, completion, reviews and `/me/progress` all work and are deployed.
+Nothing is exploitable; the cost is that the contract says one thing and the code
+does another, which is how a rule stops being enforced at all.
+
+The client is **not** relying on it: `client/api/reviews.ts` deliberately types
+`GradeResult` without the two fields, so they cannot be rendered by accident. So
+dropping them from the DTO is a safe, client-invisible change whenever you want
+it. The alternative is to amend the rule and say scheduling internals are fine to
+send — but then say so, rather than leaving both.
+
+### 22. Time zone can only be set to the device's zone
+
+`client/app/(app)/settings.tsx` shows the stored zone and offers one tap to adopt
+the device's. There is no IANA picker — a 400-entry scroller felt like the wrong
+shape for a single-learner Phase 0, and the server accepts any valid zone anyway.
+
+Consequence: a learner who wants a zone that is neither their stored one nor
+their device's cannot set it from the app. `PATCH /me/settings { tz }` still
+takes anything the runtime's tz database knows.
 
 ### 7. No age gate, privacy policy, or ToS
 

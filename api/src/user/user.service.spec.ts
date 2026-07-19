@@ -192,3 +192,49 @@ describe('UserService.todayXpFor', () => {
     expect(service.todayXpFor(doc(null, 0), NOW)).toBe(0);
   });
 });
+
+/**
+ * `updateSettings` writes dotted paths so a partial patch leaves its siblings
+ * alone. The case worth pinning is `dailyGoalXp`, which is the one field on the
+ * settings DTO that does *not* live under `settings` — it belongs to
+ * gamification, because that is where /me/progress reads it from.
+ */
+describe('UserService.updateSettings', () => {
+  it('writes the daily goal to gamification, not settings', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await service.updateSettings(USER_ID, { dailyGoalXp: 120 });
+
+    expect(updateArg(findByIdAndUpdate).$set).toEqual({
+      'gamification.dailyGoalXp': 120,
+    });
+  });
+
+  it('accepts system as a theme', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await service.updateSettings(USER_ID, { theme: 'system' });
+
+    expect(updateArg(findByIdAndUpdate).$set).toEqual({ 'settings.theme': 'system' });
+  });
+
+  it('patches only what was sent, so one setting never clobbers another', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await service.updateSettings(USER_ID, { theme: 'dark', dailyGoalXp: 20 });
+
+    expect(updateArg(findByIdAndUpdate).$set).toEqual({
+      'settings.theme': 'dark',
+      'gamification.dailyGoalXp': 20,
+    });
+  });
+
+  it('rejects an unknown time zone before writing anything', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await expect(
+      service.updateSettings(USER_ID, { tz: 'Mars/Olympus_Mons' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+});

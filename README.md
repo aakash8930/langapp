@@ -10,11 +10,14 @@ AI-native language learning platform. Phase 0 = Japanese only, single learner fl
 
 ```
 api/        NestJS backend + docker-compose.yml
-client/     Expo app — not yet scaffolded
+client/     React Native + Expo app (expo-router)
 scripts/    ops scripts — not yet written
 ```
 
-No workspace tooling — each app installs and builds on its own.
+No workspace tooling — each app installs and builds on its own. They are
+deliberately **not** npm workspaces: Expo's Metro bundler resolves badly under
+hoisting, so `api/` and `client/` keep separate `package.json` and
+`node_modules`.
 
 ## Running it
 
@@ -42,6 +45,32 @@ All `npm` commands below run from `api/`.
 | `npm test` | Unit tests |
 | `npm run typecheck` | `tsc --noEmit` — the real type gate (see OPEN-ITEMS #14) |
 | `npm run build` | Production build |
+
+### The client
+
+```bash
+cd client
+npm install
+cp .env.example .env          # set EXPO_PUBLIC_API_URL to your funnel URL
+npx expo start                # scan the QR code with Expo Go
+```
+
+The phone talks to the API over the Tailscale Funnel, which has valid TLS — so
+there is no cleartext exemption or certificate workaround to configure. Point
+`EXPO_PUBLIC_API_URL` at the funnel URL, not `localhost`: the phone is not on
+your machine.
+
+| Command | What it does |
+|---|---|
+| `npx expo start` | Dev server + QR code for Expo Go |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npx expo export --platform android` | Bundles everything — the fastest way to catch an import error |
+
+There is no test runner in `client/` yet, so `typecheck` and a successful
+`expo export` are the gate.
+
+> `npx expo install` is broken under npm 11 in this repo — resolve version pins
+> from `bundledNativeModules.json` and add them to `package.json` by hand.
 
 ## Architecture
 
@@ -76,7 +105,7 @@ api/src/
 | `POST` | `/auth/refresh` | — | rate limited; single-use rotating token |
 | `GET` | `/me` | Bearer | never returns `passwordHash` |
 | `GET` | `/me/progress` | Bearer | XP, level, streak, today vs daily goal, cards due, lessons done |
-| `PATCH` | `/me/settings` | Bearer | partial update of audioSpeed / theme / tz |
+| `PATCH` | `/me/settings` | Bearer | partial update of audioSpeed / theme / tz / dailyGoalXp |
 | `GET` | `/lessons?unit=` | — | ordered by unit then order |
 | `GET` | `/lessons/:id` | — | resolves `itemRefs` into full item documents |
 | `GET` | `/lessons/:id/exercises?attempt=` | Bearer | multiple-choice set; no answer key in the payload |

@@ -1,4 +1,4 @@
-import { UserDocument } from '../schemas/user.schema';
+import { Theme, UserDocument } from '../schemas/user.schema';
 
 /**
  * The only shape a user is ever allowed to leave the API in.
@@ -22,7 +22,7 @@ export interface UserResponse {
   };
   settings: {
     audioSpeed: number;
-    theme: 'light' | 'dark';
+    theme: Theme;
     tz: string;
   };
 }
