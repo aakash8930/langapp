@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Types } from 'mongoose';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { ContentService } from '../content/content.service';
@@ -5,7 +6,11 @@ import { LessonDetail } from '../content/dto/lesson-response.dto';
 import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
 import { LearningService, XP_PER_LESSON_COMPLETION } from './learning.service';
+import { LessonCompletionDocument } from './schemas/lesson-completion.schema';
 import { SrsCardDocument } from './schemas/srs-card.schema';
+
+/** The practice award the fake ConfigService hands back. */
+const XP_PER_LESSON_PRACTICE = 2;
 
 const USER_ID = '607f1f77bcf86cd799439011';
 const LESSON_ID = '507f1f77bcf86cd799439011';
@@ -53,7 +58,14 @@ interface Harness {
   completionUpdate: jest.Mock;
 }
 
-function build(opts: { existing?: SrsCardDocument[]; xpAfter?: number } = {}): Harness {
+function build(
+  opts: {
+    existing?: SrsCardDocument[];
+    xpAfter?: number;
+    /** How many times this lesson has been completed *including* this call. */
+    timesCompleted?: number;
+  } = {},
+): Harness {
   const insertMany = jest.fn((docs: unknown[]) => Promise.resolve(docs));
   const srsCardModel = {
     find: () => ({
@@ -63,9 +75,16 @@ function build(opts: { existing?: SrsCardDocument[]; xpAfter?: number } = {}): H
     countDocuments: () => ({ exec: () => Promise.resolve(0) }),
   };
 
-  const completionUpdate = jest.fn(() => ({ exec: () => Promise.resolve({}) }));
+  // Mirrors `findOneAndUpdate(..., { new: true })`: the value returned is the
+  // document *after* the $inc, which is what decides the XP award.
+  const completionUpdate = jest.fn(() => ({
+    exec: () =>
+      Promise.resolve({
+        timesCompleted: opts.timesCompleted ?? 1,
+      } as unknown as LessonCompletionDocument),
+  }));
   const lessonCompletionModel = {
-    updateOne: completionUpdate,
+    findOneAndUpdate: completionUpdate,
     countDocuments: () => ({ exec: () => Promise.resolve(0) }),
   };
 
@@ -82,6 +101,7 @@ function build(opts: { existing?: SrsCardDocument[]; xpAfter?: number } = {}): H
     { findLessonById: () => Promise.resolve(lessonDetail()) } as unknown as ContentService,
     { awardXp } as unknown as UserService,
     { record } as unknown as AnalyticsService,
+    { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
   );
 
   return { service, insertMany, awardXp, record, completionUpdate };
@@ -190,13 +210,56 @@ describe('LearningService.completeLesson', () => {
     expect(update.$set).toHaveProperty('lastCompletedAt');
   });
 
-  it('still awards XP on a repeat completion', async () => {
-    // Documents current behaviour deliberately — see OPEN-ITEMS on XP farming.
-    const { service, awardXp } = build({ existing: ITEM_IDS.map(existingCard) });
+  it('awards the full amount on a first completion', async () => {
+    const { service, awardXp } = build({ timesCompleted: 1 });
 
-    await service.completeLesson(USER_ID, LESSON_ID);
+    const result = await service.completeLesson(USER_ID, LESSON_ID);
 
     expect(awardXp).toHaveBeenCalledWith(USER_ID, XP_PER_LESSON_COMPLETION);
+    expect(result.xpAwarded).toBe(XP_PER_LESSON_COMPLETION);
+    expect(result.firstCompletion).toBe(true);
+  });
+
+  it('awards only the practice amount on a repeat completion', async () => {
+    // Was "still awards XP on a repeat completion", pinning the farming hole.
+    // OPEN-ITEMS #0: replaying the POST must not keep paying full price.
+    const { service, awardXp } = build({
+      timesCompleted: 2,
+      existing: ITEM_IDS.map(existingCard),
+    });
+
+    const result = await service.completeLesson(USER_ID, LESSON_ID);
+
+    expect(awardXp).toHaveBeenCalledWith(USER_ID, XP_PER_LESSON_PRACTICE);
+    expect(result.xpAwarded).toBe(XP_PER_LESSON_PRACTICE);
+    expect(result.firstCompletion).toBe(false);
+  });
+
+  it('decides the award from the completion counter, not from cards created', async () => {
+    // A genuine first completion of a lesson whose items are all already known
+    // from an overlapping lesson: no cards created, but still first-time XP.
+    const { service, awardXp } = build({
+      timesCompleted: 1,
+      existing: ITEM_IDS.map(existingCard),
+    });
+
+    const result = await service.completeLesson(USER_ID, LESSON_ID);
+
+    expect(result.cardsCreated).toBe(0);
+    expect(awardXp).toHaveBeenCalledWith(USER_ID, XP_PER_LESSON_COMPLETION);
+    expect(result.firstCompletion).toBe(true);
+  });
+
+  it('cannot be farmed by replaying the POST', async () => {
+    // Ten replays after the first: the counter climbs, the award does not.
+    for (const timesCompleted of [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
+      const { service, awardXp } = build({ timesCompleted });
+
+      const result = await service.completeLesson(USER_ID, LESSON_ID);
+
+      expect(result.xpAwarded).toBe(XP_PER_LESSON_PRACTICE);
+      expect(awardXp).toHaveBeenCalledWith(USER_ID, XP_PER_LESSON_PRACTICE);
+    }
   });
 
   it('counts only what landed when a concurrent completion wins the race', async () => {

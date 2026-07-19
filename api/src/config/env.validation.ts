@@ -15,6 +15,7 @@ export interface EnvConfig {
   AUTH_THROTTLE_LIMIT: number;
   AUTH_THROTTLE_TTL_SECONDS: number;
   STORAGE_DIR: string;
+  XP_PER_LESSON_PRACTICE: number;
 }
 
 function required(raw: Record<string, unknown>, key: string): string {
@@ -70,5 +71,6 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     AUTH_THROTTLE_LIMIT: positiveInt(raw, 'AUTH_THROTTLE_LIMIT', 10),
     AUTH_THROTTLE_TTL_SECONDS: positiveInt(raw, 'AUTH_THROTTLE_TTL_SECONDS', 60),
     STORAGE_DIR: optional(raw, 'STORAGE_DIR', './storage'),
+    XP_PER_LESSON_PRACTICE: positiveInt(raw, 'XP_PER_LESSON_PRACTICE', 2),
   };
 }

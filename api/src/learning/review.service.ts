@@ -5,6 +5,7 @@ import { BadRequestException } from '@nestjs/common';
 import { FSRS, fsrs, generatorParameters } from 'ts-fsrs';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { ContentService } from '../content/content.service';
+import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
 import {
   DueCard,
@@ -17,7 +18,11 @@ import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
 /** §6: cap a session so it's bounded. */
 export const REVIEW_SESSION_CAP = 20;
 
-/** Flat award per graded review, regardless of grade. */
+/**
+ * Flat award per graded review, regardless of grade — but only when the card
+ * was actually due. Re-grading a card that isn't due still reschedules (ts-fsrs
+ * handles it correctly) and awards nothing. OPEN-ITEMS #0b.
+ */
 export const XP_PER_REVIEW = 2;
 
 /**
@@ -117,6 +122,10 @@ export class ReviewService {
 
     const now = new Date();
 
+    // Read before the card is rescheduled — afterwards `due` is in the future by
+    // construction, so this is the only moment the answer is available.
+    const wasDue = card.due.getTime() <= now.getTime();
+
     // The whole of the scheduling decision, delegated. Nothing below this line
     // recomputes an interval.
     const { card: scheduled } = this.scheduler.next(
@@ -129,7 +138,15 @@ export class ReviewService {
     card.set(fields);
     await card.save();
 
-    const user = await this.userService.awardXp(userId, XP_PER_REVIEW);
+    const xpAwarded = wasDue ? XP_PER_REVIEW : 0;
+
+    // Deliberately not `awardXp(userId, 0)` on the not-due path. awardXp is also
+    // where the streak advances, so calling it would let a learner hold a streak
+    // by re-grading the same card — a smaller version of the hole this closes.
+    // No XP means no study credit, so we only read the user for `totalXp`.
+    const user = wasDue
+      ? await this.userService.awardXp(userId, xpAwarded)
+      : await this.requireUser(userId);
 
     await this.analyticsService
       .record({
@@ -144,7 +161,8 @@ export class ReviewService {
           due: fields.due.toISOString(),
           reps: fields.reps,
           lapses: fields.lapses,
-          xpAwarded: XP_PER_REVIEW,
+          xpAwarded,
+          wasDue,
         },
       })
       .catch((err: unknown) => {
@@ -165,8 +183,20 @@ export class ReviewService {
       lapses: fields.lapses,
       stability: fields.stability,
       difficulty: fields.difficulty,
-      xpAwarded: XP_PER_REVIEW,
+      xpAwarded,
       totalXp: user.gamification.xp,
     };
+  }
+
+  /**
+   * The not-due path still has to report `totalXp`, and gets it without going
+   * through awardXp. UserService owns `users`; this only reads through it (§4).
+   */
+  private async requireUser(userId: string): Promise<UserDocument> {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
   }
 }

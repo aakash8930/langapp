@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { AnalyticsService } from '../analytics/analytics.service';
@@ -10,8 +11,15 @@ import { newCardFields } from './fsrs-card.mapper';
 import { LessonCompletion, LessonCompletionDocument } from './schemas/lesson-completion.schema';
 import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
 
-/** Flat award per completion. See OPEN-ITEMS — repeat completions re-award. */
+/**
+ * Awarded once per lesson, on the completion that creates the record.
+ * Every completion after that earns the smaller `XP_PER_LESSON_PRACTICE`
+ * (env-configurable), so replaying the POST can't farm XP — OPEN-ITEMS #0.
+ */
 export const XP_PER_LESSON_COMPLETION = 10;
+
+/** Fallback when XP_PER_LESSON_PRACTICE is absent; the config module validates it. */
+export const DEFAULT_XP_PER_LESSON_PRACTICE = 2;
 
 /** Mongo duplicate-key error. */
 const DUPLICATE_KEY = 11000;
@@ -23,6 +31,7 @@ const DUPLICATE_KEY = 11000;
 @Injectable()
 export class LearningService {
   private readonly logger = new Logger(LearningService.name);
+  private readonly xpPerPractice: number;
 
   constructor(
     @InjectModel(SrsCard.name) private readonly srsCardModel: Model<SrsCardDocument>,
@@ -31,7 +40,11 @@ export class LearningService {
     private readonly contentService: ContentService,
     private readonly userService: UserService,
     private readonly analyticsService: AnalyticsService,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.xpPerPractice =
+      config.get<number>('XP_PER_LESSON_PRACTICE') ?? DEFAULT_XP_PER_LESSON_PRACTICE;
+  }
 
   async completeLesson(userId: string, lessonId: string): Promise<CompleteLessonResponse> {
     // Reuses the validated read path — 400 on a malformed id, 404 if absent.
@@ -41,9 +54,19 @@ export class LearningService {
 
     const created = await this.seedCards(userId, lesson.items);
 
-    await this.recordCompletion(userId, lesson.id);
+    // The completion record is the source of truth for "has this been done
+    // before", not `created > 0`: a learner can already hold every card from a
+    // different lesson that shares items, which would make a genuine first
+    // completion look like a replay.
+    const completion = await this.recordCompletion(userId, lesson.id);
+    const firstCompletion = completion.timesCompleted === 1;
 
-    const user = await this.userService.awardXp(userId, XP_PER_LESSON_COMPLETION);
+    // Full award once, practice award thereafter (OPEN-ITEMS #0). The upsert is
+    // atomic, so two concurrent first completions produce timesCompleted 1 and 2
+    // — exactly one of them can be the first, and only it gets the full award.
+    const xpAwarded = firstCompletion ? XP_PER_LESSON_COMPLETION : this.xpPerPractice;
+
+    const user = await this.userService.awardXp(userId, xpAwarded);
 
     // Deliberately last, and guarded here as well as inside AnalyticsService:
     // cards and XP are already committed by this point, so a failure to log
@@ -59,7 +82,9 @@ export class LearningService {
           unit: lesson.unit,
           itemCount: lesson.items.length,
           cardsCreated: created,
-          xpAwarded: XP_PER_LESSON_COMPLETION,
+          xpAwarded,
+          firstCompletion,
+          timesCompleted: completion.timesCompleted,
         },
       })
       .catch((err: unknown) => {
@@ -74,7 +99,8 @@ export class LearningService {
       title: lesson.title,
       cardsCreated: created,
       cardsAlreadyPresent: lesson.items.length - created,
-      xpAwarded: XP_PER_LESSON_COMPLETION,
+      xpAwarded,
+      firstCompletion,
       totalXp: user.gamification.xp,
     };
   }
@@ -138,21 +164,37 @@ export class LearningService {
   /**
    * One row per (user, lesson). Upsert so a repeat completion bumps the counter
    * instead of adding a row — `$setOnInsert` keeps `firstCompletedAt` honest.
+   *
+   * Returns the document *after* the increment, because `timesCompleted === 1`
+   * is what decides the XP award. Doing that from the write itself, rather than
+   * a read beforehand, is what makes it safe under concurrency: the counter is
+   * assigned by Mongo, so two racing completions cannot both see 1.
    */
-  private async recordCompletion(userId: string, lessonId: string): Promise<void> {
+  private async recordCompletion(
+    userId: string,
+    lessonId: string,
+  ): Promise<LessonCompletionDocument> {
     const now = new Date();
 
-    await this.lessonCompletionModel
-      .updateOne(
+    const completion = await this.lessonCompletionModel
+      .findOneAndUpdate(
         { userId: new Types.ObjectId(userId), lessonId: new Types.ObjectId(lessonId) },
         {
           $inc: { timesCompleted: 1 },
           $set: { lastCompletedAt: now },
           $setOnInsert: { firstCompletedAt: now },
         },
-        { upsert: true },
+        { upsert: true, new: true },
       )
       .exec();
+
+    // `new: true` with `upsert: true` always yields a document; this narrows the
+    // type and would catch a driver-level surprise rather than award XP off null.
+    if (!completion) {
+      throw new Error(`Completion upsert returned nothing for lesson ${lessonId}`);
+    }
+
+    return completion;
   }
 
   /** Distinct lessons this user has completed at least once. */

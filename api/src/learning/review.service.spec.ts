@@ -60,6 +60,11 @@ function build(opts: { card?: SrsCardDocument; dueCards?: SrsCardDocument[]; tot
   const awardXp = jest.fn(() =>
     Promise.resolve({ gamification: { xp: 100 } } as unknown as UserDocument),
   );
+  // The not-due path reads the user instead of awarding, so it still needs a
+  // total to report.
+  const findById = jest.fn(() =>
+    Promise.resolve({ gamification: { xp: 100 } } as unknown as UserDocument),
+  );
   const record = jest.fn(() => Promise.resolve());
 
   const service = new ReviewService(
@@ -68,11 +73,17 @@ function build(opts: { card?: SrsCardDocument; dueCards?: SrsCardDocument[]; tot
       resolveItemRefs: (refs: unknown[]) =>
         Promise.resolve(refs.map(() => KANA_ITEM)),
     } as unknown as ContentService,
-    { awardXp } as unknown as UserService,
+    { awardXp, findById } as unknown as UserService,
     { record } as unknown as AnalyticsService,
   );
 
-  return { service, card, awardXp, record };
+  return { service, card, awardXp, findById, record };
+}
+
+/** A card scheduled into the future — i.e. one the learner has already done. */
+function notDueCard(): SrsCardDocument {
+  const future = new Date(Date.now() + 60 * 60 * 1000);
+  return makeCard({ due: future, state: 'review', reps: 3 });
 }
 
 /** Grade a fresh card once and report how far out it lands, in minutes. */
@@ -203,14 +214,72 @@ describe('ReviewService.grade — scheduling behaviour', () => {
   });
 });
 
-describe('ReviewService.grade — plumbing', () => {
-  it('awards XP through UserService and reports the new total', async () => {
+describe('ReviewService.grade — XP is gated on the card being due', () => {
+  it('awards XP when the card is due', async () => {
     const { service, awardXp } = build();
 
     const result = await service.grade(USER_ID, CARD_ID, 'good');
 
     expect(awardXp).toHaveBeenCalledWith(USER_ID, XP_PER_REVIEW);
     expect(result.xpAwarded).toBe(XP_PER_REVIEW);
+  });
+
+  it('awards nothing when the card is not yet due', async () => {
+    // OPEN-ITEMS #0b: back-to-back grading was the review-loop twin of the
+    // lesson XP farming hole.
+    const { service, awardXp } = build({ card: notDueCard() });
+
+    const result = await service.grade(USER_ID, CARD_ID, 'good');
+
+    expect(result.xpAwarded).toBe(0);
+    expect(awardXp).not.toHaveBeenCalled();
+  });
+
+  it('still reschedules a not-yet-due card, because that part was never wrong', async () => {
+    const { service, card } = build({ card: notDueCard() });
+    const before = (card as unknown as { due: Date }).due.getTime();
+
+    const result = await service.grade(USER_ID, CARD_ID, 'good');
+
+    // ts-fsrs owns this; grading out of turn is legitimate, it just isn't paid.
+    expect(result.due.getTime()).not.toBe(before);
+    expect(result.reps).toBeGreaterThan(0);
+  });
+
+  it('does not advance the streak when nothing was earned', async () => {
+    // awardXp is also where the streak rolls, so calling it with 0 would let a
+    // learner hold a streak by re-grading one card.
+    const { service, awardXp, findById } = build({ card: notDueCard() });
+
+    const result = await service.grade(USER_ID, CARD_ID, 'good');
+
+    expect(awardXp).not.toHaveBeenCalled();
+    expect(findById).toHaveBeenCalledWith(USER_ID);
+    // The total is still reported, just unchanged.
+    expect(result.totalXp).toBe(100);
+  });
+
+  it('pays for the first grade of a due card and nothing for an immediate re-grade', async () => {
+    // The exact sequence a flaky client produces: the same card graded twice in
+    // a row. The mock card mutates in place, so the second call sees the future
+    // due date the first one wrote.
+    const { service, awardXp } = build();
+
+    const first = await service.grade(USER_ID, CARD_ID, 'good');
+    const second = await service.grade(USER_ID, CARD_ID, 'good');
+
+    expect(first.xpAwarded).toBe(XP_PER_REVIEW);
+    expect(second.xpAwarded).toBe(0);
+    expect(awardXp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ReviewService.grade — plumbing', () => {
+  it('reports the new total after awarding', async () => {
+    const { service } = build();
+
+    const result = await service.grade(USER_ID, CARD_ID, 'good');
+
     expect(result.totalXp).toBe(100);
   });
 

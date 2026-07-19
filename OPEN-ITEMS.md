@@ -10,6 +10,33 @@ Ordered by when they'll bite you. Last updated after Milestone 6.
 
 ## Decide soon (before the learning loop lands)
 
+### 20. `npm run seed` is broken — it cannot boot
+
+Found while verifying the XP fix; **pre-existing**, and confirmed by running it
+on a clean checkout of the previous commit. Not caused by that work.
+
+```
+UnknownDependenciesException: Nest can't resolve dependencies of the
+JwtAuthGuard (?, ConfigService). Please make sure that the argument JwtService
+at index [0] is available in the ContentModule module.
+```
+
+`src/seed/seed.ts` builds a cut-down `SeedRootModule` — Mongo plus the content
+modules, deliberately no Redis and no HTTP. But `ContentModule` now pulls in
+`JwtAuthGuard`, which needs `JwtService`. In `AppModule` that resolves because
+`JwtModule.register({ global: true })` is there; `SeedRootModule` never registers
+it, so the seed dies at boot.
+
+**Cost of getting it wrong:** high the moment you need it. The dev database is
+already seeded, so nothing is visibly broken day to day — which is exactly why
+this went unnoticed. A fresh clone, a wiped volume, or a restore test cannot
+load content at all. Task 2's restore verification will hit this.
+
+**Fix:** one line — add `JwtModule.register({ global: true })` to
+`SeedRootModule`'s imports. I did not apply it, because it is outside the task
+that found it and the seed path deserves its own verification rather than a
+drive-by change.
+
 ### 18. Changing timezone backwards across the date line resets the streak
 
 Found while verifying Milestone 6. `lastStudyDate` is stored as a local
@@ -78,49 +105,63 @@ Worth doing before real users.
 
 ---
 
-### 0b. Nothing stops grading the same card repeatedly in one sitting
+### 0b. RESOLVED (pre-client) — grading the same card repeatedly awarded XP each time
 
-`POST /reviews/:cardId/grade` can be called back to back. FSRS handles this
-sensibly for *scheduling* — with no elapsed time there's no retention evidence,
-so intervals plateau rather than inflate (there's a test pinning that). But **XP
-is awarded on every call**, so it's the same farming hole as #0, via a different
-route.
+`POST /reviews/:cardId/grade` could be called back to back and paid `XP_PER_REVIEW`
+every time — the same farming hole as #0, by a different route.
 
-Same fix shape: award review XP only when the card was actually due, or rate
-limit the route. The scheduling side needs no defending — the library already
-behaves correctly.
+**Fix:** `ReviewService.grade` now reads `card.due <= now` *before* handing the
+card to ts-fsrs, and awards XP only when it was genuinely due. Grading a card
+that isn't due still reschedules, because that was never the broken part — the
+library already plateaus intervals correctly, and there's a test pinning it.
+Chosen over a rate limit, which would only have slowed the exploit down while
+also blocking a learner legitimately racing through a due queue.
 
-### 0. XP is re-awarded on every completion, so it can be farmed
+One consequence worth knowing, decided here rather than left implicit:
+`UserService.awardXp` is also where the streak advances, so the not-due path
+does **not** call it with 0. Calling it would have let a learner hold a streak
+by re-grading one card forever — a smaller copy of the hole being closed. The
+response still reports `totalXp`, read through `UserService.findById`.
 
-`POST /lessons/:id/complete` awards a flat `XP_PER_LESSON_COMPLETION = 10` every
-time it's called. Cards are idempotent; **XP is not.** A loop of eight curl
-requests earned 80 XP in my concurrency test. There's no rate limit on this route
-either — the throttler is only on `/auth/*`.
+Verified live: grading a due card awarded 2 XP and moved `due` +10 minutes; an
+immediate re-grade awarded 0 while still moving `due` out to +2 days.
 
-This is the literal reading of the milestone ("Award XP to the user"), and
-re-awarding for practice is normal in habit-loop apps (§12 positioning). But
-right now "practice" and "replay the same POST" are indistinguishable.
+### 0. RESOLVED (pre-client) — XP was re-awarded on every completion, so it could be farmed
 
-**Options, cheapest first:**
-1. Award full XP only when `cardsCreated > 0`, and a smaller practice award
-   otherwise. One line; makes XP track genuine new learning.
-2. Award practice XP through the **review** loop (Milestone 5) instead, and make
-   completion XP first-time-only. Cleaner product story, needs a completion
-   record.
-3. Rate limit the route. Mitigates but doesn't fix.
+`POST /lessons/:id/complete` awarded a flat `XP_PER_LESSON_COMPLETION = 10` every
+time it was called. Cards were idempotent; **XP was not.** A loop of eight curl
+requests earned 80 XP.
 
-I'd take (2) when you build streaks and the daily goal (§14 step 6), since that's
-where completion policy actually gets designed. Flagging now because it's a real
-exploit sitting in `main`.
+**Fix:** option (2) from the original list, which got cheap once `lessonCompletions`
+existed. `recordCompletion` switched from `updateOne` to `findOneAndUpdate(...,
+{ new: true })` and returns the document *after* the `$inc`. Full XP is awarded
+when `timesCompleted === 1`, and `XP_PER_LESSON_PRACTICE` (env var, default 2)
+on every completion after that.
 
-**Update after Milestone 6:** you chose to keep M6 to its stated scope, so this
-is still open — but it got cheaper. Option (2) needed "a completion record", and
-`lessonCompletions` now exists with a `timesCompleted` counter per (user,
-lesson). First-time-only XP is now roughly: have `recordCompletion` return the
-upserted doc, then award full XP when `timesCompleted === 1` and a smaller
-practice award otherwise. `learning.service.spec.ts` has a test named "still
-awards XP on a repeat completion" pinning today's behaviour — that's the one to
-flip when you take this.
+Two details that matter more than they look:
+
+- The decision comes from the **completion counter**, not from `cardsCreated > 0`
+  (option 1). A learner can already hold every card in a lesson via an
+  overlapping lesson, which would make a genuine first completion look like a
+  replay and silently underpay it. There's a test for exactly that case.
+- Reading the counter from the write itself is what makes it concurrency-safe.
+  Mongo assigns the value, so two racing first completions get 1 and 2 — exactly
+  one can be the first. A read-then-write would let both see 1 and both pay full.
+
+The response now carries `firstCompletion: boolean` alongside `xpAwarded`, so a
+client can show a different summary without inferring it from `cardsCreated`.
+
+`learning.service.spec.ts`'s "still awards XP on a repeat completion" — the test
+that pinned the old behaviour — is now "awards only the practice amount on a
+repeat completion".
+
+Verified live: the same lesson completed three times awarded 10, then 2, then 2.
+
+**Note on the config split:** `XP_PER_LESSON_PRACTICE` is an env var but
+`XP_PER_LESSON_COMPLETION` is still a code constant, so the pair now lives in two
+places. That's what was asked for, and the practice award is the one worth tuning
+without a redeploy, but if you ever want both tunable, move them together rather
+than adding a second one-off.
 
 ### 4a. `attempt` is client-supplied, so a learner can reroll a quiz
 
