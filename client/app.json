@@ -41,6 +41,13 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1f2e93dd-6d61-4a83-8280-cf8929c4abf6"
+      }
+    },
+    "owner": "aakash8930"
   }
 }
