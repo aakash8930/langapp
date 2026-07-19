@@ -8,11 +8,14 @@ node_modules
 dist
 *.tsbuildinfo
 
-# local object storage (StorageService dev implementation)
-storage/
+# Local object storage written at runtime by LocalStorageService.
+# Anchored with a leading slash on purpose: a bare `storage/` matches a directory
+# of that name at ANY depth, which also excluded src/common/storage/ — the
+# StorageService source itself — and broke the deploy build.
+/api/storage/
 
 # nightly mongodump output (scripts/backup.sh)
-backups/
+/backups/
 
 # tooling
 coverage
