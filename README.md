@@ -61,6 +61,7 @@ src/
 | `POST` | `/auth/login` | — | rate limited |
 | `POST` | `/auth/refresh` | — | rate limited; single-use rotating token |
 | `GET` | `/me` | Bearer | never returns `passwordHash` |
+| `GET` | `/me/progress` | Bearer | XP, level, streak, today vs daily goal, cards due, lessons done |
 | `PATCH` | `/me/settings` | Bearer | partial update of audioSpeed / theme / tz |
 | `GET` | `/lessons?unit=` | — | ordered by unit then order |
 | `GET` | `/lessons/:id` | — | resolves `itemRefs` into full item documents |
@@ -83,6 +84,71 @@ TOKEN=$(curl -s -X POST localhost:3000/auth/register \
 
 curl -s localhost:3000/me -H "Authorization: Bearer $TOKEN"
 ```
+
+## Streak and daily goal
+
+The streak advances on the **first XP-earning action of a new day in the
+learner's own timezone** (`settings.tz`), and resets when a day is missed.
+
+The whole problem is that "a day" is a local calendar concept, not a 24-hour
+window, so every comparison happens on `'YYYY-MM-DD'` strings rendered in the
+user's zone — never on UTC timestamps. `user/gamification/streak.ts` holds that
+arithmetic, kept free of Mongo so it can be tested directly.
+
+Two consequences worth knowing:
+
+- **`todayXp` is corrected on read.** Nothing rewrites the stored counter until
+  the next award, so after midnight it still holds yesterday's total.
+  `UserService.todayXpFor` returns 0 once `lastStudyDate` no longer matches the
+  local today. Reading `gamification.todayXp` directly is a bug.
+- **`previousDay` does its arithmetic in UTC on purpose.** Its input is already
+  a local calendar date, so this is pure calendar math; using UTC means a DST
+  transition (a 23- or 25-hour local day) can't produce an off-by-one.
+
+Streaks are pinned by tests in `streak.spec.ts` (same day / consecutive /
+skipped / non-UTC learner, plus DST and leap day) and `user.service.spec.ts`
+(the writes those rules produce). See OPEN-ITEMS #6 for the one known edge:
+moving timezone backwards across the date line resets the streak.
+
+## Deployment
+
+Live on the laptop, public via Tailscale Funnel:
+
+**https://aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net/langapp**
+
+Same pull-based pattern as the other projects here — see `~/deploy/README.md`.
+A systemd user timer polls `origin/main` every minute; on a new commit it resets
+the deploy clone at `~/deploy/langapp`, rebuilds, and restarts the service.
+
+| Piece | Where |
+|---|---|
+| Deploy clone | `~/deploy/langapp` (read-only deploy key) |
+| Deploy script | `~/deploy/langapp-deploy.sh` |
+| Service | `langapp-api.service` → `node dist/main` on **:7702** |
+| Timer | `langapp-deploy.timer`, every 60s |
+| Funnel mount | path `/langapp` → `127.0.0.1:7702` |
+
+```bash
+systemctl --user status langapp-api          # is it up
+journalctl --user -u langapp-api -f          # app logs
+journalctl --user -u langapp-deploy -f       # deploy logs
+```
+
+Notes:
+
+- **Tailscale strips the `/langapp` prefix** before proxying, so the app needs no
+  global prefix — `/langapp/me/progress` arrives as `/me/progress`.
+- **Deploy is push-to-main.** `git push origin main` from here and the laptop
+  picks it up within a minute. Nothing else is needed.
+- The deploy clone's `.env` is **not in git**, so it survives `git reset --hard`.
+  Its JWT secrets are deliberately *different* from the dev ones — that instance
+  is internet-facing and this one isn't. Rotating dev secrets does not affect it.
+- **Mongo and Redis are shared with dev** and owned by
+  `~/Projects/langapp/docker-compose.yml`. Never `docker compose up` from the
+  deploy clone; both directories are named `langapp`, so compose would resolve to
+  the same project name. The deploy script only `docker start`s them.
+- Registration is **open to the internet** by choice. See OPEN-ITEMS #1/#3 for
+  what that exposes.
 
 ## Data model notes
 
