@@ -64,6 +64,8 @@ function build(
     xpAfter?: number;
     /** How many times this lesson has been completed *including* this call. */
     timesCompleted?: number;
+    /** Lesson ids the completions collection should report for this user. */
+    completedLessonIds?: string[];
   } = {},
 ): Harness {
   const insertMany = jest.fn((docs: unknown[]) => Promise.resolve(docs));
@@ -86,6 +88,18 @@ function build(
   const lessonCompletionModel = {
     findOneAndUpdate: completionUpdate,
     countDocuments: () => ({ exec: () => Promise.resolve(0) }),
+    // Mirrors find().select('lessonId').lean().exec(). lean() yields plain
+    // objects, so lessonId arrives as a raw ObjectId rather than a hydrated doc.
+    find: () => ({
+      select: () => ({
+        lean: () => ({
+          exec: () =>
+            Promise.resolve(
+              (opts.completedLessonIds ?? []).map((id) => ({ lessonId: new Types.ObjectId(id) })),
+            ),
+        }),
+      }),
+    }),
   };
 
   const awardXp = jest.fn(() =>
@@ -295,5 +309,28 @@ describe('LearningService.completeLesson', () => {
 
     expect(result.cardsCreated).toBe(3);
     expect(awardXp).toHaveBeenCalled();
+  });
+});
+
+describe('LearningService.findCompletedLessonIds', () => {
+  it('returns lesson ids as strings, because the client compares them to JSON', async () => {
+    const ids = ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'];
+    const { service } = build({ completedLessonIds: ids });
+
+    const result = await service.findCompletedLessonIds(USER_ID);
+
+    // The ObjectIds must be stringified here. Leaving them hydrated serialises
+    // to an object, and `prerequisiteLessonIds.every(id => completed.has(id))`
+    // on the client would then never match and lock every lesson forever.
+    expect(result).toEqual(ids);
+    for (const id of result) {
+      expect(typeof id).toBe('string');
+    }
+  });
+
+  it('returns an empty array for a user who has completed nothing', async () => {
+    const { service } = build();
+
+    await expect(service.findCompletedLessonIds(USER_ID)).resolves.toEqual([]);
   });
 });
