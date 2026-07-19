@@ -21,31 +21,136 @@ Both sides depend on this. **If you change a response shape in `api/`, update th
 section in the same commit**, then update `client/` to match. Drift here is the most
 likely bug in the project.
 
+> **Verified against the running API on 2026-07-19.** GET routes were probed live;
+> POST shapes were read from the controllers and DTOs in `api/src`. The version
+> before this date was written from the blueprint rather than the code and was
+> wrong about nearly every response — if you find drift again, date it here.
+
+Bearer token on everything marked `bearer`. A 401 means the client should attempt one
+refresh-and-retry, then clear the session.
+
+### Auth
+
 ```
-POST /auth/register    { email, password }        -> { accessToken, refreshToken }
-POST /auth/login       { email, password }        -> { accessToken, refreshToken }
-POST /auth/refresh     { refreshToken }           -> { accessToken, refreshToken }
+POST /auth/register  { email, password, displayName, nativeLanguage?, tz? }  -> 201
+POST /auth/login     { email, password }                                     -> 200
+     both -> { user: <UserResponse>, tokens: { accessToken, refreshToken, expiresIn } }
 
-GET  /me               bearer -> { id, email, profile, gamification, settings }
-PATCH /me/settings     bearer -> updated settings
-GET  /me/progress      bearer -> { xp, level, streakDays, todayXp, dailyGoalXp,
-                                   cardsDue, lessonsCompleted }
-
-GET  /lessons?unit=            -> [ { id, title, order, locked, prerequisiteLessonIds } ]
-GET  /lessons/:id              -> lesson with resolved items
-GET  /lessons/:id/exercises              bearer -> [ { exerciseId, prompt, options } ]
-POST /lessons/:id/exercises/:eid/answer  bearer -> { correct, correctAnswer }
-POST /lessons/:id/complete               bearer -> { xpAwarded, cardsAdded }
-
-GET  /reviews/due              bearer -> [ { cardId, item, state } ]  (max 20)
-POST /reviews/:cardId/grade    bearer -> { nextDue, xpAwarded }
+POST /auth/refresh   { refreshToken }  -> 200
+     -> { accessToken, refreshToken, expiresIn }        // flat, NOT nested under `tokens`
 ```
 
-Auth: bearer token on everything except register/login/refresh. A 401 means the client
-should attempt one refresh-and-retry, then clear the session.
+`displayName` is required, 1–60 chars. `password` is 8–128, `email` ≤254.
 
-**Never leak `passwordHash` or FSRS internals (`stability`, `difficulty`) to the client.**
-The client shows `nextDue`, not the scheduling math.
+Refresh tokens **rotate**: the presented token is consumed, so replaying one fails at
+the Redis check even though the signature still verifies. A client must therefore
+serialise refreshes — concurrent 401s sharing one in-flight refresh, not one each.
+
+`/auth/register` and `/auth/login` are rate limited (`AUTH_THROTTLE_*`, default 10 per
+60s) and return **429** past the limit.
+
+Login answers **401 `Invalid credentials` for both an unknown email and a wrong
+password**, and burns a dummy argon2 verify when no user exists to keep timing flat.
+That is deliberate anti-enumeration — do not "improve" the client copy by claiming
+which field was wrong, because the API does not know and neither do you.
+
+### Me
+
+```
+GET   /me            bearer -> <UserResponse>
+PATCH /me/settings   bearer  { audioSpeed?, theme?, tz? }  -> <UserResponse>
+GET   /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
+                                 streakDays, lastStudyDate,
+                                 daily: { xpToday, goalXp, percentOfGoal, goalMet },
+                                 cardsDueNow, lessonsCompleted }
+
+UserResponse = { id, email, createdAt,
+                 profile:      { displayName, nativeLanguage, activeTrack: 'ja' },
+                 gamification: { xp, streakDays, lastStudyDate, dailyGoalXp },
+                 settings:     { audioSpeed, theme, tz } }
+```
+
+`PATCH /me/settings` returns the **whole user**, not just the settings block.
+`audioSpeed` is 0.5–2.0, `theme` is `light`/`dark`, `tz` an IANA zone name.
+
+Progress nests the daily numbers under `daily` — there is no top-level `todayXp` or
+`dailyGoalXp`. `xpToday` is recomputed on read, because the stored counter still holds
+yesterday's total until the next award rewrites it.
+
+### Lessons — no bearer
+
+```
+GET /lessons?unit=  -> [ <LessonSummary> ]
+GET /lessons/:id    -> <LessonSummary> & { items: [ <ResolvedItem> ] }
+
+LessonSummary = { id, lang, unit, order, title,
+                  exerciseTypes, itemCount, prerequisiteLessonIds }
+ResolvedItem  = discriminated on `kind`:
+  kana    { kind, id, kana, romaji, script, row, order }
+  vocab   { kind, id, lemma, reading, gloss, pos, jlpt }
+  grammar { kind, id, title, jlpt, explanation }
+  kanji   { kind, id, char, on[], kun[], meanings[], strokes }
+```
+
+**Unauthenticated on purpose** — shared reference content with no per-user state.
+
+**There is no `locked` field.** The client derives it from `prerequisiteLessonIds`
+against the lessons it has completed. Nothing on the server computes lock state.
+
+### Exercises — bearer
+
+```
+GET  /lessons/:id/exercises?attempt=  -> { lessonId, unit, title, attempt, questionCount,
+                                           questions: [ <Question> ] }
+POST /lessons/:id/exercises/:exerciseId/answer   { optionId: 'opt-N' }  -> 200
+     -> { exerciseId, correct, selectedOptionId, selectedValue,
+          correctOptionId, correctValue, prompt }
+POST /lessons/:id/complete  -> 200
+     -> { lessonId, title, cardsCreated, cardsAlreadyPresent,
+          xpAwarded, firstCompletion, totalXp }
+
+Question = { exerciseId, type: 'multipleChoice', prompt, promptKind: 'kana',
+             question, options: [ { id, value } ] }
+```
+
+The exercise set is an **object with a `questions` array**, not a bare array.
+
+Generation is seeded per `(lesson, user, attempt)`, which is why these routes need a
+bearer while plain `/lessons` does not. **The same `attempt` always yields the same
+questions** — bump it to reshuffle. No answer key is ever sent; `correct` comes only
+from the answer endpoint.
+
+`/complete` is idempotent for XP: the full award lands once, a smaller practice award
+on every repeat. `firstCompletion` says which happened, so don't infer it from
+`cardsCreated`.
+
+### Reviews — bearer
+
+```
+GET  /reviews/due  -> { count, totalDue, cap,
+                        cards: [ { cardId, state, due, reps, lapses,
+                                   item: <ResolvedItem> } ] }
+POST /reviews/:cardId/grade   { grade: 'again'|'hard'|'good'|'easy' }  -> 200
+     -> { cardId, grade, state, due, intervalMinutes, reps, lapses,
+          stability, difficulty, xpAwarded, totalXp }
+```
+
+Also an object wrapping the array, not a bare array. `totalDue` is the true count and
+`count` the capped batch, so a client can show "20 of 47".
+
+XP is due-gated: grading a card that was not actually due awards nothing.
+
+### The leak rule, and where it is currently broken
+
+**Never leak `passwordHash` or FSRS internals (`stability`, `difficulty`) to the
+client.** The client shows `due` / `intervalMinutes`, not the scheduling math.
+
+`passwordHash` is safe — `toUserResponse` is an explicit allowlist.
+
+⚠️ **`POST /reviews/:cardId/grade` violates this today**: `GradeReviewResponse`
+declares and `review.service.ts` returns both `stability` and `difficulty`. Either
+drop them from that DTO or amend this rule — but until one of those happens, the
+client must not read or display them.
 
 ## Ground rules across both projects
 
