@@ -56,6 +56,7 @@ src/
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
+| `GET` | `/` | — | HTML status page: live dependency state + this route list |
 | `GET` | `/health` | — | 200 ok / 503 degraded, with live dependency checks |
 | `POST` | `/auth/register` | — | rate limited |
 | `POST` | `/auth/login` | — | rate limited |
@@ -137,7 +138,11 @@ journalctl --user -u langapp-deploy -f       # deploy logs
 Notes:
 
 - **Tailscale strips the `/langapp` prefix** before proxying, so the app needs no
-  global prefix — `/langapp/me/progress` arrives as `/me/progress`.
+  global prefix — `/langapp/me/progress` arrives as `/me/progress`. The flip side
+  is that the app cannot know its own public base path, which is why the status
+  page at `/` lists endpoints as **plain text and emits no links**: an absolute
+  `href` would point at the funnel root (a different service), and a relative one
+  would depend on whether the visitor typed a trailing slash.
 - **Deploy is push-to-main.** `git push origin main` from here and the laptop
   picks it up within a minute. Nothing else is needed.
 - The deploy clone's `.env` is **not in git**, so it survives `git reset --hard`.
