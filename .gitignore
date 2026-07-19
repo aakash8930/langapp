@@ -1,0 +1,17 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# deps & build
+node_modules
+dist
+*.tsbuildinfo
+
+# local object storage (StorageService dev implementation)
+storage/
+
+# tooling
+coverage
+*.log
+.DS_Store

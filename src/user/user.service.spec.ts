@@ -1,0 +1,194 @@
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { UserDocument } from './schemas/user.schema';
+import { UserService } from './user.service';
+
+const USER_ID = '607f1f77bcf86cd799439011';
+
+/**
+ * Covers `awardXp` — where the streak rules from gamification/streak.ts meet
+ * the actual writes. streak.spec.ts proves the arithmetic; this proves the
+ * right update reaches Mongo, in particular that `todayXp` is *reset* rather
+ * than incremented when the local day turns.
+ */
+interface Stored {
+  xp: number;
+  streakDays: number;
+  lastStudyDate: string | null;
+  todayXp: number;
+  tz: string;
+}
+
+interface Harness {
+  service: UserService;
+  findOneAndUpdate: jest.Mock;
+  findByIdAndUpdate: jest.Mock;
+}
+
+function build(stored: Partial<Stored> = {}, opts: { rollLosesRace?: boolean } = {}): Harness {
+  const state: Stored = {
+    xp: 100,
+    streakDays: 3,
+    lastStudyDate: '2026-07-18',
+    todayXp: 40,
+    tz: 'Asia/Kolkata',
+    ...stored,
+  };
+
+  const doc = {
+    gamification: {
+      xp: state.xp,
+      streakDays: state.streakDays,
+      lastStudyDate: state.lastStudyDate,
+      todayXp: state.todayXp,
+    },
+    settings: { tz: state.tz },
+  } as unknown as UserDocument;
+
+  const findOneAndUpdate = jest.fn(() => ({
+    // null models "another request already rolled the day" — the guard on
+    // lastStudyDate matched nothing.
+    exec: () => Promise.resolve(opts.rollLosesRace ? null : doc),
+  }));
+  const findByIdAndUpdate = jest.fn(() => ({ exec: () => Promise.resolve(doc) }));
+
+  const userModel = {
+    findById: () => ({ exec: () => Promise.resolve(doc) }),
+    findOneAndUpdate,
+    findByIdAndUpdate,
+  };
+
+  return { service: new UserService(userModel as never), findOneAndUpdate, findByIdAndUpdate };
+}
+
+/** The `$inc`/`$set` payload handed to Mongo. */
+function updateArg(mock: jest.Mock, call = 0): Record<string, Record<string, unknown>> {
+  // findOneAndUpdate takes (filter, update, opts); findByIdAndUpdate (id, update, opts).
+  return mock.mock.calls[call][1] as Record<string, Record<string, unknown>>;
+}
+
+describe('UserService.awardXp', () => {
+  // 12:00Z is 17:30 in Kolkata — comfortably mid-day, so the test doesn't
+  // depend on which side of midnight UTC happens to be.
+  const NOW = new Date('2026-07-19T12:00:00Z');
+
+  it('accumulates XP without touching the streak on a repeat action the same day', async () => {
+    const { service, findByIdAndUpdate, findOneAndUpdate } = build({
+      lastStudyDate: '2026-07-19',
+    });
+
+    await service.awardXp(USER_ID, 10, NOW);
+
+    // No day roll, so the guarded update must not fire at all.
+    expect(findOneAndUpdate).not.toHaveBeenCalled();
+
+    const update = updateArg(findByIdAndUpdate);
+    // Both counters increment; nothing resets and no streak field is written.
+    expect(update.$inc).toEqual({ 'gamification.xp': 10, 'gamification.todayXp': 10 });
+    expect(update.$set).toBeUndefined();
+  });
+
+  it('rolls the streak and restarts todayXp on the first action of a new day', async () => {
+    const { service, findOneAndUpdate } = build({
+      lastStudyDate: '2026-07-18',
+      streakDays: 3,
+      todayXp: 40,
+    });
+
+    await service.awardXp(USER_ID, 10, NOW);
+
+    const [filter, update] = findOneAndUpdate.mock.calls[0] as [
+      Record<string, unknown>,
+      Record<string, Record<string, unknown>>,
+    ];
+
+    // Guarded on the value we read, so two concurrent first-actions can't both
+    // advance the streak.
+    expect(filter['gamification.lastStudyDate']).toBe('2026-07-18');
+
+    expect(update.$inc).toEqual({ 'gamification.xp': 10 });
+    expect(update.$set).toEqual({
+      'gamification.streakDays': 4,
+      'gamification.lastStudyDate': '2026-07-19',
+      // The critical bit: yesterday's 40 is replaced, not added to.
+      'gamification.todayXp': 10,
+    });
+  });
+
+  it('resets the streak to 1 when the user skipped a day', async () => {
+    const { service, findOneAndUpdate } = build({ lastStudyDate: '2026-07-17', streakDays: 9 });
+
+    await service.awardXp(USER_ID, 10, NOW);
+
+    expect(updateArg(findOneAndUpdate).$set!['gamification.streakDays']).toBe(1);
+  });
+
+  it('applies only the XP when it loses the race to roll the day', async () => {
+    const { service, findByIdAndUpdate } = build(
+      { lastStudyDate: '2026-07-18' },
+      { rollLosesRace: true },
+    );
+
+    await service.awardXp(USER_ID, 10, NOW);
+
+    // The winner already set the streak and date correctly; re-setting them
+    // here would double-count the day.
+    const update = updateArg(findByIdAndUpdate);
+    expect(update.$inc).toEqual({ 'gamification.xp': 10, 'gamification.todayXp': 10 });
+    expect(update.$set).toBeUndefined();
+  });
+
+  it('uses the learner own timezone to decide what "today" is', async () => {
+    // 20:00Z is already the 19th in Kolkata but still the 18th in UTC. A user
+    // who last studied on their local 18th is starting a new day right now.
+    const eveningUtc = new Date('2026-07-18T20:00:00Z');
+    const { service, findOneAndUpdate } = build({ lastStudyDate: '2026-07-18', streakDays: 3 });
+
+    await service.awardXp(USER_ID, 10, eveningUtc);
+
+    const set = updateArg(findOneAndUpdate).$set!;
+    expect(set['gamification.lastStudyDate']).toBe('2026-07-19');
+    expect(set['gamification.streakDays']).toBe(4);
+  });
+
+  it('rejects a negative or fractional award before writing anything', async () => {
+    const { service, findByIdAndUpdate, findOneAndUpdate } = build();
+
+    await expect(service.awardXp(USER_ID, -5, NOW)).rejects.toThrow(BadRequestException);
+    await expect(service.awardXp(USER_ID, 1.5, NOW)).rejects.toThrow(BadRequestException);
+
+    expect(findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFound when the user is gone', async () => {
+    const userModel = { findById: () => ({ exec: () => Promise.resolve(null) }) };
+    const service = new UserService(userModel as never);
+
+    await expect(service.awardXp(USER_ID, 10, NOW)).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('UserService.todayXpFor', () => {
+  const doc = (lastStudyDate: string | null, todayXp: number): UserDocument =>
+    ({
+      gamification: { lastStudyDate, todayXp },
+      settings: { tz: 'Asia/Kolkata' },
+    }) as unknown as UserDocument;
+
+  const service = new UserService({} as never);
+  const NOW = new Date('2026-07-19T12:00:00Z');
+
+  it('returns the stored counter when it belongs to today', () => {
+    expect(service.todayXpFor(doc('2026-07-19', 30), NOW)).toBe(30);
+  });
+
+  it('returns 0 once the local day has turned', () => {
+    // Nothing rewrites todayXp until the next award, so the read path — not
+    // the write path — is what stops yesterday's 30 being shown as today's.
+    expect(service.todayXpFor(doc('2026-07-18', 30), NOW)).toBe(0);
+  });
+
+  it('returns 0 for a user who has never studied', () => {
+    expect(service.todayXpFor(doc(null, 0), NOW)).toBe(0);
+  });
+});

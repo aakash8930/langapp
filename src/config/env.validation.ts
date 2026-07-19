@@ -1,0 +1,72 @@
+/**
+ * Plain, boring env validation. Runs once at boot via ConfigModule's `validate`.
+ * Anything missing or malformed fails the process immediately rather than
+ * surfacing as a confusing runtime error later.
+ */
+export interface EnvConfig {
+  NODE_ENV: string;
+  PORT: number;
+  MONGO_URI: string;
+  REDIS_URL: string;
+  JWT_ACCESS_SECRET: string;
+  JWT_REFRESH_SECRET: string;
+  JWT_ACCESS_TTL: string;
+  JWT_REFRESH_TTL: string;
+  AUTH_THROTTLE_LIMIT: number;
+  AUTH_THROTTLE_TTL_SECONDS: number;
+}
+
+function required(raw: Record<string, unknown>, key: string): string {
+  const value = raw[key];
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`Missing required env var: ${key} (see .env.example)`);
+  }
+  return value.trim();
+}
+
+function optional(raw: Record<string, unknown>, key: string, fallback: string): string {
+  const value = raw[key];
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : fallback;
+}
+
+function positiveInt(raw: Record<string, unknown>, key: string, fallback: number): number {
+  const value = Number(raw[key] ?? fallback);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`Invalid env var: ${key} must be a positive integer, got "${String(raw[key])}"`);
+  }
+  return value;
+}
+
+/**
+ * §10: secrets come from env, never the repo. A short secret is worse than no
+ * auth at all, so the length floor is enforced at boot rather than trusted.
+ */
+function secret(raw: Record<string, unknown>, key: string): string {
+  const value = required(raw, key);
+  if (value.length < 32) {
+    throw new Error(`Weak env var: ${key} must be at least 32 characters`);
+  }
+  return value;
+}
+
+export function validateEnv(raw: Record<string, unknown>): EnvConfig {
+  const accessSecret = secret(raw, 'JWT_ACCESS_SECRET');
+  const refreshSecret = secret(raw, 'JWT_REFRESH_SECRET');
+
+  if (accessSecret === refreshSecret) {
+    throw new Error('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different values');
+  }
+
+  return {
+    NODE_ENV: optional(raw, 'NODE_ENV', 'development'),
+    PORT: positiveInt(raw, 'PORT', 3000),
+    MONGO_URI: required(raw, 'MONGO_URI'),
+    REDIS_URL: required(raw, 'REDIS_URL'),
+    JWT_ACCESS_SECRET: accessSecret,
+    JWT_REFRESH_SECRET: refreshSecret,
+    JWT_ACCESS_TTL: optional(raw, 'JWT_ACCESS_TTL', '15m'),
+    JWT_REFRESH_TTL: optional(raw, 'JWT_REFRESH_TTL', '7d'),
+    AUTH_THROTTLE_LIMIT: positiveInt(raw, 'AUTH_THROTTLE_LIMIT', 10),
+    AUTH_THROTTLE_TTL_SECONDS: positiveInt(raw, 'AUTH_THROTTLE_TTL_SECONDS', 60),
+  };
+}

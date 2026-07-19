@@ -1,0 +1,91 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
+
+/**
+ * §5: embed what is read together and bounded. Profile, gamification and
+ * settings are always read with the user, so they are sub-documents, not refs.
+ * `_id: false` keeps them plain embedded objects.
+ */
+@Schema({ _id: false })
+export class Profile {
+  @Prop({ required: true, trim: true })
+  displayName: string;
+
+  @Prop({ required: true, default: 'en' })
+  nativeLanguage: string;
+
+  @Prop({ type: String, required: true, enum: ['ja'], default: 'ja' })
+  activeTrack: 'ja';
+}
+export const ProfileSchema = SchemaFactory.createForClass(Profile);
+
+@Schema({ _id: false })
+export class Gamification {
+  @Prop({ required: true, default: 0, min: 0 })
+  xp: number;
+
+  @Prop({ required: true, default: 0, min: 0 })
+  streakDays: number;
+
+  /** 'YYYY-MM-DD' in the user's own tz — a string, not a Date, on purpose (§5). */
+  @Prop({ type: String, default: null })
+  lastStudyDate: string | null;
+
+  @Prop({ required: true, default: 50, min: 0 })
+  dailyGoalXp: number;
+
+  /**
+   * Beyond §5. "Today's XP vs dailyGoalXp" needs a per-day counter, and §5 only
+   * stores lifetime `xp`. The alternative — summing today's `xpAwarded` out of
+   * the analytics events — would mean reading another module's collection for
+   * business logic, and those writes are best-effort (they swallow failures),
+   * so the goal ring would silently under-report.
+   *
+   * Reset to 0 by `awardXp` on the first action of a new local day, alongside
+   * `lastStudyDate`. The two are only ever written together.
+   */
+  @Prop({ required: true, default: 0, min: 0 })
+  todayXp: number;
+}
+export const GamificationSchema = SchemaFactory.createForClass(Gamification);
+
+@Schema({ _id: false })
+export class Settings {
+  @Prop({ required: true, default: 1.0, min: 0.5, max: 2.0 })
+  audioSpeed: number;
+
+  @Prop({ type: String, required: true, enum: ['light', 'dark'], default: 'light' })
+  theme: 'light' | 'dark';
+
+  @Prop({ required: true, default: 'Asia/Kolkata' })
+  tz: string;
+}
+export const SettingsSchema = SchemaFactory.createForClass(Settings);
+
+@Schema({ collection: 'users', timestamps: { createdAt: true, updatedAt: true } })
+export class User {
+  @Prop({ required: true, lowercase: true, trim: true })
+  email: string;
+
+  /**
+   * `select: false` means every query omits this unless it explicitly opts in.
+   * The serializer is the second line of defence; this is the first.
+   */
+  @Prop({ required: true, select: false })
+  passwordHash: string;
+
+  @Prop({ type: ProfileSchema, required: true })
+  profile: Profile;
+
+  @Prop({ type: GamificationSchema, required: true, default: () => ({}) })
+  gamification: Gamification;
+
+  @Prop({ type: SettingsSchema, required: true, default: () => ({}) })
+  settings: Settings;
+}
+
+export type UserDocument = HydratedDocument<User>;
+export const UserSchema = SchemaFactory.createForClass(User);
+
+// The lookup behind every login. Unique enforces one account per address.
+UserSchema.index({ email: 1 }, { unique: true });
