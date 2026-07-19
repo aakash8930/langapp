@@ -11,6 +11,9 @@ dist
 # local object storage (StorageService dev implementation)
 storage/
 
+# nightly mongodump output (scripts/backup.sh)
+backups/
+
 # tooling
 coverage
 *.log

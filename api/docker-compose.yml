@@ -1,3 +1,10 @@
+# Pins the compose project name. Without this, compose derives it from the
+# containing directory — moving this file to api/ would make the project "api",
+# which namespaces volumes as api_mongo-data and leaves the real data orphaned in
+# langapp_mongo-data. The dev database would silently come up empty.
+# Do not remove or rename this.
+name: langapp
+
 services:
   mongo:
     image: mongo:7

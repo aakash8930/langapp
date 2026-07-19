@@ -12,8 +12,9 @@ is built independently. Don't introduce a workspace manager without asking.
 
 ```
 api/                    NestJS backend — see api/CLAUDE.md for its rules
-web/                    frontend — NOT YET SCAFFOLDED, stack undecided
-docker-compose.yml      mongo + redis, shared by both apps
+  docker-compose.yml    mongo + redis
+client/                 Expo app — NOT YET SCAFFOLDED
+scripts/                ops scripts (backup.sh) — NOT YET WRITTEN
 PHASE-0-BLUEPRINT.md    the spec
 OPEN-ITEMS.md           deferred decisions and trade-offs, ordered by urgency
 ```
@@ -23,16 +24,17 @@ apply on top of these.
 
 ## Commands
 
-Infra is shared and runs from the root:
+Infra lives with the backend:
 
 ```bash
-docker compose up -d      # mongo :27018, redis :6379
+cd api && docker compose up -d    # mongo :27018, redis :6379
 ```
 
-Compose **must** be run from this directory. The project name is derived from the
-directory name (`langapp`), and the containers use explicit names
-(`langapp-mongo`, `langapp-redis`). Running compose from a subdirectory creates a
-different project and collides on those container names.
+`api/docker-compose.yml` sets a top-level `name: langapp`. That pin is
+load-bearing — compose otherwise derives the project from the directory, and the
+volumes holding all dev data are namespaced `langapp_mongo-data` /
+`langapp_redis-data`. Drop the pin and compose creates empty `api_*` volumes,
+leaving the real data orphaned and the database apparently wiped.
 
 Per-app commands live in each app's `CLAUDE.md`. Nothing at the root builds or
 tests the apps — `cd` into one first.

@@ -58,14 +58,17 @@ If a task seems to need one of these, stop and ask.
 
 ## Commands
 
-Run from `api/`, except compose, which lives at the repo root:
+All run from `api/`:
 
 ```bash
-(cd .. && docker compose up -d)   # mongo + redis
-npm run start:dev                 # api on :3000
-npm run test                      # unit
-npm run seed                      # load Japanese content pack
+docker compose up -d      # mongo + redis
+npm run start:dev         # api on :3000
+npm run test              # unit
+npm run seed              # load Japanese content pack
 ```
+
+`docker-compose.yml` pins `name: langapp` — see the note in `../CLAUDE.md`
+before touching it.
 
 ## Working style
 

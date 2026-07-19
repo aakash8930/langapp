@@ -9,18 +9,18 @@ AI-native language learning platform. Phase 0 = Japanese only, single learner fl
 ## Layout
 
 ```
-api/    NestJS backend
-web/    frontend — not yet scaffolded
+api/        NestJS backend + docker-compose.yml
+client/     Expo app — not yet scaffolded
+scripts/    ops scripts — not yet written
 ```
 
-No workspace tooling — each app installs and builds on its own. Only
-`docker-compose.yml` is shared, and it must be run from the repo root.
+No workspace tooling — each app installs and builds on its own.
 
 ## Running it
 
 ```bash
-docker compose up -d          # from the repo root: mongo + redis, localhost-only
 cd api
+docker compose up -d          # mongo + redis, localhost-only ports
 cp .env.example .env          # then fill in the two JWT secrets
 npm install
 npm run seed                  # loads the Hiragana content pack
@@ -166,9 +166,10 @@ Notes:
   changes the API's working directory has to move it by hand or the service will
   fail `validateEnv` on restart.
 - **Mongo and Redis are shared with dev** and owned by
-  `~/Projects/langapp/docker-compose.yml`. Never `docker compose up` from the
-  deploy clone; both directories are named `langapp`, so compose would resolve to
-  the same project name. The deploy script only `docker start`s them.
+  `~/Projects/langapp/api/docker-compose.yml`. Never `docker compose up` from the
+  deploy clone — that file pins `name: langapp`, so it resolves to the *same*
+  project from anywhere and would recreate the containers underneath the dev
+  stack. The deploy script only `docker start`s them.
 - Registration is **open to the internet** by choice. See OPEN-ITEMS #1/#3 for
   what that exposes.
 
