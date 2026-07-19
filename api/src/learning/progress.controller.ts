@@ -38,9 +38,9 @@ export class ProgressController {
     // must agree, and two calls to new Date() can straddle a midnight boundary.
     const now = new Date();
 
-    const [cardsDueNow, lessonsCompleted] = await Promise.all([
+    const [cardsDueNow, completedLessonIds] = await Promise.all([
       this.reviewService.countDue(current.userId, now),
-      this.learningService.countCompletedLessons(current.userId),
+      this.learningService.findCompletedLessonIds(current.userId),
     ]);
 
     const { xp, streakDays, lastStudyDate, dailyGoalXp } = user.gamification;
@@ -68,7 +68,8 @@ export class ProgressController {
         goalMet: xpToday >= dailyGoalXp,
       },
       cardsDueNow,
-      lessonsCompleted,
+      lessonsCompleted: completedLessonIds.length,
+      completedLessonIds,
     };
   }
 }

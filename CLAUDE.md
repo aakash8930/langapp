@@ -62,7 +62,7 @@ PATCH /me/settings   bearer  { audioSpeed?, theme?, tz? }  -> <UserResponse>
 GET   /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
                                  streakDays, lastStudyDate,
                                  daily: { xpToday, goalXp, percentOfGoal, goalMet },
-                                 cardsDueNow, lessonsCompleted }
+                                 cardsDueNow, lessonsCompleted, completedLessonIds }
 
 UserResponse = { id, email, createdAt,
                  profile:      { displayName, nativeLanguage, activeTrack: 'ja' },
@@ -76,6 +76,10 @@ UserResponse = { id, email, createdAt,
 Progress nests the daily numbers under `daily` — there is no top-level `todayXp` or
 `dailyGoalXp`. `xpToday` is recomputed on read, because the stored counter still holds
 yesterday's total until the next award rewrites it.
+
+`completedLessonIds` exists so the client can compute lesson lock state; it was added
+2026-07-19, since a bare `lessonsCompleted` count cannot answer which prerequisites are
+satisfied. `lessonsCompleted` is now derived from its length, so the two cannot drift.
 
 ### Lessons — no bearer
 
@@ -94,8 +98,9 @@ ResolvedItem  = discriminated on `kind`:
 
 **Unauthenticated on purpose** — shared reference content with no per-user state.
 
-**There is no `locked` field.** The client derives it from `prerequisiteLessonIds`
-against the lessons it has completed. Nothing on the server computes lock state.
+**There is no `locked` field.** The client derives it: a lesson unlocks once every id
+in its `prerequisiteLessonIds` appears in `completedLessonIds` from `/me/progress`.
+Nothing on the server computes lock state.
 
 ### Exercises — bearer
 

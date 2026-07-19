@@ -29,6 +29,14 @@ export interface ProgressResponse {
 
   /** Cards whose `due` has passed as of this request. */
   cardsDueNow: number;
-  /** Distinct lessons completed at least once. */
+  /** Distinct lessons completed at least once. Always `completedLessonIds.length`. */
   lessonsCompleted: number;
+  /**
+   * Which lessons are done, not just how many.
+   *
+   * The client needs this to derive lock state: a lesson unlocks once every id
+   * in its `prerequisiteLessonIds` appears here. A count cannot answer that, and
+   * nothing else on the API exposes it.
+   */
+  completedLessonIds: string[];
 }

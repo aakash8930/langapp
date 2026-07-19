@@ -197,11 +197,26 @@ export class LearningService {
     return completion;
   }
 
-  /** Distinct lessons this user has completed at least once. */
-  async countCompletedLessons(userId: string): Promise<number> {
-    return this.lessonCompletionModel
-      .countDocuments({ userId: new Types.ObjectId(userId) })
+  /**
+   * Distinct lessons this user has completed at least once.
+   *
+   * Returns ids rather than a count because a client cannot derive lesson lock
+   * state without them: prerequisites are expressed as lesson ids, so a bare
+   * number answers nothing. /me/progress takes its count off `.length`, so the
+   * two can never disagree.
+   *
+   * Phase 0 ships a few dozen lessons, so the array stays small. If content
+   * volume ever makes that untrue, lock state belongs on the server rather than
+   * this growing unbounded.
+   */
+  async findCompletedLessonIds(userId: string): Promise<string[]> {
+    const rows = await this.lessonCompletionModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .select('lessonId')
+      .lean<{ lessonId: Types.ObjectId }[]>()
       .exec();
+
+    return rows.map((row) => row.lessonId.toString());
   }
 
   async countCards(userId: string): Promise<number> {
