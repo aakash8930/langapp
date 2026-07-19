@@ -1,0 +1,40 @@
+/**
+ * Mirrors ResolvedItem in api/src/content/dto/lesson-response.dto.ts.
+ *
+ * Its own module because two unrelated endpoints embed it — a lesson's `items`
+ * and a review card's `item` — and neither should have to import the other.
+ *
+ * Phase 0 only ever creates kana cards, since lessons are kana. The other three
+ * arms are here because the server can return them and a `kind` the client has
+ * not considered would render as a blank card, which is the worst possible
+ * failure on the screen someone uses every morning.
+ */
+export type ResolvedItem =
+  | {
+      kind: 'kana';
+      id: string;
+      kana: string;
+      romaji: string;
+      script: string;
+      row: string;
+      order: number;
+    }
+  | {
+      kind: 'vocab';
+      id: string;
+      lemma: string;
+      reading: string;
+      gloss: string;
+      pos: string;
+      jlpt: string;
+    }
+  | { kind: 'grammar'; id: string; title: string; jlpt: string; explanation: string }
+  | {
+      kind: 'kanji';
+      id: string;
+      char: string;
+      on: string[];
+      kun: string[];
+      meanings: string[];
+      strokes: number;
+    };
