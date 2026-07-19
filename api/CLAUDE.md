@@ -44,8 +44,11 @@ This is what makes future extraction cheap. Enforce it in every review.
 
 - Every endpoint has a DTO with `class-validator` decorators. No untyped `body: any`.
 - Every Mongoose schema gets explicit indexes. `SrsCard` **must** have `{ userId: 1, due: 1 }`.
-- Object/file storage goes behind a `StorageService` interface (`put/get/delete`).
-  Dev implementation writes to `./storage/`. Never call `fs` directly from a feature module.
+- Object/file storage goes behind the `StorageService` abstract class
+  (`put/get/delete`) in `src/common/storage/`. `LocalStorageService` is the Stage A
+  binding and writes under `STORAGE_DIR` (default `./storage/`). Inject
+  `StorageService`, never the implementation, and never call `fs` directly from a
+  feature module. Keys are untrusted — `resolveKey` is the containment boundary.
 - Secrets come from env via `@nestjs/config`. Never commit `.env`.
 - Errors: throw Nest's built-in HTTP exceptions. No custom error framework.
 - Keep responses lean — don't return `passwordHash` ever. Use a serializer/DTO.

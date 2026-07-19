@@ -14,6 +14,7 @@ export interface EnvConfig {
   JWT_REFRESH_TTL: string;
   AUTH_THROTTLE_LIMIT: number;
   AUTH_THROTTLE_TTL_SECONDS: number;
+  STORAGE_DIR: string;
 }
 
 function required(raw: Record<string, unknown>, key: string): string {
@@ -68,5 +69,6 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     JWT_REFRESH_TTL: optional(raw, 'JWT_REFRESH_TTL', '7d'),
     AUTH_THROTTLE_LIMIT: positiveInt(raw, 'AUTH_THROTTLE_LIMIT', 10),
     AUTH_THROTTLE_TTL_SECONDS: positiveInt(raw, 'AUTH_THROTTLE_TTL_SECONDS', 60),
+    STORAGE_DIR: optional(raw, 'STORAGE_DIR', './storage'),
   };
 }

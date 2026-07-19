@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { ContentModule } from './content/content.module';
 import { LearningModule } from './learning/learning.module';
 import { KnowledgeGraphModule } from './knowledge-graph/knowledge-graph.module';
+import { StorageModule } from './common/storage/storage.module';
 import { RedisThrottlerStorage } from './common/throttler/redis-throttler.storage';
 import { ThrottlerStorageModule } from './common/throttler/throttler-storage.module';
 import { validateEnv } from './config/env.validation';
@@ -32,6 +33,7 @@ import { UserModule } from './user/user.module';
       }),
     }),
     RedisModule,
+    StorageModule,
     // Global so the guard in common/ can verify tokens without importing
     // AuthModule — which imports UserModule, which would close the cycle.
     // Secrets are passed per-call, since access and refresh use different ones.
