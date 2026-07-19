@@ -72,6 +72,46 @@ There is no test runner in `client/` yet, so `typecheck` and a successful
 > `npx expo install` is broken under npm 11 in this repo — resolve version pins
 > from `bundledNativeModules.json` and add them to `package.json` by hand.
 
+### Building the APK
+
+The client is built with EAS Build and sideloaded — **APK, not AAB**: there is no Play
+Store listing, and an AAB cannot be installed directly.
+
+```bash
+cd client
+
+# One time only. `init` writes extra.eas.projectId into app.json — commit that.
+npx eas-cli login
+npx eas-cli init
+
+# Commit first: EAS uploads the committed git state, not the working directory.
+npx eas-cli build --platform android --profile production
+```
+
+EAS offers to generate an Android keystore on the first build. Say yes and let it keep
+it — **a later build signed with a different key cannot upgrade over this install**,
+Android refuses it, and you have to uninstall and lose the Keychain session first.
+
+When the build finishes, EAS prints a URL and a QR code. Scan it on the phone, download
+the APK, and allow "install unknown apps" for the browser when prompted. Or over USB:
+
+```bash
+adb install -r <downloaded>.apk
+```
+
+Bump `expo.android.versionCode` in `app.json` for each build you want to install over a
+previous one. `eas.json` sets `appVersionSource: "local"`, so that number comes from
+`app.json` and EAS will not invent one.
+
+**`EXPO_PUBLIC_API_URL` comes from `eas.json`, not `.env`.** `.env` is gitignored, so it
+is never uploaded to the build — a cloud build that relied on it would produce an app
+that throws "EXPO_PUBLIC_API_URL is not set" on first launch. All three profiles pin the
+funnel URL explicitly. Change it there if the funnel hostname ever changes.
+
+The APK talks to the deployed API over the funnel and needs no dev server. It does need
+the laptop awake and `langapp-api.service` running — otherwise the app shows its offline
+state, which is the intended behaviour, not a crash.
+
 ## Architecture
 
 One NestJS app, modules matching future service boundaries (§4 of the blueprint).

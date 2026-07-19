@@ -96,6 +96,32 @@ place where the design is allowed to be bold.
 - The API runs on a laptop and will be offline regularly — treat that as a normal
   condition to handle, not an exception.
 
+## Building
+
+`eas.json` defines three profiles; all three build an **APK** (`android.buildType`),
+never an AAB. EAS defaults `production` to `app-bundle`, so that override is deliberate
+— this app is sideloaded and an AAB cannot be installed directly.
+
+**`EXPO_PUBLIC_API_URL` lives in `eas.json`, not `.env`.** `.env` is gitignored and EAS
+uploads the committed git state, so a build relying on `.env` gets an undefined base URL
+and throws on first launch. Keep the value in all three profiles in step.
+
+`app.json` is managed-workflow — there is no `android/` directory and there should not
+be. `npx expo prebuild` is fine for *checking* what the config generates, but delete
+`android/` afterwards: if it exists, EAS stops prebuilding and uses it instead. Prebuild
+also rewrites the `android`/`ios` npm scripts to `expo run:*`; revert those.
+
+Splash and adaptive-icon colours are duplicated from `theme/colors.ts` into `app.json`
+(`#F2F1EC` light, `#141310` dark) because the native launch screen renders before any JS
+runs. They have to be updated in both places. The native splash follows the **OS** dark
+setting via `values-night`, not the user's stored `settings.theme` — nothing can read a
+server-side preference that early.
+
+Prebuild warns `userInterfaceStyle: Install expo-system-ui`. Benign here: that feature is
+for *forcing* a native style, and `app.json` asks for `automatic`. The generated theme is
+already `Theme.AppCompat.DayNight` with `uiMode` in the activity's `configChanges`, which
+is what makes `useColorScheme()` follow the system and update live.
+
 ## What NOT to build
 
 No voice/audio recording, no AR/camera, no offline lesson caching, no social features,

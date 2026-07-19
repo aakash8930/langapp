@@ -1,0 +1,36 @@
+{
+  "cli": {
+    "version": ">= 21.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net/langapp"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net/langapp"
+      }
+    },
+    "production": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net/langapp"
+      }
+    }
+  }
+}
