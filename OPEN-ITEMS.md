@@ -10,7 +10,7 @@ Ordered by when they'll bite you. Last updated after Milestone 6.
 
 ## Decide soon (before the learning loop lands)
 
-### 6. Changing timezone backwards across the date line resets the streak
+### 18. Changing timezone backwards across the date line resets the streak
 
 Found while verifying Milestone 6. `lastStudyDate` is stored as a local
 'YYYY-MM-DD' string, so it's only meaningful relative to the tz that was in
@@ -154,6 +154,33 @@ that would need cascading gets created.
 copy. A nightly `mongodump` into a cloud-synced folder is a cron line and 20
 minutes. Right now the only thing in Mongo is seed data you can regenerate, so
 the real deadline is **the first real user account you'd be sad to lose.**
+
+### 19. There is no frontend, and that is a deliberate pause
+
+The blueprint's §3 diagram plans **Web (Next.js)** and **Mobile (Flutter)**, but
+§14's build order never schedules either — steps 1–8 are all API work. So six
+completed milestones correctly produced zero UI. The repo has no `.tsx/.html/.css`
+at all.
+
+Asked on 2026-07-19 whether to build one, Aakash said **"wait for now."** So this
+is paused on purpose, not forgotten. Do not start a client without asking again.
+
+The status page at `/` is **not** a frontend — no login, no lessons, no review.
+It exists so the deployed URL doesn't 404 in a browser.
+
+When it resumes, the three shapes considered were:
+
+1. **Minimal vanilla HTML/JS page served by the existing NestJS app.** No new
+   deps, no build step, no second deployable, same funnel mount. Smallest path
+   to something a person can use; also the §11 answer for iOS, which is "web app
+   as PWA via Funnel".
+2. **Next.js per §3.** What the blueprint actually plans; a second deployable
+   with its own build and deploy script. Needs `next`/`react` — and CLAUDE.md
+   says dependencies need Aakash's approval first.
+3. **Flutter mobile**, per §11's `flutter build apk` sideload line.
+
+Whichever is chosen, the API is already complete for it: auth, lessons,
+exercises, completion, reviews and `/me/progress` all work and are deployed.
 
 ### 7. No age gate, privacy policy, or ToS
 

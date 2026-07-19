@@ -108,7 +108,7 @@ Two consequences worth knowing:
 
 Streaks are pinned by tests in `streak.spec.ts` (same day / consecutive /
 skipped / non-UTC learner, plus DST and leap day) and `user.service.spec.ts`
-(the writes those rules produce). See OPEN-ITEMS #6 for the one known edge:
+(the writes those rules produce). See OPEN-ITEMS #18 for the one known edge:
 moving timezone backwards across the date line resets the streak.
 
 ## Deployment
