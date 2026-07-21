@@ -204,7 +204,16 @@ Next.js of blueprint §3 nor the Flutter of §11, because the target is a phone
 and Expo Go removes the build-and-sideload step entirely.
 
 Shipped: auth, home with lesson lock state, the exercise flow, the review
-session, and settings. `client/CLAUDE.md` holds its rules.
+session, settings, and (C2, 2026-07-21) the AI chat screen. `client/CLAUDE.md`
+holds its rules.
+
+**Never exercised against a real model.** C2 was verified by typecheck, a
+successful `expo export`, and the API's 503/400/404 paths — but no chat turn
+has ever round-tripped through Gemini, because `GEMINI_API_KEY` is unset. The
+reply bubble, the correction note, and the pending skeleton have therefore been
+*rendered* but never *filled with real output*. Expect to tune the bubble's
+handling of long replies (the tutor's romaji-plus-gloss format is verbose) the
+first time it runs for real.
 
 Two API changes were needed for M5 and were approved before being made: a write
 path for `dailyGoalXp`, and `'system'` added to the theme enum. Both are in the

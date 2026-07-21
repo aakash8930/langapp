@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchLessons } from '@/api/lessons';
 import { fetchProgress } from '@/api/progress';
 import { useAuth } from '@/components/AuthProvider';
+import { ChatCallout } from '@/components/ChatCallout';
 import { ErrorState } from '@/components/ErrorState';
 import {
   CalloutSkeleton,
@@ -115,6 +116,8 @@ export default function Home() {
           ) : (
             <ReviewEmptyState hasStarted={progress.data.lessonsCompleted > 0} />
           )}
+
+          <ChatCallout onPress={() => router.push('/chat')} />
         </>
       )}
 

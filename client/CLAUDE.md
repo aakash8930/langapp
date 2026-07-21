@@ -30,7 +30,25 @@ GET  /lessons/:id/exercises
 POST /lessons/:id/exercises/:exerciseId/answer
 POST /lessons/:id/complete
 GET  /reviews/due    POST /reviews/:cardId/grade
+POST /chat/sessions  POST /chat/sessions/:id/messages
 ```
+
+**Chat has no history endpoint** — those two routes are all there is. React
+Query's cache under `['chat','session']` is therefore not a cache of server
+state, it *is* the transcript store: `gcTime: Infinity`, and every append goes
+through `setQueryData`. Writing the transcript to component state instead would
+lose an in-flight turn the moment someone navigates home mid-reply.
+
+A chat send is a real LLM call — seconds, not milliseconds. Sends are
+serialised (composer disabled while one is in flight), so the concurrent-
+mutation trap below cannot arise here. A failed turn persists **nothing**
+server-side, so re-sending the same text can't duplicate it.
+
+Chat fails in ways `describeError` gets wrong, so `lib/chat.ts` owns its copy:
+**503** means the API has no `GEMINI_API_KEY` (no retry will help — the fix is
+on the laptop), **502** means the model didn't answer, **429** is either this
+app's throttle or the provider's quota and the copy doesn't pretend to know,
+**400 "full"** means the 50-message cap and only a new session clears it.
 
 All except register/login/refresh require a bearer token. A 401 triggers one automatic
 refresh-and-retry; if that fails, clear the session and route to login.

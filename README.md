@@ -371,6 +371,15 @@ because no vocabulary is seeded yet — §7 says retrieve them from the
 KnowledgeGraph, which today would return nothing. Swap to a graph lookup when
 a vocab pack lands.
 
+On the client (`app/(app)/chat.tsx`), the notable decision is that **React
+Query's cache is the transcript store, not a cache** — the API has no history
+endpoint, so `['chat','session']` holds the conversation with `gcTime:
+Infinity` and every append goes through `setQueryData`. That is what lets an
+in-flight turn survive navigating away mid-reply: the promise resolves into the
+cache, not into component state. Corrections render as a margin note under the
+learner's own bubble, marked in `shu` rather than `danger` — writing a beginner
+sentence slightly wrong is the ordinary case in practice, not an error.
+
 ## Seeded content
 
 `npm run seed` loads the `hiragana-basics` unit: rows あ–な as 25 `KanaItem`s,
