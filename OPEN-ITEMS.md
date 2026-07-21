@@ -10,7 +10,19 @@ Ordered by when they'll bite you. Last updated after Milestone 6.
 
 ## Decide soon (before the learning loop lands)
 
-### 20. `npm run seed` is broken — it cannot boot
+### 20. RESOLVED (2026-07-21) — `npm run seed` could not boot
+
+Fixed by adding `JwtModule.register({ global: true })` to `SeedRootModule`, and
+verified by running the seed rather than by reasoning about it: it boots, loads
+all 46 kana, and a second run leaves every `_id` byte-identical (checksummed
+before and after) — which is the property that actually matters, because
+SrsCards reference those ids.
+
+The original report follows, because the *shape* of the bug is worth keeping:
+a module boundary that resolves only by accident of what `AppModule` happens to
+register globally.
+
+---
 
 Found while verifying the XP fix; **pre-existing**, and confirmed by running it
 on a clean checkout of the previous commit. Not caused by that work.
@@ -35,7 +47,12 @@ load content at all. Task 2's restore verification will hit this.
 **Fix:** one line — add `JwtModule.register({ global: true })` to
 `SeedRootModule`'s imports. I did not apply it, because it is outside the task
 that found it and the seed path deserves its own verification rather than a
-drive-by change.
+drive-by change. *(Applied 2026-07-21, with that verification — see above.)*
+
+**Still true, and worth watching:** nothing in CI or the test suite boots the
+seed, so the next module-boundary regression of this kind will be just as
+invisible. The cheapest guard is a test that constructs `SeedRootModule` and
+asserts it resolves; the honest guard is the restore test in item 6.
 
 ### 18. Changing timezone backwards across the date line resets the streak
 
@@ -264,13 +281,14 @@ after.
 ### 9. The prerequisite graph is character-to-character, so edges grow quadratically
 
 `SeedService.linkPrerequisiteNodes` links every character in lesson N to every
-character in lesson N+1. For this unit: 5×10 + 10×10 = **150 edges for 25
-characters.** Fine at this scale, and the adjacency-list design is exactly what
-§5 prescribes.
+character in lesson N+1. For this unit: 5×10 + 10×10 + 10×10 + 10×11 = **360
+edges for 46 characters** (it was 150 for 25 before hiragana was completed on
+2026-07-21 — the curve is visible now). Fine at this scale, and the
+adjacency-list design is exactly what §5 prescribes.
 
-But full Hiragana + Katakana would be ~1000+ edges, and vocabulary would be far
+But Katakana would roughly double it again, and vocabulary would be far
 worse. **The fix when it hurts:** a node per *row* (or per lesson) and link those
-instead of individual characters — turns 150 edges into 5. I left it literal
+instead of individual characters — turns 360 edges into 10. I left it literal
 because §5's "prerequisites of X" query wants character granularity, and
 premature graph abstraction is harder to undo than to add.
 
@@ -389,13 +407,33 @@ imported type needs an explicit `type:`.** All current schemas comply.
 | 6. Streak + daily goal on `/me` | done — was already live when this table said "next"; the table was stale |
 | 7. One AI text chat scenario | done (2026-07-21) — `chat` + `ai-orchestrator` modules, Gemini free tier |
 
-**§14 is complete** — every step of the Phase 0 vertical slice exists on the
-API. Step 7's client screen is the remaining piece of "one solid AI chat mode"
-from the Phase 0 card.
+| 8. Second exercise type → voice → Katakana → the rest | **next**, and now the only thing left |
 
-`exerciseTypes: ['multipleChoice']` is seeded on all three lessons and
+**§14 steps 1–7 are complete** on both the API and the client. What remains is
+step 8, which is breadth rather than machinery.
+
+`exerciseTypes: ['multipleChoice']` is seeded on all five lessons and
 `ExerciseService` now honours it — a lesson that doesn't list `multipleChoice`
 gets a 422 rather than a quiz.
+
+### Content status against §1
+
+§1 wants "Hiragana → Katakana → basic vocabulary → basic grammar". One of the
+four is done:
+
+| Track | State |
+|---|---|
+| Hiragana | **complete** — all 46 base characters, 5 lessons (2026-07-21) |
+| Katakana | not started — no seed, though the schema and `script` field take it as-is |
+| Basic vocabulary | not started — `VocabItem` schema exists, nothing seeded |
+| Basic grammar | not started — `GrammarPoint` schema exists, nothing seeded |
+
+Every *system* Phase 0 calls for now exists; three of four *content* tracks do
+not. Katakana is the cheapest next one by a wide margin — it is the same shape
+as hiragana with `script: 'katakana'`, so it is a data file rather than a
+feature. Vocabulary is the one that unlocks the most elsewhere: it would let
+§7's chat retrieve target words from the KnowledgeGraph instead of the static
+list in `scenarios.ts` (item 23), and give corrections something to map onto.
 
 **The learning loop is closed as of M5**: complete a lesson → cards seeded →
 `/reviews/due` → grade → FSRS reschedules → XP and events accumulate. Steps 1–5

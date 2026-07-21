@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Module } from '@nestjs/common';
@@ -22,6 +23,12 @@ import { SeedService } from './seed.service';
         serverSelectionTimeoutMS: 3000,
       }),
     }),
+    // Not because the seed authenticates anything — it doesn't. ContentModule
+    // declares JwtAuthGuard on its controllers, so Nest must be able to resolve
+    // JwtService to instantiate that module at all. AppModule registers this
+    // globally and the seed inherited the assumption without the registration,
+    // which is why `npm run seed` could not boot (OPEN-ITEMS #20).
+    JwtModule.register({ global: true }),
     SeedModule,
   ],
 })

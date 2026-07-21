@@ -115,10 +115,12 @@ export class SeedService {
   }
 
   /**
-   * Edge per (previous character -> current character). Fine at this size:
-   * 5 x 10 + 10 x 10 = 150 edges for the unit. If a later unit makes this
-   * quadratic blowup uncomfortable, introduce a node per *row* and link rows
-   * instead of characters.
+   * Edge per (previous character -> current character). Quadratic, and now
+   * visibly so: full hiragana is 5×10 + 10×10 + 10×10 + 10×11 = **360 edges
+   * for 46 characters**, up from 150 for 25. Still nothing at this scale, but
+   * the growth curve is the point — Katakana would roughly double it again.
+   * The fix when it hurts is a node per *row* rather than per character
+   * (OPEN-ITEMS #9), which turns 360 into 10.
    */
   private async linkPrerequisiteNodes(
     previousKanaIds: Types.ObjectId[],

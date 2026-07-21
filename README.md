@@ -382,7 +382,11 @@ sentence slightly wrong is the ordinary case in practice, not an error.
 
 ## Seeded content
 
-`npm run seed` loads the `hiragana-basics` unit: rows あ–な as 25 `KanaItem`s,
-each with a `KnowledgeNode`, chained into 3 lessons via `prerequisiteLessonIds`.
+`npm run seed` loads the `hiragana-basics` unit: **all 46 base hiragana** as
+`KanaItem`s, each with a `KnowledgeNode`, chained into 5 lessons via
+`prerequisiteLessonIds`. Base characters only — no dakuten (が), handakuten (ぱ),
+or yōon (きゃ); those are marks on characters already here, and belong to a later
+unit rather than a longer version of this one. Romaji is Hepburn throughout
+(`shi`, `chi`, `tsu`, `fu`), because Hepburn is what a learner types.
 Every write is an upsert on a natural key, so re-running preserves `_id`s — which
 matters because SRS cards will reference them.
