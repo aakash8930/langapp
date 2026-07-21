@@ -33,6 +33,10 @@ npm run start:dev             # api on :3000
 Generate the JWT secrets with `openssl rand -base64 48` — they must be at least
 32 chars and different from each other, or the app refuses to boot.
 
+For the AI chat, also set `GEMINI_API_KEY` (free key from
+https://aistudio.google.com/apikey — see "The AI chat" below). Optional:
+everything except `/chat/*` works without it.
+
 > **Mongo is on host port 27018**, not the default 27017, because a system-level
 > `mongod` commonly occupies 27017. See `docker-compose.yml`.
 
@@ -153,6 +157,8 @@ api/src/
 | `POST` | `/lessons/:id/complete` | Bearer | seeds SRS cards, awards XP, emits `lesson.completed` |
 | `GET` | `/reviews/due` | Bearer | due cards with content resolved, capped at 20 |
 | `POST` | `/reviews/:cardId/grade` | Bearer | `{ grade }` — again/hard/good/easy through ts-fsrs |
+| `POST` | `/chat/sessions` | Bearer | starts an AI chat; returns the scripted opener; rate limited |
+| `POST` | `/chat/sessions/:id/messages` | Bearer | `{ text }` → reply + corrections; one Gemini call; rate limited |
 
 Quick smoke test:
 
@@ -340,6 +346,30 @@ derivable from `lastReview`/`due`, and deriving them can't drift out of sync.
 
 `learning/fsrs-card.mapper.ts` is the single point where ts-fsrs's snake_case /
 numeric-enum representation meets §5's camelCase / string-state one.
+
+## The AI chat
+
+§14 step 7 — one text scenario (`first-meeting`) through the §7 pipeline. Two
+modules, split along §4's seams: `chat` owns `chatSessions`/`chatMessages` and
+the routes; `ai-orchestrator` owns prompt assembly and the provider call, so a
+Stage B provider swap touches one file (`gemini.provider.ts`).
+
+The provider is **Gemini free tier** (§8: Stage A is ₹0), called with a
+hand-rolled `fetch` — no SDK dependency. Get a free key at
+https://aistudio.google.com/apikey and set `GEMINI_API_KEY` in `api/.env`
+(`GEMINI_MODEL` defaults to `gemini-3.5-flash`). Without a key the API boots
+fine and chat routes answer 503.
+
+One call per turn: Gemini's `responseSchema` forces
+`{ reply, corrections: [{span, fix, note}] }`, so the conversation turn and the
+correction pass (§7 steps 4+5) cost a single request. History is capped at 12
+turns and messages at 500 chars — §8's "input tokens are a cost you control".
+Corrections are persisted on the learner's message they annotate.
+
+The scenario's 8 target words are static in `ai-orchestrator/scenarios.ts`
+because no vocabulary is seeded yet — §7 says retrieve them from the
+KnowledgeGraph, which today would return nothing. Swap to a graph lookup when
+a vocab pack lands.
 
 ## Seeded content
 

@@ -162,6 +162,42 @@ Also an object wrapping the array, not a bare array. `totalDue` is the true coun
 
 XP is due-gated: grading a card that was not actually due awards nothing.
 
+### Chat — bearer
+
+```
+POST /chat/sessions   { scenario? }  -> 201
+     -> { id, scenario, title, titleJa, startedAt,
+          messages: [ <ChatMessage> ] }        // exactly one: the scripted opener
+
+POST /chat/sessions/:id/messages   { text }  -> 200
+     -> { sessionId, corrections: [ <Correction> ], reply: <ChatMessage> }
+
+ChatMessage = { id, role: 'user'|'assistant', text, corrections, createdAt }
+Correction  = { span, fix, note }              // span = exact substring the learner wrote
+```
+
+Added 2026-07-21 (§14 step 7 — the last Phase 0 item). `scenario` defaults to
+`first-meeting`, the only scenario so far; an unknown id is a 400. `text` is
+1–500 chars — the cap is a §8 cost guard, not a UX rule.
+
+**One LLM call per turn**: the reply and the correction pass come back together
+(§7 steps 4+5, "same call"). `corrections` always describe the message the
+learner *just sent*, and are also persisted onto that user message — the
+assistant reply never carries corrections. Session opener is scripted, not
+generated, so creating a session costs zero tokens.
+
+There is **no GET for chat history** — §9 lists exactly these two routes. The
+client keeps the transcript in memory for the life of the screen; a session
+abandoned mid-way is simply left behind and a new one started.
+
+The provider is **Gemini free tier** behind `AiOrchestratorService` (Stage A,
+§8: ₹0). With `GEMINI_API_KEY` unset every chat turn is a **503** and the rest
+of the API is unaffected. Provider failures surface as **502**, provider rate
+limits as **429** — the client should show "try again shortly", not retry-loop.
+A session hard-caps at 50 messages (400 past that). Chat routes are throttled
+separately from auth (`CHAT_THROTTLE_*`, default 10 per 60s) — also a 429, so
+the client cannot tell throttle from provider limit and shouldn't try.
+
 ### The leak rule, and where it is currently broken
 
 **Never leak `passwordHash` or FSRS internals (`stability`, `difficulty`) to the

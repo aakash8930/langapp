@@ -23,7 +23,7 @@ One NestJS app. Modules map to future services but deploy as one unit.
 **Do not** create microservices, message brokers, or separate deployables.
 
 Modules: `auth`, `user`, `content`, `learning`, `knowledge-graph`, `analytics`
-(later: `ai-orchestrator`, `chat`)
+plus `ai-orchestrator` and `chat` (landed 2026-07-21 — Gemini behind `AiOrchestratorService`).
 
 ### The one rule that matters
 
@@ -101,7 +101,7 @@ One NestJS app. Modules map to future services but deploy as one unit.
 **Do not** create microservices, message brokers, or separate deployables.
 
 Modules: `auth`, `user`, `content`, `learning`, `knowledge-graph`, `analytics`
-(later: `ai-orchestrator`, `chat`)
+plus `ai-orchestrator` and `chat` (landed 2026-07-21 — Gemini behind `AiOrchestratorService`).
 
 ### The one rule that matters
 

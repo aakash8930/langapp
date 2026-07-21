@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { AuthResponse, TokenPair } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
@@ -13,6 +13,8 @@ import { RegisterDto } from './dto/register.dto';
  */
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
+// Only the 'auth' throttler applies here — 'chat' is chat's cost guard.
+@SkipThrottle({ chat: true })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

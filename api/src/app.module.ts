@@ -3,8 +3,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AiOrchestratorModule } from './ai-orchestrator/ai-orchestrator.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
+import { ChatModule } from './chat/chat.module';
 import { ContentModule } from './content/content.module';
 import { LearningModule } from './learning/learning.module';
 import { KnowledgeGraphModule } from './knowledge-graph/knowledge-graph.module';
@@ -42,11 +44,22 @@ import { UserModule } from './user/user.module';
       imports: [ThrottlerStorageModule],
       inject: [ConfigService, RedisThrottlerStorage],
       useFactory: (config: ConfigService, storage: RedisThrottlerStorage) => ({
+        // Named throttlers: ThrottlerGuard applies every entry to a guarded
+        // route, so each controller @SkipThrottle()s the one that isn't its —
+        // auth skips 'chat', chat skips 'auth'. ttl is milliseconds; the env
+        // vars are in seconds for readability.
         throttlers: [
           {
-            // ttl is milliseconds; the env var is in seconds for readability.
+            name: 'auth',
             ttl: config.getOrThrow<number>('AUTH_THROTTLE_TTL_SECONDS') * 1000,
             limit: config.getOrThrow<number>('AUTH_THROTTLE_LIMIT'),
+          },
+          {
+            // §10: chat is rate limited as a cost guard — it's the only
+            // surface that spends LLM quota per request.
+            name: 'chat',
+            ttl: config.getOrThrow<number>('CHAT_THROTTLE_TTL_SECONDS') * 1000,
+            limit: config.getOrThrow<number>('CHAT_THROTTLE_LIMIT'),
           },
         ],
         storage,
@@ -59,6 +72,8 @@ import { UserModule } from './user/user.module';
     KnowledgeGraphModule,
     LearningModule,
     AnalyticsModule,
+    AiOrchestratorModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

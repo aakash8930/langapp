@@ -14,8 +14,12 @@ export interface EnvConfig {
   JWT_REFRESH_TTL: string;
   AUTH_THROTTLE_LIMIT: number;
   AUTH_THROTTLE_TTL_SECONDS: number;
+  CHAT_THROTTLE_LIMIT: number;
+  CHAT_THROTTLE_TTL_SECONDS: number;
   STORAGE_DIR: string;
   XP_PER_LESSON_PRACTICE: number;
+  GEMINI_API_KEY: string;
+  GEMINI_MODEL: string;
 }
 
 function required(raw: Record<string, unknown>, key: string): string {
@@ -70,7 +74,13 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     JWT_REFRESH_TTL: optional(raw, 'JWT_REFRESH_TTL', '7d'),
     AUTH_THROTTLE_LIMIT: positiveInt(raw, 'AUTH_THROTTLE_LIMIT', 10),
     AUTH_THROTTLE_TTL_SECONDS: positiveInt(raw, 'AUTH_THROTTLE_TTL_SECONDS', 60),
+    CHAT_THROTTLE_LIMIT: positiveInt(raw, 'CHAT_THROTTLE_LIMIT', 10),
+    CHAT_THROTTLE_TTL_SECONDS: positiveInt(raw, 'CHAT_THROTTLE_TTL_SECONDS', 60),
     STORAGE_DIR: optional(raw, 'STORAGE_DIR', './storage'),
     XP_PER_LESSON_PRACTICE: positiveInt(raw, 'XP_PER_LESSON_PRACTICE', 2),
+    // Empty means "chat not configured": boot succeeds, chat routes 503. The
+    // seed, tests, and every non-chat flow must not require a Google account.
+    GEMINI_API_KEY: optional(raw, 'GEMINI_API_KEY', ''),
+    GEMINI_MODEL: optional(raw, 'GEMINI_MODEL', 'gemini-3.5-flash'),
   };
 }

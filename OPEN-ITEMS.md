@@ -377,8 +377,12 @@ imported type needs an explicit `type:`.** All current schemas comply.
 | 3. One exercise type (multiple choice) | done (M3) |
 | 4. `POST /lessons/:id/complete` → seeds SrsCards + XP | done (M4) |
 | 5. `GET /reviews/due` + grade with `ts-fsrs` | done (M5) — **the loop closes here** |
-| 6. Streak + daily goal on `/me` | **next** |
-| 7. One AI text chat scenario | not started |
+| 6. Streak + daily goal on `/me` | done — was already live when this table said "next"; the table was stale |
+| 7. One AI text chat scenario | done (2026-07-21) — `chat` + `ai-orchestrator` modules, Gemini free tier |
+
+**§14 is complete** — every step of the Phase 0 vertical slice exists on the
+API. Step 7's client screen is the remaining piece of "one solid AI chat mode"
+from the Phase 0 card.
 
 `exerciseTypes: ['multipleChoice']` is seeded on all three lessons and
 `ExerciseService` now honours it — a lesson that doesn't list `multipleChoice`
@@ -395,6 +399,34 @@ the SRS card for that item. So a learner's *exercise* answers and their *review*
 grades are two unrelated systems. Wiring "got it wrong in an exercise" into
 "schedule that card sooner" is the obvious next connection, and §7 step 7 assumes
 it exists ("schedule missed words into SRS").
+
+### 23. Chat is wired to the LLM but not to the learning loop (2026-07-21)
+
+Three deliberate gaps in the §14-step-7 build, all consequences of what exists
+today rather than oversights:
+
+- **Corrections don't touch SRS.** §7 step 7 says "schedule missed words into
+  SRS", but a correction `span` is free text — mapping it to a KnowledgeNode
+  needs vocab content and fuzzy matching that doesn't exist yet. Same class of
+  gap as the exercise/SRS disconnect above.
+- **Target words are static** in `ai-orchestrator/scenarios.ts`. §7 step 2 says
+  retrieve them from the KnowledgeGraph; the graph holds only kana today, so a
+  lookup would return nothing. Swap when a vocab pack is seeded.
+- **No chat XP.** A chat turn emits `chat.turn` analytics but awards nothing.
+  Blueprint doesn't specify chat XP; decide deliberately rather than defaulting
+  to yes (it's the one surface where "farm XP" meets "costs provider quota").
+
+**Cost of getting it wrong:** low now, grows with content. None of these block
+using the chat daily.
+
+### 24. Chat transcripts widen the PII surface (2026-07-21)
+
+§10's PII inventory now includes chat transcripts (`chatMessages`), and there is
+no `GET` to read them back nor any deletion path — they're write-only rows that
+outlive the session's usefulness. Fine for Stage A with known testers; item 5's
+`DELETE /me` must erase them when it lands, and a retention window is worth
+deciding before strangers sign up. Message content is deliberately never logged
+(`GeminiProvider` logs status codes only).
 
 ---
 
