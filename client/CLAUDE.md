@@ -25,13 +25,20 @@ Endpoints available:
 ```
 POST /auth/register  POST /auth/login  POST /auth/refresh
 GET  /me             PATCH /me/settings   GET /me/progress
-GET  /lessons?unit=  GET  /lessons/:id
+GET  /lessons[?unit=]  GET /lessons/:id
 GET  /lessons/:id/exercises
 POST /lessons/:id/exercises/:exerciseId/answer
 POST /lessons/:id/complete
 GET  /reviews/due    POST /reviews/:cardId/grade
 POST /chat/sessions  POST /chat/sessions/:id/messages
 ```
+
+**The home screen fetches every unit in one request** (`fetchLessons()` with no
+argument) rather than one query per unit. Lock state is derived from the whole
+set, so a katakana lesson locked behind a hiragana one can name the lesson that
+opens it — asking per unit leaves that prerequisite unresolvable and the row
+says nothing. Unit display names and teaching order live in `lib/lessons.ts`,
+because the alternative is a units endpoint to serve two rows of static text.
 
 **Chat has no history endpoint** — those two routes are all there is. React
 Query's cache under `['chat','session']` is therefore not a cache of server

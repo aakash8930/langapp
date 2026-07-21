@@ -382,11 +382,27 @@ sentence slightly wrong is the ordinary case in practice, not an error.
 
 ## Seeded content
 
-`npm run seed` loads the `hiragana-basics` unit: **all 46 base hiragana** as
-`KanaItem`s, each with a `KnowledgeNode`, chained into 5 lessons via
-`prerequisiteLessonIds`. Base characters only — no dakuten (が), handakuten (ぱ),
-or yōon (きゃ); those are marks on characters already here, and belong to a later
-unit rather than a longer version of this one. Romaji is Hepburn throughout
-(`shi`, `chi`, `tsu`, `fu`), because Hepburn is what a learner types.
+`npm run seed` loads two units — `hiragana-basics` and `katakana-basics` —
+**92 characters, both kana scripts in full**, as `KanaItem`s, each with a
+`KnowledgeNode`, chained into 10 lessons via `prerequisiteLessonIds`.
+
+Base characters only: no dakuten (が), handakuten (ぱ), yōon (きゃ), or chōonpu
+(ー). Those are marks on characters already here, and belong to a later unit
+rather than a longer version of this one. Romaji is Hepburn throughout (`shi`,
+`chi`, `tsu`, `fu`), because Hepburn is what a learner types.
+
+The two units are the same shape — `src/seed/japanese/kana-pack.ts` defines it,
+and each script is a data file filling it in. Adding a third script would be a
+new pack in `PACKS`, nothing more.
+
+**The chain runs across units**: katakana's first lesson lists hiragana's last
+as its prerequisite, so §1's "Hiragana → Katakana" is a real gate rather than a
+display order. The character-level graph edges deliberately stop at the unit
+boundary — "ん before ア" is a claim about stages, not characters, and the
+lesson prerequisite already makes it.
+
+Distractors are drawn from the unit pool, so a katakana question never offers a
+hiragana option, and シ's options naturally include ツ — which is exactly the
+discrimination worth drilling.
 Every write is an upsert on a natural key, so re-running preserves `_id`s — which
 matters because SRS cards will reference them.

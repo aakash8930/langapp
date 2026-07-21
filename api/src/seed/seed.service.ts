@@ -3,7 +3,16 @@ import { Types } from 'mongoose';
 import { ContentService } from '../content/content.service';
 import { ItemRef } from '../content/schemas/lesson.schema';
 import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.service';
-import { HIRAGANA_LESSONS, HIRAGANA_ROWS, HIRAGANA_UNIT } from './japanese/hiragana';
+import { HIRAGANA_PACK } from './japanese/hiragana';
+import type { KanaPack } from './japanese/kana-pack';
+import { KATAKANA_PACK } from './japanese/katakana';
+
+/**
+ * Order matters: the packs are chained in this sequence, so katakana's first
+ * lesson lists hiragana's last as its prerequisite. §1's "Hiragana → Katakana"
+ * is a real gate, not just a display order.
+ */
+const PACKS: KanaPack[] = [HIRAGANA_PACK, KATAKANA_PACK];
 
 export interface SeedSummary {
   kanaItems: number;
@@ -13,7 +22,8 @@ export interface SeedSummary {
 }
 
 /**
- * §14 step 2: one unit of Hiragana as Lessons plus KnowledgeNodes.
+ * §14 step 2, grown into both kana scripts: two units as Lessons plus
+ * KnowledgeNodes.
  *
  * Every write is an upsert on a natural key, so `npm run seed` is idempotent —
  * running it twice leaves the same documents with the same _ids, which matters
@@ -33,8 +43,15 @@ export class SeedService {
   ) {}
 
   async run(): Promise<SeedSummary> {
-    const kanaIdsByRow = await this.seedKana();
-    await this.seedLessons(kanaIdsByRow);
+    // The lesson chain runs across packs, not just within one — that is what
+    // locks katakana until hiragana is finished.
+    let previousLessonId: Types.ObjectId | null = null;
+
+    for (const pack of PACKS) {
+      const kanaIdsByRow = await this.seedKana(pack);
+      previousLessonId = await this.seedLessons(pack, kanaIdsByRow, previousLessonId);
+      this.logger.log(`Seeded ${pack.unit}: ${countCharacters(pack)} ${pack.script}`);
+    }
 
     const summary: SeedSummary = {
       kanaItems: await this.contentService.countKana(),
@@ -52,17 +69,17 @@ export class SeedService {
   }
 
   /** Each character gets a content doc and a graph node, linked both ways. */
-  private async seedKana(): Promise<Map<string, Types.ObjectId[]>> {
+  private async seedKana(pack: KanaPack): Promise<Map<string, Types.ObjectId[]>> {
     const idsByRow = new Map<string, Types.ObjectId[]>();
 
-    for (const [row, characters] of Object.entries(HIRAGANA_ROWS)) {
+    for (const [row, characters] of Object.entries(pack.rows)) {
       const ids: Types.ObjectId[] = [];
 
       for (const character of characters) {
         const kana = await this.contentService.upsertKana({
           kana: character.kana,
           romaji: character.romaji,
-          script: 'hiragana',
+          script: pack.script,
           row: character.row,
           order: character.order,
         });
@@ -70,7 +87,10 @@ export class SeedService {
         const node = await this.knowledgeGraph.upsertNode({
           kind: 'kana',
           refId: kana._id,
-          label: `${character.kana} (${character.romaji})`,
+          // Script-qualified: あ and ア share a romaji, and a graph label that
+          // read "a (a)" for both would make the two indistinguishable in any
+          // view that shows labels rather than glyphs.
+          label: `${character.kana} (${character.romaji}, ${pack.script})`,
         });
 
         // content -> node, completing the pair (the node already has refId).
@@ -85,21 +105,34 @@ export class SeedService {
   }
 
   /**
-   * Chains the three lessons: each one lists the previous as a prerequisite,
-   * and the same dependency is mirrored as `prerequisite` edges between the
-   * kana nodes so the graph answers "what must I know first" too.
+   * Chains a pack's lessons: each one lists the previous as a prerequisite, and
+   * the same dependency is mirrored as `prerequisite` edges between the kana
+   * nodes so the graph answers "what must I know first" too.
+   *
+   * `carriedLessonId` is the last lesson of the *previous* pack, which is how
+   * the gate between units is expressed. Returns this pack's last lesson id so
+   * the next pack can hang off it.
    */
-  private async seedLessons(kanaIdsByRow: Map<string, Types.ObjectId[]>): Promise<void> {
-    let previousLessonId: Types.ObjectId | null = null;
+  private async seedLessons(
+    pack: KanaPack,
+    kanaIdsByRow: Map<string, Types.ObjectId[]>,
+    carriedLessonId: Types.ObjectId | null,
+  ): Promise<Types.ObjectId | null> {
+    let previousLessonId = carriedLessonId;
+    // Starts empty on purpose. The character-level edges stay *inside* a unit:
+    // "ん before ア" is not a claim about characters, it is a claim about
+    // stages, and the lesson prerequisite above already makes it. Linking
+    // across the boundary would add 55 edges asserting something the graph
+    // does not mean.
     let previousKanaIds: Types.ObjectId[] = [];
 
-    for (const seed of HIRAGANA_LESSONS) {
+    for (const seed of pack.lessons) {
       const kanaIds = seed.rows.flatMap((row) => kanaIdsByRow.get(row) ?? []);
 
       const itemRefs: ItemRef[] = kanaIds.map((id) => ({ kind: 'kana', id }));
 
       const lesson = await this.contentService.upsertLesson({
-        unit: HIRAGANA_UNIT,
+        unit: pack.unit,
         order: seed.order,
         title: seed.title,
         itemRefs,
@@ -112,15 +145,17 @@ export class SeedService {
       previousLessonId = lesson._id;
       previousKanaIds = kanaIds;
     }
+
+    return previousLessonId;
   }
 
   /**
-   * Edge per (previous character -> current character). Quadratic, and now
-   * visibly so: full hiragana is 5×10 + 10×10 + 10×10 + 10×11 = **360 edges
-   * for 46 characters**, up from 150 for 25. Still nothing at this scale, but
-   * the growth curve is the point — Katakana would roughly double it again.
-   * The fix when it hurts is a node per *row* rather than per character
-   * (OPEN-ITEMS #9), which turns 360 into 10.
+   * Edge per (previous character -> current character), within a unit only.
+   * Quadratic, and now visibly so: 5×10 + 10×10 + 10×10 + 10×11 = **360 edges
+   * per script**, so 720 for both — up from 150 when this was 25 hiragana.
+   * Still nothing at this scale, but the growth curve is the point, and
+   * vocabulary would be far worse. The fix when it hurts is a node per *row*
+   * rather than per character (OPEN-ITEMS #9), which turns 720 into 20.
    */
   private async linkPrerequisiteNodes(
     previousKanaIds: Types.ObjectId[],
@@ -142,4 +177,8 @@ export class SeedService {
       }
     }
   }
+}
+
+function countCharacters(pack: KanaPack): number {
+  return Object.values(pack.rows).reduce((total, row) => total + row.length, 0);
 }

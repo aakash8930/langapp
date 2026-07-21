@@ -1,6 +1,7 @@
+import type { KanaPack, KanaSeed, LessonSeed } from './kana-pack';
+
 /**
  * The full gojūon — all 46 base hiragana, in canonical order.
- * `order` is the position within the row, so あいうえお never renders scrambled.
  *
  * Base characters only: no dakuten (が), handakuten (ぱ), or yōon (きゃ). Those
  * are modifications of what is here rather than new characters, and a learner
@@ -10,13 +11,6 @@
  * Romaji is Hepburn throughout, because Hepburn is what a learner will actually
  * type: し is `shi`, not `si`.
  */
-export interface KanaSeed {
-  kana: string;
-  romaji: string;
-  row: string;
-  order: number;
-}
-
 export const HIRAGANA_ROWS: Record<string, KanaSeed[]> = {
   a: [
     { kana: 'あ', romaji: 'a', row: 'a', order: 0 },
@@ -101,13 +95,6 @@ export const HIRAGANA_ROWS: Record<string, KanaSeed[]> = {
  * The last lesson sweeps up や, ら, わ and ん together — や and わ are short
  * rows, and ん is a single character that would make a lesson of its own absurd.
  */
-export interface LessonSeed {
-  order: number;
-  title: string;
-  rows: string[];
-  exerciseTypes: string[];
-}
-
 export const HIRAGANA_UNIT = 'hiragana-basics';
 
 export const HIRAGANA_LESSONS: LessonSeed[] = [
@@ -142,3 +129,10 @@ export const HIRAGANA_LESSONS: LessonSeed[] = [
     exerciseTypes: ['multipleChoice'],
   },
 ];
+
+export const HIRAGANA_PACK: KanaPack = {
+  unit: HIRAGANA_UNIT,
+  script: 'hiragana',
+  rows: HIRAGANA_ROWS,
+  lessons: HIRAGANA_LESSONS,
+};

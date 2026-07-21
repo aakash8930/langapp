@@ -47,3 +47,54 @@ export function withLockState(
 export function firstAvailableLesson(lessons: LessonWithState[]): LessonWithState | undefined {
   return lessons.find((lesson) => !lesson.locked && !lesson.completed);
 }
+
+/**
+ * Display names for unit slugs.
+ *
+ * A client-side map rather than a field on the API, because the alternative is
+ * a units endpoint and a Unit collection to serve two rows of static text. The
+ * cost is that a new unit needs an edit here — and the fallback below means
+ * forgetting is untidy, not broken.
+ */
+const UNIT_LABELS: Record<string, string> = {
+  'hiragana-basics': 'Hiragana basics',
+  'katakana-basics': 'Katakana basics',
+};
+
+/**
+ * Teaching order. The server sorts by slug, which puts hiragana before katakana
+ * alphabetically — correct here by luck, and not something to depend on. A unit
+ * missing from this list sorts after the known ones rather than vanishing.
+ */
+const UNIT_ORDER = ['hiragana-basics', 'katakana-basics'];
+
+export type UnitGroup = {
+  unit: string;
+  label: string;
+  lessons: LessonWithState[];
+  completedCount: number;
+};
+
+export function groupByUnit(lessons: LessonWithState[]): UnitGroup[] {
+  const byUnit = new Map<string, LessonWithState[]>();
+
+  for (const lesson of lessons) {
+    const existing = byUnit.get(lesson.unit);
+    if (existing) existing.push(lesson);
+    else byUnit.set(lesson.unit, [lesson]);
+  }
+
+  return [...byUnit.entries()]
+    .map(([unit, unitLessons]) => ({
+      unit,
+      label: UNIT_LABELS[unit] ?? unit,
+      lessons: unitLessons,
+      completedCount: unitLessons.filter((lesson) => lesson.completed).length,
+    }))
+    .sort((a, b) => unitRank(a.unit) - unitRank(b.unit));
+}
+
+function unitRank(unit: string): number {
+  const index = UNIT_ORDER.indexOf(unit);
+  return index === -1 ? UNIT_ORDER.length : index;
+}

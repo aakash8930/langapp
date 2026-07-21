@@ -16,11 +16,8 @@ import {
 import { LessonRow } from '@/components/LessonRow';
 import { ProgressSummary } from '@/components/ProgressSummary';
 import { ReviewCallout, ReviewEmptyState } from '@/components/ReviewCallout';
-import { withLockState, type LessonWithState } from '@/lib/lessons';
+import { groupByUnit, withLockState, type UnitGroup } from '@/lib/lessons';
 import { useTheme } from '@/theme';
-
-/** Phase 0 ships one unit. When there is a second, this becomes a picker. */
-const UNIT = 'hiragana-basics';
 
 export default function Home() {
   const theme = useTheme();
@@ -39,8 +36,10 @@ export default function Home() {
   });
 
   const lessons = useQuery({
-    queryKey: ['lessons', UNIT],
-    queryFn: () => fetchLessons(UNIT),
+    queryKey: ['lessons'],
+    // Every unit in one request. Lock state is derived from the whole set, so
+    // a katakana lesson can name the hiragana lesson that opens it.
+    queryFn: () => fetchLessons(),
     // Lesson content is seeded and effectively static; only its lock state
     // moves, and that comes from the progress query above.
     staleTime: 5 * 60_000,
@@ -53,9 +52,9 @@ export default function Home() {
     void lessons.refetch();
   }
 
-  const withState: LessonWithState[] =
+  const units: UnitGroup[] =
     progress.data && lessons.data
-      ? withLockState(lessons.data, progress.data.completedLessonIds)
+      ? groupByUnit(withLockState(lessons.data, progress.data.completedLessonIds))
       : [];
 
   return (
@@ -121,38 +120,93 @@ export default function Home() {
         </>
       )}
 
-      <View style={{ gap: theme.spacing.sm }}>
+      {lessons.isPending ? (
+        <View style={{ gap: theme.spacing.sm }}>
+          <UnitHeading label="Hiragana basics" />
+          <LessonListSkeleton />
+        </View>
+      ) : lessons.isError ? (
+        <View style={{ paddingTop: theme.spacing.md }}>
+          <ErrorState error={lessons.error} onRetry={refetchAll} />
+        </View>
+      ) : units.length === 0 ? (
+        <EmptyLessons />
+      ) : (
+        units.map((unit) => (
+          <View key={unit.unit} style={{ gap: theme.spacing.sm }}>
+            <UnitHeading
+              label={unit.label}
+              done={unit.completedCount}
+              total={unit.lessons.length}
+            />
+            {unit.lessons.map((lesson) => (
+              <LessonRow
+                key={lesson.id}
+                lesson={lesson}
+                onPress={(next) => router.push(`/lesson/${next.id}`)}
+              />
+            ))}
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
+}
+
+/**
+ * A unit's name, and how far through it you are.
+ *
+ * The count earns its place now that there are two units and ten lessons —
+ * "2 / 5" answers "where was I" at a glance, which one unit of three lessons
+ * never needed.
+ */
+function UnitHeading({
+  label,
+  done,
+  total,
+}: {
+  label: string;
+  done?: number;
+  total?: number;
+}) {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing.md,
+      }}
+    >
+      <Text
+        style={{
+          fontFamily: theme.families.ui,
+          fontSize: theme.fontSize.caption,
+          color: theme.colors.inkSoft,
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+        }}
+      >
+        {label}
+      </Text>
+      {total !== undefined && done !== undefined ? (
         <Text
+          // Spoken as a sentence; "2 / 5" alone would be read as a fraction
+          // with no idea what it counts.
+          accessibilityLabel={`${done} of ${total} lessons complete`}
           style={{
             fontFamily: theme.families.ui,
             fontSize: theme.fontSize.caption,
-            color: theme.colors.inkSoft,
-            textTransform: 'uppercase',
-            letterSpacing: 1,
+            color: done === total ? theme.colors.shu : theme.colors.inkSoft,
+            ...theme.tabularFigures,
           }}
         >
-          Hiragana basics
+          {done} / {total}
         </Text>
-
-        {lessons.isPending ? (
-          <LessonListSkeleton />
-        ) : lessons.isError ? (
-          <View style={{ paddingTop: theme.spacing.md }}>
-            <ErrorState error={lessons.error} onRetry={refetchAll} />
-          </View>
-        ) : withState.length === 0 ? (
-          <EmptyLessons />
-        ) : (
-          withState.map((lesson) => (
-            <LessonRow
-              key={lesson.id}
-              lesson={lesson}
-              onPress={(next) => router.push(`/lesson/${next.id}`)}
-            />
-          ))
-        )}
-      </View>
-    </ScrollView>
+      ) : null}
+    </View>
   );
 }
 

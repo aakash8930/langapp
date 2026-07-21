@@ -322,6 +322,13 @@ unit is Hiragana; it's the first thing to extend when vocabulary lands.
 Also note the reverse direction (show romaji, pick the kana) doesn't exist —
 recognition and recall are different skills, and only one is being tested.
 
+**Katakana made that reverse direction harder, not just absent** (2026-07-21).
+`a` is now the correct answer for both あ and ア, so a romaji→kana question has
+two right answers unless it is scoped to one script. Since distractors already
+come from the unit pool, and a unit is one script, the scoping is free — but it
+has to be deliberate. The forward direction is unaffected: the prompt is a
+glyph, and a glyph belongs to exactly one script.
+
 ### 10c. Option count degrades silently on a small unit
 
 If a unit can't supply 3 distinct distractors, questions come back with fewer
@@ -424,16 +431,18 @@ four is done:
 | Track | State |
 |---|---|
 | Hiragana | **complete** — all 46 base characters, 5 lessons (2026-07-21) |
-| Katakana | not started — no seed, though the schema and `script` field take it as-is |
+| Katakana | **complete** — all 46 base characters, 5 lessons, gated behind hiragana (2026-07-21) |
 | Basic vocabulary | not started — `VocabItem` schema exists, nothing seeded |
 | Basic grammar | not started — `GrammarPoint` schema exists, nothing seeded |
 
-Every *system* Phase 0 calls for now exists; three of four *content* tracks do
-not. Katakana is the cheapest next one by a wide margin — it is the same shape
-as hiragana with `script: 'katakana'`, so it is a data file rather than a
-feature. Vocabulary is the one that unlocks the most elsewhere: it would let
-§7's chat retrieve target words from the KnowledgeGraph instead of the static
-list in `scenarios.ts` (item 23), and give corrections something to map onto.
+Both kana scripts are done; **vocabulary and grammar are what remain of §1**.
+
+Vocabulary is the one that unlocks the most elsewhere: it would let §7's chat
+retrieve target words from the KnowledgeGraph instead of the static list in
+`scenarios.ts` (item 23), and give chat corrections something to map onto. It is
+also the first content that is *not* a closed set — 46 kana are a table you can
+transcribe, while "the first few hundred words" is a curation problem with no
+obvious stopping point. Expect that to be the hard part, not the schema.
 
 **The learning loop is closed as of M5**: complete a lesson → cards seeded →
 `/reviews/due` → grade → FSRS reschedules → XP and events accumulate. Steps 1–5

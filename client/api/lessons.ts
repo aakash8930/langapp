@@ -17,7 +17,16 @@ export type LessonSummary = {
   prerequisiteLessonIds: string[];
 };
 
-/** Unauthenticated on the server, but the client only ever asks while signed in. */
-export function fetchLessons(unit: string): Promise<LessonSummary[]> {
-  return api.get<LessonSummary[]>(`/lessons?unit=${encodeURIComponent(unit)}`);
+/**
+ * Unauthenticated on the server, but the client only ever asks while signed in.
+ *
+ * Omitting `unit` returns every unit, which is what the home screen wants: one
+ * request, and — because the whole set is present — a katakana lesson locked
+ * behind a hiragana one can name the lesson that opens it. Asking per unit
+ * would leave that prerequisite unresolvable.
+ */
+export function fetchLessons(unit?: string): Promise<LessonSummary[]> {
+  return api.get<LessonSummary[]>(
+    unit ? `/lessons?unit=${encodeURIComponent(unit)}` : '/lessons',
+  );
 }
