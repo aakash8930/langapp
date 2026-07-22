@@ -12,7 +12,7 @@ AI-native language learning platform. Phase 0 = Japanese only, single learner fl
 api/        NestJS backend + docker-compose.yml
 client/     React Native + Expo app (expo-router) — the product
 web/        Vite + React public site — the shop window
-scripts/    ops scripts — not yet written
+scripts/    backup + restore-verification (see scripts/README.md)
 ```
 
 No workspace tooling — each app installs and builds on its own. They are
@@ -287,7 +287,25 @@ Notes:
   There is one database. New content is live the moment it is seeded locally,
   without waiting for a deploy — and a bad seed is live just as fast.
 - Registration is **open to the internet** by choice. See OPEN-ITEMS #1/#3 for
-  what that exposes.
+  what that exposes. There are real accounts in the database now, not just test
+  ones — which is why the backup below stopped being optional.
+
+## Backups
+
+Nightly at 03:20 via `langapp-backup.timer`, into `~/langapp_backups`, keeping
+14 days. **Every archive is restored and counted before it is accepted**, and
+deleted if it will not restore — an unverified backup is a belief, not a
+safeguard.
+
+```bash
+scripts/backup.sh              # run one now
+scripts/verify-restore.sh      # restore the newest into a scratch database
+systemctl --user status langapp-backup.timer
+```
+
+⚠️ Same disk as the database. §11 asks for a cloud-synced folder and there is no
+sync client here — point `LANGAPP_BACKUP_ROOT` at one to close it properly.
+Details and the reasoning in `scripts/README.md`.
 
 ## Data model notes
 

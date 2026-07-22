@@ -206,12 +206,32 @@ cascade once SrsCards, chat messages and events exist. **It gets harder with
 every milestone.** Cheapest moment to write it is right after the collection
 that would need cascading gets created.
 
-### 6. No backups
+### 6. MOSTLY RESOLVED (2026-07-22) — backups exist, but on the same disk
 
-§11 calls this the classic self-host failure: your laptop is currently the only
-copy. A nightly `mongodump` into a cloud-synced folder is a cron line and 20
-minutes. Right now the only thing in Mongo is seed data you can regenerate, so
-the real deadline is **the first real user account you'd be sad to lose.**
+`scripts/backup.sh` runs nightly at 03:20 under a systemd user timer
+(`langapp-backup.timer`, `Persistent=true` so a sleeping laptop catches up
+rather than skipping). Keeps 14 days. `scripts/verify-restore.sh` restores any
+backup into a scratch database on demand.
+
+**Every archive verifies itself at creation** — it is restored and counted
+before it is accepted, and deleted if it will not restore. The first version of
+the script counted the live database instead, and the counts disagreed within
+seconds because a user was completing lessons while it ran; the verification
+caught it on its first run. Counts describe the archive, never the live system.
+
+**Still open, and why this is "mostly":** §11 asks for a *cloud-synced* folder
+and no sync client is installed here, so `~/langapp_backups` shares a disk with
+the database. This protects against a bad seed, a dropped collection, and a
+corrupted database — not against losing the disk. Closing it is one env var
+(`LANGAPP_BACKUP_ROOT`) plus a sync client; see `scripts/README.md`.
+
+**The deadline stated here has passed.** This item used to say "the only thing
+in Mongo is seed data you can regenerate, so the real deadline is the first real
+user account you'd be sad to lose." There are now **21 accounts**, including
+ones that are not mine, with review cards attached. Seeded content regenerates
+with `npm run seed`; accounts and their scheduling state do not. The backup
+script fails loudly if an archive contains no users while the database has
+some, for exactly that reason.
 
 ### 19. RESOLVED (client M0–M5) — the frontend pause ended
 
