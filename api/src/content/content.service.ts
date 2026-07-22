@@ -98,6 +98,26 @@ export class ContentService {
   }
 
   /**
+   * Every grammar point taught in the unit. The distractors this yields are
+   * other particles and endings, which is precisely the set a learner has to
+   * choose between — a fill-in-the-blank question whose wrong answers came from
+   * anywhere else would be trivial.
+   */
+  async findUnitGrammarPool(unit: string): Promise<GrammarPointDocument[]> {
+    const lessons = await this.lessonModel.find({ lang: 'ja', unit }).exec();
+
+    const grammarIds = lessons.flatMap((lesson) =>
+      lesson.itemRefs.filter((ref) => ref.kind === 'grammar').map((ref) => ref.id),
+    );
+
+    if (grammarIds.length === 0) {
+      return [];
+    }
+
+    return this.grammarModel.find({ _id: { $in: grammarIds } }).exec();
+  }
+
+  /**
    * Turns polymorphic itemRefs into full documents.
    *
    * One query per *kind* rather than one per item, and the result is re-sorted
@@ -211,6 +231,32 @@ export class ContentService {
     await this.vocabModel.updateOne({ _id: vocabId }, { $set: { conceptId } }).exec();
   }
 
+  async upsertGrammar(input: {
+    title: string;
+    explanation: string;
+    jlpt: JlptLevel;
+    examples: { sentence: string; answer: string; gloss: string }[];
+  }): Promise<GrammarPointDocument> {
+    return this.grammarModel
+      .findOneAndUpdate(
+        // `title` is the natural key — the schema's unique index is on it.
+        { lang: 'ja', title: input.title },
+        {
+          $set: {
+            explanation: input.explanation,
+            jlpt: input.jlpt,
+            examples: input.examples,
+          },
+        },
+        { new: true, upsert: true },
+      )
+      .exec();
+  }
+
+  async setGrammarConceptId(grammarId: Types.ObjectId, conceptId: Types.ObjectId): Promise<void> {
+    await this.grammarModel.updateOne({ _id: grammarId }, { $set: { conceptId } }).exec();
+  }
+
   async upsertLesson(input: {
     unit: string;
     order: number;
@@ -241,6 +287,10 @@ export class ContentService {
 
   async countVocab(): Promise<number> {
     return this.vocabModel.countDocuments().exec();
+  }
+
+  async countGrammar(): Promise<number> {
+    return this.grammarModel.countDocuments().exec();
   }
 
   async countLessons(): Promise<number> {

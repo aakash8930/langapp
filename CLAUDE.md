@@ -109,7 +109,8 @@ LessonSummary = { id, lang, unit, order, title,
 ResolvedItem  = discriminated on `kind`:
   kana    { kind, id, kana, romaji, script, row, order }
   vocab   { kind, id, lemma, reading, gloss, pos, jlpt }
-  grammar { kind, id, title, jlpt, explanation }
+  grammar { kind, id, title, jlpt, explanation,
+            examples: [ { sentence, answer, gloss } ] }
   kanji   { kind, id, char, on[], kun[], meanings[], strokes }
 ```
 
@@ -135,11 +136,31 @@ Question = { exerciseId, type: 'multipleChoice', prompt, promptKind,
              question, options: [ { id, value } ] }
 ```
 
-`promptKind` is `'kana' | 'vocab'` (widened 2026-07-22 when the vocabulary unit
-landed; it was `'kana'` only). It says what the prompt *is* so the client can
-size it — a kana prompt is one glyph and belongs in a genkouyoushi cell, a word
-does not fit in one. A kana lesson asks for romaji; a vocab lesson asks for the
-English gloss. A lesson with neither kind still 422s.
+`promptKind` is `'kana' | 'vocab' | 'grammar'` (widened twice on 2026-07-22, as
+the vocabulary and grammar units landed; it was `'kana'` only). It says what the
+prompt *is* so the client can size it — one glyph belongs in a genkouyoushi cell,
+a word does not fit in one, a sentence has to wrap. A lesson with none of the
+three kinds still 422s.
+
+| Lesson items | Prompt | Options | `question` |
+|---|---|---|---|
+| kana | the character | romaji | constant |
+| vocab | the word | English glosses | constant |
+| grammar | a sentence with a `＿` gap | particles and endings | **carries the English gloss** |
+
+**Grammar's `question` is per-item and load-bearing.** 「わたしはいき＿。」is
+grammatical with ます, ません *and* ました, so the question text states which
+meaning is wanted: `Which fills the gap? — "I went to the sea."` Without it the
+question has three right answers. Kana and vocab questions are still constant.
+
+`GrammarPoint.examples` is a **documented departure from §5** (the second, after
+`SrsCard` — see OPEN-ITEMS #15 and #26). §5's GrammarPoint has nowhere to put a
+sentence, and a grammar quiz has to ask about something. Approved before it was
+made. The gap marker is `＿` (U+FF3F), exactly one per sentence.
+
+`GET /lessons/:id` returns `examples[].answer` — that is study material, not a
+leak. The **exercise** payload still carries no answer key: `toPublicQuestion` is
+an allowlist and never sees the grammar point.
 
 The exercise set is an **object with a `questions` array**, not a bare array.
 

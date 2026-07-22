@@ -10,6 +10,7 @@ import {
   fetchExercises,
   type AnswerResult,
   type CompleteLessonResult,
+  type PromptKind,
 } from '@/api/exercises';
 import { Button } from '@/components/Button';
 import { ErrorState } from '@/components/ErrorState';
@@ -228,7 +229,7 @@ export default function Lesson() {
             ) : complete.isError ? (
               <FormError message={errorText(complete.error)} />
             ) : (
-              <Feedback result={result} />
+              <Feedback result={result} kind={question.promptKind} />
             )}
 
             <Button
@@ -250,7 +251,7 @@ export default function Lesson() {
  * Holds a constant two lines of space whether or not there is anything to say,
  * so the button below it never moves.
  */
-function Feedback({ result }: { result: AnswerResult | null }) {
+function Feedback({ result, kind }: { result: AnswerResult | null; kind: PromptKind }) {
   const theme = useTheme();
   const height = theme.lineHeight.body * 2;
 
@@ -281,7 +282,12 @@ function Feedback({ result }: { result: AnswerResult | null }) {
             color: theme.colors.inkSoft,
           }}
         >
-          {result.prompt} is “{result.correctValue}”.
+          {/* "あ is ‘a’" reads correctly for a character or a word. For a
+              gapped sentence it does not — the sentence is not the particle,
+              the gap is. So the sentence is shown filled in instead. */}
+          {kind === 'grammar'
+            ? `The answer is “${result.correctValue}”: ${result.prompt.replace('＿', result.correctValue)}`
+            : `${result.prompt} is “${result.correctValue}”.`}
         </Text>
       )}
     </View>

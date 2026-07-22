@@ -9,7 +9,15 @@ import { VocabItemDocument } from '../schemas/vocab-item.schema';
 export type ResolvedItem =
   | { kind: 'kana'; id: string; kana: string; romaji: string; script: string; row: string; order: number }
   | { kind: 'vocab'; id: string; lemma: string; reading: string; gloss: string; pos: string; jlpt: string }
-  | { kind: 'grammar'; id: string; title: string; jlpt: string; explanation: string }
+  | {
+      kind: 'grammar';
+      id: string;
+      title: string;
+      jlpt: string;
+      explanation: string;
+      /** Worked examples, gap and all. The quiz asks about the first. */
+      examples: { sentence: string; answer: string; gloss: string }[];
+    }
   | { kind: 'kanji'; id: string; char: string; on: string[]; kun: string[]; meanings: string[]; strokes: number };
 
 export interface LessonSummary {
@@ -73,6 +81,13 @@ export function grammarToResolved(
     title: doc.title,
     jlpt: doc.jlpt,
     explanation: doc.explanation,
+    // Explicit field copy rather than passing the subdocuments through, so a
+    // field added to the schema later cannot leak into a response by accident.
+    examples: doc.examples.map((example) => ({
+      sentence: example.sentence,
+      answer: example.answer,
+      gloss: example.gloss,
+    })),
   };
 }
 

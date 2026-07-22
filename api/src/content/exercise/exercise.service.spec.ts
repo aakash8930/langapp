@@ -217,7 +217,15 @@ describe('ExerciseService.generate', () => {
     const service = makeService(
       lessonDetail({
         items: [
-          { kind: 'grammar', id: 'g1', title: 'は particle', jlpt: 'N5', explanation: '…' },
+          // Grammar without examples: valid content, but nothing to quiz on.
+          {
+            kind: 'grammar',
+            id: 'g1',
+            title: 'は particle',
+            jlpt: 'N5',
+            explanation: '…',
+            examples: [],
+          },
         ],
       }),
     );
@@ -386,5 +394,105 @@ describe('ExerciseService.generate — vocabulary lessons', () => {
 
     expect(again.questions).toEqual(first.questions);
     expect(other.questions).not.toEqual(first.questions);
+  });
+});
+
+/** A grammar lesson: gapped sentences, particles to choose between. */
+const POINTS = [
+  { id: 'g1', sentence: 'わたし＿せんせいです。', answer: 'は', gloss: 'I am a teacher.' },
+  { id: 'g2', sentence: 'わたし＿ほんです。', answer: 'の', gloss: 'It is my book.' },
+  { id: 'g3', sentence: 'ほん＿よみます。', answer: 'を', gloss: 'I read a book.' },
+];
+
+function grammarItem(p: (typeof POINTS)[number]) {
+  return {
+    kind: 'grammar' as const,
+    id: p.id,
+    title: `${p.answer} — particle`,
+    jlpt: 'N5',
+    explanation: '…',
+    examples: [{ sentence: p.sentence, answer: p.answer, gloss: p.gloss }],
+  };
+}
+
+function grammarService(items = POINTS.map(grammarItem)) {
+  const contentService = {
+    findLessonById: () =>
+      Promise.resolve(
+        lessonDetail({ unit: 'grammar-basics', title: 'Grammar', itemCount: items.length, items }),
+      ),
+    findUnitGrammarPool: () =>
+      Promise.resolve(
+        POINTS.map(
+          (p) =>
+            ({
+              _id: p.id,
+              examples: [{ sentence: p.sentence, answer: p.answer, gloss: p.gloss }],
+            }) as unknown as never,
+        ),
+      ),
+  };
+
+  return new ExerciseService(contentService as unknown as ContentService);
+}
+
+describe('ExerciseService.generate — grammar lessons', () => {
+  it('asks which particle fills the gap, offering other particles', async () => {
+    const set = await grammarService().generate(LESSON_ID, USER_A, 0);
+
+    expect(set.questionCount).toBe(POINTS.length);
+
+    for (const question of set.questions) {
+      expect(question.promptKind).toBe('grammar');
+      // The prompt is the gapped sentence itself.
+      expect(question.prompt).toContain('＿');
+      for (const option of question.options) {
+        expect(POINTS.map((p) => p.answer)).toContain(option.value);
+      }
+    }
+  });
+
+  it('puts the English gloss in the question, since the gap is otherwise ambiguous', async () => {
+    const set = await grammarService().generate(LESSON_ID, USER_A, 0);
+
+    for (const question of set.questions) {
+      const expected = POINTS.find((p) => p.sentence === question.prompt);
+      expect(question.question).toContain(expected!.gloss);
+    }
+  });
+
+  it('never shows the answer in the prompt', async () => {
+    const set = await grammarService().generate(LESSON_ID, USER_A, 0);
+
+    for (const question of set.questions) {
+      const expected = POINTS.find((p) => p.sentence === question.prompt);
+      // The gap stands where the answer goes; it must not also appear beside it.
+      expect(question.prompt.replace('＿', '')).not.toContain(expected!.answer);
+    }
+  });
+
+  it('grades the gap correctly', async () => {
+    const service = grammarService();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = POINTS.find((p) => p.sentence === question.prompt)!;
+
+    const correctOption = question.options.find((o) => o.value === expected.answer)!;
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, correctOption.id);
+
+    expect(result.correct).toBe(true);
+    expect(result.correctValue).toBe(expected.answer);
+  });
+
+  it('skips a grammar point that has no example rather than asking an empty question', async () => {
+    const withoutExample = { ...grammarItem(POINTS[0]), examples: [] };
+    const set = await grammarService([grammarItem(POINTS[1]), withoutExample]).generate(
+      LESSON_ID,
+      USER_A,
+      0,
+    );
+
+    expect(set.questionCount).toBe(1);
+    expect(set.questions[0].prompt).toBe(POINTS[1].sentence);
   });
 });

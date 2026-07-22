@@ -2,7 +2,37 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { JLPT_LEVELS, JlptLevel } from './vocab-item.schema';
 
-/** §5 verbatim. */
+/**
+ * A worked example of a grammar point, with a gap where the point itself goes.
+ *
+ * This is the second departure from §5's schemas (the first is `SrsCard`, see
+ * OPEN-ITEMS #15), and it exists because a grammar quiz has to ask something.
+ * The only question this app can generate is multiple choice, and the useful
+ * multiple-choice question about a particle is "which one fills this gap" —
+ * which needs a sentence with a gap in it. §5's GrammarPoint has title, jlpt
+ * and explanation, none of which can carry one.
+ */
+@Schema({ _id: false })
+export class GrammarExample {
+  /** The sentence, containing exactly one ＿ where the answer belongs. */
+  @Prop({ required: true, trim: true })
+  sentence: string;
+
+  @Prop({ required: true, trim: true })
+  answer: string;
+
+  /**
+   * English translation of the completed sentence — load-bearing, not
+   * decoration. 「わたしはいき＿。」 is grammatical with ます, ません and ました
+   * alike; only the gloss says which is meant.
+   */
+  @Prop({ required: true, trim: true })
+  gloss: string;
+}
+
+const GrammarExampleSchema = SchemaFactory.createForClass(GrammarExample);
+
+/** §5, plus `examples` — see the note on GrammarExample above. */
 @Schema({ collection: 'grammarPoints', timestamps: true })
 export class GrammarPoint {
   @Prop({ type: String, required: true, enum: ['ja'], default: 'ja' })
@@ -16,6 +46,10 @@ export class GrammarPoint {
 
   @Prop({ required: true })
   explanation: string;
+
+  /** The quiz uses the first; the rest are there for a card to show. */
+  @Prop({ type: [GrammarExampleSchema], default: [] })
+  examples: GrammarExample[];
 
   @Prop({ type: Types.ObjectId, required: false })
   conceptId?: Types.ObjectId;

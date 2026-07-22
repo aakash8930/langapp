@@ -23,15 +23,15 @@ export function QuestionPrompt({ prompt, kind }: { prompt: string; kind: PromptK
 
   return (
     <Text
-      // `heading`, matching the review card's word face on purpose: a word is
-      // read, not inspected, so it does not need the size a single glyph does —
-      // and こんにちは at display size would wrap mid-word on a narrow phone,
-      // which is worse than being smaller. The same word must not change size
-      // between the quiz and the review card.
+      // `heading` for a word, matching the review card's word face on purpose:
+      // a word is read, not inspected, so it does not need the size a single
+      // glyph does — and こんにちは at display size would wrap mid-word on a
+      // narrow phone. A sentence steps down again: it is longer, it must wrap
+      // cleanly, and the gap is what the eye needs to find, not the size.
       style={{
         fontFamily: theme.families.jaMedium,
-        fontSize: theme.fontSize.heading,
-        lineHeight: theme.lineHeight.heading,
+        fontSize: kind === 'grammar' ? theme.fontSize.title : theme.fontSize.heading,
+        lineHeight: kind === 'grammar' ? theme.lineHeight.title : theme.lineHeight.heading,
         color: theme.colors.ink,
         textAlign: 'center',
       }}

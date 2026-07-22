@@ -74,8 +74,19 @@ function backLines(item: ResolvedItem): string[] {
       // the front of the card says nothing. Once kanji arrive the two differ
       // (食べる / たべる) and the reading earns its line back.
       return item.reading === item.lemma ? [item.gloss] : [item.reading, item.gloss];
-    case 'grammar':
-      return [item.explanation];
+    case 'grammar': {
+      // The worked example leads, because a particle is understood by seeing it
+      // used and only then by reading what it does. The gap is filled in — this
+      // is the answer side of the card, not the question.
+      const example = item.examples[0];
+      if (!example) return [item.explanation];
+
+      return [
+        example.sentence.replace('＿', example.answer),
+        example.gloss,
+        item.explanation,
+      ];
+    }
   }
 }
 

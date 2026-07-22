@@ -268,17 +268,25 @@ OPEN-ITEMS #14 — this has bitten once already.
 
 ## Exercise generation
 
-Multiple choice only (Milestone 3), over **two answerable item kinds**:
+Multiple choice only (Milestone 3), over **three answerable item kinds**:
 
 | Lesson items | Prompt | Options | `promptKind` |
 |---|---|---|---|
 | kana | the character | romaji | `kana` |
 | vocab | the word | English glosses | `vocab` |
+| grammar | a sentence with a `＿` gap | particles and endings | `grammar` |
 
-Both reduce to the same `Choice { id, prompt, answer }`, which is why the second
-kind cost a mapping rather than a parallel code path — grammar and kanji would
-slot in the same way. A lesson with neither kind still 422s rather than
-returning an empty quiz.
+All three reduce to the same `Choice { id, prompt, answer }`, which is why each
+new kind cost a mapping rather than a parallel code path — kanji would slot in
+the same way. A lesson with none of them still 422s rather than returning an
+empty quiz, and a grammar point with no example is skipped rather than asked
+about with an empty prompt.
+
+**Grammar's question text is per-item, and that is not cosmetic.**
+「わたしはいき＿。」is grammatical with ます, ません *and* ました — only the English
+gloss says which is meant, so the question carries it: `Which fills the gap? —
+"I went to the sea."` That is why `QuestionStyle.question` is a function of the
+choice rather than a constant string.
 
 `promptKind` exists so the client can size the prompt: a kana prompt is one
 glyph and goes in a genkouyoushi cell, a word does not fit in one. Without it
@@ -398,8 +406,8 @@ sentence slightly wrong is the ordinary case in practice, not an error.
 
 ## Seeded content
 
-`npm run seed` loads **five units — 208 kana, 58 words, 28 lessons** — each item
-with a `KnowledgeNode`, chained via `prerequisiteLessonIds`.
+`npm run seed` loads **six units — 208 kana, 58 words, 12 grammar points, 32
+lessons** — each item with a `KnowledgeNode`, chained via `prerequisiteLessonIds`.
 
 It starts with `hiragana-basics` and `katakana-basics`: 92 characters, both base
 kana tables in full, 10 lessons.
@@ -460,8 +468,23 @@ vowel. Neither can answer "which romaji matches this character", which is the
 only question this app can ask today. They are why がっこう and コーヒー are still
 unreadable — see OPEN-ITEMS.
 
+Last comes `grammar-basics`: **12 points in 4 lessons** — です/は/か, polite verb
+endings, the particles that go with verbs, and noun-linking. Quizzed by filling
+a gap: 「わたし＿せんせいです。」with は / を / に / の to choose from, which tests
+using a particle where matching a title to its definition would only test having
+read the definition.
+
+That needed a sentence to put a gap in, so `GrammarPoint` gains an `examples`
+array — the second documented departure from §5's schemas, after `SrsCard`.
+Every sentence is checked by `grammar.spec.ts` against three rules: only taught
+kana (no っ or ー, which are still untaught), only words from the vocabulary
+unit or conjugations this unit teaches, and at most 16 characters — Japanese
+does not space its words, and short sentences are what make that survivable.
+
 The whole curriculum is one chain: hiragana → katakana → first words → hiragana
-marks → katakana marks, 28 lessons, each unit's first lesson gated on the
-previous unit's last.
+marks → katakana marks → grammar, **32 lessons across 6 units**, each unit's
+first lesson gated on the previous unit's last. Grammar is last because it is
+the one part that genuinely depends on all the rest: its sentences are built
+from the vocabulary and use the marks.
 Every write is an upsert on a natural key, so re-running preserves `_id`s — which
 matters because SRS cards will reference them.

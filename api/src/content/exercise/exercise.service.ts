@@ -25,12 +25,23 @@ interface Choice {
   id: string;
   prompt: string;
   answer: string;
+  /**
+   * Extra context the question text needs. Only grammar uses it, to carry the
+   * English gloss — 「わたしはいき＿。」 is grammatical with ます, ません and ました
+   * alike, so without the gloss the question has three right answers.
+   */
+  hint?: string;
 }
 
 /** How a lesson's items become questions, per item kind. */
 interface QuestionStyle {
   promptKind: PromptKind;
-  question: string;
+  /**
+   * A function rather than a constant because grammar's question changes per
+   * item — it has to state which meaning is wanted. Kana and vocab ignore the
+   * argument and return the same sentence every time.
+   */
+  question: (choice: Choice) => string;
   /** Every item of this kind in the unit — the distractor pool. */
   pool: (unit: string) => Promise<Choice[]>;
 }
@@ -52,7 +63,7 @@ interface QuestionStyle {
 export class ExerciseService {
   private readonly KANA_STYLE: QuestionStyle = {
     promptKind: 'kana',
-    question: 'Which romaji matches this character?',
+    question: () => 'Which romaji matches this character?',
     pool: async (unit) =>
       (await this.contentService.findUnitKanaPool(unit)).map((doc) => ({
         id: doc._id.toString(),
@@ -63,13 +74,23 @@ export class ExerciseService {
 
   private readonly VOCAB_STYLE: QuestionStyle = {
     promptKind: 'vocab',
-    question: 'What does this word mean?',
+    question: () => 'What does this word mean?',
     pool: async (unit) =>
       (await this.contentService.findUnitVocabPool(unit)).map((doc) => ({
         id: doc._id.toString(),
         prompt: doc.lemma,
         answer: doc.gloss,
       })),
+  };
+
+  private readonly GRAMMAR_STYLE: QuestionStyle = {
+    promptKind: 'grammar',
+    question: (choice) =>
+      choice.hint ? `Which fills the gap? — “${choice.hint}”` : 'Which fills the gap?',
+    pool: async (unit) =>
+      (await this.contentService.findUnitGrammarPool(unit)).flatMap((doc) =>
+        toGrammarChoice({ id: doc._id.toString(), examples: doc.examples }),
+      ),
   };
 
   constructor(private readonly contentService: ContentService) {}
@@ -141,17 +162,21 @@ export class ExerciseService {
     // rather than dependent on item order.
     const kana = lesson.items.filter(isKana).map(kanaChoice);
     const vocab = lesson.items.filter(isVocab).map(vocabChoice);
+    const grammar = lesson.items.filter(isGrammar).flatMap(toGrammarChoice);
 
     const [answerable, style] =
       kana.length > 0
         ? ([kana, this.KANA_STYLE] as const)
         : vocab.length > 0
           ? ([vocab, this.VOCAB_STYLE] as const)
-          : ([[], null] as const);
+          : grammar.length > 0
+            ? ([grammar, this.GRAMMAR_STYLE] as const)
+            : ([[], null] as const);
 
     if (!style) {
       throw new UnprocessableEntityException(
-        `Lesson has no kana or vocabulary items, and ${EXERCISE_TYPE} asks about those`,
+        `Lesson has no kana, vocabulary or grammar items with examples, and ` +
+          `${EXERCISE_TYPE} asks about those`,
       );
     }
 
@@ -202,7 +227,7 @@ export class ExerciseService {
       type: EXERCISE_TYPE,
       prompt: correct.prompt,
       promptKind: style.promptKind,
-      question: style.question,
+      question: style.question(correct),
       options,
       correctOptionId: correctOption.id,
       correctValue: correct.answer,
@@ -250,6 +275,30 @@ function kanaChoice(item: Extract<ResolvedItem, { kind: 'kana' }>): Choice {
  */
 function vocabChoice(item: Extract<ResolvedItem, { kind: 'vocab' }>): Choice {
   return { id: item.id, prompt: item.lemma, answer: item.gloss };
+}
+
+function isGrammar(item: ResolvedItem): item is Extract<ResolvedItem, { kind: 'grammar' }> {
+  return item.kind === 'grammar';
+}
+
+/**
+ * The first example becomes the question: the gapped sentence is the prompt and
+ * what fills the gap is the answer.
+ *
+ * Returns an array rather than a Choice so a point with no examples drops out
+ * instead of producing a question with an empty prompt — a grammar point is
+ * still valid content without one, it just cannot be quizzed this way.
+ */
+function toGrammarChoice(item: {
+  id: string;
+  examples: { sentence: string; answer: string; gloss: string }[];
+}): Choice[] {
+  const example = item.examples[0];
+  if (!example) return [];
+
+  return [
+    { id: item.id, prompt: example.sentence, answer: example.answer, hint: example.gloss },
+  ];
 }
 
 /** exerciseId is "{attempt}:{index}" — it carries everything answering needs. */

@@ -10,10 +10,11 @@ export type ExerciseOption = {
 /**
  * What the prompt is, so the screen can size it. A `kana` prompt is one glyph
  * and belongs in a manuscript cell; a `vocab` prompt is a whole word and does
- * not fit in one — the server says which rather than the client guessing from
- * string length.
+ * not fit in one; a `grammar` prompt is a sentence with a ＿ gap and has to
+ * wrap. The server says which rather than the client guessing from string
+ * length.
  */
-export type PromptKind = 'kana' | 'vocab';
+export type PromptKind = 'kana' | 'vocab' | 'grammar';
 
 export type Question = {
   exerciseId: string;

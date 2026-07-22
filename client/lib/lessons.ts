@@ -62,6 +62,7 @@ const UNIT_LABELS: Record<string, string> = {
   'vocab-basics': 'First words',
   'hiragana-marks': 'Hiragana: marks and combinations',
   'katakana-marks': 'Katakana: marks and combinations',
+  'grammar-basics': 'First sentences',
 };
 
 /**
@@ -75,6 +76,7 @@ const UNIT_ORDER = [
   'vocab-basics',
   'hiragana-marks',
   'katakana-marks',
+  'grammar-basics',
 ];
 
 export type UnitGroup = {

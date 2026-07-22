@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { ContentService } from '../content/content.service';
 import { ItemRef } from '../content/schemas/lesson.schema';
 import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.service';
+import { GRAMMAR_GROUPS, GRAMMAR_LESSONS, GRAMMAR_UNIT } from './japanese/grammar';
 import { HIRAGANA_PACK } from './japanese/hiragana';
 import { HIRAGANA_MARKS_PACK } from './japanese/hiragana-marks';
 import type { KanaPack } from './japanese/kana-pack';
@@ -28,14 +29,16 @@ const MARKS_PACKS: KanaPack[] = [HIRAGANA_MARKS_PACK, KATAKANA_MARKS_PACK];
 export interface SeedSummary {
   kanaItems: number;
   vocabItems: number;
+  grammarPoints: number;
   knowledgeNodes: number;
   knowledgeEdges: number;
   lessons: number;
 }
 
 /**
- * §14 step 2, grown into the whole Phase 0 curriculum: five units as Lessons
- * plus KnowledgeNodes — both kana tables, the first words, and the marks.
+ * §14 step 2, grown into the whole Phase 0 curriculum: six units as Lessons
+ * plus KnowledgeNodes — both kana tables, the marks, the first words, and the
+ * grammar that turns them into sentences.
  *
  * Every write is an upsert on a natural key, so `npm run seed` is idempotent —
  * running it twice leaves the same documents with the same _ids, which matters
@@ -69,11 +72,17 @@ export class SeedService {
     // only the base tables.
     previousLessonId = await this.seedVocab(previousLessonId);
 
-    await this.seedKanaPacks(MARKS_PACKS, previousLessonId);
+    previousLessonId = await this.seedKanaPacks(MARKS_PACKS, previousLessonId);
+
+    // Grammar last: its example sentences are built from the vocabulary above
+    // and use marks the units before it teach, so it is the one part of the
+    // curriculum that genuinely depends on all the rest.
+    await this.seedGrammar(previousLessonId);
 
     const summary: SeedSummary = {
       kanaItems: await this.contentService.countKana(),
       vocabItems: await this.contentService.countVocab(),
+      grammarPoints: await this.contentService.countGrammar(),
       knowledgeNodes: await this.knowledgeGraph.countNodes(),
       knowledgeEdges: await this.knowledgeGraph.countEdges(),
       lessons: await this.contentService.countLessons(),
@@ -81,8 +90,8 @@ export class SeedService {
 
     this.logger.log(
       `Seeded ${summary.kanaItems} kana, ${summary.vocabItems} words, ` +
-        `${summary.knowledgeNodes} nodes, ${summary.knowledgeEdges} edges, ` +
-        `${summary.lessons} lessons`,
+        `${summary.grammarPoints} grammar points, ${summary.knowledgeNodes} nodes, ` +
+        `${summary.knowledgeEdges} edges, ${summary.lessons} lessons`,
     );
 
     return summary;
@@ -244,6 +253,59 @@ export class SeedService {
   }
 
   /**
+   * The grammar unit: one lesson per theme, chained like the rest.
+   *
+   * No prerequisite edges between points, for the same reason vocabulary has
+   * none — は does not require です, they are simply taught together.
+   */
+  private async seedGrammar(carriedLessonId: Types.ObjectId | null): Promise<void> {
+    const idsByGroup = new Map<string, Types.ObjectId[]>();
+
+    for (const [group, points] of Object.entries(GRAMMAR_GROUPS)) {
+      const ids: Types.ObjectId[] = [];
+
+      for (const point of points) {
+        const grammar = await this.contentService.upsertGrammar({
+          title: point.title,
+          explanation: point.explanation,
+          jlpt: 'N5',
+          examples: point.examples,
+        });
+
+        const node = await this.knowledgeGraph.upsertNode({
+          kind: 'grammar',
+          refId: grammar._id,
+          label: point.title,
+        });
+
+        await this.contentService.setGrammarConceptId(grammar._id, node._id);
+        ids.push(grammar._id);
+      }
+
+      idsByGroup.set(group, ids);
+    }
+
+    let previousLessonId = carriedLessonId;
+
+    for (const seed of GRAMMAR_LESSONS) {
+      const grammarIds = seed.groups.flatMap((group) => idsByGroup.get(group) ?? []);
+
+      const lesson = await this.contentService.upsertLesson({
+        unit: GRAMMAR_UNIT,
+        order: seed.order,
+        title: seed.title,
+        itemRefs: grammarIds.map((id) => ({ kind: 'grammar', id })),
+        exerciseTypes: seed.exerciseTypes,
+        prerequisiteLessonIds: previousLessonId ? [previousLessonId] : [],
+      });
+
+      previousLessonId = lesson._id;
+    }
+
+    this.logger.log(`Seeded ${GRAMMAR_UNIT}: ${countGrammarPoints()} points`);
+  }
+
+  /**
    * Edge per (previous character -> current character), within a unit only.
    * Quadratic, and the curve is now unmistakable: **1614 edges for 208
    * characters**, up from 150 for 25 four milestones ago. The marks units are
@@ -278,6 +340,10 @@ export class SeedService {
 
 function countCharacters(pack: KanaPack): number {
   return Object.values(pack.rows).reduce((total, row) => total + row.length, 0);
+}
+
+function countGrammarPoints(): number {
+  return Object.values(GRAMMAR_GROUPS).reduce((total, group) => total + group.length, 0);
 }
 
 function countWords(): number {

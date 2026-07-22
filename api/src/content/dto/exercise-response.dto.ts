@@ -11,9 +11,10 @@ export interface ExerciseOption {
 /**
  * What the prompt *is*, so a client can size it. A kana prompt is one glyph and
  * belongs in a manuscript cell; a vocab prompt is a whole word and does not fit
- * in one. Without this the client would have to guess from string length.
+ * in one; a grammar prompt is a sentence with a gap and needs to wrap. Without
+ * this the client would have to guess from string length.
  */
-export type PromptKind = 'kana' | 'vocab';
+export type PromptKind = 'kana' | 'vocab' | 'grammar';
 
 export interface MultipleChoiceQuestion {
   exerciseId: string;

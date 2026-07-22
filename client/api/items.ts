@@ -28,7 +28,15 @@ export type ResolvedItem =
       pos: string;
       jlpt: string;
     }
-  | { kind: 'grammar'; id: string; title: string; jlpt: string; explanation: string }
+  | {
+      kind: 'grammar';
+      id: string;
+      title: string;
+      jlpt: string;
+      explanation: string;
+      /** Worked examples — the sentence carries a ＿ where `answer` belongs. */
+      examples: { sentence: string; answer: string; gloss: string }[];
+    }
   | {
       kind: 'kanji';
       id: string;

@@ -321,10 +321,13 @@ call content for the item pool instead. Cheap to move now, expensive later.
 
 ### 10b. Multiple choice only asks kana → romaji
 
-**Partly resolved 2026-07-22**: vocabulary lessons now generate quizzes (word →
-gloss), so the service answers two kinds. `GrammarPoint` and `KanjiEntry` items
-still 422 — there is no seeded content of either kind yet, and the shape of a
-good grammar question is a real design question rather than a mapping.
+**Mostly resolved 2026-07-22**: the service answers three kinds now — kana →
+romaji, word → gloss, and grammar as fill-in-the-blank (item 26). Only
+`KanjiEntry` still 422s, and there is no seeded kanji to ask about anyway.
+
+The grammar question turned out to fit the existing machinery after all: a
+gapped sentence is just a prompt whose answer happens to be a particle. What it
+needed was content (a sentence to gap) rather than a new question shape.
 
 Original report follows.
 
@@ -447,10 +450,11 @@ four is done:
 | Hiragana | **complete** — all 46 base characters, 5 lessons (2026-07-21) |
 | Katakana | **complete** — all 46 base characters, 5 lessons, gated behind hiragana (2026-07-21) |
 | Basic vocabulary | **first unit complete** — 58 words, 6 themed lessons (2026-07-22) |
-| Basic grammar | not started — `GrammarPoint` schema exists, nothing seeded |
+| Basic grammar | **first unit complete** — 12 points, 4 lessons (2026-07-22) |
 | *(kana marks — not a §1 line)* | **complete** — 116 syllables, 12 lessons (2026-07-22) |
 
-**Grammar is the last §1 track.** Everything else on the content side now exists.
+**§1's content line is complete.** All four tracks exist, plus the marks unit
+that §1 does not ask for. What remains is depth, not coverage.
 
 Three follow-ups the marks unit created rather than closed:
 
@@ -479,8 +483,35 @@ one remaining gap between "knows the kana" and "can read Japanese text".
 
 **Fix:** a second exercise type — most likely "read this word" over short words
 that contain the mark, which teaches the rule in the only context where it means
-anything. That is §14 step 8's "second exercise type" and would also unlock
-grammar questions, which have the same shape problem (item 10b).
+anything. That is §14 step 8's "second exercise type".
+
+*(Grammar turned out **not** to have this problem — fill-in-the-blank fit the
+existing multiple-choice machinery. See item 26.)*
+
+### 26. GrammarPoint carries an `examples` field beyond §5 (2026-07-22)
+
+The second documented departure from §5's schemas, after `SrsCard` (item 15).
+**Approved before it was made**, with the alternative measured.
+
+§5's `GrammarPoint` is `{ title, jlpt, explanation }`. A grammar quiz has to ask
+about *something*, and the only question this app generates is multiple choice.
+The useful multiple-choice question about a particle is "which one fills this
+gap", which needs a sentence with a gap — and nothing in §5 can hold one.
+
+The alternative was matching a title to its definition, which needs no schema
+change but tests whether you can recognise a definition you have read rather
+than whether you can use the particle, and puts four paragraphs on screen as
+options. **Both were offered; fill-in-the-blank was chosen, with
+definition-matching kept as a later second exercise type.**
+
+Consequences, all additive: `examples: [{ sentence, answer, gloss }]` on the
+schema, the same on `ResolvedItem`'s grammar arm, and `promptKind` gaining
+`'grammar'`. Documented in the root CLAUDE.md contract.
+
+**One thing to watch:** the gloss inside the question text is load-bearing, not
+decoration. 「わたしはいき＿。」is grammatical with ます, ません and ました alike.
+Any future exercise type over grammar has the same problem, and dropping the
+gloss would silently make questions unanswerable rather than merely harder.
 
 **The learning loop is closed as of M5**: complete a lesson → cards seeded →
 `/reviews/due` → grade → FSRS reschedules → XP and events accumulate. Steps 1–5
