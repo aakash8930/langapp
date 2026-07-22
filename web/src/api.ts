@@ -314,6 +314,60 @@ export function completeLesson(lessonId: string): Promise<CompleteResult> {
   });
 }
 
+export const REVIEW_GRADES = ['again', 'hard', 'good', 'easy'] as const;
+export type ReviewGrade = (typeof REVIEW_GRADES)[number];
+export type CardState = 'new' | 'learning' | 'review' | 'relearning';
+
+export type DueCard = {
+  cardId: string;
+  state: CardState;
+  /** ISO 8601 — JSON has no Date, whatever the server's DTO says. */
+  due: string;
+  reps: number;
+  lapses: number;
+  item: ResolvedItem;
+};
+
+export type DueReviews = { count: number; totalDue: number; cap: number; cards: DueCard[] };
+
+/**
+ * Deliberately narrower than the server's `GradeReviewResponse`, which also
+ * returns `stability` and `difficulty`.
+ *
+ * The leak rule in the root CLAUDE.md says FSRS internals must not reach a
+ * client, and the API is currently in violation of it. Leaving the two fields
+ * out of this type is how the site keeps its side of the rule: they cannot be
+ * rendered by accident, because as far as this codebase is concerned they do
+ * not exist.
+ */
+export type GradeResult = {
+  cardId: string;
+  grade: ReviewGrade;
+  state: CardState;
+  due: string;
+  /** Minutes until the card returns — the number a learner cares about. */
+  intervalMinutes: number;
+  reps: number;
+  lapses: number;
+  xpAwarded: number;
+  totalXp: number;
+};
+
+export function fetchDueReviews(): Promise<DueReviews> {
+  return authed<DueReviews>('/reviews/due');
+}
+
+/**
+ * XP is due-gated server-side: grading a card that was not actually due
+ * reschedules it but awards nothing, so `xpAwarded` can legitimately be 0.
+ */
+export function gradeReview(cardId: string, grade: ReviewGrade): Promise<GradeResult> {
+  return authed<GradeResult>(`/reviews/${encodeURIComponent(cardId)}/grade`, {
+    method: 'POST',
+    body: JSON.stringify({ grade }),
+  });
+}
+
 /**
  * The server has no per-user attempt counter, so the client picks the seed.
  * Drawn once per run through a lesson — re-drawing mid-lesson would reshuffle

@@ -27,8 +27,8 @@ option (`repeat: false` is the one). Check `node_modules/animejs/dist/modules/`
 ## Auth, and where the tokens live
 
 Browsing the course needs no account: `GET /lessons` and `GET /lessons/:id` are
-unauthenticated. Everything that *teaches* — quizzes, completion, progress — is
-behind a bearer token.
+unauthenticated. Everything that *teaches* — quizzes, completion, reviews,
+progress — is behind a bearer token.
 
 Tokens are in **`localStorage`**, and the trade is written out in `auth.ts`:
 any script on the page can read them, so an XSS steals a session. That is
@@ -94,6 +94,16 @@ renders fully visible. Never write a bare `opacity: 0` starting state.
 - Smooth scrolling is CSS `scroll-behavior`, not a hijacked scroll library. A
   rewritten scrollbar breaks keyboard paging, find-in-page and trackpad
   momentum, and nothing here needs frame-level scroll control.
+- **The review session's queue is local and the UI never waits.** A grade
+  advances the card immediately and the POST catches up behind it, because
+  twenty cards must not feel like twenty round trips. The cost is a rollback
+  path: a failed grade re-queues the card *once*, never on the last card (the
+  summary is already up), and otherwise counts as lost and is reported. Do not
+  "simplify" this into awaiting each grade.
+- `GradeResult` in `api.ts` is deliberately narrower than the server's
+  response, which still returns `stability` and `difficulty`. The leak rule
+  says FSRS internals must not reach a client and the API is in violation;
+  omitting the fields from the type is how this site keeps its side of it.
 
 ## Commands
 

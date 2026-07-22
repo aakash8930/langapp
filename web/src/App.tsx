@@ -5,6 +5,7 @@ import { Curriculum } from './components/Curriculum';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { LessonQuiz } from './components/LessonQuiz';
+import { Review } from './components/Review';
 import { SignIn } from './components/SignIn';
 import { armMotion, playHero } from './motion';
 import { useRoute } from './useRoute';
@@ -50,6 +51,32 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // Reviews are their own screen for the same reason a lesson is: a session
+  // you are part-way through should not have a marketing page under it.
+  if (route.name === 'review') {
+    return (
+      <>
+        <Header session={session} onSignOut={signOut} />
+        <main className="wrap lesson-screen">
+          {session.state === 'signedIn' ? (
+            <Review onFinished={() => void refreshProgress()} />
+          ) : session.state === 'loading' ? (
+            <div className="glass panel note" role="status">
+              Checking your session…
+            </div>
+          ) : (
+            <div className="glass panel note">
+              <strong>Sign in to review.</strong>
+              <a className="button" href="#/">
+                Back to the course
+              </a>
+            </div>
+          )}
+        </main>
+      </>
+    );
+  }
 
   // A lesson is its own screen: no hero, no curriculum list underneath.
   if (route.name === 'lesson') {
@@ -104,6 +131,25 @@ export default function App() {
         </section>
       ) : null}
 
+      {session.state === 'signedIn' && (session.progress?.cardsDueNow ?? 0) > 0 ? (
+        <section className="section section-tight">
+          <div className="wrap">
+            {/*
+              The loudest thing on the page when it is here. SRS only works if
+              due cards get cleared before new material is added, so this has to
+              out-shout a list of tempting new lessons.
+            */}
+            <a className="due-callout" href="#/review">
+              <span className="due-count tabular">{session.progress?.cardsDueNow}</span>
+              <span>
+                <strong>Cards are due</strong>
+                <span>Clear these before starting something new.</span>
+              </span>
+            </a>
+          </div>
+        </section>
+      ) : null}
+
       <main id="curriculum">
         <Curriculum
           load={load}
@@ -117,8 +163,8 @@ export default function App() {
         <div className="wrap footer-inner">
           <span className="ja footer-mark">日本語</span>
           <p>
-            Lessons and progress are the same here as in the Android app — one account, one
-            database. Spaced review and the AI tutor are in the app for now.
+            Lessons, reviews and progress are the same here as in the Android app — one
+            account, one database. The AI tutor is in the app for now.
           </p>
         </div>
       </footer>

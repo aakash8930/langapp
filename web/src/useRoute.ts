@@ -7,11 +7,12 @@ import { useEffect, useState } from 'react';
  * plain static files that work from any directory on any host — which matters
  * because where this ends up deployed is still an open question.
  *
- * Two routes exist. A router library would be more code than the feature.
+ * Three routes exist. A router library would be more code than the feature.
  */
-export type Route = { name: 'home' } | { name: 'lesson'; id: string };
+export type Route = { name: 'home' } | { name: 'lesson'; id: string } | { name: 'review' };
 
 function parse(hash: string): Route {
+  if (hash === '#/review') return { name: 'review' };
   const match = /^#\/lesson\/([A-Za-z0-9]+)$/.exec(hash);
   return match ? { name: 'lesson', id: match[1] } : { name: 'home' };
 }
@@ -29,7 +30,8 @@ export function useRoute(): Route {
 }
 
 export function go(route: Route): void {
-  window.location.hash = route.name === 'lesson' ? `#/lesson/${route.id}` : '#/';
+  window.location.hash =
+    route.name === 'lesson' ? `#/lesson/${route.id}` : route.name === 'review' ? '#/review' : '#/';
 }
 
 /**

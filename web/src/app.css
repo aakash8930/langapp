@@ -770,3 +770,128 @@
   font-size: var(--text-small);
   color: var(--ink-soft);
 }
+
+/* ---- Reviews ---- */
+
+/*
+ * The one solid vermilion surface on the site. That weight is the point: SRS
+ * only works if due cards get cleared before new material is added, so this
+ * has to out-shout a list of tempting new lessons.
+ *
+ * `paper` on `shu` clears AA in both themes at full strength — it is not
+ * dimmed, because the same pairing at 0.85 opacity composites to 3.9:1 and
+ * fails. The size step does the work the opacity would have.
+ */
+.due-callout {
+  display: flex;
+  align-items: center;
+  gap: var(--s-lg);
+  padding: var(--s-xl);
+  border-radius: var(--radius-xl);
+  background: var(--shu);
+  color: var(--paper);
+  text-decoration: none;
+  transition: opacity var(--t-fast) ease;
+}
+.due-callout:hover {
+  opacity: 0.92;
+}
+.due-count {
+  font-size: var(--text-heading);
+  font-weight: 700;
+  line-height: 1;
+  flex: none;
+}
+.due-callout strong {
+  display: block;
+  font-size: var(--text-large);
+  font-weight: 700;
+}
+.due-callout span span {
+  font-size: var(--text-small);
+}
+
+.card-back {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+  align-items: center;
+  text-align: center;
+}
+.card-back p {
+  margin: 0;
+}
+.card-back-answer {
+  font-size: var(--text-title);
+  color: var(--ink);
+}
+.card-back-detail {
+  font-size: var(--text-body);
+  color: var(--ink-soft);
+}
+
+/*
+ * The four grades as one ramp of ink density rather than four hues: visual
+ * weight maps to how hard the card was. This is the one place the design is
+ * allowed to be bold, and the tokens are lifted from the app's grade scale so
+ * both surfaces grade against the same colours.
+ */
+.grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--s-sm);
+  width: 100%;
+}
+.grade {
+  min-height: 56px;
+  border: none;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--text-small);
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: opacity var(--t-fast) ease;
+}
+.grade:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.grade:not(:disabled):hover {
+  opacity: 0.85;
+}
+.grade-again {
+  background: #7b2114;
+  color: #f7efea;
+}
+.grade-hard {
+  background: #b03b25;
+  color: #f7efea;
+}
+.grade-good {
+  background: #dd9384;
+  color: #3a1009;
+}
+.grade-easy {
+  background: #f0d2ca;
+  color: #3a1009;
+}
+@media (prefers-color-scheme: dark) {
+  /* On an ink ground the ramp runs the other way: `again` is brightest and
+     `easy` recedes almost to the surface. Density still maps to effort. */
+  .grade-again {
+    background: #c0442b;
+    color: #f7efea;
+  }
+  .grade-hard {
+    background: #8e3623;
+    color: #f7efea;
+  }
+  .grade-good {
+    background: #5a2519;
+    color: #e8c4b8;
+  }
+  .grade-easy {
+    background: #38201a;
+    color: #e8c4b8;
+  }
+}
