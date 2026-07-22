@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Japanese Learning App — Feature Workflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#ECE7D9;
+    --paper-2:#E4DECC;
+    --paper-3:#DAD3BE;
+    --ink:#201C17;
+    --ink-soft:#4A4638;
+    --ink-faint:#736C57;
+    --shu:#C24028;          /* seal / manuscript-grid vermilion */
+    --shu-deep:#9E3320;
+    --ai:#1E2E3A;           /* ai-iro indigo */
+    --ai-light:#5B7A8C;
+    --grid:rgba(194,64,40,0.16);
+    --hair:rgba(32,28,23,0.16);
+    --jp-serif:'Shippori Mincho',serif;
+    --jp-sans:'Zen Kaku Gothic New',sans-serif;
+    --cell:46px;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--jp-sans);
+    font-weight:400;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* ---- genkouyoushi manuscript grid, used as decorative texture ---- */
+  .grid-bg{
+    position:absolute; inset:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: var(--cell) var(--cell);
+    background-position: center;
+    -webkit-mask-image:linear-gradient(180deg, #000 0%, #000 60%, transparent 100%);
+    mask-image:linear-gradient(180deg, #000 0%, #000 60%, transparent 100%);
+    z-index:0;
+  }
+
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px;position:relative;z-index:1}
+
+  /* =================== HERO =================== */
+  header.hero{position:relative;padding:88px 0 60px;overflow:hidden}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:12px;
+    font-size:12.5px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--shu-deep);font-weight:700;margin-bottom:34px;
+  }
+  .eyebrow .jp{font-family:var(--jp-serif);letter-spacing:.14em;color:var(--ink-soft);font-weight:700}
+  .eyebrow::before{content:"";width:34px;height:2px;background:var(--shu)}
+
+  .hero-cells{display:flex;gap:0;margin-bottom:30px}
+  .cell{
+    width:96px;height:96px;flex:0 0 auto;
+    border:1.5px solid var(--shu);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--jp-sans);font-weight:900;
+    font-size:58px;color:var(--ink);
+    position:relative;background:rgba(255,255,255,.14);
+    margin-left:-1.5px;
+  }
+  .cell:first-child{margin-left:0}
+  /* center registration marks like real manuscript paper */
+  .cell::before,.cell::after{content:"";position:absolute;background:var(--shu);opacity:.5}
+  .cell::before{width:8px;height:1px;left:50%;top:50%;transform:translate(-50%,-50%)}
+  .cell::after{width:1px;height:8px;left:50%;top:50%;transform:translate(-50%,-50%)}
+
+  h1.title{
+    font-family:var(--jp-serif);font-weight:800;
+    font-size:clamp(38px,6.4vw,72px);line-height:1.02;
+    letter-spacing:-.01em;max-width:16ch;margin-bottom:22px;
+  }
+  h1 .accent{color:var(--shu);font-style:italic}
+  .lede{font-size:clamp(15px,1.6vw,18px);color:var(--ink-soft);max-width:56ch;line-height:1.62}
+
+  .meta{
+    display:flex;flex-wrap:wrap;gap:0;margin-top:44px;
+    border-top:1.5px solid var(--ink);
+  }
+  .meta .m{
+    padding:18px 26px 16px 0;margin-right:26px;
+    border-right:1px solid var(--hair);flex:1 1 150px;min-width:150px;
+  }
+  .meta .m:last-child{border-right:none;margin-right:0}
+  .meta .num{font-family:var(--jp-serif);font-weight:800;font-size:34px;line-height:1;color:var(--shu)}
+  .meta .lbl{margin-top:8px;font-size:12.5px;letter-spacing:.06em;color:var(--ink-faint);text-transform:uppercase}
+  .meta .jp{font-family:var(--jp-serif);font-size:13px;color:var(--ink-soft);margin-top:3px}
+
+  /* =================== SECTION HEADS =================== */
+  .sec{padding:70px 0}
+  .sec-head{display:flex;align-items:flex-end;gap:20px;margin-bottom:46px}
+  .sec-kanji{
+    font-family:var(--jp-serif);font-weight:800;font-size:clamp(46px,7vw,80px);
+    line-height:.85;color:var(--shu);flex:0 0 auto;
+  }
+  .sec-titles{border-bottom:1.5px solid var(--ink);padding-bottom:14px;flex:1}
+  .sec-idx{font-size:12px;letter-spacing:.3em;color:var(--ink-faint);text-transform:uppercase;font-weight:700}
+  .sec-titles h2{font-family:var(--jp-serif);font-weight:800;font-size:clamp(24px,3.4vw,36px);line-height:1.05;margin-top:6px}
+  .sec-titles p{font-size:14.5px;color:var(--ink-soft);margin-top:8px;max-width:60ch}
+
+  /* =================== THE JOURNEY (workflow spine) =================== */
+  .journey{position:relative;padding-left:8px}
+  .journey::before{
+    content:"";position:absolute;left:calc(var(--cell)/2 + 8px);top:12px;bottom:12px;
+    width:2px;background:linear-gradient(180deg,var(--shu),var(--shu-deep));opacity:.55;
+  }
+  .step{
+    display:grid;grid-template-columns:var(--cell) 1fr;gap:26px;
+    align-items:start;padding:14px 0;position:relative;
+  }
+  .step-cell{
+    width:var(--cell);height:var(--cell);border:1.5px solid var(--shu);
+    background:var(--paper);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;position:relative;z-index:2;
+    box-shadow:0 0 0 5px var(--paper);
+  }
+  .step-cell .n{font-family:var(--jp-serif);font-weight:800;font-size:20px;line-height:1;color:var(--ink)}
+  .step-body{padding-top:2px;border-bottom:1px solid var(--hair);padding-bottom:16px}
+  .step:last-child .step-body{border-bottom:none}
+  .step-jp{font-family:var(--jp-sans);font-weight:700;font-size:clamp(20px,2.4vw,26px);letter-spacing:.02em;color:var(--ink)}
+  .step-en{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--shu-deep);font-weight:700;margin-top:4px}
+  .step-desc{font-size:14px;color:var(--ink-soft);margin-top:8px;max-width:64ch;line-height:1.55}
+  .phase-tag{
+    display:inline-block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-faint);border:1px solid var(--hair);padding:2px 9px;border-radius:2px;margin-top:10px;font-weight:700;
+  }
+
+  /* =================== ARCHITECTURE (12 domains) =================== */
+  .arch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+  .domain{
+    background:var(--paper-2);border:1px solid var(--hair);
+    padding:22px 22px 24px;position:relative;
+    transition:transform .4s cubic-bezier(.2,.7,.2,1),box-shadow .4s,background .4s;
+  }
+  .domain:hover{transform:translateY(-4px);box-shadow:-6px 8px 0 -2px var(--shu);background:var(--paper);}
+  .domain-top{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+  .domain-kanji{
+    width:52px;height:52px;flex:0 0 auto;border:1.5px solid var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--jp-sans);font-weight:900;font-size:30px;color:var(--ink);
+    background:var(--paper);
+  }
+  .domain:hover .domain-kanji{border-color:var(--shu);color:var(--shu)}
+  .domain-idx{font-family:var(--jp-serif);font-weight:800;font-size:15px;color:var(--shu);letter-spacing:.08em}
+  .domain h3{font-family:var(--jp-serif);font-weight:700;font-size:19px;line-height:1.15;margin-top:2px}
+  .domain h3 .jp{display:block;font-family:var(--jp-sans);font-weight:500;font-size:12.5px;color:var(--ink-faint);letter-spacing:.1em;margin-top:3px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{
+    font-size:12px;line-height:1.3;color:var(--ink-soft);
+    background:var(--paper);border:1px solid var(--hair);
+    padding:5px 10px;border-radius:2px;font-weight:500;
+  }
+  .domain:hover .chip{border-color:rgba(194,64,40,.28)}
+
+  /* =================== THE EDGE (indigo band) =================== */
+  .edge{background:var(--ai);color:var(--paper);position:relative;overflow:hidden}
+  .edge .grid-bg{
+    background-image:
+      linear-gradient(rgba(91,122,140,.14) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(91,122,140,.14) 1px, transparent 1px);
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 40%,#000 100%);
+    mask-image:linear-gradient(180deg,transparent,#000 40%,#000 100%);
+  }
+  .edge .sec-kanji{color:var(--ai-light)}
+  .edge .sec-titles{border-bottom-color:rgba(236,231,217,.4)}
+  .edge .sec-titles h2{color:var(--paper)}
+  .edge .sec-idx{color:var(--ai-light)}
+  .edge .sec-titles p{color:#C9D4DA}
+  .edge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:2px;background:rgba(91,122,140,.28);border:1px solid rgba(91,122,140,.28)}
+  .edge-item{background:var(--ai);padding:26px 24px;transition:background .35s}
+  .edge-item:hover{background:#243745}
+  .edge-item .en{font-family:var(--jp-serif);font-weight:700;font-size:18px;color:var(--paper);line-height:1.25}
+  .edge-item .no{font-family:var(--jp-serif);font-size:13px;color:var(--ai-light);font-weight:700;letter-spacing:.1em;display:block;margin-bottom:10px}
+  .edge-item .d{font-size:13px;color:#B7C4CB;margin-top:9px;line-height:1.55}
+
+  /* =================== FOOTER =================== */
+  footer{padding:56px 0 72px;border-top:1.5px solid var(--ink)}
+  .foot-row{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap}
+  .foot-mark{font-family:var(--jp-serif);font-weight:800;font-size:22px}
+  .foot-mark .jp{color:var(--shu)}
+  .foot-note{font-size:12.5px;color:var(--ink-faint);max-width:44ch;line-height:1.6}
+
+  /* =================== language rail (hero) =================== */
+  .lang-rail{display:flex;flex-wrap:wrap;gap:9px;margin-top:32px;align-items:center}
+  .lang-rail .rl{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin-right:8px}
+  .lang{
+    font-family:var(--jp-sans);font-weight:700;font-size:15px;line-height:1.05;
+    padding:8px 14px;border:1px solid var(--hair);color:var(--ink-soft);background:var(--paper-2);
+  }
+  .lang .t{display:block;font-size:9px;letter-spacing:.16em;color:var(--ink-faint);margin-top:3px;text-transform:uppercase;font-weight:700}
+  .lang.active{border-color:var(--shu);color:var(--ink);background:var(--paper);box-shadow:-3px 3px 0 -1px var(--shu)}
+  .lang.active .t{color:var(--shu-deep)}
+
+  /* =================== platform band =================== */
+  .platform{background:var(--paper-3);border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink)}
+  .platform .wrap{padding:52px 28px}
+  .plat-head{display:flex;align-items:baseline;gap:16px;margin-bottom:30px;flex-wrap:wrap}
+  .plat-head .k{font-family:var(--jp-serif);font-weight:800;font-size:34px;color:var(--shu);line-height:1}
+  .plat-head h2{font-family:var(--jp-serif);font-weight:800;font-size:clamp(21px,2.8vw,28px)}
+  .plat-head p{flex:1 1 300px;font-size:14px;color:var(--ink-soft);line-height:1.6;min-width:260px}
+  .schema{display:flex;flex-direction:column;gap:0;align-items:stretch}
+  .tracks{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .track{
+    font-family:var(--jp-sans);font-weight:700;font-size:15px;padding:12px 18px;
+    border:1.5px solid var(--ink);background:var(--paper);text-align:center;min-width:96px;
+  }
+  .track.live{border-color:var(--shu);color:var(--shu)}
+  .track .t{display:block;font-size:9px;letter-spacing:.14em;color:var(--ink-faint);margin-top:3px;text-transform:uppercase;font-weight:700}
+  .track.live .t{color:var(--shu-deep)}
+  .plug{display:flex;flex-direction:column;align-items:center;color:var(--ink-faint);padding:14px 0}
+  .plug .ln{width:2px;height:22px;background:var(--shu);opacity:.5}
+  .plug .lbl{font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;color:var(--ink-faint);padding:8px 0}
+  .core{
+    border:1.5px solid var(--ink);background:var(--ai);color:var(--paper);
+    padding:22px 24px;text-align:center;
+  }
+  .core .ct{font-family:var(--jp-serif);font-weight:800;font-size:18px;color:var(--paper)}
+  .core .cs{font-size:12.5px;color:#C9D4DA;margin-top:8px;letter-spacing:.02em;line-height:1.6}
+
+  /* =================== platform stack (9 layers) =================== */
+  .stack{display:flex;flex-direction:column;gap:7px;max-width:800px}
+  .grp-label{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--shu-deep);font-weight:700;margin:16px 0 4px}
+  .grp-label:first-child{margin-top:0}
+  .layer{display:grid;grid-template-columns:60px 1fr;align-items:stretch;border:1.5px solid var(--ink);background:var(--paper)}
+  .layer .ln{font-family:var(--jp-serif);font-weight:800;font-size:19px;display:flex;align-items:center;justify-content:center;border-right:1.5px solid var(--ink);color:var(--shu)}
+  .layer .lb{padding:13px 20px}
+  .layer .lt{font-family:var(--jp-serif);font-weight:700;font-size:16px;line-height:1.2}
+  .layer .ls{font-size:12px;color:var(--ink-faint);margin-top:3px;line-height:1.45}
+  .layer.engine{background:var(--ai);border-color:var(--ai)}
+  .layer.engine .ln{color:var(--ai-light);border-right-color:rgba(91,122,140,.4)}
+  .layer.engine .lt{color:var(--paper)}
+  .layer.engine .ls{color:#C4D0D7}
+  .layer.pack{border-color:var(--shu);background:var(--paper)}
+  .layer.kg{background:var(--ai);border-color:var(--shu)}
+  .layer.kg .ln{color:var(--shu);border-right-color:rgba(194,64,40,.5)}
+  .layer.kg .lt{color:var(--paper)}
+  .layer.kg .ls{color:#C4D0D7}
+  .kg-tag{display:inline-block;margin-left:8px;font-family:var(--jp-sans);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--shu);border:1px solid var(--shu);padding:1px 7px;vertical-align:middle}
+  .layer.pack .ln{border-right-color:var(--shu)}
+  .layer.pack.flag{background:var(--paper-2);box-shadow:-4px 4px 0 -1px var(--shu)}
+  .layer.eco{background:var(--paper-3)}
+
+  /* =================== expansion modules =================== */
+  .exp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:20px}
+  .module{background:var(--paper-2);border:1px solid var(--hair);padding:22px 22px 10px;transition:transform .4s cubic-bezier(.2,.7,.2,1),box-shadow .4s,background .4s}
+  .module:hover{transform:translateY(-4px);box-shadow:-6px 8px 0 -2px var(--shu);background:var(--paper)}
+  .mod-top{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+  .mod-kanji{width:50px;height:50px;flex:0 0 auto;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--jp-sans);font-weight:900;font-size:28px;background:var(--paper)}
+  .module:hover .mod-kanji{border-color:var(--shu);color:var(--shu)}
+  .mod-idx{font-family:var(--jp-serif);font-weight:800;font-size:14px;color:var(--shu);letter-spacing:.08em}
+  .module h3{font-family:var(--jp-serif);font-weight:700;font-size:18px;line-height:1.15;margin-top:2px}
+  .mrow{padding:11px 0;border-top:1px solid var(--hair)}
+  .mrow .mh{display:block;font-family:var(--jp-serif);font-weight:700;font-size:14px}
+  .mrow .md{display:block;font-size:12px;color:var(--ink-faint);margin-top:3px;line-height:1.5}
+
+  /* =================== phasing roadmap =================== */
+  .phase-intro{font-size:14px;color:var(--ink-soft);max-width:64ch;margin-bottom:30px;line-height:1.6}
+  .phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:16px}
+  .phase{border:1.5px solid var(--ink);background:var(--paper-2);padding:22px 20px}
+  .phase .pn{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--shu-deep);font-weight:700}
+  .phase h4{font-family:var(--jp-serif);font-weight:800;font-size:19px;margin:7px 0 2px}
+  .phase .pj{font-family:var(--jp-sans);font-size:12px;color:var(--ink-faint);margin-bottom:14px}
+  .phase ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .phase li{font-size:13px;color:var(--ink-soft);padding-left:15px;position:relative;line-height:1.4}
+  .phase li::before{content:"";position:absolute;left:0;top:7px;width:6px;height:6px;background:var(--shu)}
+  .phase.now{background:var(--paper);border-color:var(--shu);box-shadow:-5px 6px 0 -1px var(--shu)}
+  .phase.now .pn{color:var(--shu)}
+  .phase .ship{display:inline-block;margin-top:2px;margin-bottom:12px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--shu);border:1px solid var(--shu);padding:2px 8px}
+
+  /* =================== reveal animation =================== */
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  .hero-cells .cell{opacity:0;transform:translateY(14px);animation:inkin .6s cubic-bezier(.2,.7,.2,1) forwards}
+  .hero-cells .cell:nth-child(1){animation-delay:.15s}
+  .hero-cells .cell:nth-child(2){animation-delay:.30s}
+  .hero-cells .cell:nth-child(3){animation-delay:.45s}
+  @keyframes inkin{to{opacity:1;transform:none}}
+
+  @media (max-width:600px){
+    :root{--cell:40px}
+    .cell{width:74px;height:74px;font-size:44px}
+    .meta{border-top-width:1.5px}
+    .meta .m{border-right:none;border-bottom:1px solid var(--hair);flex:1 1 100%;margin-right:0;padding-right:0}
+    .sec{padding:52px 0}
+    .step{gap:18px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .reveal{opacity:1;transform:none}
+    html{scroll-behavior:auto}
+    .hero-cells .cell{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="grid-bg"></div>
+  <div class="wrap">
+    <div class="eyebrow">Feature Workflow · v3 <span class="jp">AIネイティブ言語OS・設計図</span></div>
+
+    <div class="hero-cells" aria-hidden="true">
+      <div class="cell">日</div>
+      <div class="cell">本</div>
+      <div class="cell">語</div>
+    </div>
+
+    <h1 class="title">One platform. <span class="accent">Japanese first</span> — then every language after it.</h1>
+    <p class="lede">Duolingo's habit loop, Busuu's depth of real communication, and neither one's ads or upsell nags — an AI-native language OS. A language-agnostic core with Japanese as the flagship track, the same twelve domains and AI layer serving every language, and a deep expansion catalog on top.</p>
+
+    <div class="meta">
+      <div class="m"><div class="num">12</div><div class="lbl">Core Domains</div><div class="jp">機能領域</div></div>
+      <div class="m"><div class="num">12</div><div class="lbl">Flagship Stages</div><div class="jp">学習の道筋</div></div>
+      <div class="m"><div class="num">20</div><div class="lbl">Expansion Modules</div><div class="jp">拡張機能</div></div>
+      <div class="m"><div class="num">10</div><div class="lbl">Platform Layers</div><div class="jp">構成層</div></div>
+      <div class="m"><div class="num">1<span style="font-size:22px">→</span>&#8734;</div><div class="lbl">Languages</div><div class="jp">言語トラック</div></div>
+    </div>
+
+    <div class="lang-rail">
+      <span class="rl">Language tracks</span>
+      <span class="lang active">日本語<span class="t">Live · flagship</span></span>
+      <span class="lang">한국어<span class="t">Next</span></span>
+      <span class="lang">中文<span class="t">Next</span></span>
+      <span class="lang">Español<span class="t">Planned</span></span>
+      <span class="lang">Français<span class="t">Planned</span></span>
+      <span class="lang">+ more<span class="t">Same core</span></span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ PLATFORM MODEL ============ -->
+<section class="platform" id="platform">
+  <div class="wrap">
+    <div class="plat-head reveal">
+      <span class="k" aria-hidden="true">核</span>
+      <h2>Built multi-language from the core</h2>
+      <p>Language-specific content lives only in the top layer — scripts, vocabulary, grammar, kanji or equivalent. Everything below it is shared. Ship Japanese, then add a language by swapping the content track, not rebuilding the app.</p>
+    </div>
+
+    <div class="schema reveal">
+      <div class="tracks">
+        <div class="track live">日本語<span class="t">Live</span></div>
+        <div class="track">한국어<span class="t">Next</span></div>
+        <div class="track">中文<span class="t">Next</span></div>
+        <div class="track">Español<span class="t">Planned</span></div>
+        <div class="track">Français<span class="t">Planned</span></div>
+      </div>
+      <div class="plug" aria-hidden="true">
+        <div class="lbl">all plug into</div>
+        <div class="ln"></div>
+      </div>
+      <div class="core">
+        <div class="ct">Language-agnostic core · 共通基盤</div>
+        <div class="cs">Progress &amp; XP · Gamification · AI conversation &amp; feedback · Practice modes · SRS · Social · Notifications · Profiles · Administration</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE JOURNEY ============ -->
+<section class="sec" id="journey">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-kanji" aria-hidden="true">道</div>
+      <div class="sec-titles">
+        <div class="sec-idx">Part One · The Flagship Track — Japanese</div>
+        <h2>The journey, stage by stage</h2>
+        <p>An ordered progression where each stage assumes the one before it. It's also the reference template: stages 1–2 (scripts) and 6 (kanji) are the language-specific slots — swap them for another language's writing system, and the rest of the shape holds.</p>
+      </div>
+    </div>
+
+    <div class="journey">
+      <div class="step reveal"><div class="step-cell"><span class="n">1</span></div><div class="step-body"><div class="step-jp">ひらがな</div><div class="step-en">Hiragana</div><div class="step-desc">The foundation. Every learner starts here — reading and writing the 46 base kana before anything else loads.</div><span class="phase-tag">Foundation · 基礎</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">2</span></div><div class="step-body"><div class="step-jp">カタカナ</div><div class="step-en">Katakana</div><div class="step-desc">The second script, for loanwords and emphasis. Same drills, contrast-focused so learners don't confuse the two sets.</div><span class="phase-tag">Foundation · 基礎</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">3</span></div><div class="step-body"><div class="step-jp">単語</div><div class="step-en">Basic Vocabulary</div><div class="step-desc">First few hundred words, image-anchored and fed straight into spaced repetition from day one.</div><span class="phase-tag">Foundation · 基礎</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">4</span></div><div class="step-body"><div class="step-jp">文法</div><div class="step-en">Basic Grammar</div><div class="step-desc">Particles, verb forms, sentence order — taught through patterns, with AI explanations on tap when a rule doesn't land.</div><span class="phase-tag">Building · 構築</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">5</span></div><div class="step-body"><div class="step-jp">作文</div><div class="step-en">Sentence Building</div><div class="step-desc">Learners assemble and translate full sentences — the point where vocabulary and grammar start working together.</div><span class="phase-tag">Building · 構築</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">6</span></div><div class="step-body"><div class="step-jp">漢字</div><div class="step-en">Kanji</div><div class="step-desc">Introduced by frequency and JLPT tier, with stroke-order practice and handwriting recognition to check each character.</div><span class="phase-tag">Building · 構築</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">7</span></div><div class="step-body"><div class="step-jp">読解</div><div class="step-en">Reading Practice</div><div class="step-desc">Graded stories and passages that reuse learned words, growing in length as the learner's known-word set grows.</div><span class="phase-tag">Fluency · 応用</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">8</span></div><div class="step-body"><div class="step-jp">聴解</div><div class="step-en">Listening Practice</div><div class="step-desc">Native audio at adjustable speed — listen-and-type, listen-and-choose, and dictation to train the ear.</div><span class="phase-tag">Fluency · 応用</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">9</span></div><div class="step-body"><div class="step-jp">話す</div><div class="step-en">Speaking Practice</div><div class="step-desc">Speak into the mic; speech recognition and real-time pronunciation scoring flag exactly which sounds to fix.</div><span class="phase-tag">Fluency · 応用</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">10</span></div><div class="step-body"><div class="step-jp">AI会話</div><div class="step-en">Conversation with AI</div><div class="step-desc">Open-ended, spoken practice with an AI partner that stays in level, role-plays real scenes, and corrects gently.</div><span class="phase-tag">Fluency · 応用</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">11</span></div><div class="step-body"><div class="step-jp">JLPT N5〜N1</div><div class="step-en">JLPT-Focused Study</div><div class="step-desc">Adaptive prep tracks by tier, with placement tests up front and mock proficiency exams to gauge readiness.</div><span class="phase-tag">Mastery · 熟達</span></div></div>
+      <div class="step reveal"><div class="step-cell"><span class="n">12</span></div><div class="step-body"><div class="step-jp">実践</div><div class="step-en">Real-World Practice</div><div class="step-desc">News, anime, books, and live conversation — the graduation from lessons into the language as it's actually used.</div><span class="phase-tag">Mastery · 熟達</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE ARCHITECTURE ============ -->
+<section class="sec" id="architecture">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-kanji" aria-hidden="true">構</div>
+      <div class="sec-titles">
+        <div class="sec-idx">Part Two · The Feature Architecture</div>
+        <h2>Twelve domains that hold it up</h2>
+        <p>The systems that make the walk possible — content, feedback, motivation, and the tools to run it all. Only Domain 01 carries language-specific content; the other eleven are shared across every track you launch.</p>
+      </div>
+    </div>
+
+    <div class="arch-grid">
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">学</div>
+          <div><div class="domain-idx">01</div><h3>Learning Content<span class="jp">学習コンテンツ</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Alphabet (Hiragana / Katakana)</span><span class="chip">Vocabulary</span><span class="chip">Grammar</span><span class="chip">Sentence building</span><span class="chip">Pronunciation</span><span class="chip">Listening</span><span class="chip">Reading comprehension</span><span class="chip">Speaking</span><span class="chip">Writing</span><span class="chip">Cultural notes</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">課</div>
+          <div><div class="domain-idx">02</div><h3>Lesson Types<span class="jp">問題形式</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Multiple choice</span><span class="chip">Match pairs</span><span class="chip">Fill in the blanks</span><span class="chip">Arrange words</span><span class="chip">Translate</span><span class="chip">Listen &amp; type</span><span class="chip">Listen &amp; choose</span><span class="chip">Speak into mic</span><span class="chip">Dictation</span><span class="chip">Image vocabulary</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">進</div>
+          <div><div class="domain-idx">03</div><h3>Progress System<span class="jp">進捗システム</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">XP</span><span class="chip">Levels</span><span class="chip">Units</span><span class="chip">Courses</span><span class="chip">Daily goals</span><span class="chip">Streaks</span><span class="chip">Crowns / mastery</span><span class="chip">Achievement badges</span><span class="chip">Progress tracking</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">遊</div>
+          <div><div class="domain-idx">04</div><h3>Gamification<span class="jp">ゲーム要素</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Hearts / lives</span><span class="chip">Gems / coins</span><span class="chip">Leaderboards</span><span class="chip">Daily quests</span><span class="chip">Weekly challenges</span><span class="chip">Rewards</span><span class="chip">Unlockable content</span><span class="chip">Streak freezes</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">知</div>
+          <div><div class="domain-idx">05</div><h3>AI Features<span class="jp">AI機能</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">AI conversation partner</span><span class="chip">Pronunciation feedback</span><span class="chip">Grammar explanations</span><span class="chip">Personalized recommendations</span><span class="chip">Adaptive difficulty</span><span class="chip">Mistake analysis</span><span class="chip">Review scheduling</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">練</div>
+          <div><div class="domain-idx">06</div><h3>Practice Modes<span class="jp">練習モード</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Vocabulary review</span><span class="chip">Listening-only</span><span class="chip">Speaking-only</span><span class="chip">Grammar drills</span><span class="chip">Timed challenges</span><span class="chip">Weak-word review</span><span class="chip">Mistake review</span><span class="chip">Daily revision</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">人</div>
+          <div><div class="domain-idx">07</div><h3>User Profile<span class="jp">プロフィール</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Learning statistics</span><span class="chip">Language level</span><span class="chip">Learning goals</span><span class="chip">Friends</span><span class="chip">Achievements</span><span class="chip">Certificates</span><span class="chip">Course completion</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">縁</div>
+          <div><div class="domain-idx">08</div><h3>Social Features<span class="jp">ソーシャル</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Friends</span><span class="chip">Follow users</span><span class="chip">Leaderboards</span><span class="chip">Friend quests</span><span class="chip">Learning clubs</span><span class="chip">Community discussions</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">報</div>
+          <div><div class="domain-idx">09</div><h3>Notifications<span class="jp">通知</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Daily reminders</span><span class="chip">Streak reminders</span><span class="chip">Goal completion</span><span class="chip">Challenge alerts</span><span class="chip">Achievement alerts</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">皆</div>
+          <div><div class="domain-idx">10</div><h3>Offline &amp; Access<span class="jp">オフライン・利便性</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Offline lessons</span><span class="chip">Dark mode</span><span class="chip">Adjustable audio speed</span><span class="chip">Accessibility support</span><span class="chip">Multi-device sync</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">管</div>
+          <div><div class="domain-idx">11</div><h3>Administration<span class="jp">管理</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Course management</span><span class="chip">Lesson builder</span><span class="chip">Content editor</span><span class="chip">Analytics dashboard</span><span class="chip">User management</span><span class="chip">Moderation tools</span>
+        </div>
+      </article>
+
+      <article class="domain reveal">
+        <div class="domain-top">
+          <div class="domain-kanji" aria-hidden="true">極</div>
+          <div><div class="domain-idx">12</div><h3>Advanced Features<span class="jp">上級機能</span></h3></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Spaced repetition (SRS)</span><span class="chip">Flashcards</span><span class="chip">Kanji writing</span><span class="chip">Handwriting recognition</span><span class="chip">Speech recognition</span><span class="chip">AI tutor / chat</span><span class="chip">Stories</span><span class="chip">Podcasts</span><span class="chip">Mini games</span><span class="chip">Placement test</span><span class="chip">Mock JLPT exams</span>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE EDGE ============ -->
+<section class="sec edge" id="edge">
+  <div class="grid-bg"></div>
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-kanji" aria-hidden="true">超</div>
+      <div class="sec-titles">
+        <div class="sec-idx">Part Three · Beyond the Baseline</div>
+        <h2>Where it goes past Duolingo and Busuu</h2>
+        <p>Everything above is table stakes. This is the AI layer that turns a lesson app into a tutor — and the wedge is instant correction: Busuu's best feature depends on a native speaker showing up, while this answers every time, at any hour. It lives in the shared core, so every language track inherits it for free.</p>
+      </div>
+    </div>
+
+    <div class="edge-grid">
+      <div class="edge-item reveal"><span class="no">壱 · 01</span><div class="en">AI teacher with voice conversations</div><div class="d">A patient partner that speaks, listens, and holds a real conversation at the learner's level.</div></div>
+      <div class="edge-item reveal"><span class="no">弐 · 02</span><div class="en">Real-time pronunciation scoring</div><div class="d">Every spoken phrase graded on the spot, down to the specific sounds worth repeating.</div></div>
+      <div class="edge-item reveal"><span class="no">参 · 03</span><div class="en">Handwriting recognition for kana &amp; kanji</div><div class="d">Draw the character; the app checks shape and stroke order, not just the final answer.</div></div>
+      <div class="edge-item reveal"><span class="no">四 · 04</span><div class="en">Personalized learning paths</div><div class="d">The route bends around each learner's pace, goals, and the things they keep getting wrong.</div></div>
+      <div class="edge-item reveal"><span class="no">五 · 05</span><div class="en">Interactive stories &amp; role-play</div><div class="d">Practice inside scenes — ordering food, asking directions — instead of isolated drills.</div></div>
+      <div class="edge-item reveal"><span class="no">六 · 06</span><div class="en">Native-level grammar explanations</div><div class="d">Ask why a sentence works, and get an answer with the nuance a textbook skips.</div></div>
+      <div class="edge-item reveal"><span class="no">七 · 07</span><div class="en">JLPT prep with adaptive AI coaching</div><div class="d">Tier-by-tier study that shifts focus toward weak spots as the exam gets closer.</div></div>
+      <div class="edge-item reveal"><span class="no">八 · 08</span><div class="en">Analytics &amp; tailored spaced repetition</div><div class="d">Review timing tuned per learner, so words resurface exactly when they're about to fade.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE PLATFORM STACK ============ -->
+<section class="sec" id="stack">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-kanji" aria-hidden="true">層</div>
+      <div class="sec-titles">
+        <div class="sec-idx">Part Four · The Platform Stack</div>
+        <h2>Ten layers, not one app</h2>
+        <p>The shape that lets this grow for years. Engines at the base are built once and shared; the Knowledge Graph sits above them as the source of truth every other layer reads from; language packs plug in; the ecosystem grows last. Read it bottom-up.</p>
+      </div>
+    </div>
+
+    <div class="stack reveal">
+      <div class="grp-label">Ecosystem · grows over time</div>
+      <div class="layer eco"><div class="ln">10</div><div class="lb"><div class="lt">Creator Ecosystem</div><div class="ls">Independent teachers and studios building on top of the platform.</div></div></div>
+      <div class="layer eco"><div class="ln">9</div><div class="lb"><div class="lt">Developer SDK / APIs</div><div class="ls">Programmatic access to the engines for third-party apps and integrations.</div></div></div>
+      <div class="layer eco"><div class="ln">8</div><div class="lb"><div class="lt">Community &amp; Marketplace</div><div class="ls">Clubs, discussions, and paid course / kanji / grammar packs.</div></div></div>
+
+      <div class="grp-label">Language packs · swappable content</div>
+      <div class="layer pack flag"><div class="ln">5</div><div class="lb"><div class="lt">Japanese Language Pack&nbsp; · 日本語</div><div class="ls">The flagship. Scripts, vocabulary, grammar tree, kanji system — the reference build.</div></div></div>
+      <div class="layer pack"><div class="ln">6</div><div class="lb"><div class="lt">Korean Language Pack&nbsp; · 한국어</div><div class="ls">Same core, swapped content: Hangul in place of kana, its own grammar track.</div></div></div>
+      <div class="layer pack"><div class="ln">7</div><div class="lb"><div class="lt">Chinese Language Pack&nbsp; · 中文</div><div class="ls">Hanzi, tones, and pinyin plug into the identical engine layer.</div></div></div>
+
+      <div class="grp-label">Foundation · built once, shared by everything</div>
+      <div class="layer engine"><div class="ln">4</div><div class="lb"><div class="lt">Content Generation Engine</div><div class="ls">AI that produces stories, lessons, exercises, and quizzes on demand.</div></div></div>
+      <div class="layer engine"><div class="ln">3</div><div class="lb"><div class="lt">AI Tutor Engine</div><div class="ls">Conversation, pronunciation scoring, grammar explanation, adaptive coaching.</div></div></div>
+      <div class="layer kg"><div class="ln">2</div><div class="lb"><div class="lt">Knowledge Graph<span class="kg-tag">source of truth</span></div><div class="ls">Words, grammar, kanji, sentences, and stories as one connected graph — what lets the AI pick the next best lesson instead of guessing.</div></div></div>
+      <div class="layer engine"><div class="ln">1</div><div class="lb"><div class="lt">Universal Learning Engine</div><div class="ls">Progress, XP, SRS, gamification, profiles — the machinery every language shares.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EXPANSION MODULES ============ -->
+<section class="sec" id="expansion">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-kanji" aria-hidden="true">深</div>
+      <div class="sec-titles">
+        <div class="sec-idx">Part Five · Expansion Modules</div>
+        <h2>Twenty modules that add the depth</h2>
+        <p>The catalog beyond the baseline, grouped into five clusters. This is the north star, not the first release — see the phasing below for what ships when.</p>
+      </div>
+    </div>
+
+    <div class="exp-grid">
+
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">深</div><div><div class="mod-idx">Cluster A</div><h3>Content Depth</h3></div></div>
+        <div class="mrow"><span class="mh">Vocabulary system</span><span class="md">Categorized: nouns, verbs, particles, slang, business, anime, travel, medical, food, tech.</span></div>
+        <div class="mrow"><span class="mh">Grammar tree</span><span class="md">Gated N5 → N4 → N3 → N2 → N1; each topic unlocks the next.</span></div>
+        <div class="mrow"><span class="mh">Kanji system</span><span class="md">Stroke order, on/kun readings, radical, frequency, mnemonics, writing animation.</span></div>
+        <div class="mrow"><span class="mh">Dictionary</span><span class="md">Voice, kanji, radical, and handwriting search; example sentences, bookmarks, history.</span></div>
+      </article>
+
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">浸</div><div><div class="mod-idx">Cluster B</div><h3>Input &amp; Immersion</h3></div></div>
+        <div class="mrow"><span class="mh">Reading library</span><span class="md">Children's stories, NHK Easy News, manga, novels, Wikipedia — AI simplifies to level.</span></div>
+        <div class="mrow"><span class="mh">Video learning</span><span class="md">Anime, film, music lyrics with interactive, tappable subtitles.</span></div>
+        <div class="mrow"><span class="mh">Immersion mode</span><span class="md">The whole UI shifts into Japanese, from 5% up to 100% as you progress.</span></div>
+        <div class="mrow"><span class="mh">OCR camera</span><span class="md">Point at text → read → translate → explain grammar → save vocabulary.</span></div>
+        <div class="mrow"><span class="mh">Browser extension</span><span class="md">Hover any word → meaning → save → review later.</span></div>
+      </article>
+
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">話</div><div><div class="mod-idx">Cluster C</div><h3>Output &amp; AI Practice</h3></div></div>
+        <div class="mrow"><span class="mh">AI chat scenarios</span><span class="md">Restaurant, airport, hotel, office, interview, hospital — each a distinct AI personality.</span></div>
+        <div class="mrow"><span class="mh">Shadowing</span><span class="md">Hear → repeat → compare → AI score → retry, the highest-yield speaking loop.</span></div>
+        <div class="mrow"><span class="mh">Writing suite</span><span class="md">Diary, essay, email, SNS, business writing — AI corrects everything.</span></div>
+        <div class="mrow"><span class="mh">Personalized AI coach</span><span class="md">A long-term mentor that remembers weak grammar, kanji, pace, goals, and motivation.</span></div>
+      </article>
+
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">創</div><div><div class="mod-idx">Cluster D</div><h3>Generation &amp; Data</h3></div></div>
+        <div class="mrow"><span class="mh">AI-generated lessons</span><span class="md">Topic → story → vocabulary → grammar → exercises → quiz. Unlimited content.</span></div>
+        <div class="mrow"><span class="mh">Story mode</span><span class="md">Episodic — every lesson continues a narrative instead of standing alone.</span></div>
+        <div class="mrow"><span class="mh">Real-world missions</span><span class="md">Order coffee, read a menu, buy a ticket — learning that leaves the app.</span></div>
+        <div class="mrow"><span class="mh">Learning analytics</span><span class="md">Retention, speaking accuracy, reading speed, kanji mastery, weak areas, study heatmap.</span></div>
+        <div class="mrow"><span class="mh">JLPT planner</span><span class="md">Exam date → daily tasks → predicted score → weak sections.</span></div>
+      </article>
+
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">場</div><div><div class="mod-idx">Cluster E</div><h3>Ecosystem &amp; Edge</h3></div></div>
+        <div class="mrow"><span class="mh">Marketplace</span><span class="md">Teachers sell courses, stories, and kanji / grammar / vocabulary packs.</span></div>
+        <div class="mrow"><span class="mh">Developer SDK / APIs</span><span class="md">Open the engines up for third-party apps and creators.</span></div>
+        <div class="mrow"><span class="mh">Offline AI</span><span class="md">A small on-device model for grammar, dictionary, pronunciation, and flashcards without a connection.</span></div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ BUILD PHASING ============ -->
+<section class="sec" id="phasing">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-kanji" aria-hidden="true">順</div>
+      <div class="sec-titles">
+        <div class="sec-idx">Part Six · Build Phasing</div>
+        <h2>The order to build it</h2>
+        <p>The catalog above is years of work. This is a sequence, not a to-do list — ship a thin, complete flagship first, then earn each expansion.</p>
+      </div>
+    </div>
+
+    <p class="phase-intro reveal">The rule: every phase is independently shippable and useful on its own. Nothing later blocks a learner from getting value now. A few catalog items — offline on-device AI, OCR, the browser extension, and a payments-and-moderation marketplace — are near-separate products; they sit last on purpose, alongside the Part Seven institutional systems (teacher portal, agent ecosystem, cultural hub). One exception worth pulling forward: build a <em>thin</em> Knowledge Graph early, because SRS and lesson recommendation lean on it from Phase 1 on — you don't need the full graph, just the skeleton.</p>
+
+    <div class="phases">
+      <div class="phase now reveal">
+        <div class="pn">Phase 0</div>
+        <h4>MVP — the spine</h4>
+        <div class="pj">最小構成 · Japanese only</div>
+        <span class="ship">Ship this first</span>
+        <ul>
+          <li>Kana → basic vocabulary → basic grammar</li>
+          <li>SRS + flashcards</li>
+          <li>One solid AI chat mode</li>
+          <li>XP, streaks, daily goal</li>
+          <li>Core profile &amp; progress</li>
+        </ul>
+      </div>
+      <div class="phase reveal">
+        <div class="pn">Phase 1</div>
+        <h4>Depth</h4>
+        <div class="pj">深化 · master the flagship</div>
+        <ul>
+          <li>Full kanji system</li>
+          <li>Dictionary + grammar tree</li>
+          <li>Shadowing &amp; pronunciation scoring</li>
+          <li>Learning analytics</li>
+          <li>JLPT planner + mock exams</li>
+        </ul>
+      </div>
+      <div class="phase reveal">
+        <div class="pn">Phase 2</div>
+        <h4>Immersion &amp; generation</h4>
+        <div class="pj">拡張 · content at scale</div>
+        <ul>
+          <li>Reading library + video learning</li>
+          <li>Story mode &amp; real-world missions</li>
+          <li>AI-generated lessons</li>
+          <li>Immersion mode</li>
+          <li>Writing suite; OCR camera</li>
+        </ul>
+      </div>
+      <div class="phase reveal">
+        <div class="pn">Phase 3</div>
+        <h4>Platform</h4>
+        <div class="pj">基盤 · the OS layers</div>
+        <ul>
+          <li>Second language pack (Korean)</li>
+          <li>Community &amp; marketplace</li>
+          <li>Developer SDK / APIs</li>
+          <li>Creator ecosystem</li>
+          <li>Offline on-device AI</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PLATFORM SYSTEMS (north star) ============ -->
+<section class="sec" id="systems">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-kanji" aria-hidden="true">系</div>
+      <div class="sec-titles">
+        <div class="sec-idx">Part Seven · Platform Systems</div>
+        <h2>The institutional layer</h2>
+        <p>Systems that serve people beyond the solo learner — teachers, parents, and the platform's own intelligence. These land after the flagship is proven; each opens a new audience or a new moat, and each is close to a product in its own right.</p>
+      </div>
+    </div>
+
+    <div class="exp-grid">
+
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">師</div><div><div class="mod-idx">Educators · B2B</div><h3>Teacher &amp; Studio</h3></div></div>
+        <div class="mrow"><span class="mh">Teacher portal</span><span class="md">Course builder, assignments, student analytics, classroom management, attendance, live sessions, AI-assisted grading, certificates.</span></div>
+        <div class="mrow"><span class="mh">AI content studio</span><span class="md">Topic → AI draft → teacher edits → preview → publish → analytics → auto-improve. Cuts authoring effort dramatically.</span></div>
+        <div class="mrow"><span class="mh">Parent dashboard</span><span class="md">Daily reports, weekly progress, study time, words learned, pronunciation gains, goals, rewards.</span></div>
+      </article>
+
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">脳</div><div><div class="mod-idx">Intelligence</div><h3>The Learning Brain</h3></div></div>
+        <div class="mrow"><span class="mh">Memory engine</span><span class="md">Tracks mistakes, forgotten words, reading speed, per-skill confidence, learning style, long-term retention.</span></div>
+        <div class="mrow"><span class="mh">AI agent ecosystem</span><span class="md">Specialist agents — grammar, pronunciation, JLPT, kanji, writing, culture — with automatic routing to the right expert.</span></div>
+        <div class="mrow"><span class="mh">Reads from the Knowledge Graph</span><span class="md">Both systems sit on Layer 2, so recommendations trace real concept relationships, not isolated lessons.</span></div>
+      </article>
+
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">競</div><div><div class="mod-idx">Engagement</div><h3>Missions &amp; Collection</h3></div></div>
+        <div class="mrow"><span class="mh">Mission system</span><span class="md">Weekly, monthly, and seasonal events; themed challenges — anime, travel, business — to hold advanced learners.</span></div>
+        <div class="mrow"><span class="mh">Achievement collection</span><span class="md">Collectible vocabulary, kanji, grammar, conversation, regional, and cultural sets — depth past plain badges.</span></div>
+      </article>
+
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">文</div><div><div class="mod-idx">Culture &amp; Tools</div><h3>Culture &amp; Translation</h3></div></div>
+        <div class="mrow"><span class="mh">Cultural hub</span><span class="md">Festivals, etiquette, history, food, business customs, news, travel — language taught with its culture.</span></div>
+        <div class="mrow"><span class="mh">AI translation workspace</span><span class="md">Translate, compare versions, get nuance explained, rewrite naturally, and practice writing in one place.</span></div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRODUCT PRINCIPLE ============ -->
+<section class="platform" id="principle">
+  <div class="wrap">
+    <div class="plat-head reveal">
+      <span class="k" aria-hidden="true">敬</span>
+      <h2>Never interrupt learning to sell</h2>
+      <p>The one promise that sits above every feature on this map. Busuu's failing isn't that it has a premium tier — it's that the upsell lands mid-lesson, and the ads break the one thing a learner came for. That frustration is shared by millions, and it's a position neither incumbent can easily take.</p>
+    </div>
+    <div class="tracks reveal">
+      <div class="track live">No ads<span class="t">Permanent, not a phase</span></div>
+      <div class="track live">No mid-lesson upsell<span class="t">Premium only at seams</span></div>
+      <div class="track live">No dark patterns<span class="t">Say it once, then drop it</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-row">
+      <div class="foot-mark">多言語 <span class="jp">・</span> Feature Workflow</div>
+      <p class="foot-note">A build blueprint, not a spec. Japanese ships first; the shared core carries every language after it. Rearrange the domains, retitle the stages, or lift any block into your own planning docs.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var els = document.querySelectorAll('.reveal');
+    if(reduce || !('IntersectionObserver' in window)){
+      els.forEach(function(e){ e.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    els.forEach(function(e){ io.observe(e); });
+  })();
+</script>
+
+</body>
+</html>

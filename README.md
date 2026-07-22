@@ -26,7 +26,7 @@ cd api
 docker compose up -d          # mongo + redis, localhost-only ports
 cp .env.example .env          # then fill in the two JWT secrets
 npm install
-npm run seed                  # loads the Hiragana content pack
+npm run seed                  # loads the Japanese content pack (6 units)
 npm run start:dev             # api on :3000
 ```
 
@@ -240,11 +240,20 @@ Notes:
   Because it is untracked, **no git operation will move it** — a restructure that
   changes the API's working directory has to move it by hand or the service will
   fail `validateEnv` on restart.
+- **The deployed instance has no `GEMINI_API_KEY`**, so `/chat/*` answers 503
+  there while everything else works. That is why `validateEnv` gives the chat
+  vars defaults instead of requiring them: a deploy whose `.env` predates a new
+  variable must still boot. Adding the key to `~/deploy/langapp/api/.env` and
+  restarting the service is all that turns chat on in production.
 - **Mongo and Redis are shared with dev** and owned by
   `~/Projects/langapp/api/docker-compose.yml`. Never `docker compose up` from the
   deploy clone — that file pins `name: langapp`, so it resolves to the *same*
   project from anywhere and would recreate the containers underneath the dev
   stack. The deploy script only `docker start`s them.
+
+  A consequence worth knowing: **`npm run seed` in dev seeds production too.**
+  There is one database. New content is live the moment it is seeded locally,
+  without waiting for a deploy — and a bad seed is live just as fast.
 - Registration is **open to the internet** by choice. See OPEN-ITEMS #1/#3 for
   what that exposes.
 
