@@ -92,7 +92,7 @@ how it behaved before the site existed — the Expo app never needed them, becau
 a native fetch is not subject to the same-origin policy.
 
 Browsing the course needs no account. Signing in adds the part that teaches:
-quizzes, lesson completion, XP and streak — the same account and the same
+lesson quizzes, spaced review, XP and streak — the same account and the same
 database as the Android app, so progress made in one shows in the other.
 
 Tokens live in `localStorage`, with the XSS trade written out in `auth.ts` and
