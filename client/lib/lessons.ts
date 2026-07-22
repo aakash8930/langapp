@@ -59,6 +59,7 @@ export function firstAvailableLesson(lessons: LessonWithState[]): LessonWithStat
 const UNIT_LABELS: Record<string, string> = {
   'hiragana-basics': 'Hiragana basics',
   'katakana-basics': 'Katakana basics',
+  'vocab-basics': 'First words',
 };
 
 /**
@@ -66,7 +67,7 @@ const UNIT_LABELS: Record<string, string> = {
  * alphabetically — correct here by luck, and not something to depend on. A unit
  * missing from this list sorts after the known ones rather than vanishing.
  */
-const UNIT_ORDER = ['hiragana-basics', 'katakana-basics'];
+const UNIT_ORDER = ['hiragana-basics', 'katakana-basics', 'vocab-basics'];
 
 export type UnitGroup = {
   unit: string;

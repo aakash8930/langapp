@@ -131,9 +131,15 @@ POST /lessons/:id/complete  -> 200
      -> { lessonId, title, cardsCreated, cardsAlreadyPresent,
           xpAwarded, firstCompletion, totalXp }
 
-Question = { exerciseId, type: 'multipleChoice', prompt, promptKind: 'kana',
+Question = { exerciseId, type: 'multipleChoice', prompt, promptKind,
              question, options: [ { id, value } ] }
 ```
+
+`promptKind` is `'kana' | 'vocab'` (widened 2026-07-22 when the vocabulary unit
+landed; it was `'kana'` only). It says what the prompt *is* so the client can
+size it — a kana prompt is one glyph and belongs in a genkouyoushi cell, a word
+does not fit in one. A kana lesson asks for romaji; a vocab lesson asks for the
+English gloss. A lesson with neither kind still 422s.
 
 The exercise set is an **object with a `questions` array**, not a bare array.
 

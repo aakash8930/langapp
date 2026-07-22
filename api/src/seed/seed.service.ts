@@ -6,6 +6,7 @@ import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.servic
 import { HIRAGANA_PACK } from './japanese/hiragana';
 import type { KanaPack } from './japanese/kana-pack';
 import { KATAKANA_PACK } from './japanese/katakana';
+import { VOCAB_GROUPS, VOCAB_LESSONS, VOCAB_UNIT } from './japanese/vocab';
 
 /**
  * Order matters: the packs are chained in this sequence, so katakana's first
@@ -16,6 +17,7 @@ const PACKS: KanaPack[] = [HIRAGANA_PACK, KATAKANA_PACK];
 
 export interface SeedSummary {
   kanaItems: number;
+  vocabItems: number;
   knowledgeNodes: number;
   knowledgeEdges: number;
   lessons: number;
@@ -53,16 +55,23 @@ export class SeedService {
       this.logger.log(`Seeded ${pack.unit}: ${countCharacters(pack)} ${pack.script}`);
     }
 
+    // Vocabulary hangs off the end of the same chain: §1's order is
+    // Hiragana → Katakana → vocabulary, and the first word is unreadable
+    // without both scripts.
+    await this.seedVocab(previousLessonId);
+
     const summary: SeedSummary = {
       kanaItems: await this.contentService.countKana(),
+      vocabItems: await this.contentService.countVocab(),
       knowledgeNodes: await this.knowledgeGraph.countNodes(),
       knowledgeEdges: await this.knowledgeGraph.countEdges(),
       lessons: await this.contentService.countLessons(),
     };
 
     this.logger.log(
-      `Seeded ${summary.kanaItems} kana, ${summary.knowledgeNodes} nodes, ` +
-        `${summary.knowledgeEdges} edges, ${summary.lessons} lessons`,
+      `Seeded ${summary.kanaItems} kana, ${summary.vocabItems} words, ` +
+        `${summary.knowledgeNodes} nodes, ${summary.knowledgeEdges} edges, ` +
+        `${summary.lessons} lessons`,
     );
 
     return summary;
@@ -150,6 +159,63 @@ export class SeedService {
   }
 
   /**
+   * The vocabulary unit: one lesson per theme, chained like the kana units.
+   *
+   * Unlike kana, no character-level prerequisite edges are written between
+   * words. "ほん before やま" is not true — the themes are independent, and the
+   * lesson order is a curriculum convenience rather than a dependency. The
+   * graph should only assert what is actually a prerequisite.
+   */
+  private async seedVocab(carriedLessonId: Types.ObjectId | null): Promise<void> {
+    const idsByGroup = new Map<string, Types.ObjectId[]>();
+
+    for (const [group, words] of Object.entries(VOCAB_GROUPS)) {
+      const ids: Types.ObjectId[] = [];
+
+      for (const word of words) {
+        const vocab = await this.contentService.upsertVocab({
+          lemma: word.lemma,
+          reading: word.reading,
+          gloss: word.gloss,
+          pos: word.pos,
+          jlpt: 'N5',
+          tags: [group],
+        });
+
+        const node = await this.knowledgeGraph.upsertNode({
+          kind: 'vocab',
+          refId: vocab._id,
+          label: `${word.lemma} (${word.gloss})`,
+        });
+
+        await this.contentService.setVocabConceptId(vocab._id, node._id);
+        ids.push(vocab._id);
+      }
+
+      idsByGroup.set(group, ids);
+    }
+
+    let previousLessonId = carriedLessonId;
+
+    for (const seed of VOCAB_LESSONS) {
+      const vocabIds = seed.groups.flatMap((group) => idsByGroup.get(group) ?? []);
+
+      const lesson = await this.contentService.upsertLesson({
+        unit: VOCAB_UNIT,
+        order: seed.order,
+        title: seed.title,
+        itemRefs: vocabIds.map((id) => ({ kind: 'vocab', id })),
+        exerciseTypes: seed.exerciseTypes,
+        prerequisiteLessonIds: previousLessonId ? [previousLessonId] : [],
+      });
+
+      previousLessonId = lesson._id;
+    }
+
+    this.logger.log(`Seeded ${VOCAB_UNIT}: ${countWords()} words`);
+  }
+
+  /**
    * Edge per (previous character -> current character), within a unit only.
    * Quadratic, and now visibly so: 5×10 + 10×10 + 10×10 + 10×11 = **360 edges
    * per script**, so 720 for both — up from 150 when this was 25 hiragana.
@@ -181,4 +247,8 @@ export class SeedService {
 
 function countCharacters(pack: KanaPack): number {
   return Object.values(pack.rows).reduce((total, row) => total + row.length, 0);
+}
+
+function countWords(): number {
+  return Object.values(VOCAB_GROUPS).reduce((total, group) => total + group.length, 0);
 }

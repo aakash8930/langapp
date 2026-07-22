@@ -268,7 +268,21 @@ OPEN-ITEMS #14 — this has bitten once already.
 
 ## Exercise generation
 
-Multiple choice only (Milestone 3). Shows a kana character, offers four romaji.
+Multiple choice only (Milestone 3), over **two answerable item kinds**:
+
+| Lesson items | Prompt | Options | `promptKind` |
+|---|---|---|---|
+| kana | the character | romaji | `kana` |
+| vocab | the word | English glosses | `vocab` |
+
+Both reduce to the same `Choice { id, prompt, answer }`, which is why the second
+kind cost a mapping rather than a parallel code path — grammar and kanji would
+slot in the same way. A lesson with neither kind still 422s rather than
+returning an empty quiz.
+
+`promptKind` exists so the client can size the prompt: a kana prompt is one
+glyph and goes in a genkouyoushi cell, a word does not fit in one. Without it
+the client would be guessing from string length.
 
 **Nothing is stored.** Generation is a pure function of `(lessonId, userId,
 attempt)` plus content, seeded through a small PRNG. Two consequences:
@@ -279,9 +293,11 @@ attempt)` plus content, seeded through a small PRNG. Two consequences:
   key is ever sent to the client** and there's no store to expire.
 
 `attempt` is a query param; bumping it is how a client asks for a fresh shuffle.
-Distractors are real readings drawn from other characters **in the same unit**,
-deduped by romaji — Japanese has distinct kana sharing a reading (じ/ぢ are both
-"ji"), and two identical options would make a question unanswerable.
+Distractors are real answers drawn from other items **in the same unit**,
+deduped by the answer text — Japanese has distinct kana sharing a reading (じ/ぢ
+are both "ji"), and two words can share a gloss; two identical options would
+make a question unanswerable. The vocabulary seed is tested for gloss
+uniqueness for the same reason.
 
 Question order is deliberately shuffled, unlike `GET /lessons/:id` where item
 order is pedagogical and preserved. A quiz is not the lesson.
@@ -404,5 +420,20 @@ lesson prerequisite already makes it.
 Distractors are drawn from the unit pool, so a katakana question never offers a
 hiragana option, and シ's options naturally include ツ — which is exactly the
 discrimination worth drilling.
+
+A third unit, `vocab-basics`, adds **58 words in 6 themed lessons**, chained
+after katakana.
+
+**Every word is spelled using only the 92 characters the kana units teach** —
+no dakuten, handakuten, small kana or long mark, because a learner arriving here
+has been taught none of them. `src/seed/japanese/vocab.spec.ts` enforces that
+rather than trusting it, and it caught three words on the first run: たべる,
+ありがとう and ください all need marks that come later. That rule is also why
+みず, ともだち, がくせい and every katakana loanword are absent.
+
+`lemma` and `reading` are identical throughout, which is not a placeholder —
+ねこ is a correct way to write 猫, and kana-only is how these words are presented
+until kanji are taught. When kanji arrive, `lemma` gains the kanji spelling and
+`reading` is already right, which is exactly why §5 keeps the two fields apart.
 Every write is an upsert on a natural key, so re-running preserves `_id`s — which
 matters because SRS cards will reference them.

@@ -15,7 +15,7 @@ import { Button } from '@/components/Button';
 import { ErrorState } from '@/components/ErrorState';
 import { FormError } from '@/components/FormError';
 import { LessonSkeleton } from '@/components/LessonSkeleton';
-import { GenkouyoushiCell } from '@/components/GenkouyoushiCell';
+import { QuestionPrompt } from '@/components/QuestionPrompt';
 import { OptionButton, type OptionState } from '@/components/OptionButton';
 import { SessionProgress } from '@/components/SessionProgress';
 import { errorText } from '@/lib/errors';
@@ -199,7 +199,7 @@ export default function Lesson() {
               gap: theme.spacing.xl,
             }}
           >
-            <GenkouyoushiCell character={question.prompt} />
+            <QuestionPrompt prompt={question.prompt} kind={question.promptKind} />
             <Text
               style={{
                 fontFamily: theme.families.ui,

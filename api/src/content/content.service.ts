@@ -16,7 +16,7 @@ import { GrammarPoint, GrammarPointDocument } from './schemas/grammar-point.sche
 import { KanaItem, KanaItemDocument } from './schemas/kana-item.schema';
 import { KanjiEntry, KanjiEntryDocument } from './schemas/kanji-entry.schema';
 import { ItemRef, Lesson, LessonDocument } from './schemas/lesson.schema';
-import { VocabItem, VocabItemDocument } from './schemas/vocab-item.schema';
+import { JlptLevel, VocabItem, VocabItemDocument } from './schemas/vocab-item.schema';
 
 /**
  * Owns the content collections: kana, vocab, grammar, kanji and lessons.
@@ -76,6 +76,25 @@ export class ContentService {
     }
 
     return this.kanaModel.find({ _id: { $in: kanaIds } }).exec();
+  }
+
+  /**
+   * The same idea as `findUnitKanaPool`, for words: every vocab item taught
+   * anywhere in the unit, so a question about ねこ can be confused with いぬ
+   * rather than with something from a lesson the learner has never opened.
+   */
+  async findUnitVocabPool(unit: string): Promise<VocabItemDocument[]> {
+    const lessons = await this.lessonModel.find({ lang: 'ja', unit }).exec();
+
+    const vocabIds = lessons.flatMap((lesson) =>
+      lesson.itemRefs.filter((ref) => ref.kind === 'vocab').map((ref) => ref.id),
+    );
+
+    if (vocabIds.length === 0) {
+      return [];
+    }
+
+    return this.vocabModel.find({ _id: { $in: vocabIds } }).exec();
   }
 
   /**
@@ -162,6 +181,36 @@ export class ContentService {
     await this.kanaModel.updateOne({ _id: kanaId }, { $set: { conceptId } }).exec();
   }
 
+  async upsertVocab(input: {
+    lemma: string;
+    reading: string;
+    gloss: string;
+    pos: string;
+    jlpt: JlptLevel;
+    tags: string[];
+  }): Promise<VocabItemDocument> {
+    return this.vocabModel
+      .findOneAndUpdate(
+        // `lemma` is the natural key — the schema's unique index is on it.
+        { lang: 'ja', lemma: input.lemma },
+        {
+          $set: {
+            reading: input.reading,
+            gloss: input.gloss,
+            pos: input.pos,
+            jlpt: input.jlpt,
+            tags: input.tags,
+          },
+        },
+        { new: true, upsert: true },
+      )
+      .exec();
+  }
+
+  async setVocabConceptId(vocabId: Types.ObjectId, conceptId: Types.ObjectId): Promise<void> {
+    await this.vocabModel.updateOne({ _id: vocabId }, { $set: { conceptId } }).exec();
+  }
+
   async upsertLesson(input: {
     unit: string;
     order: number;
@@ -188,6 +237,10 @@ export class ContentService {
 
   async countKana(): Promise<number> {
     return this.kanaModel.countDocuments().exec();
+  }
+
+  async countVocab(): Promise<number> {
+    return this.vocabModel.countDocuments().exec();
   }
 
   async countLessons(): Promise<number> {

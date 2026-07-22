@@ -68,7 +68,10 @@ function backLines(item: ResolvedItem): string[] {
         item.meanings.join(', '),
       ].filter(Boolean);
     case 'vocab':
-      return [item.reading, item.gloss];
+      // A word written in kana *is* its own reading, and repeating it under
+      // the front of the card says nothing. Once kanji arrive the two differ
+      // (食べる / たべる) and the reading earns its line back.
+      return item.reading === item.lemma ? [item.gloss] : [item.reading, item.gloss];
     case 'grammar':
       return [item.explanation];
   }

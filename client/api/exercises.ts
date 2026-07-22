@@ -7,12 +7,20 @@ export type ExerciseOption = {
   value: string;
 };
 
+/**
+ * What the prompt is, so the screen can size it. A `kana` prompt is one glyph
+ * and belongs in a manuscript cell; a `vocab` prompt is a whole word and does
+ * not fit in one — the server says which rather than the client guessing from
+ * string length.
+ */
+export type PromptKind = 'kana' | 'vocab';
+
 export type Question = {
   exerciseId: string;
   type: 'multipleChoice';
-  /** The character being asked about. */
+  /** The character or word being asked about. */
   prompt: string;
-  promptKind: 'kana';
+  promptKind: PromptKind;
   question: string;
   options: ExerciseOption[];
 };

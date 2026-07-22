@@ -314,6 +314,13 @@ call content for the item pool instead. Cheap to move now, expensive later.
 
 ### 10b. Multiple choice only asks kana → romaji
 
+**Partly resolved 2026-07-22**: vocabulary lessons now generate quizzes (word →
+gloss), so the service answers two kinds. `GrammarPoint` and `KanjiEntry` items
+still 422 — there is no seeded content of either kind yet, and the shape of a
+good grammar question is a real design question rather than a mapping.
+
+Original report follows.
+
 `ExerciseService` filters lesson items to `kind === 'kana'` and throws 422 if none
 remain. Lessons made of vocab, grammar or kanji items therefore can't generate a
 quiz yet, even though `exerciseTypes` would allow it. Fine while the only seeded
@@ -432,17 +439,24 @@ four is done:
 |---|---|
 | Hiragana | **complete** — all 46 base characters, 5 lessons (2026-07-21) |
 | Katakana | **complete** — all 46 base characters, 5 lessons, gated behind hiragana (2026-07-21) |
-| Basic vocabulary | not started — `VocabItem` schema exists, nothing seeded |
+| Basic vocabulary | **first unit complete** — 58 words, 6 themed lessons (2026-07-22) |
 | Basic grammar | not started — `GrammarPoint` schema exists, nothing seeded |
 
-Both kana scripts are done; **vocabulary and grammar are what remain of §1**.
+**Grammar is the last §1 track.** Vocabulary shipped a first unit rather than
+"the vocabulary": 58 words is a deliberate floor, not a target, and the constraint
+that set it is documented in `vocab.ts` — every word must be readable with only
+the 92 characters the kana units teach.
 
-Vocabulary is the one that unlocks the most elsewhere: it would let §7's chat
-retrieve target words from the KnowledgeGraph instead of the static list in
-`scenarios.ts` (item 23), and give chat corrections something to map onto. It is
-also the first content that is *not* a closed set — 46 kana are a table you can
-transcribe, while "the first few hundred words" is a curation problem with no
-obvious stopping point. Expect that to be the hard part, not the schema.
+Two consequences worth tracking:
+
+- **The word list is capped by what kana teaches, not by what a beginner needs.**
+  たべる, ありがとう, みず and every katakana loanword are excluded for want of
+  dakuten. A unit teaching dakuten / handakuten / small kana / the long mark
+  would roughly triple the pool of usable words, and is now the highest-leverage
+  content work — more than adding words to this unit.
+- **§7's chat still uses a static word list** (item 23). Vocabulary now exists in
+  the KnowledgeGraph as `vocab` nodes, so the retrieval that item describes is
+  finally possible; it was not before.
 
 **The learning loop is closed as of M5**: complete a lesson → cards seeded →
 `/reviews/due` → grade → FSRS reschedules → XP and events accumulate. Steps 1–5

@@ -2,6 +2,7 @@ import { BadRequestException, UnprocessableEntityException } from '@nestjs/commo
 import { ContentService } from '../content.service';
 import { LessonDetail } from '../dto/lesson-response.dto';
 import { KanaItemDocument } from '../schemas/kana-item.schema';
+import { VocabItemDocument } from '../schemas/vocab-item.schema';
 import { ExerciseService } from './exercise.service';
 
 const UNIT = 'hiragana-basics';
@@ -55,12 +56,54 @@ function lessonDetail(overrides: Partial<LessonDetail> = {}): LessonDetail {
   };
 }
 
-function makeService(lesson: LessonDetail = lessonDetail(), pool = UNIT_POOL): ExerciseService {
+/** A vocabulary lesson and its unit pool, for the second answerable kind. */
+const WORDS = [
+  { id: 'v1', lemma: 'ねこ', gloss: 'cat' },
+  { id: 'v2', lemma: 'いぬ', gloss: 'dog' },
+  { id: 'v3', lemma: 'やま', gloss: 'mountain' },
+];
+
+const VOCAB_UNIT_POOL = [
+  ...WORDS,
+  { id: 'v4', lemma: 'うみ', gloss: 'sea' },
+  { id: 'v5', lemma: 'そら', gloss: 'sky' },
+  { id: 'v6', lemma: 'はな', gloss: 'flower' },
+];
+
+function vocabLesson(overrides: Partial<LessonDetail> = {}): LessonDetail {
+  return lessonDetail({
+    unit: 'vocab-basics',
+    title: 'Words: nature',
+    itemCount: WORDS.length,
+    items: WORDS.map((w) => ({
+      kind: 'vocab' as const,
+      id: w.id,
+      lemma: w.lemma,
+      reading: w.lemma,
+      gloss: w.gloss,
+      pos: 'noun',
+      jlpt: 'N5',
+    })),
+    ...overrides,
+  });
+}
+
+function makeService(
+  lesson: LessonDetail = lessonDetail(),
+  pool = UNIT_POOL,
+  vocabPool = VOCAB_UNIT_POOL,
+): ExerciseService {
   const contentService = {
     findLessonById: () => Promise.resolve(lesson),
     findUnitKanaPool: () =>
       Promise.resolve(
         pool.map((p) => ({ _id: p.id, kana: p.kana, romaji: p.romaji }) as unknown as KanaItemDocument),
+      ),
+    findUnitVocabPool: () =>
+      Promise.resolve(
+        vocabPool.map(
+          (v) => ({ _id: v.id, lemma: v.lemma, gloss: v.gloss }) as unknown as VocabItemDocument,
+        ),
       ),
   };
 
@@ -162,8 +205,22 @@ describe('ExerciseService.generate', () => {
     );
   });
 
-  it('refuses a lesson with no kana items rather than returning an empty quiz', async () => {
+  it('refuses a lesson with no answerable items rather than returning an empty quiz', async () => {
     const service = makeService(lessonDetail({ items: [] }));
+
+    await expect(service.generate(LESSON_ID, USER_A, 0)).rejects.toBeInstanceOf(
+      UnprocessableEntityException,
+    );
+  });
+
+  it('still refuses a lesson whose only items are a kind it cannot ask about', async () => {
+    const service = makeService(
+      lessonDetail({
+        items: [
+          { kind: 'grammar', id: 'g1', title: 'は particle', jlpt: 'N5', explanation: '…' },
+        ],
+      }),
+    );
 
     await expect(service.generate(LESSON_ID, USER_A, 0)).rejects.toBeInstanceOf(
       UnprocessableEntityException,
@@ -272,3 +329,62 @@ describe('ExerciseService.answer', () => {
 function orderOf(set: { questions: { prompt: string; options: { value: string }[] }[] }): string {
   return set.questions.map((q) => `${q.prompt}:${q.options.map((o) => o.value).join(',')}`).join('|');
 }
+
+describe('ExerciseService.generate — vocabulary lessons', () => {
+  it('asks what a word means, offering glosses', async () => {
+    const set = await makeService(vocabLesson()).generate(LESSON_ID, USER_A, 0);
+
+    expect(set.questionCount).toBe(WORDS.length);
+
+    for (const question of set.questions) {
+      expect(question.promptKind).toBe('vocab');
+      expect(question.question).toBe('What does this word mean?');
+      // The prompt is the word; the options are meanings, never other words.
+      expect(WORDS.concat(VOCAB_UNIT_POOL).map((w) => w.lemma)).toContain(question.prompt);
+      for (const option of question.options) {
+        expect(VOCAB_UNIT_POOL.map((w) => w.gloss)).toContain(option.value);
+      }
+    }
+  });
+
+  it('draws distractors from the whole vocabulary unit, not just the lesson', async () => {
+    const set = await makeService(vocabLesson()).generate(LESSON_ID, USER_A, 0);
+
+    const offered = new Set(set.questions.flatMap((q) => q.options.map((o) => o.value)));
+    const beyondLesson = [...offered].filter(
+      (gloss) => !WORDS.some((word) => word.gloss === gloss),
+    );
+
+    expect(beyondLesson.length).toBeGreaterThan(0);
+  });
+
+  it('marks the right gloss correct, and a wrong one incorrect', async () => {
+    const service = makeService(vocabLesson());
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = WORDS.find((word) => word.lemma === question.prompt);
+
+    // The answer key never leaves the service, so find the right option the
+    // way a learner would have to: by knowing the word.
+    const correctOption = question.options.find((o) => o.value === expected?.gloss);
+    const wrongOption = question.options.find((o) => o.value !== expected?.gloss);
+
+    const right = await service.answer(LESSON_ID, question.exerciseId, USER_A, correctOption!.id);
+    expect(right.correct).toBe(true);
+    expect(right.correctValue).toBe(expected?.gloss);
+
+    const wrong = await service.answer(LESSON_ID, question.exerciseId, USER_A, wrongOption!.id);
+    expect(wrong.correct).toBe(false);
+    // Told what it should have been — the screen shows this after a miss.
+    expect(wrong.correctValue).toBe(expected?.gloss);
+  });
+
+  it('is deterministic per (lesson, user, attempt), like the kana path', async () => {
+    const first = await makeService(vocabLesson()).generate(LESSON_ID, USER_A, 0);
+    const again = await makeService(vocabLesson()).generate(LESSON_ID, USER_A, 0);
+    const other = await makeService(vocabLesson()).generate(LESSON_ID, USER_B, 0);
+
+    expect(again.questions).toEqual(first.questions);
+    expect(other.questions).not.toEqual(first.questions);
+  });
+});
