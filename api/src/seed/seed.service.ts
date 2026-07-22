@@ -4,16 +4,26 @@ import { ContentService } from '../content/content.service';
 import { ItemRef } from '../content/schemas/lesson.schema';
 import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.service';
 import { HIRAGANA_PACK } from './japanese/hiragana';
+import { HIRAGANA_MARKS_PACK } from './japanese/hiragana-marks';
 import type { KanaPack } from './japanese/kana-pack';
 import { KATAKANA_PACK } from './japanese/katakana';
+import { KATAKANA_MARKS_PACK } from './japanese/katakana-marks';
 import { VOCAB_GROUPS, VOCAB_LESSONS, VOCAB_UNIT } from './japanese/vocab';
 
+/** The base gojūon, both scripts. Everything else assumes these. */
+const BASE_PACKS: KanaPack[] = [HIRAGANA_PACK, KATAKANA_PACK];
+
 /**
- * Order matters: the packs are chained in this sequence, so katakana's first
- * lesson lists hiragana's last as its prerequisite. §1's "Hiragana → Katakana"
- * is a real gate, not just a display order.
+ * Dakuten, handakuten and yōon — taught *after* the first words rather than
+ * before them.
+ *
+ * The alternative was to fold these into the base units, so a learner finishes
+ * hiragana completely before starting katakana. Better in the abstract, worse
+ * here: it would put twelve more lessons between someone and the first Japanese
+ * word they can read, and the vocabulary unit was deliberately built to need
+ * none of it. Words first, then the marks that unlock the rest of the language.
  */
-const PACKS: KanaPack[] = [HIRAGANA_PACK, KATAKANA_PACK];
+const MARKS_PACKS: KanaPack[] = [HIRAGANA_MARKS_PACK, KATAKANA_MARKS_PACK];
 
 export interface SeedSummary {
   kanaItems: number;
@@ -24,8 +34,8 @@ export interface SeedSummary {
 }
 
 /**
- * §14 step 2, grown into both kana scripts: two units as Lessons plus
- * KnowledgeNodes.
+ * §14 step 2, grown into the whole Phase 0 curriculum: five units as Lessons
+ * plus KnowledgeNodes — both kana tables, the first words, and the marks.
  *
  * Every write is an upsert on a natural key, so `npm run seed` is idempotent —
  * running it twice leaves the same documents with the same _ids, which matters
@@ -44,21 +54,22 @@ export class SeedService {
     private readonly knowledgeGraph: KnowledgeGraphService,
   ) {}
 
+  /**
+   * The curriculum, in order. One chain runs through all of it — every unit's
+   * first lesson lists the previous unit's last as its prerequisite, so the
+   * order below is the order a learner is actually gated through.
+   */
   async run(): Promise<SeedSummary> {
-    // The lesson chain runs across packs, not just within one — that is what
-    // locks katakana until hiragana is finished.
     let previousLessonId: Types.ObjectId | null = null;
 
-    for (const pack of PACKS) {
-      const kanaIdsByRow = await this.seedKana(pack);
-      previousLessonId = await this.seedLessons(pack, kanaIdsByRow, previousLessonId);
-      this.logger.log(`Seeded ${pack.unit}: ${countCharacters(pack)} ${pack.script}`);
-    }
+    previousLessonId = await this.seedKanaPacks(BASE_PACKS, previousLessonId);
 
-    // Vocabulary hangs off the end of the same chain: §1's order is
-    // Hiragana → Katakana → vocabulary, and the first word is unreadable
-    // without both scripts.
-    await this.seedVocab(previousLessonId);
+    // Vocabulary before the marks: §1's order is Hiragana → Katakana →
+    // vocabulary, and every word in the unit was chosen to be readable with
+    // only the base tables.
+    previousLessonId = await this.seedVocab(previousLessonId);
+
+    await this.seedKanaPacks(MARKS_PACKS, previousLessonId);
 
     const summary: SeedSummary = {
       kanaItems: await this.contentService.countKana(),
@@ -75,6 +86,22 @@ export class SeedService {
     );
 
     return summary;
+  }
+
+  /** Seeds a run of kana packs onto the chain, returning its last lesson id. */
+  private async seedKanaPacks(
+    packs: KanaPack[],
+    carriedLessonId: Types.ObjectId | null,
+  ): Promise<Types.ObjectId | null> {
+    let previousLessonId = carriedLessonId;
+
+    for (const pack of packs) {
+      const kanaIdsByRow = await this.seedKana(pack);
+      previousLessonId = await this.seedLessons(pack, kanaIdsByRow, previousLessonId);
+      this.logger.log(`Seeded ${pack.unit}: ${countCharacters(pack)} ${pack.script}`);
+    }
+
+    return previousLessonId;
   }
 
   /** Each character gets a content doc and a graph node, linked both ways. */
@@ -166,7 +193,7 @@ export class SeedService {
    * lesson order is a curriculum convenience rather than a dependency. The
    * graph should only assert what is actually a prerequisite.
    */
-  private async seedVocab(carriedLessonId: Types.ObjectId | null): Promise<void> {
+  private async seedVocab(carriedLessonId: Types.ObjectId | null): Promise<Types.ObjectId | null> {
     const idsByGroup = new Map<string, Types.ObjectId[]>();
 
     for (const [group, words] of Object.entries(VOCAB_GROUPS)) {
@@ -213,15 +240,19 @@ export class SeedService {
     }
 
     this.logger.log(`Seeded ${VOCAB_UNIT}: ${countWords()} words`);
+    return previousLessonId;
   }
 
   /**
    * Edge per (previous character -> current character), within a unit only.
-   * Quadratic, and now visibly so: 5×10 + 10×10 + 10×10 + 10×11 = **360 edges
-   * per script**, so 720 for both — up from 150 when this was 25 hiragana.
-   * Still nothing at this scale, but the growth curve is the point, and
-   * vocabulary would be far worse. The fix when it hurts is a node per *row*
-   * rather than per character (OPEN-ITEMS #9), which turns 720 into 20.
+   * Quadratic, and the curve is now unmistakable: **1614 edges for 208
+   * characters**, up from 150 for 25 four milestones ago. The marks units are
+   * the worst offenders — their lessons are larger, and 12×12 for the last one
+   * alone is 144 edges asserting that ぴょ requires りょ.
+   *
+   * That last sentence is the actual argument against this design, not the
+   * count. The fix is a node per *row* rather than per character
+   * (OPEN-ITEMS #9), which turns 1614 into 42.
    */
   private async linkPrerequisiteNodes(
     previousKanaIds: Types.ObjectId[],

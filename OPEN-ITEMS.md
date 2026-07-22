@@ -281,16 +281,23 @@ after.
 ### 9. The prerequisite graph is character-to-character, so edges grow quadratically
 
 `SeedService.linkPrerequisiteNodes` links every character in lesson N to every
-character in lesson N+1. For this unit: 5×10 + 10×10 + 10×10 + 10×11 = **360
-edges for 46 characters** (it was 150 for 25 before hiragana was completed on
-2026-07-21 — the curve is visible now). Fine at this scale, and the
-adjacency-list design is exactly what §5 prescribes.
+character in lesson N+1. The count has tracked every content milestone: 150 edges
+for 25 characters → 360 for 46 → 720 for 92 → **1614 for 208** (2026-07-22).
+Still fine at this scale, and the adjacency-list design is exactly what §5
+prescribes.
 
-But Katakana would roughly double it again, and vocabulary would be far
-worse. **The fix when it hurts:** a node per *row* (or per lesson) and link those
-instead of individual characters — turns 360 edges into 10. I left it literal
-because §5's "prerequisites of X" query wants character granularity, and
-premature graph abstraction is harder to undo than to add.
+**The count is no longer the strongest argument against it.** The marks units
+made the semantics visibly wrong: the last yōon lesson alone writes 144 edges
+asserting that ぴょ requires りょ, which is not true in any sense — they are
+siblings in a table, taught together for convenience. The graph is now recording
+lesson packaging as though it were conceptual dependency.
+
+**The fix when it hurts:** a node per *row* (or per lesson) and link those
+instead of individual characters — turns 1614 edges into 42, and stops the graph
+claiming things that aren't so. I left it literal because §5's "prerequisites of
+X" query wants character granularity, and premature graph abstraction is harder
+to undo than to add — but the marks units are the point where that trade starts
+looking wrong.
 
 ### 10. `npm run seed` is destructive-safe but not idempotency-tested in CI
 
@@ -441,22 +448,39 @@ four is done:
 | Katakana | **complete** — all 46 base characters, 5 lessons, gated behind hiragana (2026-07-21) |
 | Basic vocabulary | **first unit complete** — 58 words, 6 themed lessons (2026-07-22) |
 | Basic grammar | not started — `GrammarPoint` schema exists, nothing seeded |
+| *(kana marks — not a §1 line)* | **complete** — 116 syllables, 12 lessons (2026-07-22) |
 
-**Grammar is the last §1 track.** Vocabulary shipped a first unit rather than
-"the vocabulary": 58 words is a deliberate floor, not a target, and the constraint
-that set it is documented in `vocab.ts` — every word must be readable with only
-the 92 characters the kana units teach.
+**Grammar is the last §1 track.** Everything else on the content side now exists.
 
-Two consequences worth tracking:
+Three follow-ups the marks unit created rather than closed:
 
-- **The word list is capped by what kana teaches, not by what a beginner needs.**
-  たべる, ありがとう, みず and every katakana loanword are excluded for want of
-  dakuten. A unit teaching dakuten / handakuten / small kana / the long mark
-  would roughly triple the pool of usable words, and is now the highest-leverage
-  content work — more than adding words to this unit.
-- **§7's chat still uses a static word list** (item 23). Vocabulary now exists in
-  the KnowledgeGraph as `vocab` nodes, so the retrieval that item describes is
+- **A second vocabulary unit is now unblocked and is the obvious next content.**
+  The first one was capped at words avoiding dakuten; たべる, ありがとう, みず,
+  ともだち and the katakana loanwords are all readable now. The unblock is real
+  but currently theoretical — nothing uses it yet.
+- **§7's chat still uses a static word list** (item 23). Vocabulary exists in the
+  KnowledgeGraph as `vocab` nodes, so the retrieval that item describes is
   finally possible; it was not before.
+- **っ and ー are still untaught** — see item 25.
+
+### 25. っ and ー cannot be taught by the only exercise this app has (2026-07-22)
+
+The marks units teach dakuten, handakuten and yōon but deliberately skip the
+sokuon (っ) and the chōonpu (ー). Both are marks rather than syllables: っ doubles
+the following consonant and has no reading of its own, ー lengthens the preceding
+vowel. `KanaItem.romaji` is required and a multiple-choice question asks "which
+romaji matches this character" — neither has an answer, and inventing one
+("(double)") makes a question whose odd-one-out is guessable without knowing
+anything.
+
+**Cost of getting it wrong:** がっこう (school), きって (stamp), コーヒー (coffee)
+and テーブル (table) remain unreadable, and those are common words. This is the
+one remaining gap between "knows the kana" and "can read Japanese text".
+
+**Fix:** a second exercise type — most likely "read this word" over short words
+that contain the mark, which teaches the rule in the only context where it means
+anything. That is §14 step 8's "second exercise type" and would also unlock
+grammar questions, which have the same shape problem (item 10b).
 
 **The learning loop is closed as of M5**: complete a lesson → cards seeded →
 `/reviews/due` → grade → FSRS reschedules → XP and events accumulate. Steps 1–5

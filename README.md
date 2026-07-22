@@ -398,9 +398,11 @@ sentence slightly wrong is the ordinary case in practice, not an error.
 
 ## Seeded content
 
-`npm run seed` loads two units — `hiragana-basics` and `katakana-basics` —
-**92 characters, both kana scripts in full**, as `KanaItem`s, each with a
-`KnowledgeNode`, chained into 10 lessons via `prerequisiteLessonIds`.
+`npm run seed` loads **five units — 208 kana, 58 words, 28 lessons** — each item
+with a `KnowledgeNode`, chained via `prerequisiteLessonIds`.
+
+It starts with `hiragana-basics` and `katakana-basics`: 92 characters, both base
+kana tables in full, 10 lessons.
 
 Base characters only: no dakuten (が), handakuten (ぱ), yōon (きゃ), or chōonpu
 (ー). Those are marks on characters already here, and belong to a later unit
@@ -435,5 +437,31 @@ rather than trusting it, and it caught three words on the first run: たべる,
 ねこ is a correct way to write 猫, and kana-only is how these words are presented
 until kanji are taught. When kanji arrive, `lemma` gains the kanji spelling and
 `reading` is already right, which is exactly why §5 keeps the two fields apart.
+
+Two more units, `hiragana-marks` and `katakana-marks`, add **58 syllables each**:
+dakuten (が), handakuten (ぱ) and yōon (きゃ). Nothing there is a new glyph except
+the small ゃゅょ — a learner is not memorising 116 new shapes, they are learning
+three rules, which is why it is a separate unit rather than more rows on the base
+table.
+
+**They come after the vocabulary unit, not before it.** Folding them into the
+base units would be better in the abstract — you would finish hiragana entirely
+before starting katakana — but it puts twelve more lessons between someone and
+the first Japanese word they can read, and the vocabulary unit was built to need
+none of it.
+
+Two romaji collisions are deliberate and tested for: じ/ぢ are both `ji`, ず/づ
+both `zu`. The exercise generator already deduplicated distractors by answer text
+— written expecting exactly this — so a question about ぢ never also offers じ.
+
+**っ and ー are absent.** Both are marks rather than syllables: っ doubles the
+following consonant and has no reading of its own, ー lengthens the preceding
+vowel. Neither can answer "which romaji matches this character", which is the
+only question this app can ask today. They are why がっこう and コーヒー are still
+unreadable — see OPEN-ITEMS.
+
+The whole curriculum is one chain: hiragana → katakana → first words → hiragana
+marks → katakana marks, 28 lessons, each unit's first lesson gated on the
+previous unit's last.
 Every write is an upsert on a natural key, so re-running preserves `_id`s — which
 matters because SRS cards will reference them.

@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 
 import type { ResolvedItem } from '@/api/items';
 import { GenkouyoushiCell } from '@/components/GenkouyoushiCell';
+import { KanaCells } from '@/components/KanaCells';
 import { useTheme } from '@/theme';
 
 /**
@@ -17,7 +18,8 @@ import { useTheme } from '@/theme';
 export function CardFront({ item }: { item: ResolvedItem }) {
   switch (item.kind) {
     case 'kana':
-      return <GenkouyoushiCell character={item.kana} />;
+      // Two cells for a yōon — きゃ is two glyphs and one syllable.
+      return <KanaCells kana={item.kana} />;
     case 'kanji':
       return <GenkouyoushiCell character={item.char} />;
     case 'vocab':

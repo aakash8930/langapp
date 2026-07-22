@@ -60,6 +60,8 @@ const UNIT_LABELS: Record<string, string> = {
   'hiragana-basics': 'Hiragana basics',
   'katakana-basics': 'Katakana basics',
   'vocab-basics': 'First words',
+  'hiragana-marks': 'Hiragana: marks and combinations',
+  'katakana-marks': 'Katakana: marks and combinations',
 };
 
 /**
@@ -67,7 +69,13 @@ const UNIT_LABELS: Record<string, string> = {
  * alphabetically — correct here by luck, and not something to depend on. A unit
  * missing from this list sorts after the known ones rather than vanishing.
  */
-const UNIT_ORDER = ['hiragana-basics', 'katakana-basics', 'vocab-basics'];
+const UNIT_ORDER = [
+  'hiragana-basics',
+  'katakana-basics',
+  'vocab-basics',
+  'hiragana-marks',
+  'katakana-marks',
+];
 
 export type UnitGroup = {
   unit: string;

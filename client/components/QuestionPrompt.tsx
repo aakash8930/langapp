@@ -1,7 +1,7 @@
 import { Text } from 'react-native';
 
 import type { PromptKind } from '@/api/exercises';
-import { GenkouyoushiCell } from '@/components/GenkouyoushiCell';
+import { KanaCells } from '@/components/KanaCells';
 import { useTheme } from '@/theme';
 
 /**
@@ -16,8 +16,9 @@ import { useTheme } from '@/theme';
 export function QuestionPrompt({ prompt, kind }: { prompt: string; kind: PromptKind }) {
   const theme = useTheme();
 
+  // One cell, or two for a yōon like きゃ.
   if (kind === 'kana') {
-    return <GenkouyoushiCell character={prompt} />;
+    return <KanaCells kana={prompt} />;
   }
 
   return (
