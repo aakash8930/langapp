@@ -12,8 +12,10 @@ where they deliberately diverge.
 
 - **Vite + React 19 + TypeScript** strict
 - **anime.js v4** for animation
-- No component library, no CSS framework, no state manager. The whole site is
-  currently one page reading one endpoint.
+- No component library, no CSS framework, no state manager, **no router** —
+  `useRoute.ts` is a thirty-line hash router. Hash-based on purpose: it needs no
+  server rewrite rule, so the build is plain static files that work from any
+  directory on any host, which matters while deployment is still open.
 
 **anime.js is v4.** The API is `animate(targets, params)` — *two arguments*.
 Nearly every example online is v3's single `anime({ targets: … })` object, which
@@ -22,13 +24,26 @@ compiles and then silently does nothing. Scroll triggers are
 option (`repeat: false` is the one). Check `node_modules/animejs/dist/modules/`
 `.d.ts` files before trusting any snippet.
 
-## What this site may and may not read
+## Auth, and where the tokens live
 
-Only **unauthenticated** endpoints: `GET /lessons` and `GET /lessons/:id`. That
-is the entire reason there is no token storage, no refresh logic and no login —
-and it is why the site is a curriculum browser rather than a web version of the
-app. Adding anything authenticated means solving token storage in a browser
-first, which is a real decision and not a small one.
+Browsing the course needs no account: `GET /lessons` and `GET /lessons/:id` are
+unauthenticated. Everything that *teaches* — quizzes, completion, progress — is
+behind a bearer token.
+
+Tokens are in **`localStorage`**, and the trade is written out in `auth.ts`:
+any script on the page can read them, so an XSS steals a session. That is
+tolerable only because the site renders no user-generated content and loads no
+third-party script. **Adding a comment box, an analytics snippet or an embed
+changes the answer** — at which point the fix is httpOnly cookies, which is an
+API change with a tail (cookie issuing, `credentials: true` and therefore a
+single strict origin, and CSRF protection becoming mandatory). Logged as
+OPEN-ITEMS #27.
+
+**Refreshes must stay serialised.** Refresh tokens rotate — presenting one
+consumes it — so concurrent 401s share a single in-flight refresh. Five parallel
+requests each firing their own refresh means four of them redeem a token the
+winner already burned, and the session dies for no reason. `refreshInFlight` in
+`api.ts` is the whole of the fix; do not remove it.
 
 **The API needs `CORS_ORIGINS` set to this site's origin.** Empty by default, so
 a fresh checkout gets a page that loads and then fails to fetch — that is the

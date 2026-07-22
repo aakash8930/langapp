@@ -2,8 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 
 import { fetchLessons, groupByUnit, type Unit } from './api';
 import { Curriculum } from './components/Curriculum';
+import { Header } from './components/Header';
 import { Hero } from './components/Hero';
+import { LessonQuiz } from './components/LessonQuiz';
+import { SignIn } from './components/SignIn';
 import { armMotion, playHero } from './motion';
+import { useRoute } from './useRoute';
+import { useSession } from './useSession';
 
 export type Load =
   | { state: 'loading' }
@@ -13,13 +18,17 @@ export type Load =
 export default function App() {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const heroRef = useRef<HTMLElement>(null);
+  const route = useRoute();
+  const { session, signIn, signUp, signOut, refreshProgress } = useSession();
 
-  // Armed before anything animates: this is what adds `js-motion`, and without
-  // it every `.reveal` element stays plainly visible instead of hidden.
   useEffect(() => {
     armMotion();
-    if (heroRef.current) playHero(heroRef.current);
   }, []);
+
+  // Only when the hero is actually mounted — it is not, inside a lesson.
+  useEffect(() => {
+    if (route.name === 'home' && heroRef.current) playHero(heroRef.current);
+  }, [route.name]);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,6 +51,32 @@ export default function App() {
     };
   }, []);
 
+  // A lesson is its own screen: no hero, no curriculum list underneath.
+  if (route.name === 'lesson') {
+    return (
+      <>
+        <Header session={session} onSignOut={signOut} />
+        <main className="wrap lesson-screen">
+          {session.state === 'signedIn' ? (
+            <LessonQuiz lessonId={route.id} onFinished={() => void refreshProgress()} />
+          ) : session.state === 'loading' ? (
+            <div className="glass panel note" role="status">
+              Checking your session…
+            </div>
+          ) : (
+            <div className="glass panel note">
+              <strong>Sign in to take this lesson.</strong>
+              <span>Quizzes and progress need an account; browsing the course does not.</span>
+              <a className="button" href="#/">
+                Back to the course
+              </a>
+            </div>
+          )}
+        </main>
+      </>
+    );
+  }
+
   const totals =
     load.state === 'ready'
       ? {
@@ -53,23 +88,37 @@ export default function App() {
 
   return (
     <>
-      {/* First tab stop — the curriculum below is a long list to skip past. */}
       <a className="skip" href="#curriculum">
         Skip to the curriculum
       </a>
 
+      <Header session={session} onSignOut={signOut} />
+
       <Hero ref={heroRef} totals={totals} />
 
+      {session.state === 'signedOut' ? (
+        <section className="section section-tight" id="start">
+          <div className="wrap">
+            <SignIn onSignIn={signIn} onSignUp={signUp} />
+          </div>
+        </section>
+      ) : null}
+
       <main id="curriculum">
-        <Curriculum load={load} />
+        <Curriculum
+          load={load}
+          completedLessonIds={
+            session.state === 'signedIn' ? (session.progress?.completedLessonIds ?? []) : null
+          }
+        />
       </main>
 
       <footer className="footer">
         <div className="wrap footer-inner">
           <span className="ja footer-mark">日本語</span>
           <p>
-            Every lesson above is read live from the langapp API. This page shows the public
-            content only — progress, spaced repetition and the AI tutor live in the app.
+            Lessons and progress are the same here as in the Android app — one account, one
+            database. Spaced review and the AI tutor are in the app for now.
           </p>
         </div>
       </footer>

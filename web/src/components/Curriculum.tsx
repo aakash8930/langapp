@@ -5,14 +5,43 @@ import { revealOnScroll } from '../motion';
 import type { Load } from '../App';
 import { LessonItems } from './LessonItems';
 
-export function Curriculum({ load }: { load: Load }) {
+/**
+ * Lock state is derived here, not served: `/lessons` is shared, unauthenticated
+ * content with no per-user fields, and the completed set comes from
+ * `/me/progress`. Signed out, `completedLessonIds` is null and nothing is
+ * locked — a visitor browsing the syllabus should see all of it.
+ */
+type LessonState = { completed: boolean; locked: boolean; lockedBy?: string };
+
+export function Curriculum({
+  load,
+  completedLessonIds,
+}: {
+  load: Load;
+  completedLessonIds: string[] | null;
+}) {
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Re-armed whenever the units land, since the cards do not exist before then.
   useEffect(() => {
     if (load.state !== 'ready' || !listRef.current) return;
     revealOnScroll([...listRef.current.querySelectorAll('.reveal')], { stagger: 70 });
   }, [load.state]);
+
+  const titleById =
+    load.state === 'ready'
+      ? new Map(load.units.flatMap((u) => u.lessons).map((l) => [l.id, l.title]))
+      : new Map<string, string>();
+
+  function stateOf(lesson: LessonSummary): LessonState {
+    if (completedLessonIds === null) return { completed: false, locked: false };
+    const done = new Set(completedLessonIds);
+    const blocker = lesson.prerequisiteLessonIds.find((id) => !done.has(id));
+    return {
+      completed: done.has(lesson.id),
+      locked: blocker !== undefined,
+      lockedBy: blocker ? titleById.get(blocker) : undefined,
+    };
+  }
 
   return (
     <section className="section">
@@ -25,8 +54,8 @@ export function Curriculum({ load }: { load: Load }) {
             <p className="section-idx">The course</p>
             <h2>Six units, in the order they unlock</h2>
             <p className="section-sub">
-              Each unit is gated on the one before it. Open a lesson to see exactly what it
-              teaches — this is the same content the app serves.
+              Each unit is gated on the one before it. Open a lesson to see what it teaches, or
+              start it to be quizzed on every item.
             </p>
           </div>
         </div>
@@ -43,7 +72,7 @@ export function Curriculum({ load }: { load: Load }) {
         ) : (
           <div className="units" ref={listRef}>
             {load.units.map((unit, index) => (
-              <UnitCard key={unit.slug} unit={unit} index={index} />
+              <UnitCard key={unit.slug} unit={unit} index={index} stateOf={stateOf} />
             ))}
           </div>
         )}
@@ -52,7 +81,17 @@ export function Curriculum({ load }: { load: Load }) {
   );
 }
 
-function UnitCard({ unit, index }: { unit: Unit; index: number }) {
+function UnitCard({
+  unit,
+  index,
+  stateOf,
+}: {
+  unit: Unit;
+  index: number;
+  stateOf: (lesson: LessonSummary) => LessonState;
+}) {
+  const done = unit.lessons.filter((l) => stateOf(l).completed).length;
+
   return (
     <article className="glass panel unit reveal">
       <div className="unit-head">
@@ -66,14 +105,14 @@ function UnitCard({ unit, index }: { unit: Unit; index: number }) {
           <p>{unit.blurb}</p>
         </div>
         <span className="unit-count tabular">
-          {unit.itemCount}
-          <span className="unit-count-label">items</span>
+          {done > 0 ? `${done} / ${unit.lessons.length}` : unit.itemCount}
+          <span className="unit-count-label">{done > 0 ? 'lessons' : 'items'}</span>
         </span>
       </div>
 
       <ol className="lessons">
         {unit.lessons.map((lesson) => (
-          <LessonRow key={lesson.id} lesson={lesson} />
+          <LessonRow key={lesson.id} lesson={lesson} state={stateOf(lesson)} />
         ))}
       </ol>
     </article>
@@ -81,15 +120,12 @@ function UnitCard({ unit, index }: { unit: Unit; index: number }) {
 }
 
 /**
- * A lesson, expandable to show what it teaches.
- *
- * `<details>` rather than a hand-rolled disclosure: it is keyboard operable,
- * announced correctly, and findable by in-page search even while closed, none
- * of which a div with an onClick gets for free. The contents load on first
- * open — 32 lessons eagerly fetched would be 32 requests for content most
- * visitors will never expand.
+ * `<details>` rather than a hand-rolled disclosure: keyboard operable,
+ * announced correctly, and findable by in-page search while closed. Contents
+ * load on first open — 32 lessons fetched eagerly would be 32 requests for
+ * content most visitors never expand.
  */
-function LessonRow({ lesson }: { lesson: LessonSummary }) {
+function LessonRow({ lesson, state }: { lesson: LessonSummary; state: LessonState }) {
   const [detail, setDetail] = useState<LessonDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -111,6 +147,11 @@ function LessonRow({ lesson }: { lesson: LessonSummary }) {
       <details className="lesson" onToggle={open}>
         <summary>
           <span className="lesson-title">{lesson.title}</span>
+          {state.completed ? (
+            <span className="lesson-badge" title="Completed">
+              ○
+            </span>
+          ) : null}
           <span className="lesson-meta tabular">{lesson.itemCount}</span>
         </summary>
 
@@ -120,7 +161,22 @@ function LessonRow({ lesson }: { lesson: LessonSummary }) {
           ) : error ? (
             <p className="muted">{error}</p>
           ) : detail ? (
-            <LessonItems items={detail.items} />
+            <>
+              <LessonItems items={detail.items} />
+              <div className="lesson-actions">
+                {state.locked ? (
+                  <p className="muted">
+                    {state.lockedBy
+                      ? `Finish “${state.lockedBy}” to unlock this.`
+                      : 'Finish the previous lesson to unlock this.'}
+                  </p>
+                ) : (
+                  <a className="button" href={`#/lesson/${lesson.id}`}>
+                    {state.completed ? 'Practise again' : 'Start lesson'}
+                  </a>
+                )}
+              </div>
+            </>
           ) : null}
         </div>
       </details>

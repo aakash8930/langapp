@@ -440,3 +440,333 @@
     flex-wrap: wrap;
   }
 }
+
+/* ---- Header ---- */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: var(--s-sm) 0;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-lg);
+  padding: var(--s-sm) var(--s-lg);
+  border-radius: var(--radius-lg);
+}
+.header-mark {
+  font-size: var(--text-body);
+  color: var(--shu-glass);
+  text-decoration: none;
+  flex: none;
+}
+.header-stats {
+  display: flex;
+  gap: var(--s-lg);
+  margin-left: auto;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.metric-label {
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
+.metric-value {
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+.metric-done {
+  color: var(--shu-glass);
+}
+.header-name {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.header-inner > .link-button:last-child,
+.header-inner > .link-button:only-of-type {
+  margin-left: auto;
+}
+.header-stats ~ .header-name,
+.header-stats ~ .link-button {
+  margin-left: 0;
+}
+
+/* ---- Buttons and forms ---- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--s-xl);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--paper);
+  font: inherit;
+  font-size: var(--text-body);
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity var(--t-fast) ease;
+}
+.button:hover {
+  opacity: 0.85;
+}
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.link-button {
+  padding: var(--s-sm) 0;
+  border: none;
+  background: none;
+  color: var(--ai);
+  font: inherit;
+  font-size: var(--text-small);
+  text-decoration: none;
+  cursor: pointer;
+}
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.section-tight {
+  padding: 0 0 var(--s-2xl);
+}
+
+.signin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+  max-width: 420px;
+}
+.signin-head h3 {
+  margin: 0 0 var(--s-xs);
+  font-size: var(--text-title);
+}
+.signin-head p {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+}
+.field span {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.field input {
+  min-height: 44px;
+  padding: 0 var(--s-md);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-body);
+}
+.field input:focus-visible {
+  outline: 2px solid var(--shu);
+  outline-offset: 1px;
+}
+.form-error {
+  margin: 0;
+  padding-left: var(--s-md);
+  border-left: 2px solid var(--danger);
+  color: var(--danger);
+  font-size: var(--text-small);
+}
+
+/* ---- Lesson rows ---- */
+
+.lesson-badge {
+  color: var(--shu-glass);
+  font-size: var(--text-small);
+  flex: none;
+}
+.lesson-actions {
+  padding-top: var(--s-lg);
+}
+
+/* ---- Quiz ---- */
+
+.lesson-screen {
+  padding-top: var(--s-xl);
+  padding-bottom: var(--s-4xl);
+}
+
+.quiz {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  max-width: 640px;
+  margin: 0 auto;
+}
+.quiz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.quiz-count {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.quiz-progress {
+  height: 3px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--hairline);
+  overflow: hidden;
+}
+.quiz-progress span {
+  display: block;
+  height: 100%;
+  background: var(--shu);
+  transition: width var(--t-base) ease;
+}
+
+.quiz-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+  align-items: center;
+  text-align: center;
+}
+.quiz-prompt {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.2;
+}
+/* One glyph can be enormous; a word is read, not inspected; a sentence wraps. */
+.quiz-prompt-kana {
+  font-size: 88px;
+}
+.quiz-prompt-vocab {
+  font-size: var(--text-heading);
+}
+.quiz-prompt-grammar {
+  font-size: var(--text-title);
+}
+.quiz-question {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--s-md);
+  width: 100%;
+}
+.option {
+  min-height: 56px;
+  padding: 0 var(--s-md);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-body);
+  cursor: pointer;
+  transition:
+    border-color var(--t-fast) ease,
+    opacity var(--t-fast) ease;
+}
+.option:hover:not(:disabled) {
+  border-color: var(--shu);
+}
+/*
+ * Both marked states are red — the palette has no green, and inventing one for
+ * a single screen would break the identity. Safe only because colour is never
+ * the sole channel: ○ and × carry the same information, the way a marked-up
+ * Japanese worksheet does.
+ */
+.option-answer {
+  border-color: var(--shu);
+  color: var(--shu-glass);
+  font-weight: 700;
+}
+.option-wrong {
+  border-color: var(--danger);
+  color: var(--danger);
+  text-decoration: line-through;
+}
+.option-muted {
+  opacity: 0.45;
+}
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  align-items: center;
+  width: 100%;
+}
+.verdict p {
+  margin: 0;
+}
+.verdict-right {
+  color: var(--shu-glass);
+  font-weight: 700;
+}
+.verdict-wrong {
+  color: var(--danger);
+  font-weight: 700;
+}
+.verdict-detail {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.quiz-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+  max-width: 480px;
+  margin: 0 auto;
+}
+.quiz-summary h2 {
+  margin: 0;
+  font-size: var(--text-heading);
+}
+.summary-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+.summary-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-lg);
+  padding: var(--s-md) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.summary-rows dt {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+.summary-rows dd {
+  margin: 0;
+  font-weight: 700;
+}
+.summary-rows .accent {
+  color: var(--shu-glass);
+}
+.summary-note {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}

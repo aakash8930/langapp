@@ -2,13 +2,15 @@
  * The read-only slice of the langapp API this site uses.
  *
  * `GET /lessons` and `GET /lessons/:id` are unauthenticated on purpose — shared
- * reference content with no per-user state — which is why the whole curriculum
- * browser works with no login, no token storage and no refresh dance. The
- * moment this site wants progress or reviews, that changes.
+ * reference content with no per-user state — so the curriculum browses without
+ * a session. Everything that teaches (quizzes, completion, progress) is behind
+ * a bearer token, with one refresh-and-retry on 401.
  *
  * Shapes mirror `api/src/content/dto/lesson-response.dto.ts`. Keep them in step
  * with the contract in the root CLAUDE.md.
  */
+
+import { emitSessionExpired, getTokens, setTokens, type Tokens, type User } from './auth';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '');
 
@@ -79,7 +81,19 @@ export type ResolvedItem =
 
 export type LessonDetail = LessonSummary & { items: ResolvedItem[] };
 
-async function get<T>(path: string): Promise<T> {
+/** Nest's exception filter answers `{ message }` or `{ message: string[] }`. */
+async function readError(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { message?: string | string[] };
+    if (Array.isArray(body.message)) return body.message.join('. ');
+    if (body.message) return body.message;
+  } catch {
+    // Non-JSON body — a proxy error page, usually.
+  }
+  return `The server returned ${response.status}.`;
+}
+
+async function send<T>(path: string, init: RequestInit = {}, accessToken?: string): Promise<T> {
   if (!BASE_URL) {
     throw new ApiError(
       'VITE_API_URL is not set. Copy .env.example to .env, point it at the API, and restart the dev server.',
@@ -87,10 +101,16 @@ async function get<T>(path: string): Promise<T> {
     );
   }
 
+  const headers = new Headers(init.headers);
+  headers.set('Accept', 'application/json');
+  if (init.body !== undefined) headers.set('Content-Type', 'application/json');
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
-      headers: { Accept: 'application/json' },
+      ...init,
+      headers,
       // The API runs on a laptop that sleeps. Without this the page hangs
       // forever behind a funnel that terminates TLS for a dead service.
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -102,11 +122,14 @@ async function get<T>(path: string): Promise<T> {
     );
   }
 
-  if (!response.ok) {
-    throw new ApiError(`The server returned ${response.status}.`, response.status);
-  }
+  if (!response.ok) throw new ApiError(await readError(response), response.status);
+  if (response.status === 204) return undefined as T;
 
   return (await response.json()) as T;
+}
+
+function get<T>(path: string): Promise<T> {
+  return send<T>(path);
 }
 
 /** Every unit in one request — the site groups them client-side. */
@@ -116,6 +139,188 @@ export function fetchLessons(): Promise<LessonSummary[]> {
 
 export function fetchLesson(id: string): Promise<LessonDetail> {
   return get<LessonDetail>(`/lessons/${encodeURIComponent(id)}`);
+}
+
+// ---------------------------------------------------------------------------
+// Authenticated calls
+// ---------------------------------------------------------------------------
+
+/**
+ * Shared across concurrent 401s.
+ *
+ * Refresh tokens **rotate** — presenting one consumes it. Five parallel
+ * requests failing at once must therefore share a single refresh, or four of
+ * them race to redeem a token that the winner already burned and the session
+ * dies for no reason. The contract in the root CLAUDE.md calls this out
+ * explicitly; this variable is the whole of the fix.
+ */
+let refreshInFlight: Promise<Tokens> | null = null;
+
+function refresh(refreshToken: string): Promise<Tokens> {
+  if (refreshInFlight) return refreshInFlight;
+
+  const pending = (async () => {
+    try {
+      // `/auth/refresh` answers flat — not nested under `tokens`.
+      const tokens = await send<Tokens>('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      });
+      setTokens(tokens);
+      return tokens;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  refreshInFlight = pending;
+  return pending;
+}
+
+/** One refresh-and-retry on 401, then the session is over. */
+async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const tokens = getTokens();
+  if (!tokens) {
+    emitSessionExpired();
+    throw new ApiError('Sign in to continue.', 401);
+  }
+
+  try {
+    return await send<T>(path, init, tokens.accessToken);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+
+    let renewed: Tokens;
+    try {
+      renewed = await refresh(tokens.refreshToken);
+    } catch (refreshError) {
+      // A refresh that failed because the server is unreachable is not an
+      // expired session — keep the tokens so it recovers when it is back.
+      if (refreshError instanceof ApiError && refreshError.status === 0) throw refreshError;
+      emitSessionExpired();
+      throw new ApiError('Your session expired. Sign in again.', 401);
+    }
+
+    try {
+      return await send<T>(path, init, renewed.accessToken);
+    } catch (retryError) {
+      if (retryError instanceof ApiError && retryError.status === 401) {
+        emitSessionExpired();
+        throw new ApiError('Your session expired. Sign in again.', 401);
+      }
+      throw retryError;
+    }
+  }
+}
+
+export type AuthResponse = { user: User; tokens: Tokens };
+
+export function register(body: {
+  email: string;
+  password: string;
+  displayName: string;
+  tz?: string;
+}): Promise<AuthResponse> {
+  return send<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function login(body: { email: string; password: string }): Promise<AuthResponse> {
+  return send<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function fetchMe(): Promise<User> {
+  return authed<User>('/me');
+}
+
+export type Progress = {
+  xp: number;
+  level: number;
+  xpIntoLevel: number;
+  xpForNextLevel: number;
+  streakDays: number;
+  lastStudyDate: string | null;
+  daily: { xpToday: number; goalXp: number; percentOfGoal: number; goalMet: boolean };
+  cardsDueNow: number;
+  lessonsCompleted: number;
+  completedLessonIds: string[];
+};
+
+export function fetchProgress(): Promise<Progress> {
+  return authed<Progress>('/me/progress');
+}
+
+export type ExerciseOption = { id: string; value: string };
+export type PromptKind = 'kana' | 'vocab' | 'grammar';
+
+export type Question = {
+  exerciseId: string;
+  type: 'multipleChoice';
+  prompt: string;
+  promptKind: PromptKind;
+  question: string;
+  options: ExerciseOption[];
+};
+
+/** An object wrapping the array, not a bare array. */
+export type ExerciseSet = {
+  lessonId: string;
+  unit: string;
+  title: string;
+  attempt: number;
+  questionCount: number;
+  questions: Question[];
+};
+
+export type AnswerResult = {
+  exerciseId: string;
+  correct: boolean;
+  selectedOptionId: string;
+  selectedValue: string | null;
+  correctOptionId: string;
+  correctValue: string;
+  prompt: string;
+};
+
+export type CompleteResult = {
+  lessonId: string;
+  title: string;
+  cardsCreated: number;
+  cardsAlreadyPresent: number;
+  xpAwarded: number;
+  firstCompletion: boolean;
+  totalXp: number;
+};
+
+export function fetchExercises(lessonId: string, attempt: number): Promise<ExerciseSet> {
+  return authed<ExerciseSet>(
+    `/lessons/${encodeURIComponent(lessonId)}/exercises?attempt=${attempt}`,
+  );
+}
+
+export function answerExercise(
+  lessonId: string,
+  exerciseId: string,
+  optionId: string,
+): Promise<AnswerResult> {
+  return authed<AnswerResult>(
+    `/lessons/${encodeURIComponent(lessonId)}/exercises/${encodeURIComponent(exerciseId)}/answer`,
+    { method: 'POST', body: JSON.stringify({ optionId }) },
+  );
+}
+
+export function completeLesson(lessonId: string): Promise<CompleteResult> {
+  return authed<CompleteResult>(`/lessons/${encodeURIComponent(lessonId)}/complete`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * The server has no per-user attempt counter, so the client picks the seed.
+ * Drawn once per run through a lesson — re-drawing mid-lesson would reshuffle
+ * the questions and invalidate the exerciseIds already on screen.
+ */
+export function newAttempt(): number {
+  return Math.floor(Math.random() * 10001);
 }
 
 /**

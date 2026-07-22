@@ -467,6 +467,31 @@ Three follow-ups the marks unit created rather than closed:
   finally possible; it was not before.
 - **っ and ー are still untaught** — see item 25.
 
+### 27. The website keeps auth tokens in localStorage (2026-07-22)
+
+An XSS on `web/` steals a session. There is no browser equivalent of the app's
+expo-secure-store — every web storage API is readable by any script on the page.
+
+**Why it is tolerable now:** the site renders no user-generated content, loads
+no third-party script (Google Fonts is a stylesheet, not JS), and React escapes
+by default. There is nothing to inject through.
+
+**What changes the answer:** a comment box, an analytics snippet, an embed, or
+any user content rendered as HTML. Any one of those should arrive together with
+the fix rather than before it.
+
+**The fix, and why it was not done now:** httpOnly cookies, which script cannot
+read. It is an API change with a tail — the server issues and clears cookies,
+CORS needs `credentials: true` and therefore a single strict origin rather than
+a list, and CSRF protection becomes mandatory the moment the browser attaches
+credentials on its own. That is a security redesign, not a storage swap, and it
+was not worth blocking the first usable version of the site on.
+
+**Cost of getting it wrong:** one learner's account. Registration is open and
+these accounts hold no payment details or personal data beyond an email and
+chat transcripts (#24) — which is not nothing, and is the reason this is
+written down rather than shrugged at.
+
 ### 25. っ and ー cannot be taught by the only exercise this app has (2026-07-22)
 
 The marks units teach dakuten, handakuten and yōon but deliberately skip the

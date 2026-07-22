@@ -91,9 +91,12 @@ then fails to fetch anything. The API sends no CORS headers by default, which is
 how it behaved before the site existed — the Expo app never needed them, because
 a native fetch is not subject to the same-origin policy.
 
-The site reads **only unauthenticated endpoints** (`GET /lessons`,
-`GET /lessons/:id`), which is why it has no login, no token storage and no
-refresh logic. It is a curriculum browser, not a web version of the app.
+Browsing the course needs no account. Signing in adds the part that teaches:
+quizzes, lesson completion, XP and streak — the same account and the same
+database as the Android app, so progress made in one shows in the other.
+
+Tokens live in `localStorage`, with the XSS trade written out in `auth.ts` and
+logged as OPEN-ITEMS #27. Spaced review and the AI tutor are still app-only.
 
 | Command | What it does |
 |---|---|
