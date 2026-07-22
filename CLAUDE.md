@@ -240,8 +240,15 @@ client keeps the transcript in memory for the life of the screen; a session
 abandoned mid-way is simply left behind and a new one started.
 
 The provider is **Gemini free tier** behind `AiOrchestratorService` (Stage A,
-§8: ₹0). With `GEMINI_API_KEY` unset every chat turn is a **503** and the rest
-of the API is unaffected. Provider failures surface as **502**, provider rate
+§8: ₹0), and it has been **verified against a real model** (2026-07-22). With
+`GEMINI_API_KEY` unset every chat turn is a **503** and the rest of the API is
+unaffected.
+
+`GEMINI_MODEL` should stay an alias (`gemini-flash-latest`). Pinned names retire
+*and* get swamped: `gemini-2.5-flash` now 404s as "no longer available", and
+`gemini-3.5-flash` returned 503 UNAVAILABLE six times running on the free tier
+the day the key was added. A provider 503 currently surfaces as a 502 with no
+retry — OPEN-ITEMS #28. Provider failures surface as **502**, provider rate
 limits as **429** — the client should show "try again shortly", not retry-loop.
 A session hard-caps at 50 messages (400 past that). Chat routes are throttled
 separately from auth (`CHAT_THROTTLE_*`, default 10 per 60s) — also a 429, so

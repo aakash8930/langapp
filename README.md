@@ -439,9 +439,32 @@ Stage B provider swap touches one file (`gemini.provider.ts`).
 
 The provider is **Gemini free tier** (§8: Stage A is ₹0), called with a
 hand-rolled `fetch` — no SDK dependency. Get a free key at
-https://aistudio.google.com/apikey and set `GEMINI_API_KEY` in `api/.env`
-(`GEMINI_MODEL` defaults to `gemini-3.5-flash`). Without a key the API boots
-fine and chat routes answer 503.
+https://aistudio.google.com/apikey and set `GEMINI_API_KEY` in `api/.env`.
+Without a key the API boots fine and chat routes answer 503.
+
+**Verified end to end 2026-07-22.** A learner writing `watashi ha Aakash desu`
+got hiragana back with romaji and a gloss, plus a correction of は/wa — the same
+mistake the seed's own romaji test guards against, caught live.
+
+**`GEMINI_MODEL` is an alias, and that is deliberate.** Pinned names both retire
+and get swamped, and on the first real run both happened at once:
+
+| Model | Result on the free tier, 2026-07-22 |
+|---|---|
+| `gemini-3.5-flash` | 503 `UNAVAILABLE` — "high demand", six times running |
+| `gemini-2.5-flash` | 404 — "no longer available" |
+| `gemini-flash-latest` | 200 |
+
+So the default is `gemini-flash-latest`, which tracks whatever flash model
+Google is actually serving. To see what a key can use:
+
+```bash
+curl -s https://generativelanguage.googleapis.com/v1beta/models \
+  -H "x-goog-api-key: $GEMINI_API_KEY" | grep '"name"'
+```
+
+A 503 from the provider currently surfaces to the learner as a 502 with no
+retry — see OPEN-ITEMS #28.
 
 One call per turn: Gemini's `responseSchema` forces
 `{ reply, corrections: [{span, fix, note}] }`, so the conversation turn and the

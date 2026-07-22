@@ -244,13 +244,15 @@ Shipped: auth, home with lesson lock state, the exercise flow, the review
 session, settings, and (C2, 2026-07-21) the AI chat screen. `client/CLAUDE.md`
 holds its rules.
 
-**Never exercised against a real model.** C2 was verified by typecheck, a
-successful `expo export`, and the API's 503/400/404 paths — but no chat turn
-has ever round-tripped through Gemini, because `GEMINI_API_KEY` is unset. The
-reply bubble, the correction note, and the pending skeleton have therefore been
-*rendered* but never *filled with real output*. Expect to tune the bubble's
-handling of long replies (the tutor's romaji-plus-gloss format is verbose) the
-first time it runs for real.
+**RESOLVED 2026-07-22 — the chat now runs against a real model.** A key was
+added and a turn round-tripped: hiragana back, romaji and gloss per sentence,
+and two corrections including は/wa. See README "The AI chat".
+
+Still true and worth checking on a device: the reply bubble has only ever been
+*rendered*, never filled with real output. The tutor's
+hiragana-plus-romaji-plus-gloss format is verbose — three parenthesised
+translations in one reply is normal — so expect the bubble to need tuning for
+length the first time you see it on a phone.
 
 Two API changes were needed for M5 and were approved before being made: a write
 path for `dailyGoalXp`, and `'system'` added to the theme enum. Both are in the
@@ -449,7 +451,7 @@ imported type needs an explicit `type:`.** All current schemas comply.
 | 4. `POST /lessons/:id/complete` → seeds SrsCards + XP | done (M4) |
 | 5. `GET /reviews/due` + grade with `ts-fsrs` | done (M5) — **the loop closes here** |
 | 6. Streak + daily goal on `/me` | done — was already live when this table said "next"; the table was stale |
-| 7. One AI text chat scenario | done (2026-07-21) — `chat` + `ai-orchestrator` modules, Gemini free tier |
+| 7. One AI text chat scenario | done — modules 2026-07-21, **verified against a real model 2026-07-22** |
 
 | 8. Second exercise type → voice → Katakana → the rest | **next**, and now the only thing left |
 
@@ -486,6 +488,25 @@ Three follow-ups the marks unit created rather than closed:
   KnowledgeGraph as `vocab` nodes, so the retrieval that item describes is
   finally possible; it was not before.
 - **っ and ー are still untaught** — see item 25.
+
+### 28. A provider 503 becomes a hard 502 mid-conversation (2026-07-22)
+
+`GeminiProvider` maps any non-ok response to a 502 and gives up. That is fine
+for a 400 or a 404, which will fail identically forever — but **503 is the one
+upstream error that is worth retrying**, and on the free tier it is common:
+`gemini-3.5-flash` returned `UNAVAILABLE` six times in a row while
+`gemini-flash-latest` answered immediately.
+
+**Cost of getting it wrong:** a learner mid-conversation gets "the AI tutor hit
+an error" for something that would have worked on the next attempt. Switching to
+the alias made it much less likely, but did not remove it — any free-tier model
+can be swamped for a minute.
+
+**Fix:** retry a 503 two or three times with backoff inside `generateJson`,
+before mapping to 502. It has to stay bounded and short — the client already
+waits on a real LLM call, and §8's latency budget is "a few seconds, not
+instant". Do not retry 400, 404 or 429: the first two are permanent and the
+third is a quota that a retry makes worse.
 
 ### 27. The website keeps auth tokens in localStorage (2026-07-22)
 
