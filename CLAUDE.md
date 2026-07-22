@@ -116,13 +116,27 @@ LessonSummary = { id, lang, unit, order, title,
                   exerciseTypes, itemCount, prerequisiteLessonIds }
 ResolvedItem  = discriminated on `kind`:
   kana    { kind, id, kana, romaji, script, row, order }
-  vocab   { kind, id, lemma, reading, gloss, pos, jlpt }
+  vocab   { kind, id, lemma, reading, romaji?, gloss, pos, jlpt }
   grammar { kind, id, title, jlpt, explanation,
-            examples: [ { sentence, answer, gloss } ] }
+            examples: [ { sentence, answer, romaji?, gloss } ] }
   kanji   { kind, id, char, on[], kun[], meanings[], strokes }
 ```
 
 **Unauthenticated on purpose** — shared reference content with no per-user state.
+
+`romaji` was added 2026-07-22. It is **authored, not derived** — transliterating
+kana mechanically is wrong exactly where it matters: は as a topic marker is
+`wa`, を is `o`, and こんにちは is `konnichiwa`. A lookup table prints
+`konnichiha` and contradicts the lesson teaching the rule. `romaji.spec.ts`
+transliterates and compares anyway, so every divergence has to be a listed
+exception rather than a typo.
+
+For grammar it transcribes the **completed** sentence, so it must never be shown
+beside the gapped one in a quiz — it contains the answer.
+
+Optional because the display rule is **romaji up to N4, none after**. That rule
+lives with the clients (`web/src/romaji.ts`, `client/lib/romaji.ts`), not the
+server: the data stays complete and each surface decides.
 
 **There is no `locked` field.** The client derives it: a lesson unlocks once every id
 in its `prerequisiteLessonIds` appears in `completedLessonIds` from `/me/progress`.

@@ -479,6 +479,14 @@ rather than trusting it, and it caught three words on the first run: たべる,
 ありがとう and ください all need marks that come later. That rule is also why
 みず, ともだち, がくせい and every katakana loanword are absent.
 
+Every word and every grammar example also carries **romaji**, shown up to N4 and
+dropped from N3 on — by then reading kana is the skill, and latin beside it is a
+crutch nobody drops unaided. It is authored rather than generated, because a kana
+lookup table is wrong exactly where it matters: は as a topic marker is `wa`, を is
+`o`, and こんにちは is `konnichiwa`, not `konnichiha`. `romaji.spec.ts`
+transliterates and compares anyway, so a typo fails the build while the real
+exceptions stay listed and visible.
+
 `lemma` and `reading` are identical throughout, which is not a placeholder —
 ねこ is a correct way to write 猫, and kana-only is how these words are presented
 until kanji are taught. When kanji arrive, `lemma` gains the kanji spelling and

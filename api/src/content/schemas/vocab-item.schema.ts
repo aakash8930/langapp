@@ -18,6 +18,21 @@ export class VocabItem {
   @Prop({ required: true, trim: true })
   reading: string;
 
+  /**
+   * `taberu` — the reading in latin script, for learners who are still
+   * decoding kana.
+   *
+   * Authored rather than derived. Transliterating `reading` mechanically is
+   * wrong in exactly the cases that matter: は is "wa" when it is a particle,
+   * を is "o", へ is "e", and こんにちは is "konnichiwa" — a table lookup gives
+   * "konnichiha" and quietly contradicts the lesson that teaches the rule.
+   *
+   * Optional at the schema level so content beyond N4 can omit it; the display
+   * rule (romaji up to N4, none after) lives with the clients.
+   */
+  @Prop({ type: String, required: false, trim: true })
+  romaji?: string;
+
   /** to eat */
   @Prop({ required: true, trim: true })
   gloss: string;

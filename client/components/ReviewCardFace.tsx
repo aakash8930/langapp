@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import type { ResolvedItem } from '@/api/items';
 import { GenkouyoushiCell } from '@/components/GenkouyoushiCell';
 import { KanaCells } from '@/components/KanaCells';
+import { showsRomaji } from '@/lib/romaji';
 import { useTheme } from '@/theme';
 
 /**
@@ -57,7 +58,12 @@ export function CardBack({ item }: { item: ResolvedItem }) {
 
 /**
  * Reading first, meaning second — that is the order they are recalled in, and
- * the first line is the one the eye lands on.
+ * the first line is the one the eye lands on, set large.
+ *
+ * Romaji counts as a reading, so it sits with them rather than after the
+ * meaning. On a kana-only word that puts it in the first slot, which matches
+ * what a kana card already does (front あ, back "a") — the same job, shown the
+ * same way. It only appears up to N4; see lib/romaji.ts.
  */
 function backLines(item: ResolvedItem): string[] {
   switch (item.kind) {
@@ -69,11 +75,14 @@ function backLines(item: ResolvedItem): string[] {
         [item.on.join('、'), item.kun.join('、')].filter(Boolean).join('  ·  '),
         item.meanings.join(', '),
       ].filter(Boolean);
-    case 'vocab':
+    case 'vocab': {
       // A word written in kana *is* its own reading, and repeating it under
       // the front of the card says nothing. Once kanji arrive the two differ
       // (食べる / たべる) and the reading earns its line back.
-      return item.reading === item.lemma ? [item.gloss] : [item.reading, item.gloss];
+      const reading = item.reading === item.lemma ? [] : [item.reading];
+      const romaji = item.romaji && showsRomaji(item.jlpt) ? [item.romaji] : [];
+      return [...reading, ...romaji, item.gloss];
+    }
     case 'grammar': {
       // The worked example leads, because a particle is understood by seeing it
       // used and only then by reading what it does. The gap is filled in — this
@@ -83,6 +92,7 @@ function backLines(item: ResolvedItem): string[] {
 
       return [
         example.sentence.replace('＿', example.answer),
+        ...(example.romaji && showsRomaji(item.jlpt) ? [example.romaji] : []),
         example.gloss,
         item.explanation,
       ];

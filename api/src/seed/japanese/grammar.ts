@@ -6,6 +6,15 @@ export interface GrammarExampleSeed {
   sentence: string;
   /** What fills the gap. */
   answer: string;
+  /**
+   * The **completed** sentence in latin script.
+   *
+   * This is where a kana table would betray you: は as a topic marker is `wa`
+   * and を as an object marker is `o`, which is precisely what the lessons here
+   * teach. Transliterating `sentence` character by character would print
+   * `watashi ha sensei desu` and contradict lesson one.
+   */
+  romaji: string;
   /** English translation of the *completed* sentence. */
   gloss: string;
 }
@@ -71,21 +80,21 @@ export const GRAMMAR_GROUPS: Record<string, GrammarSeed[]> = {
       explanation:
         'Ends a polite sentence that says what something is. It carries the politeness, so it is what changes when you speak more or less formally — the noun in front of it never changes.',
       examples: [
-        { sentence: 'わたしはせんせい＿。', answer: 'です', gloss: 'I am a teacher.' },
+        { sentence: 'わたしはせんせい＿。', answer: 'です', romaji: 'watashi wa sensei desu.', gloss: 'I am a teacher.' },
       ],
     },
     {
       title: 'は — topic marker',
       explanation:
         'Marks what the sentence is about — "as for this…". Written は but pronounced "wa" when it does this job, which is the single most common surprise in beginner Japanese.',
-      examples: [{ sentence: 'ちち＿せんせいです。', answer: 'は', gloss: 'My father is a teacher.' }],
+      examples: [{ sentence: 'ちち＿せんせいです。', answer: 'は', romaji: 'chichi wa sensei desu.', gloss: 'My father is a teacher.' }],
     },
     {
       title: 'か — question marker',
       explanation:
         'Turns a statement into a question by being added to the end. Nothing else moves: the word order of a Japanese question is the word order of the statement.',
       examples: [
-        { sentence: 'あなたはせんせいです＿。', answer: 'か', gloss: 'Are you a teacher?' },
+        { sentence: 'あなたはせんせいです＿。', answer: 'か', romaji: 'anata wa sensei desu ka.', gloss: 'Are you a teacher?' },
       ],
     },
   ],
@@ -94,14 +103,14 @@ export const GRAMMAR_GROUPS: Record<string, GrammarSeed[]> = {
       title: 'ます — polite present',
       explanation:
         'The polite ending for something you do or will do. Japanese does not separate present from future — よみます is both "I read" and "I will read", and context decides.',
-      examples: [{ sentence: 'わたしはほんをよみ＿。', answer: 'ます', gloss: 'I read a book.' }],
+      examples: [{ sentence: 'わたしはほんをよみ＿。', answer: 'ます', romaji: 'watashi wa hon o yomimasu.', gloss: 'I read a book.' }],
     },
     {
       title: 'ません — polite negative',
       explanation:
         'The negative of ます. The verb itself does not change — only the ending does, which is why learning the endings is worth more than learning each verb twice.',
       examples: [
-        { sentence: 'わたしはくるまをかい＿。', answer: 'ません', gloss: 'I do not buy a car.' },
+        { sentence: 'わたしはくるまをかい＿。', answer: 'ません', romaji: 'watashi wa kuruma o kaimasen.', gloss: 'I do not buy a car.' },
       ],
     },
     {
@@ -109,7 +118,7 @@ export const GRAMMAR_GROUPS: Record<string, GrammarSeed[]> = {
       explanation:
         'The past of ます. Same rule again: swap the ending, leave the verb alone.',
       examples: [
-        { sentence: 'わたしはうみにいき＿。', answer: 'ました', gloss: 'I went to the sea.' },
+        { sentence: 'わたしはうみにいき＿。', answer: 'ました', romaji: 'watashi wa umi ni ikimashita.', gloss: 'I went to the sea.' },
       ],
     },
   ],
@@ -118,20 +127,20 @@ export const GRAMMAR_GROUPS: Record<string, GrammarSeed[]> = {
       title: 'を — object marker',
       explanation:
         'Marks the thing a verb is done to. Written を, pronounced "o" — it is the only job this character has, so meeting it means an object is in front of you.',
-      examples: [{ sentence: 'わたしはほん＿よみます。', answer: 'を', gloss: 'I read a book.' }],
+      examples: [{ sentence: 'わたしはほん＿よみます。', answer: 'を', romaji: 'watashi wa hon o yomimasu.', gloss: 'I read a book.' }],
     },
     {
       title: 'に — destination',
       explanation:
         'Marks where something is going, or when it happens. Pairs with movement verbs like いきます and きます.',
-      examples: [{ sentence: 'わたしはうみ＿いきます。', answer: 'に', gloss: 'I go to the sea.' }],
+      examples: [{ sentence: 'わたしはうみ＿いきます。', answer: 'に', romaji: 'watashi wa umi ni ikimasu.', gloss: 'I go to the sea.' }],
     },
     {
       title: 'で — place of action',
       explanation:
         'Marks where an action happens — as opposed to に, which marks where it is heading. みせでかいます is buying at the shop; みせにいきます is going to it.',
       examples: [
-        { sentence: 'わたしはみせ＿かいます。', answer: 'で', gloss: 'I buy it at the shop.' },
+        { sentence: 'わたしはみせ＿かいます。', answer: 'で', romaji: 'watashi wa mise de kaimasu.', gloss: 'I buy it at the shop.' },
       ],
     },
   ],
@@ -140,14 +149,14 @@ export const GRAMMAR_GROUPS: Record<string, GrammarSeed[]> = {
       title: 'の — possessive',
       explanation:
         'Joins two nouns, with the first owning or describing the second. わたしのほん is my book; ほんのなまえ is the book’s title.',
-      examples: [{ sentence: 'わたし＿ほんです。', answer: 'の', gloss: 'It is my book.' }],
+      examples: [{ sentence: 'わたし＿ほんです。', answer: 'の', romaji: 'watashi no hon desu.', gloss: 'It is my book.' }],
     },
     {
       title: 'も — also',
       explanation:
         'Replaces は to mean "too". It does not sit next to は — it takes its place, which is why わたしもです is right and わたしはもです is not.',
       examples: [
-        { sentence: 'いもうと＿せんせいです。', answer: 'も', gloss: 'My younger sister is also a teacher.' },
+        { sentence: 'いもうと＿せんせいです。', answer: 'も', romaji: 'imouto mo sensei desu.', gloss: 'My younger sister is also a teacher.' },
       ],
     },
     {
@@ -155,7 +164,7 @@ export const GRAMMAR_GROUPS: Record<string, GrammarSeed[]> = {
       explanation:
         'Joins nouns into a complete list — ほんとかみ is a book and paper, and nothing else. It does not join sentences.',
       examples: [
-        { sentence: 'ほん＿かみをかいます。', answer: 'と', gloss: 'I buy a book and paper.' },
+        { sentence: 'ほん＿かみをかいます。', answer: 'と', romaji: 'hon to kami o kaimasu.', gloss: 'I buy a book and paper.' },
       ],
     },
   ],

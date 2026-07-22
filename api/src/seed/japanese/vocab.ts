@@ -3,6 +3,11 @@ export interface VocabSeed {
   lemma: string;
   /** Kana reading. Identical to `lemma` for every word in this unit, by design. */
   reading: string;
+  /**
+   * Latin script, for learners still decoding kana. Authored, not derived —
+   * こんにちは is `konnichiwa`, and a mechanical kana table gives `konnichiha`.
+   */
+  romaji: string;
   gloss: string;
   pos: string;
 }
@@ -52,82 +57,82 @@ export interface VocabLessonSeed {
  */
 export const VOCAB_GROUPS: Record<string, VocabSeed[]> = {
   people: [
-    { lemma: 'わたし', reading: 'わたし', gloss: 'I, me', pos: 'pronoun' },
-    { lemma: 'あなた', reading: 'あなた', gloss: 'you', pos: 'pronoun' },
-    { lemma: 'ひと', reading: 'ひと', gloss: 'person', pos: 'noun' },
-    { lemma: 'おとこ', reading: 'おとこ', gloss: 'man', pos: 'noun' },
-    { lemma: 'おんな', reading: 'おんな', gloss: 'woman', pos: 'noun' },
-    { lemma: 'せんせい', reading: 'せんせい', gloss: 'teacher', pos: 'noun' },
-    { lemma: 'なまえ', reading: 'なまえ', gloss: 'name', pos: 'noun' },
+    { lemma: 'わたし', reading: 'わたし', romaji: 'watashi', gloss: 'I, me', pos: 'pronoun' },
+    { lemma: 'あなた', reading: 'あなた', romaji: 'anata', gloss: 'you', pos: 'pronoun' },
+    { lemma: 'ひと', reading: 'ひと', romaji: 'hito', gloss: 'person', pos: 'noun' },
+    { lemma: 'おとこ', reading: 'おとこ', romaji: 'otoko', gloss: 'man', pos: 'noun' },
+    { lemma: 'おんな', reading: 'おんな', romaji: 'onna', gloss: 'woman', pos: 'noun' },
+    { lemma: 'せんせい', reading: 'せんせい', romaji: 'sensei', gloss: 'teacher', pos: 'noun' },
+    { lemma: 'なまえ', reading: 'なまえ', romaji: 'namae', gloss: 'name', pos: 'noun' },
     // ちち and はは are the words for one's *own* parents — the humble forms.
     // Someone else's are おとうさん / おかあさん, which need marks not taught yet.
-    { lemma: 'ちち', reading: 'ちち', gloss: 'my father', pos: 'noun' },
-    { lemma: 'はは', reading: 'はは', gloss: 'my mother', pos: 'noun' },
-    { lemma: 'いもうと', reading: 'いもうと', gloss: 'younger sister', pos: 'noun' },
+    { lemma: 'ちち', reading: 'ちち', romaji: 'chichi', gloss: 'my father', pos: 'noun' },
+    { lemma: 'はは', reading: 'はは', romaji: 'haha', gloss: 'my mother', pos: 'noun' },
+    { lemma: 'いもうと', reading: 'いもうと', romaji: 'imouto', gloss: 'younger sister', pos: 'noun' },
   ],
   things: [
-    { lemma: 'ほん', reading: 'ほん', gloss: 'book', pos: 'noun' },
-    { lemma: 'くるま', reading: 'くるま', gloss: 'car', pos: 'noun' },
-    { lemma: 'いえ', reading: 'いえ', gloss: 'house', pos: 'noun' },
-    { lemma: 'みせ', reading: 'みせ', gloss: 'shop', pos: 'noun' },
-    { lemma: 'とけい', reading: 'とけい', gloss: 'clock, watch', pos: 'noun' },
-    { lemma: 'かさ', reading: 'かさ', gloss: 'umbrella', pos: 'noun' },
-    { lemma: 'いす', reading: 'いす', gloss: 'chair', pos: 'noun' },
-    { lemma: 'つくえ', reading: 'つくえ', gloss: 'desk', pos: 'noun' },
-    { lemma: 'かみ', reading: 'かみ', gloss: 'paper', pos: 'noun' },
-    { lemma: 'くつ', reading: 'くつ', gloss: 'shoes', pos: 'noun' },
+    { lemma: 'ほん', reading: 'ほん', romaji: 'hon', gloss: 'book', pos: 'noun' },
+    { lemma: 'くるま', reading: 'くるま', romaji: 'kuruma', gloss: 'car', pos: 'noun' },
+    { lemma: 'いえ', reading: 'いえ', romaji: 'ie', gloss: 'house', pos: 'noun' },
+    { lemma: 'みせ', reading: 'みせ', romaji: 'mise', gloss: 'shop', pos: 'noun' },
+    { lemma: 'とけい', reading: 'とけい', romaji: 'tokei', gloss: 'clock, watch', pos: 'noun' },
+    { lemma: 'かさ', reading: 'かさ', romaji: 'kasa', gloss: 'umbrella', pos: 'noun' },
+    { lemma: 'いす', reading: 'いす', romaji: 'isu', gloss: 'chair', pos: 'noun' },
+    { lemma: 'つくえ', reading: 'つくえ', romaji: 'tsukue', gloss: 'desk', pos: 'noun' },
+    { lemma: 'かみ', reading: 'かみ', romaji: 'kami', gloss: 'paper', pos: 'noun' },
+    { lemma: 'くつ', reading: 'くつ', romaji: 'kutsu', gloss: 'shoes', pos: 'noun' },
   ],
   nature: [
-    { lemma: 'やま', reading: 'やま', gloss: 'mountain', pos: 'noun' },
-    { lemma: 'うみ', reading: 'うみ', gloss: 'sea', pos: 'noun' },
-    { lemma: 'そら', reading: 'そら', gloss: 'sky', pos: 'noun' },
-    { lemma: 'はな', reading: 'はな', gloss: 'flower', pos: 'noun' },
-    { lemma: 'あめ', reading: 'あめ', gloss: 'rain', pos: 'noun' },
-    { lemma: 'ゆき', reading: 'ゆき', gloss: 'snow', pos: 'noun' },
-    { lemma: 'つき', reading: 'つき', gloss: 'moon', pos: 'noun' },
-    { lemma: 'ほし', reading: 'ほし', gloss: 'star', pos: 'noun' },
-    { lemma: 'あさ', reading: 'あさ', gloss: 'morning', pos: 'noun' },
-    { lemma: 'よる', reading: 'よる', gloss: 'night', pos: 'noun' },
+    { lemma: 'やま', reading: 'やま', romaji: 'yama', gloss: 'mountain', pos: 'noun' },
+    { lemma: 'うみ', reading: 'うみ', romaji: 'umi', gloss: 'sea', pos: 'noun' },
+    { lemma: 'そら', reading: 'そら', romaji: 'sora', gloss: 'sky', pos: 'noun' },
+    { lemma: 'はな', reading: 'はな', romaji: 'hana', gloss: 'flower', pos: 'noun' },
+    { lemma: 'あめ', reading: 'あめ', romaji: 'ame', gloss: 'rain', pos: 'noun' },
+    { lemma: 'ゆき', reading: 'ゆき', romaji: 'yuki', gloss: 'snow', pos: 'noun' },
+    { lemma: 'つき', reading: 'つき', romaji: 'tsuki', gloss: 'moon', pos: 'noun' },
+    { lemma: 'ほし', reading: 'ほし', romaji: 'hoshi', gloss: 'star', pos: 'noun' },
+    { lemma: 'あさ', reading: 'あさ', romaji: 'asa', gloss: 'morning', pos: 'noun' },
+    { lemma: 'よる', reading: 'よる', romaji: 'yoru', gloss: 'night', pos: 'noun' },
   ],
   verbs: [
     // Dictionary form throughout — the form a dictionary lists and the one
     // every other form is built from. Conjugation is the grammar unit's job.
-    { lemma: 'のむ', reading: 'のむ', gloss: 'to drink', pos: 'verb' },
+    { lemma: 'のむ', reading: 'のむ', romaji: 'nomu', gloss: 'to drink', pos: 'verb' },
     // かう pairs with みせ from the previous lesson. It is here partly because
     // たべる, the verb you would expect, is unreadable at this level.
-    { lemma: 'かう', reading: 'かう', gloss: 'to buy', pos: 'verb' },
-    { lemma: 'みる', reading: 'みる', gloss: 'to see, to watch', pos: 'verb' },
-    { lemma: 'きく', reading: 'きく', gloss: 'to listen, to ask', pos: 'verb' },
-    { lemma: 'はなす', reading: 'はなす', gloss: 'to speak', pos: 'verb' },
-    { lemma: 'よむ', reading: 'よむ', gloss: 'to read', pos: 'verb' },
-    { lemma: 'かく', reading: 'かく', gloss: 'to write', pos: 'verb' },
-    { lemma: 'いく', reading: 'いく', gloss: 'to go', pos: 'verb' },
-    { lemma: 'くる', reading: 'くる', gloss: 'to come', pos: 'verb' },
-    { lemma: 'する', reading: 'する', gloss: 'to do', pos: 'verb' },
+    { lemma: 'かう', reading: 'かう', romaji: 'kau', gloss: 'to buy', pos: 'verb' },
+    { lemma: 'みる', reading: 'みる', romaji: 'miru', gloss: 'to see, to watch', pos: 'verb' },
+    { lemma: 'きく', reading: 'きく', romaji: 'kiku', gloss: 'to listen, to ask', pos: 'verb' },
+    { lemma: 'はなす', reading: 'はなす', romaji: 'hanasu', gloss: 'to speak', pos: 'verb' },
+    { lemma: 'よむ', reading: 'よむ', romaji: 'yomu', gloss: 'to read', pos: 'verb' },
+    { lemma: 'かく', reading: 'かく', romaji: 'kaku', gloss: 'to write', pos: 'verb' },
+    { lemma: 'いく', reading: 'いく', romaji: 'iku', gloss: 'to go', pos: 'verb' },
+    { lemma: 'くる', reading: 'くる', romaji: 'kuru', gloss: 'to come', pos: 'verb' },
+    { lemma: 'する', reading: 'する', romaji: 'suru', gloss: 'to do', pos: 'verb' },
   ],
   adjectives: [
-    { lemma: 'おおきい', reading: 'おおきい', gloss: 'big', pos: 'adjective' },
-    { lemma: 'ちいさい', reading: 'ちいさい', gloss: 'small', pos: 'adjective' },
-    { lemma: 'たかい', reading: 'たかい', gloss: 'tall, expensive', pos: 'adjective' },
-    { lemma: 'やすい', reading: 'やすい', gloss: 'cheap', pos: 'adjective' },
-    { lemma: 'あつい', reading: 'あつい', gloss: 'hot', pos: 'adjective' },
-    { lemma: 'さむい', reading: 'さむい', gloss: 'cold', pos: 'adjective' },
-    { lemma: 'あたらしい', reading: 'あたらしい', gloss: 'new', pos: 'adjective' },
-    { lemma: 'ふるい', reading: 'ふるい', gloss: 'old', pos: 'adjective' },
-    { lemma: 'おいしい', reading: 'おいしい', gloss: 'delicious', pos: 'adjective' },
-    { lemma: 'たのしい', reading: 'たのしい', gloss: 'fun, enjoyable', pos: 'adjective' },
+    { lemma: 'おおきい', reading: 'おおきい', romaji: 'ookii', gloss: 'big', pos: 'adjective' },
+    { lemma: 'ちいさい', reading: 'ちいさい', romaji: 'chiisai', gloss: 'small', pos: 'adjective' },
+    { lemma: 'たかい', reading: 'たかい', romaji: 'takai', gloss: 'tall, expensive', pos: 'adjective' },
+    { lemma: 'やすい', reading: 'やすい', romaji: 'yasui', gloss: 'cheap', pos: 'adjective' },
+    { lemma: 'あつい', reading: 'あつい', romaji: 'atsui', gloss: 'hot', pos: 'adjective' },
+    { lemma: 'さむい', reading: 'さむい', romaji: 'samui', gloss: 'cold', pos: 'adjective' },
+    { lemma: 'あたらしい', reading: 'あたらしい', romaji: 'atarashii', gloss: 'new', pos: 'adjective' },
+    { lemma: 'ふるい', reading: 'ふるい', romaji: 'furui', gloss: 'old', pos: 'adjective' },
+    { lemma: 'おいしい', reading: 'おいしい', romaji: 'oishii', gloss: 'delicious', pos: 'adjective' },
+    { lemma: 'たのしい', reading: 'たのしい', romaji: 'tanoshii', gloss: 'fun, enjoyable', pos: 'adjective' },
   ],
   greetings: [
-    { lemma: 'こんにちは', reading: 'こんにちは', gloss: 'hello, good afternoon', pos: 'expression' },
-    { lemma: 'おはよう', reading: 'おはよう', gloss: 'good morning', pos: 'expression' },
-    { lemma: 'おやすみ', reading: 'おやすみ', gloss: 'good night', pos: 'expression' },
-    { lemma: 'さようなら', reading: 'さようなら', gloss: 'goodbye', pos: 'expression' },
-    { lemma: 'すみません', reading: 'すみません', gloss: 'excuse me, sorry', pos: 'expression' },
-    { lemma: 'はい', reading: 'はい', gloss: 'yes', pos: 'expression' },
-    { lemma: 'いいえ', reading: 'いいえ', gloss: 'no', pos: 'expression' },
+    { lemma: 'こんにちは', reading: 'こんにちは', romaji: 'konnichiwa', gloss: 'hello, good afternoon', pos: 'expression' },
+    { lemma: 'おはよう', reading: 'おはよう', romaji: 'ohayou', gloss: 'good morning', pos: 'expression' },
+    { lemma: 'おやすみ', reading: 'おやすみ', romaji: 'oyasumi', gloss: 'good night', pos: 'expression' },
+    { lemma: 'さようなら', reading: 'さようなら', romaji: 'sayounara', gloss: 'goodbye', pos: 'expression' },
+    { lemma: 'すみません', reading: 'すみません', romaji: 'sumimasen', gloss: 'excuse me, sorry', pos: 'expression' },
+    { lemma: 'はい', reading: 'はい', romaji: 'hai', gloss: 'yes', pos: 'expression' },
+    { lemma: 'いいえ', reading: 'いいえ', romaji: 'iie', gloss: 'no', pos: 'expression' },
     // The casual half of よろしくおねがいします — the full phrase needs が.
     // Directly useful: the AI chat's first-meeting scenario opens with it.
-    { lemma: 'よろしく', reading: 'よろしく', gloss: 'nice to meet you', pos: 'expression' },
+    { lemma: 'よろしく', reading: 'よろしく', romaji: 'yoroshiku', gloss: 'nice to meet you', pos: 'expression' },
   ],
 };
 

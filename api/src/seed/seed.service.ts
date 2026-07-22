@@ -212,6 +212,7 @@ export class SeedService {
         const vocab = await this.contentService.upsertVocab({
           lemma: word.lemma,
           reading: word.reading,
+          romaji: word.romaji,
           gloss: word.gloss,
           pos: word.pos,
           jlpt: 'N5',

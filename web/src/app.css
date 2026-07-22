@@ -365,6 +365,19 @@
   color: var(--ink-soft);
 }
 
+/*
+ * Romaji is a reading aid, not content: same size as the secondary text but
+ * italic and slightly recessed, so the eye reaches for the kana first and only
+ * falls back to latin when it needs to. That is the point of removing it after
+ * N4 — it should already feel like the thing you skip.
+ */
+.item-romaji {
+  font-size: var(--text-small);
+  font-style: italic;
+  color: var(--ink-soft);
+  letter-spacing: 0.01em;
+}
+
 .items-grammar .item {
   gap: var(--s-sm);
   padding-bottom: var(--s-md);

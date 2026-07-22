@@ -22,6 +22,16 @@ export class GrammarExample {
   answer: string;
 
   /**
+   * The **completed** sentence in latin script — 「わたしはせんせいです。」 is
+   * `watashi wa sensei desu.`
+   *
+   * Never shown beside the gapped sentence in a quiz: it contains the answer.
+   * This is the study side only.
+   */
+  @Prop({ type: String, required: false, trim: true })
+  romaji?: string;
+
+  /**
    * English translation of the completed sentence — load-bearing, not
    * decoration. 「わたしはいき＿。」 is grammatical with ます, ません and ました
    * alike; only the gloss says which is meant.

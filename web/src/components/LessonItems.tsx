@@ -1,4 +1,5 @@
 import type { ResolvedItem } from '../api';
+import { showsRomaji } from '../romaji';
 
 /**
  * What a lesson actually teaches, rendered per item kind.
@@ -50,6 +51,11 @@ function Item({ item }: { item: ResolvedItem }) {
       return (
         <>
           <span className="item-word ja">{item.lemma}</span>
+          {/* Romaji sits directly under the word, before the meaning — it is
+              how you say it, not what it means. */}
+          {item.romaji && showsRomaji(item.jlpt) ? (
+            <span className="item-romaji">{item.romaji}</span>
+          ) : null}
           <span className="item-answer">{item.gloss}</span>
           {/* Identical while the unit is kana-only; a repeat would say nothing. */}
           {item.reading === item.lemma ? null : (
@@ -66,6 +72,12 @@ function Item({ item }: { item: ResolvedItem }) {
           {example ? (
             <span className="item-example">
               <span className="ja">{example.sentence.replace('＿', example.answer)}</span>
+              {/* Of the completed sentence — 「あなたはせんせいですか。」 reads
+                  "anata wa sensei desu ka", with は as "wa". Safe here because
+                  this is the worked example, not a question. */}
+              {example.romaji && showsRomaji(item.jlpt) ? (
+                <span className="item-romaji">{example.romaji}</span>
+              ) : null}
               <span className="item-gloss">{example.gloss}</span>
             </span>
           ) : null}

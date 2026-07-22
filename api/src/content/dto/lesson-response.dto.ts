@@ -8,7 +8,17 @@ import { VocabItemDocument } from '../schemas/vocab-item.schema';
 /** The item payloads a resolved lesson can contain, discriminated by `kind`. */
 export type ResolvedItem =
   | { kind: 'kana'; id: string; kana: string; romaji: string; script: string; row: string; order: number }
-  | { kind: 'vocab'; id: string; lemma: string; reading: string; gloss: string; pos: string; jlpt: string }
+  | {
+      kind: 'vocab';
+      id: string;
+      lemma: string;
+      reading: string;
+      /** Latin script, up to N4. Absent beyond it. */
+      romaji?: string;
+      gloss: string;
+      pos: string;
+      jlpt: string;
+    }
   | {
       kind: 'grammar';
       id: string;
@@ -16,7 +26,7 @@ export type ResolvedItem =
       jlpt: string;
       explanation: string;
       /** Worked examples, gap and all. The quiz asks about the first. */
-      examples: { sentence: string; answer: string; gloss: string }[];
+      examples: { sentence: string; answer: string; romaji?: string; gloss: string }[];
     }
   | { kind: 'kanji'; id: string; char: string; on: string[]; kun: string[]; meanings: string[]; strokes: number };
 
@@ -66,6 +76,7 @@ export function vocabToResolved(doc: VocabItemDocument): Extract<ResolvedItem, {
     id: doc._id.toString(),
     lemma: doc.lemma,
     reading: doc.reading,
+    romaji: doc.romaji,
     gloss: doc.gloss,
     pos: doc.pos,
     jlpt: doc.jlpt,
@@ -86,6 +97,7 @@ export function grammarToResolved(
     examples: doc.examples.map((example) => ({
       sentence: example.sentence,
       answer: example.answer,
+      romaji: example.romaji,
       gloss: example.gloss,
     })),
   };

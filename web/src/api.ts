@@ -53,6 +53,8 @@ export type ResolvedItem =
       id: string;
       lemma: string;
       reading: string;
+      /** Latin script, present up to N4. */
+      romaji?: string;
       gloss: string;
       pos: string;
       jlpt: string;
@@ -63,7 +65,7 @@ export type ResolvedItem =
       title: string;
       jlpt: string;
       explanation: string;
-      examples: { sentence: string; answer: string; gloss: string }[];
+      examples: { sentence: string; answer: string; romaji?: string; gloss: string }[];
     }
   | {
       kind: 'kanji';

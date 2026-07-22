@@ -204,6 +204,7 @@ export class ContentService {
   async upsertVocab(input: {
     lemma: string;
     reading: string;
+    romaji: string;
     gloss: string;
     pos: string;
     jlpt: JlptLevel;
@@ -216,6 +217,7 @@ export class ContentService {
         {
           $set: {
             reading: input.reading,
+            romaji: input.romaji,
             gloss: input.gloss,
             pos: input.pos,
             jlpt: input.jlpt,
@@ -235,7 +237,7 @@ export class ContentService {
     title: string;
     explanation: string;
     jlpt: JlptLevel;
-    examples: { sentence: string; answer: string; gloss: string }[];
+    examples: { sentence: string; answer: string; romaji: string; gloss: string }[];
   }): Promise<GrammarPointDocument> {
     return this.grammarModel
       .findOneAndUpdate(
