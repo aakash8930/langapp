@@ -1,0 +1,429 @@
+/* Layout and components. Tokens live in theme.css. */
+
+.skip {
+  position: absolute;
+  left: var(--s-lg);
+  top: -100px;
+  z-index: 10;
+  padding: var(--s-md) var(--s-lg);
+  background: var(--glass-solid);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: top var(--t-fast) ease;
+}
+.skip:focus {
+  top: var(--s-lg);
+}
+
+/* ---- Hero ---- */
+
+.hero {
+  position: relative;
+  padding: var(--s-4xl) 0 var(--s-3xl);
+  overflow: hidden;
+}
+
+/*
+ * A single wide, very soft vermilion wash behind the hero — the one thing on
+ * the page that gives the glass something to refract. Deliberately low-contrast
+ * and behind everything: it must never sit under body text.
+ */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -30% 20% 40% -20%;
+  background: radial-gradient(closest-side, rgba(188, 62, 40, 0.18), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+@media (prefers-color-scheme: dark) {
+  .hero::before {
+    background: radial-gradient(closest-side, rgba(208, 97, 74, 0.16), transparent 70%);
+  }
+}
+
+.hero-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xl);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--text-caption);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--shu);
+  font-weight: 700;
+}
+
+.hero-cells {
+  display: flex;
+  gap: 0;
+}
+
+/* The genkouyoushi cell, straight from the app. */
+.cell {
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  margin-left: -1px;
+  border: 1px solid var(--shu);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  font-size: 56px;
+  line-height: 1;
+  color: var(--ink);
+  position: relative;
+}
+.cell:first-child {
+  margin-left: 0;
+}
+/* Centre registration marks, the way composition paper is ruled. */
+.cell::before,
+.cell::after {
+  content: '';
+  position: absolute;
+  background: var(--shu);
+  opacity: 0.3;
+}
+.cell::before {
+  width: 9px;
+  height: 1px;
+}
+.cell::after {
+  width: 1px;
+  height: 9px;
+}
+
+.cell-sm {
+  width: 46px;
+  height: 46px;
+  font-size: 26px;
+}
+
+.hero-title {
+  margin: 0;
+  max-width: 18ch;
+  font-size: var(--text-display);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+.hero-title em {
+  font-style: italic;
+  color: var(--shu);
+}
+
+.hero-lede {
+  margin: 0;
+  max-width: 58ch;
+  font-size: var(--text-large);
+  color: var(--ink-soft);
+}
+
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-xl);
+  padding: var(--s-xl);
+  width: fit-content;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 116px;
+}
+.stat-value {
+  font-size: var(--text-heading);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--shu-glass);
+}
+.stat-label {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.stat-ja {
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+/* ---- Sections ---- */
+
+.section {
+  padding: var(--s-4xl) 0;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-xl);
+  margin-bottom: var(--s-2xl);
+}
+.section-kanji {
+  font-size: var(--text-display);
+  line-height: 0.9;
+  color: var(--shu);
+  flex: none;
+}
+.section-idx {
+  margin: 0;
+  font-size: var(--text-caption);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+.section-head h2 {
+  margin: var(--s-xs) 0 var(--s-sm);
+  font-size: var(--text-heading);
+  line-height: 1.15;
+}
+.section-sub {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--ink-soft);
+}
+
+.panel {
+  padding: var(--s-xl);
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+  color: var(--ink-soft);
+}
+.note-error strong {
+  color: var(--danger);
+}
+
+/* ---- Units ---- */
+
+.units {
+  display: grid;
+  gap: var(--s-lg);
+}
+
+.unit-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-lg);
+  padding-bottom: var(--s-lg);
+  border-bottom: 1px solid var(--hairline);
+}
+.unit-index {
+  font-size: var(--text-small);
+  font-weight: 700;
+  color: var(--shu-glass);
+  flex: none;
+}
+.unit-titles {
+  flex: 1;
+  min-width: 0;
+}
+.unit-titles h3 {
+  margin: 0;
+  font-size: var(--text-title);
+  line-height: 1.2;
+}
+.unit-ja {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  font-weight: 400;
+  margin-left: var(--s-sm);
+}
+.unit-titles p {
+  margin: var(--s-xs) 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.unit-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: 1;
+  flex: none;
+}
+.unit-count-label {
+  font-size: var(--text-caption);
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+/* ---- Lessons ---- */
+
+.lessons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lesson summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-md) 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--hairline);
+  list-style: none;
+}
+.lesson summary::-webkit-details-marker {
+  display: none;
+}
+.lesson summary::before {
+  content: '＋';
+  color: var(--shu-glass);
+  font-size: var(--text-small);
+  flex: none;
+  transition: transform var(--t-fast) ease;
+}
+.lesson[open] summary::before {
+  content: '−';
+}
+.lesson summary:hover .lesson-title {
+  color: var(--shu-glass);
+}
+.lesson-title {
+  flex: 1;
+  min-width: 0;
+  transition: color var(--t-fast) ease;
+}
+.lesson-meta {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  flex: none;
+}
+
+.lesson-body {
+  padding: var(--s-lg) 0 var(--s-xl);
+}
+
+.muted {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+/* ---- Items ---- */
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s-md);
+}
+
+/* Kana are small and uniform, so they tile; words and grammar need the width. */
+.items-kana {
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+}
+.items-kanji {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.items-vocab {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+}
+.items-kana .item,
+.items-kanji .item {
+  align-items: center;
+  text-align: center;
+}
+
+.kana-cells {
+  display: flex;
+  gap: var(--s-xs);
+}
+
+.item-answer {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.item-word {
+  font-size: var(--text-large);
+  color: var(--ink);
+}
+.item-reading {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.items-grammar .item {
+  gap: var(--s-sm);
+  padding-bottom: var(--s-md);
+  border-bottom: 1px solid var(--hairline);
+}
+.items-grammar .item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.item-example {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--s-md);
+  border-left: 2px solid var(--shu-glass);
+}
+.item-example .ja {
+  font-size: var(--text-body);
+}
+.item-gloss,
+.item-explanation {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+/* ---- Footer ---- */
+
+.footer {
+  padding: var(--s-2xl) 0 var(--s-4xl);
+  border-top: 1px solid var(--hairline);
+}
+.footer-inner {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-xl);
+  flex-wrap: wrap;
+}
+.footer-mark {
+  font-size: var(--text-title);
+  color: var(--shu);
+  flex: none;
+}
+.footer p {
+  margin: 0;
+  max-width: 54ch;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  .cell {
+    width: 68px;
+    height: 68px;
+    font-size: 40px;
+  }
+  .section-head {
+    gap: var(--s-md);
+  }
+  .unit-head {
+    flex-wrap: wrap;
+  }
+}

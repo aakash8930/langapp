@@ -20,6 +20,7 @@ export interface EnvConfig {
   XP_PER_LESSON_PRACTICE: number;
   GEMINI_API_KEY: string;
   GEMINI_MODEL: string;
+  CORS_ORIGINS: string;
 }
 
 function required(raw: Record<string, unknown>, key: string): string {
@@ -82,5 +83,9 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     // seed, tests, and every non-chat flow must not require a Google account.
     GEMINI_API_KEY: optional(raw, 'GEMINI_API_KEY', ''),
     GEMINI_MODEL: optional(raw, 'GEMINI_MODEL', 'gemini-3.5-flash'),
+    // Comma-separated origin allowlist for the web/ site. Empty means no
+    // CORS headers at all, which is what every deployment had before it
+    // existed — opening a browser to this API is opt-in.
+    CORS_ORIGINS: optional(raw, 'CORS_ORIGINS', ''),
   };
 }

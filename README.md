@@ -10,13 +10,14 @@ AI-native language learning platform. Phase 0 = Japanese only, single learner fl
 
 ```
 api/        NestJS backend + docker-compose.yml
-client/     React Native + Expo app (expo-router)
+client/     React Native + Expo app (expo-router) — the product
+web/        Vite + React public site — the shop window
 scripts/    ops scripts — not yet written
 ```
 
 No workspace tooling — each app installs and builds on its own. They are
 deliberately **not** npm workspaces: Expo's Metro bundler resolves badly under
-hoisting, so `api/` and `client/` keep separate `package.json` and
+hoisting, so `api/`, `client/` and `web/` keep separate `package.json` and
 `node_modules`.
 
 ## Running it
@@ -75,6 +76,34 @@ There is no test runner in `client/` yet, so `typecheck` and a successful
 
 > `npx expo install` is broken under npm 11 in this repo — resolve version pins
 > from `bundledNativeModules.json` and add them to `package.json` by hand.
+
+### The website
+
+```bash
+cd web
+npm install
+cp .env.example .env          # VITE_API_URL -> the API
+npm run dev                   # http://localhost:5173
+```
+
+**Set `CORS_ORIGINS` in `api/.env` to this site's origin**, or the page loads and
+then fails to fetch anything. The API sends no CORS headers by default, which is
+how it behaved before the site existed — the Expo app never needed them, because
+a native fetch is not subject to the same-origin policy.
+
+The site reads **only unauthenticated endpoints** (`GET /lessons`,
+`GET /lessons/:id`), which is why it has no login, no token storage and no
+refresh logic. It is a curriculum browser, not a web version of the app.
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Vite dev server |
+| `npm run typecheck` | `tsc -b --noEmit` |
+| `npm run build` | `tsc -b && vite build` — the real gate |
+
+`web/CLAUDE.md` carries its rules, including the one that matters most: glass
+surfaces are translucent, **text never is**, and every contrast ratio in
+`theme.css` is computed rather than estimated.
 
 ### Building the APK
 

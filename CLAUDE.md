@@ -29,6 +29,14 @@ likely bug in the project.
 Bearer token on everything marked `bearer`. A 401 means the client should attempt one
 refresh-and-retry, then clear the session.
 
+**CORS is off unless `CORS_ORIGINS` is set** (added 2026-07-22 for `web/`). Empty
+by default, so the internet-facing deployment stays shut unless deliberately
+opened; when set it is an explicit origin allowlist, never `*`, and
+`credentials: false` — auth here is a Bearer token a client sends deliberately,
+never an ambient cookie a hostile page could ride on. The Expo app is unaffected:
+a native fetch is not subject to the same-origin policy, which is why this went
+unnoticed until a browser tried.
+
 ### Auth
 
 ```

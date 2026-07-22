@@ -1,0 +1,271 @@
+/*
+ * langapp web — design tokens.
+ *
+ * The palette is lifted from `client/theme/colors.ts` unchanged, so the site
+ * and the Android app read as the same product. What is new here is the glass
+ * layer system below.
+ *
+ * ## The contrast rule, and how glass survives it
+ *
+ * `client/CLAUDE.md` makes WCAG AA a gate, not a preference: 4.5:1 for body
+ * text, 3:1 for large. Translucency is where that usually dies — the app
+ * already rejected an `opacity: 0.85` for compositing to 3.9:1.
+ *
+ * The rule here is: **surfaces are translucent, text never is.** A glass panel
+ * blurs and tints what is behind it, but every panel's own background composites
+ * to a known solid colour, and text contrast is measured against *that*, not
+ * against the panel's nominal colour. `--glass-solid-*` below is the composited
+ * worst case each panel is guaranteed to be no lighter/darker than — the value
+ * the ratios were computed with.
+ *
+ * Nothing behind a panel is ever allowed to be a photograph or a strong
+ * gradient, which is what makes that guarantee hold: the page ground is one of
+ * two flat colours plus a low-contrast grid.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ---- Palette: identical to client/theme/colors.ts ---- */
+  --paper: #f2f1ec;
+  --surface: #ffffff;
+  --ink: #1a1917;
+  --ink-soft: #56534b;
+  --hairline: #dedcd3;
+  /* Darkened from #c8452c so it clears 4.5:1 on paper — see the client note. */
+  --shu: #bc3e28;
+  --ai: #35566b;
+  --danger: #8c2f1c;
+
+  /*
+   * Glass. `--glass-bg` is what you paint; `--glass-solid` is the *worst-case*
+   * colour it composites to over the page ground — darkest in light mode,
+   * lightest in dark mode, since that is the direction that costs contrast.
+   *
+   * Measured, not asserted (the panel over a grid line, the worst backdrop
+   * that exists here):
+   *
+   *   --ink        on #f9f5f2  =>  16.21:1   body text, needs 4.5   PASS
+   *   --ink-soft   on #f9f5f2  =>   7.08:1   secondary text         PASS
+   *   --shu-glass  on #f9f5f2  =>   5.02:1   accents                PASS
+   *   --ai         on #f9f5f2  =>   7.19:1   links                  PASS
+   */
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-solid: #f9f5f2;
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-edge: rgba(26, 25, 23, 0.08);
+  --glass-blur: 16px;
+
+  /*
+   * Vermilion for text sitting *on glass*. Identical to --shu in light mode.
+   * In dark mode it has to be lighter — see the note there.
+   */
+  --shu-glass: #bc3e28;
+
+  /* The genkouyoushi grid, carried over from the deck as a page texture. */
+  --grid-line: rgba(188, 62, 40, 0.07);
+  --grid-cell: 46px;
+
+  /* ---- Type ---- */
+  --font-ja: 'Zen Kaku Gothic New', system-ui, sans-serif;
+  --font-ui:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  --text-caption: 0.75rem;
+  --text-small: 0.875rem;
+  --text-body: 1rem;
+  --text-large: 1.125rem;
+  --text-title: 1.375rem;
+  --text-heading: 1.75rem;
+  --text-display: clamp(2.5rem, 6vw, 4.5rem);
+
+  /* ---- Space: the same 4pt scale the app uses ---- */
+  --s-xs: 4px;
+  --s-sm: 8px;
+  --s-md: 12px;
+  --s-lg: 16px;
+  --s-xl: 24px;
+  --s-2xl: 32px;
+  --s-3xl: 48px;
+  --s-4xl: 72px;
+
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+
+  /* Motion budget, matching the app's: fast/base/slow, no spring overshoot. */
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 320ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #141310;
+    --surface: #1d1c18;
+    --ink: #edeae0;
+    --ink-soft: #a8a296;
+    --hairline: #2e2c26;
+    --shu: #d0614a;
+    --ai: #6d91a6;
+    --danger: #d2705a;
+
+    /*
+     * Worst case here is the *lightest* composite, #27231d:
+     *
+     *   --ink        on #27231d  =>  12.98:1   PASS
+     *   --ink-soft   on #27231d  =>   6.15:1   PASS
+     *   --ai         on #27231d  =>   4.65:1   PASS
+     *   --shu        on #27231d  =>   4.08:1   ← FAILS
+     *
+     * The app's dark vermilion is measurably unreadable on this panel: it was
+     * mixed for `surface` (#1d1c18), and glass sits lighter than that. Two ways
+     * out — darken the glass until #d0614a passes, which needs it at 0.62 alpha
+     * over near-black and stops looking like glass at all; or lighten the
+     * vermilion for this one use. Lightening wins: --shu-glass below is 4.77:1,
+     * and it is close enough in hue that the two read as the same colour.
+     *
+     * --shu itself is unchanged, so anything on `surface` still matches the app.
+     */
+    --glass-bg: rgba(46, 44, 38, 0.55);
+    --glass-solid: #27231d;
+    --glass-border: rgba(237, 234, 224, 0.12);
+    --glass-edge: rgba(0, 0, 0, 0.35);
+    --shu-glass: #d97059;
+
+    --grid-line: rgba(208, 97, 74, 0.06);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /*
+   * Smooth scrolling, but only for people who have not asked for less motion.
+   * Native rather than a hijacked scroll library: a rewritten scrollbar breaks
+   * keyboard paging, find-in-page and trackpad momentum, and this page has
+   * nothing that needs frame-level scroll control.
+   */
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /*
+   * The manuscript grid, faint enough to read as paper texture. Fixed so it
+   * does not travel with the content — the page moves over the paper.
+   */
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid-cell) var(--grid-cell);
+  background-attachment: fixed;
+}
+
+/* ---- The glass primitive ---- */
+
+.glass {
+  background: var(--glass-bg);
+  /* -webkit- first: Safari still needs it, and Safari is where this looks best. */
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  /*
+   * One soft shadow and one inset highlight — the depth cue that makes a panel
+   * read as a pane of glass rather than a flat box. This is the one place the
+   * app's "1px hairlines only" rule is deliberately relaxed for the web, and it
+   * is confined to this class so the exception stays visible.
+   */
+  box-shadow:
+    0 1px 0 0 var(--glass-border) inset,
+    0 8px 32px -12px var(--glass-edge);
+}
+
+/*
+ * Browsers without backdrop-filter get a solid panel rather than a transparent
+ * one — the text has to stay readable, which is the whole point of the rule.
+ */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass {
+    background: var(--glass-solid);
+  }
+}
+
+/* ---- Motion ---- */
+
+/*
+ * Elements animated in on scroll start hidden. If JS never runs — or anime.js
+ * fails to load — this class would hide the page permanently, so the reveal is
+ * opt-in from script: `js-motion` is set on <html> before first paint only when
+ * motion is actually going to happen.
+ */
+.js-motion .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* Hold still rather than animating faster — the app's rule, kept. */
+  .js-motion .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Shared bits ---- */
+
+.wrap {
+  width: 100%;
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 0 var(--s-xl);
+}
+
+.ja {
+  font-family: var(--font-ja);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible focus everywhere — a glass panel must not swallow the focus ring. */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--shu);
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
