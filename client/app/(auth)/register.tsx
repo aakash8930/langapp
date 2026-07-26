@@ -10,6 +10,7 @@ import { TextField } from '@/components/TextField';
 import {
   authErrorMessage,
   PASSWORD_MIN_LENGTH,
+  validateDateOfBirth,
   validateDisplayName,
   validateEmail,
   validateNewPassword,
@@ -26,6 +27,8 @@ export default function Register() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [dateOfBirthError, setDateOfBirthError] = useState<string>();
   const [displayNameError, setDisplayNameError] = useState<string>();
   const [emailError, setEmailError] = useState<string>();
   const [passwordError, setPasswordError] = useState<string>();
@@ -36,17 +39,24 @@ export default function Register() {
     const nextDisplayNameError = validateDisplayName(displayName);
     const nextEmailError = validateEmail(email);
     const nextPasswordError = validateNewPassword(password);
+    const nextDobError = validateDateOfBirth(dateOfBirth);
 
     setDisplayNameError(nextDisplayNameError);
     setEmailError(nextEmailError);
     setPasswordError(nextPasswordError);
+    setDateOfBirthError(nextDobError);
     setFormError(undefined);
 
-    if (nextDisplayNameError || nextEmailError || nextPasswordError) return;
+    if (nextDisplayNameError || nextEmailError || nextPasswordError || nextDobError) return;
 
     setSubmitting(true);
     try {
-      await register({ displayName: displayName.trim(), email: email.trim(), password });
+      await register({
+        displayName: displayName.trim(),
+        email: email.trim(),
+        password,
+        dateOfBirth: dateOfBirth.trim(),
+      });
     } catch (error) {
       setFormError(authErrorMessage(error, 'register'));
     } finally {
@@ -105,6 +115,28 @@ export default function Register() {
             autoCapitalize="words"
             autoComplete="name"
             textContentType="name"
+            returnKeyType="next"
+            editable={!submitting}
+          />
+
+          {/* A typed date rather than a picker: a picker needs
+              @react-native-community/datetimepicker, and this repo asks before
+              adding a dependency. `numeric` gives the digit keyboard on both
+              platforms; the hyphens still have to be typed. */}
+          <TextField
+            label="Date of birth"
+            placeholder="YYYY-MM-DD"
+            value={dateOfBirth}
+            onChangeText={(value) => {
+              setDateOfBirth(value);
+              if (dateOfBirthError) setDateOfBirthError(undefined);
+            }}
+            error={dateOfBirthError}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="numbers-and-punctuation"
+            autoComplete="birthdate-full"
+            maxLength={10}
             returnKeyType="next"
             onSubmitEditing={() => emailRef.current?.focus()}
             editable={!submitting}

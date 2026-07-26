@@ -52,11 +52,14 @@ export function useSession() {
   );
 
   const signUp = useCallback(
-    async (email: string, password: string, displayName: string) => {
+    async (email: string, password: string, displayName: string, dateOfBirth: string) => {
       const result = await register({
         email,
         password,
         displayName,
+        // Required since the age gate landed — the server refuses under-13s and
+        // cannot retrofit a birth date onto an account created without one.
+        dateOfBirth,
         // The server needs a zone to decide what "today" means for the streak;
         // the browser is the only thing that knows it.
         tz: Intl.DateTimeFormat().resolvedOptions().timeZone,

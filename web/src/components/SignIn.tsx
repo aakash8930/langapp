@@ -18,12 +18,19 @@ export function SignIn({
   onSignUp,
 }: {
   onSignIn: (email: string, password: string) => Promise<void>;
-  onSignUp: (email: string, password: string, displayName: string) => Promise<void>;
+  onSignUp: (
+    email: string,
+    password: string,
+    displayName: string,
+    dateOfBirth: string,
+  ) => Promise<void>;
 }) {
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  /** ISO 'YYYY-MM-DD' straight from <input type="date">, which is what the API wants. */
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -39,11 +46,20 @@ export function SignIn({
     if (mode === 'signUp' && displayName.trim().length === 0) {
       return setError('Pick a name to be called by.');
     }
+    if (mode === 'signUp') {
+      if (!dateOfBirth) return setError('Enter your date of birth.');
+      // Checked here as well as on the server so someone under 13 is told
+      // plainly rather than being handed a 400 — and so the attempt does not
+      // burn one of the 10-per-minute the auth routes allow.
+      if (ageFrom(dateOfBirth) < MIN_AGE) {
+        return setError(`You need to be at least ${MIN_AGE} to create an account.`);
+      }
+    }
 
     setBusy(true);
     try {
       if (mode === 'signIn') await onSignIn(email.trim(), password);
-      else await onSignUp(email.trim(), password, displayName.trim());
+      else await onSignUp(email.trim(), password, displayName.trim(), dateOfBirth);
     } catch (caught) {
       setError(messageFor(caught, mode));
     } finally {
@@ -72,6 +88,24 @@ export function SignIn({
             maxLength={60}
             required
           />
+        </label>
+      ) : null}
+
+      {mode === 'signUp' ? (
+        <label className="field">
+          <span>Date of birth</span>
+          <input
+            type="date"
+            value={dateOfBirth}
+            onChange={(e) => setDateOfBirth(e.target.value)}
+            autoComplete="bday"
+            max={TODAY}
+            required
+          />
+          <small className="field-hint">
+            Used once, to check you are old enough for the social features. Never shown to
+            anyone.
+          </small>
         </label>
       ) : null}
 
@@ -141,4 +175,27 @@ function messageFor(error: unknown, mode: Mode): string {
     return 'An account already exists for that email. Try signing in.';
   }
   return error.message;
+}
+
+/** Minimum age to hold an account. Mirrors MIN_AGE_TO_REGISTER on the server. */
+const MIN_AGE = 13;
+
+/** Today as 'YYYY-MM-DD', so the picker cannot offer a future date. */
+const TODAY = new Date().toISOString().slice(0, 10);
+
+/**
+ * Whole years old, by calendar rather than by dividing milliseconds — the naive
+ * version is off by a day around a birthday, which is exactly the boundary being
+ * checked. Mirrors `ageInYears` on the server; a mismatch would show one message
+ * here and a different verdict there.
+ */
+function ageFrom(iso: string): number {
+  const born = new Date(iso);
+  if (Number.isNaN(born.getTime())) return -1;
+
+  const now = new Date();
+  let years = now.getFullYear() - born.getFullYear();
+  const months = now.getMonth() - born.getMonth();
+  if (months < 0 || (months === 0 && now.getDate() < born.getDate())) years -= 1;
+  return years;
 }

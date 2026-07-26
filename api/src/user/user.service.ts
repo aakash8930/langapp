@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import {
   DEFAULT_HEARTS_REGEN_MINUTES,
@@ -10,6 +10,7 @@ import {
   nextHeartAt,
   spendHeart,
 } from './gamification/hearts';
+import { levelFromXp } from './gamification/level';
 import { localDateString, nextStreak } from './gamification/streak';
 import { MAX_HEARTS, User, UserDocument } from './schemas/user.schema';
 
@@ -17,6 +18,7 @@ export interface CreateUserInput {
   email: string;
   passwordHash: string;
   displayName: string;
+  dateOfBirth?: Date;
   nativeLanguage?: string;
   tz?: string;
 }
@@ -156,6 +158,9 @@ export class UserService {
           displayName: input.displayName,
           nativeLanguage: input.nativeLanguage ?? 'en',
           activeTrack: 'ja',
+          // Null for accounts created before the age gate existed. Absent means
+          // "unknown age", which every age check treats as a refusal.
+          dateOfBirth: input.dateOfBirth ?? null,
         },
         settings: input.tz ? { tz: input.tz } : {},
       });
@@ -175,6 +180,67 @@ export class UserService {
 
   async findByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email: email.toLowerCase() }).exec();
+  }
+
+  /** Bulk lookup for the social module's friend and block lists. */
+  async findManyByIds(ids: string[]): Promise<UserDocument[]> {
+    const valid = ids.filter((id) => Types.ObjectId.isValid(id));
+    if (valid.length === 0) {
+      return [];
+    }
+    return this.userModel.find({ _id: { $in: valid.map((id) => new Types.ObjectId(id)) } }).exec();
+  }
+
+  /**
+   * Find learners by display name, for the friend search.
+   *
+   * **Display name only, never email.** Searching by address would make this an
+   * oracle for "does this email have an account" — precisely the enumeration
+   * `login` burns a dummy argon2 verify to prevent.
+   *
+   * The query is escaped before it becomes a regex: an unescaped `.*` would
+   * match every user, and a pathological pattern is a cheap CPU attack. Anchored
+   * with `^` so it is a prefix search, which is both what someone typing a name
+   * expects and index-friendly.
+   */
+  async searchByDisplayName(
+    query: string,
+    excludeIds: string[],
+    limit: number,
+  ): Promise<UserDocument[]> {
+    const pattern = new RegExp(`^${escapeRegex(query)}`, 'i');
+    const excluded = excludeIds
+      .filter((id) => Types.ObjectId.isValid(id))
+      .map((id) => new Types.ObjectId(id));
+
+    return this.userModel
+      .find({ 'profile.displayName': pattern, _id: { $nin: excluded } })
+      .limit(limit)
+      .exec();
+  }
+
+  /**
+   * The only shape another learner may see of a user.
+   *
+   * An allowlist for the same reason `toUserResponse` is one, but a much shorter
+   * one: this is shown to *strangers*, so it carries no email, no settings, no
+   * date of birth and no lesson history — a display name and the public-facing
+   * numbers that make a leaderboard meaningful, and nothing else.
+   */
+  toPublicProfile(user: UserDocument): {
+    id: string;
+    displayName: string;
+    level: number;
+    xp: number;
+    streakDays: number;
+  } {
+    return {
+      id: user._id.toString(),
+      displayName: user.profile.displayName,
+      level: levelFromXp(user.gamification.xp).level,
+      xp: user.gamification.xp,
+      streakDays: user.gamification.streakDays,
+    };
   }
 
   /**
@@ -306,4 +372,15 @@ function isValidTimeZone(tz: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Escape a user-supplied string for use inside a RegExp.
+ *
+ * Without this, a search for `.*` matches every account and a nested quantifier
+ * is a cheap way to burn CPU on the database. Both are reachable from an
+ * unauthenticated-looking text box.
+ */
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

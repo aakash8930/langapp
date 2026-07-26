@@ -43,6 +43,12 @@ export type RegisterInput = {
   email: string;
   password: string;
   displayName: string;
+  /**
+   * ISO 'YYYY-MM-DD'. **Required** — the server refuses registrations below the
+   * minimum age, and a birth date cannot be retrofitted onto an account created
+   * without one.
+   */
+  dateOfBirth: string;
 };
 
 export type LoginInput = {

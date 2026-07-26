@@ -52,6 +52,42 @@ export function validateDisplayName(value: string): string | undefined {
   return undefined;
 }
 
+/** Minimum age to hold an account. Mirrors MIN_AGE_TO_REGISTER on the server. */
+export const MIN_AGE = 13;
+
+/**
+ * Validate a typed 'YYYY-MM-DD' birth date.
+ *
+ * A text field rather than a picker because a picker means
+ * `@react-native-community/datetimepicker`, and this repo's rules say to ask
+ * before adding a dependency. The trade is real — typing a date is worse than
+ * spinning one — and it is the first thing to revisit if a date picker ever
+ * arrives for another reason.
+ *
+ * The age arithmetic is by calendar, not by dividing milliseconds: the naive
+ * version is off by a day either side of a birthday, which is exactly the
+ * boundary being checked. It mirrors `ageInYears` on the server, so the two
+ * cannot disagree about someone born exactly 13 years ago today.
+ */
+export function validateDateOfBirth(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Enter your date of birth.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return 'Use the format YYYY-MM-DD.';
+
+  const born = new Date(`${trimmed}T00:00:00Z`);
+  if (Number.isNaN(born.getTime())) return 'That is not a real date.';
+
+  const now = new Date();
+  if (born.getTime() > now.getTime()) return 'That date is in the future.';
+
+  let years = now.getUTCFullYear() - born.getUTCFullYear();
+  const months = now.getUTCMonth() - born.getUTCMonth();
+  if (months < 0 || (months === 0 && now.getUTCDate() < born.getUTCDate())) years -= 1;
+
+  if (years < MIN_AGE) return `You need to be at least ${MIN_AGE} to create an account.`;
+  return undefined;
+}
+
 /**
  * Turns a thrown request error into a sentence that says what happened and what
  * to do next.

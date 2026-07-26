@@ -30,6 +30,20 @@ export class Profile {
 
   @Prop({ type: String, required: true, enum: ['ja'], default: 'ja' })
   activeTrack: 'ja';
+
+  /**
+   * Date of birth, for the age gate that guards the social features.
+   *
+   * **Optional on the schema, required by `RegisterDto`.** The 32 accounts that
+   * existed before the gate landed have no value here, and making the field
+   * required would have made every one of them fail validation on next save.
+   * Absent therefore means "unknown age", which `meetsMinimumAge` treats as
+   * *not* meeting any minimum — so legacy accounts can keep learning and cannot
+   * reach messaging until they supply one. Failing closed is the only safe
+   * direction for this particular null.
+   */
+  @Prop({ type: Date, default: null })
+  dateOfBirth: Date | null;
 }
 export const ProfileSchema = SchemaFactory.createForClass(Profile);
 

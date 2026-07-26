@@ -1,9 +1,15 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'node:crypto';
 import { toUserResponse } from '../user/dto/user-response.dto';
+import { meetsMinimumAge, MIN_AGE_TO_REGISTER } from '../user/gamification/age';
 import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
 import { AuthResponse, TokenPair } from './dto/auth-response.dto';
@@ -41,6 +47,16 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
+    // Age gate first: refuse before spending an argon2 hash on the password, and
+    // before the email lookup tells an under-age visitor whether an address is
+    // taken. `meetsMinimumAge` refuses an unparseable date rather than defaulting
+    // to allow — the DTO already validated the format, this is the value check.
+    if (!meetsMinimumAge(new Date(dto.dateOfBirth), new Date())) {
+      throw new BadRequestException(
+        `You must be at least ${MIN_AGE_TO_REGISTER} to create an account.`,
+      );
+    }
+
     const existing = await this.userService.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException('Email already registered');
@@ -52,6 +68,7 @@ export class AuthService {
       email: dto.email,
       passwordHash,
       displayName: dto.displayName,
+      dateOfBirth: new Date(dto.dateOfBirth),
       nativeLanguage: dto.nativeLanguage,
       tz: dto.tz,
     });

@@ -219,6 +219,8 @@ export function register(body: {
   email: string;
   password: string;
   displayName: string;
+  /** ISO 'YYYY-MM-DD'. Required — the server's age gate refuses under-13s. */
+  dateOfBirth: string;
   tz?: string;
 }): Promise<AuthResponse> {
   return send<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(body) });

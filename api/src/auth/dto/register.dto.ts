@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -18,6 +18,17 @@ export class RegisterDto {
   @MinLength(1)
   @MaxLength(60)
   displayName: string;
+
+  /**
+   * ISO date, e.g. '2005-03-14'. **Required**, because the age gate cannot be
+   * retrofitted: an account created without one can never be verified later
+   * without asking, and asking after the fact is the step everyone skips.
+   *
+   * Registration is refused below `MIN_AGE_TO_REGISTER`. Accounts that predate
+   * this field keep working — see the note on the schema.
+   */
+  @IsDateString()
+  dateOfBirth: string;
 
   @IsOptional()
   @IsString()

@@ -63,6 +63,9 @@ function build(): { service: AuthService; mocks: Mocks } {
   return { service, mocks };
 }
 
+/** Comfortably over the age gate, so these tests exercise everything past it. */
+const ADULT_DOB = '1995-06-15';
+
 describe('AuthService', () => {
   describe('register', () => {
     it('creates the user, hashes with argon2id, and returns tokens without the hash', async () => {
@@ -74,6 +77,7 @@ describe('AuthService', () => {
         email: 'learner@example.com',
         password: 'correct-horse-battery',
         displayName: 'Learner',
+        dateOfBirth: ADULT_DOB,
       });
 
       expect(result.user.email).toBe('learner@example.com');
@@ -103,6 +107,7 @@ describe('AuthService', () => {
           email: 'learner@example.com',
           password: 'correct-horse-battery',
           displayName: 'Learner',
+          dateOfBirth: ADULT_DOB,
         }),
       ).rejects.toBeInstanceOf(ConflictException);
 
@@ -200,5 +205,79 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
     });
+  });
+});
+
+describe('AuthService.register — the age gate', () => {
+  /**
+   * Under-13 registration is refused outright. The gate runs *before* the email
+   * lookup and before argon2, which matters twice: it does not spend a hash on a
+   * request that cannot succeed, and it does not tell an under-age visitor
+   * whether an address is already taken.
+   */
+  it('refuses someone under the minimum age, without touching the database', async () => {
+    const { service, mocks } = build();
+    const tooYoung = new Date();
+    tooYoung.setFullYear(tooYoung.getFullYear() - 12);
+
+    await expect(
+      service.register({
+        email: 'kid@example.com',
+        password: 'correct-horse-battery',
+        displayName: 'Kid',
+        dateOfBirth: tooYoung.toISOString().slice(0, 10),
+      }),
+    ).rejects.toThrow(/at least 13/);
+
+    expect(mocks.userService.findByEmail).not.toHaveBeenCalled();
+    expect(mocks.userService.create).not.toHaveBeenCalled();
+  });
+
+  it('admits someone over the minimum age', async () => {
+    const { service, mocks } = build();
+    mocks.userService.findByEmail.mockResolvedValue(null);
+    mocks.userService.create.mockResolvedValue(makeUser());
+
+    const result = await service.register({
+      email: 'learner@example.com',
+      password: 'correct-horse-battery',
+      displayName: 'Learner',
+      dateOfBirth: ADULT_DOB,
+    });
+
+    expect(result.user.email).toBe('learner@example.com');
+  });
+
+  it('persists the birth date, since it cannot be retrofitted later', async () => {
+    const { service, mocks } = build();
+    mocks.userService.findByEmail.mockResolvedValue(null);
+    mocks.userService.create.mockResolvedValue(makeUser());
+
+    await service.register({
+      email: 'learner@example.com',
+      password: 'correct-horse-battery',
+      displayName: 'Learner',
+      dateOfBirth: ADULT_DOB,
+    });
+
+    expect(mocks.userService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ dateOfBirth: new Date(ADULT_DOB) }),
+    );
+  });
+
+  /** An unparseable date is an unknown age, and unknown must never pass. */
+  it('refuses an unusable birth date rather than defaulting to allow', async () => {
+    const { service, mocks } = build();
+
+    await expect(
+      service.register({
+        email: 'learner@example.com',
+        password: 'correct-horse-battery',
+        displayName: 'Learner',
+        dateOfBirth: 'not-a-date',
+      }),
+    ).rejects.toThrow(/at least 13/);
+
+    expect(mocks.userService.create).not.toHaveBeenCalled();
   });
 });
