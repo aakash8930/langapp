@@ -708,6 +708,36 @@
   opacity: 0.45;
 }
 
+/*
+ * The typing input. Sized to match the option grid so the lesson card does not
+ * shift shape between question kinds — the same panel switches from four
+ * buttons to a single text input, and the spacing around it stays the same.
+ */
+.typing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  width: 100%;
+}
+.typing-input {
+  min-height: 56px;
+  padding: 0 var(--s-md);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-body);
+  /* The romanised text is the learner's, not the lesson's — they may type
+   * lowercase, uppercase, or anything in between. Letting the browser
+   * autocapitalise would silently mis-grade the answer. */
+  text-transform: none;
+}
+.typing-input:focus-visible {
+  outline: 2px solid var(--shu);
+  outline-offset: 2px;
+}
+
 .verdict {
   display: flex;
   flex-direction: column;

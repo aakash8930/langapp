@@ -11,12 +11,12 @@ export type ExerciseOption = {
  * What the prompt is, so the screen can size it. A `kana` prompt is one glyph
  * and belongs in a manuscript cell; a `vocab` prompt is a whole word and does
  * not fit in one; a `grammar` prompt is a sentence with a ＿ gap and has to
- * wrap. The server says which rather than the client guessing from string
- * length.
+ * wrap; a `wordReading` prompt is a word and behaves like `vocab` for sizing.
+ * The server says which rather than the client guessing from string length.
  */
-export type PromptKind = 'kana' | 'vocab' | 'grammar';
+export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading';
 
-export type Question = {
+export type MultipleChoiceQuestion = {
   exerciseId: string;
   type: 'multipleChoice';
   /** The character or word being asked about. */
@@ -25,6 +25,21 @@ export type Question = {
   question: string;
   options: ExerciseOption[];
 };
+
+/**
+ * A typing question. The prompt is the word the learner reads; the answer is
+ * the romaji they type. No options — the API never sends them for this
+ * shape. The grader is exact-match with case + whitespace normalised.
+ */
+export type WordReadingQuestion = {
+  exerciseId: string;
+  type: 'wordReading';
+  prompt: string;
+  promptKind: PromptKind;
+  question: string;
+};
+
+export type Question = MultipleChoiceQuestion | WordReadingQuestion;
 
 /** An object wrapping the array, not a bare array. */
 export type ExerciseSet = {
@@ -39,6 +54,9 @@ export type ExerciseSet = {
 /**
  * No answer key is ever sent with the questions — `correct` exists only here,
  * which is why a question cannot be marked without a round trip.
+ *
+ * `selectedOptionId` and `correctOptionId` carry an `opt-N` for multipleChoice
+ * and an empty string for wordReading. The typed input is in `selectedValue`.
  */
 export type AnswerResult = {
   exerciseId: string;
@@ -80,15 +98,22 @@ export function fetchExercises(lessonId: string, attempt: number): Promise<Exerc
  * needs no attempt of its own. The colon is legal unencoded in a path segment,
  * but it is encoded here so no proxy in front of the API has to have an
  * opinion about it.
+ *
+ * The body shape depends on the lesson's exercise type:
+ *   - `multipleChoice` — pass `{ optionId: 'opt-N' }`.
+ *   - `wordReading` — pass `{ text: 'gakkou' }`.
+ *
+ * The server enforces this — sending the wrong field is a 400 — so the
+ * caller passes the right one for the question they are answering.
  */
 export function answerExercise(
   lessonId: string,
   exerciseId: string,
-  optionId: string,
+  body: { optionId: string } | { text: string },
 ): Promise<AnswerResult> {
   return api.post<AnswerResult>(
     `/lessons/${encodeURIComponent(lessonId)}/exercises/${encodeURIComponent(exerciseId)}/answer`,
-    { optionId },
+    body,
   );
 }
 

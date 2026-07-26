@@ -564,6 +564,13 @@ vowel. Neither can answer "which romaji matches this character", which is the
 only question this app can ask today. They are why がっこう and コーヒー are still
 unreadable — see OPEN-ITEMS.
 
+**Update 2026-07-26:** Two more units, `hiragana-marks-extra` and
+`katakana-marks-extra`, now teach っ and ー — one lesson each, six words,
+typed romaji. がっこう (gakkou), きって (kitte), コーヒー (koohii),
+テーブル (teeburu). The lesson prompts the word and the learner types the
+reading; the grader exact-matches so a missed doubled consonant or vowel is
+the wrong answer rather than a near-miss.
+
 Last comes `grammar-basics`: **12 points in 4 lessons** — です/は/か, polite verb
 endings, the particles that go with verbs, and noun-linking. Quizzed by filling
 a gap: 「わたし＿せんせいです。」with は / を / に / の to choose from, which tests
@@ -573,14 +580,15 @@ read the definition.
 That needed a sentence to put a gap in, so `GrammarPoint` gains an `examples`
 array — the second documented departure from §5's schemas, after `SrsCard`.
 Every sentence is checked by `grammar.spec.ts` against three rules: only taught
-kana (no っ or ー, which are still untaught), only words from the vocabulary
-unit or conjugations this unit teaches, and at most 16 characters — Japanese
-does not space its words, and short sentences are what make that survivable.
+kana (no っ or ー, which were still untaught at the time), only words from the
+vocabulary unit or conjugations this unit teaches, and at most 16 characters —
+Japanese does not space its words, and short sentences are what make that
+survivable.
 
 The whole curriculum is one chain: hiragana → katakana → first words → hiragana
-marks → katakana marks → grammar, **32 lessons across 6 units**, each unit's
-first lesson gated on the previous unit's last. Grammar is last because it is
-the one part that genuinely depends on all the rest: its sentences are built
-from the vocabulary and use the marks.
+marks → katakana marks → hiragana marks-extra → katakana marks-extra → grammar,
+**34 lessons across 8 units**, each unit's first lesson gated on the previous
+unit's last. Grammar is last because it is the one part that genuinely depends
+on all the rest: its sentences are built from the vocabulary and use the marks.
 Every write is an upsert on a natural key, so re-running preserves `_id`s — which
 matters because SRS cards will reference them.

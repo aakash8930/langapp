@@ -1,5 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 
 export class FindExercisesDto {
   /**
@@ -15,9 +23,41 @@ export class FindExercisesDto {
   attempt?: number;
 }
 
+/**
+ * Discriminated by the exercise type the client is answering:
+ *
+ *   - `multipleChoice` — the learner picks one of four options. The body is
+ *     `{ optionId: 'opt-N' }`.
+ *   - `wordReading` — the learner types the romaji. The body is `{ text: '...' }`.
+ *
+ * Validation is conditional: the field that matches the lesson's type is
+ * required, the other is forbidden. The server knows the lesson's type when
+ * it grades an answer, so the **service** is what enforces "exactly one of
+ * these fields, and it matches the lesson's exercise type" — the DTO only
+ * keeps the *body* shape valid.
+ *
+ * Practically: a learner on a multipleChoice lesson cannot accidentally
+ * answer with `{ text: 'foo' }` (the service rejects it as a 400), and a
+ * learner on a wordReading lesson cannot accidentally send `{ optionId: 'opt-0' }`
+ * (same).
+ */
 export class AnswerExerciseDto {
-  /** One of the option ids from the generated set, e.g. 'opt-2'. */
+  /**
+   * `opt-N` for option N in the question. Required for multipleChoice lessons,
+   * forbidden for wordReading lessons.
+   */
+  @ValidateIf((o: AnswerExerciseDto) => o.text === undefined)
   @IsString()
   @Matches(/^opt-\d{1,2}$/, { message: 'optionId must look like "opt-0"' })
-  optionId: string;
+  optionId?: string;
+
+  /**
+   * The learner's typed romaji. Required for wordReading lessons, forbidden
+   * for multipleChoice lessons. Whitespace is collapsed and the case is
+   * lowered inside the service, so the validator only enforces "non-empty".
+   */
+  @ValidateIf((o: AnswerExerciseDto) => o.optionId === undefined)
+  @IsString()
+  @Matches(/^.{1,40}$/, { message: 'text must be 1–40 characters' })
+  text?: string;
 }

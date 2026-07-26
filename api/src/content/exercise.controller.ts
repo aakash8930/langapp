@@ -31,6 +31,12 @@ export class ExerciseController {
     @Body() dto: AnswerExerciseDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<AnswerResult> {
-    return this.exerciseService.answer(lessonId, exerciseId, user.userId, dto.optionId);
+    // The DTO is a discriminated union of { optionId } and { text }; pass
+    // whichever was provided and let the service decide which one matches
+    // the lesson's exercise type.
+    return this.exerciseService.answer(lessonId, exerciseId, user.userId, {
+      optionId: dto.optionId,
+      text: dto.text,
+    });
   }
 }

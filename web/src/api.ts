@@ -250,9 +250,9 @@ export function fetchProgress(): Promise<Progress> {
 }
 
 export type ExerciseOption = { id: string; value: string };
-export type PromptKind = 'kana' | 'vocab' | 'grammar';
+export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading';
 
-export type Question = {
+export type MultipleChoiceQuestion = {
   exerciseId: string;
   type: 'multipleChoice';
   prompt: string;
@@ -260,6 +260,21 @@ export type Question = {
   question: string;
   options: ExerciseOption[];
 };
+
+/**
+ * A typing question. The prompt is the word the learner reads; the answer is
+ * the romaji they type. No options — the API never sends them for this
+ * shape. The grader is exact-match with case + whitespace normalised.
+ */
+export type WordReadingQuestion = {
+  exerciseId: string;
+  type: 'wordReading';
+  prompt: string;
+  promptKind: PromptKind;
+  question: string;
+};
+
+export type Question = MultipleChoiceQuestion | WordReadingQuestion;
 
 /** An object wrapping the array, not a bare array. */
 export type ExerciseSet = {
@@ -274,9 +289,21 @@ export type ExerciseSet = {
 export type AnswerResult = {
   exerciseId: string;
   correct: boolean;
+  /**
+   * For multipleChoice: the id of the chosen option. For wordReading: an
+   * empty string — the learner typed, they did not pick. The typed text is
+   * in `selectedValue`.
+   */
   selectedOptionId: string;
+  /** The option's value for multipleChoice, or the typed text for wordReading. */
   selectedValue: string | null;
+  /**
+   * For multipleChoice: the id of the right option, so the screen can
+   * highlight it. For wordReading: an empty string — the canonical romaji
+   * is in `correctValue`.
+   */
   correctOptionId: string;
+  /** The right answer: an option value for multipleChoice, the romaji for wordReading. */
   correctValue: string;
   prompt: string;
 };
@@ -297,14 +324,25 @@ export function fetchExercises(lessonId: string, attempt: number): Promise<Exerc
   );
 }
 
+/**
+ * Send an answer. The body shape is dictated by the lesson's exercise type:
+ *
+ *   - `multipleChoice` — `{ optionId }`. The id comes from the option list in
+ *     the question payload.
+ *   - `wordReading` — `{ text }`. The romaji the learner typed, which the
+ *     server will trim, lowercase and exact-match against the canonical form.
+ *
+ * The server enforces this — sending the wrong field is a 400 — so the
+ * caller passes the right one for the question they are answering.
+ */
 export function answerExercise(
   lessonId: string,
   exerciseId: string,
-  optionId: string,
+  body: { optionId: string } | { text: string },
 ): Promise<AnswerResult> {
   return authed<AnswerResult>(
     `/lessons/${encodeURIComponent(lessonId)}/exercises/${encodeURIComponent(exerciseId)}/answer`,
-    { method: 'POST', body: JSON.stringify({ optionId }) },
+    { method: 'POST', body: JSON.stringify(body) },
   );
 }
 
@@ -404,6 +442,16 @@ const UNIT_LABELS: Record<string, { label: string; ja: string; blurb: string }> 
     label: 'Katakana marks',
     ja: 'ダクテン',
     blurb: 'The same three rules, applied to the second script.',
+  },
+  'hiragana-marks-extra': {
+    label: 'Hiragana っ / ー',
+    ja: 'とおぼこ',
+    blurb: 'The doubling marks — pronounced by eating the next consonant or stretching the previous vowel.',
+  },
+  'katakana-marks-extra': {
+    label: 'Katakana ッ / ー',
+    ja: 'トオボコ',
+    blurb: 'Same marks, loanword-heavy words. The contrast with hiragana is the lesson.',
   },
   'grammar-basics': {
     label: 'First sentences',

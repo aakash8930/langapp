@@ -21,7 +21,7 @@ Both sides depend on this. **If you change a response shape in `api/`, update th
 section in the same commit**, then update `client/` to match. Drift here is the most
 likely bug in the project.
 
-> **Verified against the running API on 2026-07-19.** GET routes were probed live;
+> **Verified against the running API on 2026-07-26.** GET routes were probed live;
 > POST shapes were read from the controllers and DTOs in `api/src`. The version
 > before this date was written from the blueprint rather than the code and was
 > wrong about nearly every response — if you find drift again, date it here.
@@ -147,28 +147,41 @@ Nothing on the server computes lock state.
 ```
 GET  /lessons/:id/exercises?attempt=  -> { lessonId, unit, title, attempt, questionCount,
                                            questions: [ <Question> ] }
-POST /lessons/:id/exercises/:exerciseId/answer   { optionId: 'opt-N' }  -> 200
+POST /lessons/:id/exercises/:exerciseId/answer   { optionId: 'opt-N' } OR { text }  -> 200
      -> { exerciseId, correct, selectedOptionId, selectedValue,
           correctOptionId, correctValue, prompt }
 POST /lessons/:id/complete  -> 200
      -> { lessonId, title, cardsCreated, cardsAlreadyPresent,
           xpAwarded, firstCompletion, totalXp }
 
-Question = { exerciseId, type: 'multipleChoice', prompt, promptKind,
-             question, options: [ { id, value } ] }
+Question = { exerciseId, type, prompt, promptKind, question } with two shapes:
+  multipleChoice { ... type: 'multipleChoice', options: [ { id, value } ] }
+  wordReading    { ... type: 'wordReading' }  // no options; learner types romaji
 ```
 
-`promptKind` is `'kana' | 'vocab' | 'grammar'` (widened twice on 2026-07-22, as
-the vocabulary and grammar units landed; it was `'kana'` only). It says what the
-prompt *is* so the client can size it — one glyph belongs in a genkouyoushi cell,
-a word does not fit in one, a sentence has to wrap. A lesson with none of the
-three kinds still 422s.
+`promptKind` is `'kana' | 'vocab' | 'grammar' | 'wordReading'` (widened to
+include `wordReading` on 2026-07-26 with T1.1, when っ/ー + chōonpu teaching
+landed). It says what the prompt *is* so the client can size it — one glyph
+belongs in a genkouyoushi cell, a word does not fit in one, a sentence has to
+wrap, a word typed in romaji sizes like vocab. A lesson with none of the four
+kinds still 422s.
+
+The answer body is a discriminated union on the lesson's `exerciseTypes`:
+`multipleChoice` lessons take `{ optionId: 'opt-N' }` and `wordReading` lessons
+take `{ text: string }`. Sending the wrong shape is a 400. For `wordReading`
+the grader normalises by trim + lowercase + whitespace collapse, then exact
+matches against the canonical romaji — no fuzzy matching, because a missed
+doubled consonant (e.g. `gakou` instead of `gakkou`) is *the* mistake the
+lesson teaches. On `wordReading` answers both `selectedOptionId` and
+`correctOptionId` are the empty string; the typed answer is in
+`selectedValue`, the canonical romaji in `correctValue`.
 
 | Lesson items | Prompt | Options | `question` |
 |---|---|---|---|
 | kana | the character | romaji | constant |
 | vocab | the word | English glosses | constant |
 | grammar | a sentence with a `＿` gap | particles and endings | **carries the English gloss** |
+| marks-words | the word (e.g. がっこう) | none — typed | constant (`'How do you read this word?'`) |
 
 **Grammar's `question` is per-item and load-bearing.** 「わたしはいき＿。」is
 grammatical with ます, ません *and* ました, so the question text states which

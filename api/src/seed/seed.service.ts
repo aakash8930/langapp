@@ -9,6 +9,14 @@ import { HIRAGANA_MARKS_PACK } from './japanese/hiragana-marks';
 import type { KanaPack } from './japanese/kana-pack';
 import { KATAKANA_PACK } from './japanese/katakana';
 import { KATAKANA_MARKS_PACK } from './japanese/katakana-marks';
+import {
+  HIRAGANA_MARKS_EXTRA_LESSONS,
+  HIRAGANA_MARKS_EXTRA_UNIT,
+  KATAKANA_MARKS_EXTRA_LESSONS,
+  KATAKANA_MARKS_EXTRA_UNIT,
+  MARKS_GROUPS,
+} from './japanese/marks-words';
+import type { VocabLessonSeed } from './japanese/vocab';
 import { VOCAB_GROUPS, VOCAB_LESSONS, VOCAB_UNIT } from './japanese/vocab';
 
 /** The base gojūon, both scripts. Everything else assumes these. */
@@ -26,6 +34,65 @@ const BASE_PACKS: KanaPack[] = [HIRAGANA_PACK, KATAKANA_PACK];
  */
 const MARKS_PACKS: KanaPack[] = [HIRAGANA_MARKS_PACK, KATAKANA_MARKS_PACK];
 
+/**
+ * A vocab-shaped pack: words grouped thematically, one or more lessons
+ * hanging off them. The first words unit and the two marks-words units all
+ * fit this shape, which is the whole reason `seedVocabPack` exists once
+ * rather than being three near-identical copies.
+ */
+interface VocabPack {
+  unit: string;
+  groups: Record<string, { lemma: string; reading: string; romaji: string; gloss: string; pos: string }[]>;
+  lessons: VocabLessonSeed[];
+}
+
+const HIRAGANA_MARKS_EXTRA_PACK: VocabPack = {
+  unit: HIRAGANA_MARKS_EXTRA_UNIT,
+  // The "hiragana" key is meaningful here: it matches the `groups` key on
+  // the lesson seed below, and `seedVocabPack` expects a single-key object
+  // to keep tagging simple.
+  groups: { hiragana: MARKS_GROUPS.hiragana },
+  lessons: HIRAGANA_MARKS_EXTRA_LESSONS,
+};
+
+const KATAKANA_MARKS_EXTRA_PACK: VocabPack = {
+  unit: KATAKANA_MARKS_EXTRA_UNIT,
+  groups: { katakana: MARKS_GROUPS.katakana },
+  lessons: KATAKANA_MARKS_EXTRA_LESSONS,
+};
+
+/**
+ * A pack-with-exercise-type union. `seed.run` walks this in order, so the
+ * chain below *is* the curriculum order. Pack instances are concrete rather
+ * than polymorphic because the seed only needs to call one of three
+ * helpers on each — a tagged union would add a layer of indirection for no
+ * payoff here.
+ */
+interface OrderedPack {
+  kind: 'kana' | 'vocab';
+  kana?: KanaPack;
+  vocab?: VocabPack;
+}
+
+/**
+ * The order in which units are chained. The chain — every unit's first
+ * lesson prereqs the previous unit's last lesson — is set up by `seed.run`
+ * below; the array here just declares who follows whom.
+ *
+ * Concretely:
+ *
+ *   hiragana-basics → katakana-basics → vocab-basics →
+ *   hiragana-marks → katakana-marks →
+ *   hiragana-marks-extra → katakana-marks-extra → grammar
+ */
+const ORDERED_PACKS: OrderedPack[] = [
+  ...BASE_PACKS.map((p) => ({ kind: 'kana' as const, kana: p })),
+  { kind: 'vocab', vocab: { unit: VOCAB_UNIT, groups: VOCAB_GROUPS, lessons: VOCAB_LESSONS } },
+  ...MARKS_PACKS.map((p) => ({ kind: 'kana' as const, kana: p })),
+  { kind: 'vocab', vocab: HIRAGANA_MARKS_EXTRA_PACK },
+  { kind: 'vocab', vocab: KATAKANA_MARKS_EXTRA_PACK },
+];
+
 export interface SeedSummary {
   kanaItems: number;
   vocabItems: number;
@@ -36,13 +103,13 @@ export interface SeedSummary {
 }
 
 /**
- * §14 step 2, grown into the whole Phase 0 curriculum: six units as Lessons
- * plus KnowledgeNodes — both kana tables, the marks, the first words, and the
- * grammar that turns them into sentences.
+ * §14 step 2, grown into the whole Phase 0 curriculum: eight units as
+ * Lessons plus KnowledgeNodes — both kana tables, the marks, the first words,
+ * the marks-words, and the grammar that turns them into sentences.
  *
  * Every write is an upsert on a natural key, so `npm run seed` is idempotent —
  * running it twice leaves the same documents with the same _ids, which matters
- * because SrsCards will reference those ids from the next milestone onward.
+ * because SrsCards reference those ids from the next milestone onward.
  *
  * Note it goes through ContentService and KnowledgeGraphService rather than
  * touching collections directly: the seed obeys the same module boundary as
@@ -58,25 +125,29 @@ export class SeedService {
   ) {}
 
   /**
-   * The curriculum, in order. One chain runs through all of it — every unit's
-   * first lesson lists the previous unit's last as its prerequisite, so the
-   * order below is the order a learner is actually gated through.
+   * Walks the ordered pack list, seeding each onto the chain. Grammar is
+   * last: its example sentences are built from the vocabulary above and use
+   * marks the units before it teach, so it is the one part of the curriculum
+   * that genuinely depends on all the rest.
    */
   async run(): Promise<SeedSummary> {
     let previousLessonId: Types.ObjectId | null = null;
 
-    previousLessonId = await this.seedKanaPacks(BASE_PACKS, previousLessonId);
+    for (const pack of ORDERED_PACKS) {
+      if (pack.kind === 'kana' && pack.kana) {
+        const kanaIdsByRow = await this.seedKana(pack.kana);
+        previousLessonId = await this.seedKanaLessons(pack.kana, kanaIdsByRow, previousLessonId);
+        this.logger.log(
+          `Seeded ${pack.kana.unit}: ${countCharacters(pack.kana)} ${pack.kana.script}`,
+        );
+      } else if (pack.kind === 'vocab' && pack.vocab) {
+        previousLessonId = await this.seedVocabPack(pack.vocab, previousLessonId);
+        this.logger.log(
+          `Seeded ${pack.vocab.unit}: ${countWordsIn(pack.vocab)} words`,
+        );
+      }
+    }
 
-    // Vocabulary before the marks: §1's order is Hiragana → Katakana →
-    // vocabulary, and every word in the unit was chosen to be readable with
-    // only the base tables.
-    previousLessonId = await this.seedVocab(previousLessonId);
-
-    previousLessonId = await this.seedKanaPacks(MARKS_PACKS, previousLessonId);
-
-    // Grammar last: its example sentences are built from the vocabulary above
-    // and use marks the units before it teach, so it is the one part of the
-    // curriculum that genuinely depends on all the rest.
     await this.seedGrammar(previousLessonId);
 
     const summary: SeedSummary = {
@@ -95,22 +166,6 @@ export class SeedService {
     );
 
     return summary;
-  }
-
-  /** Seeds a run of kana packs onto the chain, returning its last lesson id. */
-  private async seedKanaPacks(
-    packs: KanaPack[],
-    carriedLessonId: Types.ObjectId | null,
-  ): Promise<Types.ObjectId | null> {
-    let previousLessonId = carriedLessonId;
-
-    for (const pack of packs) {
-      const kanaIdsByRow = await this.seedKana(pack);
-      previousLessonId = await this.seedLessons(pack, kanaIdsByRow, previousLessonId);
-      this.logger.log(`Seeded ${pack.unit}: ${countCharacters(pack)} ${pack.script}`);
-    }
-
-    return previousLessonId;
   }
 
   /** Each character gets a content doc and a graph node, linked both ways. */
@@ -150,15 +205,15 @@ export class SeedService {
   }
 
   /**
-   * Chains a pack's lessons: each one lists the previous as a prerequisite, and
-   * the same dependency is mirrored as `prerequisite` edges between the kana
+   * Chains a kana pack's lessons: each one lists the previous as a prerequisite,
+   * and the same dependency is mirrored as `prerequisite` edges between the kana
    * nodes so the graph answers "what must I know first" too.
    *
    * `carriedLessonId` is the last lesson of the *previous* pack, which is how
    * the gate between units is expressed. Returns this pack's last lesson id so
    * the next pack can hang off it.
    */
-  private async seedLessons(
+  private async seedKanaLessons(
     pack: KanaPack,
     kanaIdsByRow: Map<string, Types.ObjectId[]>,
     carriedLessonId: Types.ObjectId | null,
@@ -195,17 +250,20 @@ export class SeedService {
   }
 
   /**
-   * The vocabulary unit: one lesson per theme, chained like the kana units.
+   * One vocab pack onto the chain. Each lesson's first prereqs `carriedLessonId`,
+   * subsequent lessons chain off each other.
    *
-   * Unlike kana, no character-level prerequisite edges are written between
-   * words. "ほん before やま" is not true — the themes are independent, and the
-   * lesson order is a curriculum convenience rather than a dependency. The
-   * graph should only assert what is actually a prerequisite.
+   * No character-level prerequisite edges between words. A unit is a themed
+   * pile, and "ほん before やま" is not true — the lesson order is a curriculum
+   * convenience rather than a dependency.
    */
-  private async seedVocab(carriedLessonId: Types.ObjectId | null): Promise<Types.ObjectId | null> {
+  private async seedVocabPack(
+    pack: VocabPack,
+    carriedLessonId: Types.ObjectId | null,
+  ): Promise<Types.ObjectId | null> {
     const idsByGroup = new Map<string, Types.ObjectId[]>();
 
-    for (const [group, words] of Object.entries(VOCAB_GROUPS)) {
+    for (const [group, words] of Object.entries(pack.groups)) {
       const ids: Types.ObjectId[] = [];
 
       for (const word of words) {
@@ -234,11 +292,11 @@ export class SeedService {
 
     let previousLessonId = carriedLessonId;
 
-    for (const seed of VOCAB_LESSONS) {
+    for (const seed of pack.lessons) {
       const vocabIds = seed.groups.flatMap((group) => idsByGroup.get(group) ?? []);
 
       const lesson = await this.contentService.upsertLesson({
-        unit: VOCAB_UNIT,
+        unit: pack.unit,
         order: seed.order,
         title: seed.title,
         itemRefs: vocabIds.map((id) => ({ kind: 'vocab', id })),
@@ -249,7 +307,6 @@ export class SeedService {
       previousLessonId = lesson._id;
     }
 
-    this.logger.log(`Seeded ${VOCAB_UNIT}: ${countWords()} words`);
     return previousLessonId;
   }
 
@@ -347,6 +404,6 @@ function countGrammarPoints(): number {
   return Object.values(GRAMMAR_GROUPS).reduce((total, group) => total + group.length, 0);
 }
 
-function countWords(): number {
-  return Object.values(VOCAB_GROUPS).reduce((total, group) => total + group.length, 0);
+function countWordsIn(pack: VocabPack): number {
+  return Object.values(pack.groups).reduce((total, group) => total + group.length, 0);
 }

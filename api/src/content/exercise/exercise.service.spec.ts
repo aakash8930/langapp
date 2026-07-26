@@ -1,10 +1,26 @@
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
 import { ContentService } from '../content.service';
 import { LessonDetail } from '../dto/lesson-response.dto';
+import { MultipleChoiceQuestion, Question } from '../dto/exercise-response.dto';
 import { KanaItemDocument } from '../schemas/kana-item.schema';
 import { VocabItemDocument } from '../schemas/vocab-item.schema';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
 import { ExerciseService } from './exercise.service';
+
+/**
+ * Narrow a question to `multipleChoice`. Tests in this file build lessons
+ * with `exerciseTypes: ['multipleChoice']` and read questions back from the
+ * generated set, so the only shape they ever see carries `options`. The new
+ * `wordReading` lessons never reach these tests — those have their own
+ * describe block below — but the union still requires a runtime check before
+ * the type system will let the test touch `.options`.
+ */
+function asMultipleChoice(question: Question): MultipleChoiceQuestion {
+  if (question.type !== 'multipleChoice') {
+    throw new Error(`expected multipleChoice, got ${question.type}`);
+  }
+  return question;
+}
 
 const UNIT = 'hiragana-basics';
 const LESSON_ID = '507f1f77bcf86cd799439011';
@@ -138,6 +154,9 @@ describe('ExerciseService.generate', () => {
     expect(set.questions).toHaveLength(5);
 
     for (const question of set.questions) {
+      // The kana lessons set `exerciseTypes: ['multipleChoice']`, so every
+      // question here carries `options`. Narrow for the type system.
+      if (question.type !== 'multipleChoice') continue;
       expect(question.options).toHaveLength(4);
       expect(question.type).toBe('multipleChoice');
       expect(question.promptKind).toBe('kana');
@@ -161,6 +180,7 @@ describe('ExerciseService.generate', () => {
     expect(serialized).not.toContain('correct');
 
     for (const question of set.questions) {
+      if (question.type !== 'multipleChoice') continue;
       expect(question).not.toHaveProperty('correctOptionId');
       expect(question).not.toHaveProperty('correctValue');
       // Options carry only an id and a value — nothing marking which is right.
@@ -174,6 +194,7 @@ describe('ExerciseService.generate', () => {
     const set = await makeService().generate(LESSON_ID, USER_A, 0);
 
     for (const question of set.questions) {
+      if (question.type !== 'multipleChoice') continue;
       const expected = VOWELS.find((v) => v.kana === question.prompt)?.romaji;
       expect(question.options.map((o) => o.value)).toContain(expected);
     }
@@ -184,6 +205,7 @@ describe('ExerciseService.generate', () => {
     const realRomaji = new Set(UNIT_POOL.map((p) => p.romaji));
 
     for (const question of set.questions) {
+      if (question.type !== 'multipleChoice') continue;
       const values = question.options.map((o) => o.value);
 
       // Every option is a real character's reading from this unit.
@@ -262,6 +284,7 @@ describe('ExerciseService.generate', () => {
 
     // 3 in the pool, minus the answer itself, leaves 2 distractors + 1 correct.
     for (const question of set.questions) {
+      if (question.type !== 'multipleChoice') continue;
       expect(question.options.length).toBeLessThanOrEqual(4);
       expect(question.options.length).toBeGreaterThan(1);
     }
@@ -272,11 +295,13 @@ describe('ExerciseService.answer', () => {
   it('marks the correct option correct and reports the answer', async () => {
     const service = makeService();
     const set = await service.generate(LESSON_ID, USER_A, 0);
-    const question = set.questions[0];
+    const question = asMultipleChoice(set.questions[0]);
     const expected = VOWELS.find((v) => v.kana === question.prompt)!.romaji;
     const correctOption = question.options.find((o) => o.value === expected)!;
 
-    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, correctOption.id);
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: correctOption.id,
+    });
 
     expect(result.correct).toBe(true);
     expect(result.correctValue).toBe(expected);
@@ -287,11 +312,13 @@ describe('ExerciseService.answer', () => {
   it('marks a wrong option incorrect but still returns the right answer', async () => {
     const service = makeService();
     const set = await service.generate(LESSON_ID, USER_A, 0);
-    const question = set.questions[0];
+    const question = asMultipleChoice(set.questions[0]);
     const expected = VOWELS.find((v) => v.kana === question.prompt)!.romaji;
     const wrongOption = question.options.find((o) => o.value !== expected)!;
 
-    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, wrongOption.id);
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: wrongOption.id,
+    });
 
     expect(result.correct).toBe(false);
     expect(result.selectedValue).toBe(wrongOption.value);
@@ -302,11 +329,15 @@ describe('ExerciseService.answer', () => {
     const service = makeService();
     const set = await service.generate(LESSON_ID, USER_A, 0);
 
-    for (const question of set.questions) {
+    for (const raw of set.questions) {
+      if (raw.type !== 'multipleChoice') continue;
+      const question = raw;
       const expected = VOWELS.find((v) => v.kana === question.prompt)!.romaji;
 
       for (const option of question.options) {
-        const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, option.id);
+        const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+          optionId: option.id,
+        });
         expect(result.correct).toBe(option.value === expected);
       }
     }
@@ -317,39 +348,50 @@ describe('ExerciseService.answer', () => {
     const set = await service.generate(LESSON_ID, USER_A, 0);
 
     await expect(
-      service.answer(LESSON_ID, set.questions[0].exerciseId, USER_A, 'opt-99'),
+      service.answer(LESSON_ID, set.questions[0].exerciseId, USER_A, { optionId: 'opt-99' }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects a malformed exercise id', async () => {
     const service = makeService();
 
-    await expect(service.answer(LESSON_ID, 'not-an-id', USER_A, 'opt-0')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.answer(LESSON_ID, 'not-an-id', USER_A, { optionId: 'opt-0' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects an out-of-range question index', async () => {
     const service = makeService();
 
-    await expect(service.answer(LESSON_ID, '0:99', USER_A, 'opt-0')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.answer(LESSON_ID, '0:99', USER_A, { optionId: 'opt-0' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("cannot be graded against another user's set", async () => {
     const service = makeService();
     const setForA = await service.generate(LESSON_ID, USER_A, 0);
-    const question = setForA.questions[0];
+    const question = asMultipleChoice(setForA.questions[0]);
     const expectedForA = VOWELS.find((v) => v.kana === question.prompt)!.romaji;
     const correctForA = question.options.find((o) => o.value === expectedForA)!;
 
     // Same exerciseId, different user: B's set is a different shuffle, so the
     // grading is against B's own question — not a leak of A's.
-    const result = await service.answer(LESSON_ID, question.exerciseId, USER_B, correctForA.id);
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_B, {
+      optionId: correctForA.id,
+    });
 
     expect(result.prompt).toEqual(expect.any(String));
     expect(result.correctValue).toEqual(expect.any(String));
+  });
+
+  it('rejects sending text to a multipleChoice lesson', async () => {
+    const service = makeService();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+
+    await expect(
+      service.answer(LESSON_ID, set.questions[0].exerciseId, USER_A, { text: 'a' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
 
@@ -357,11 +399,13 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
   it('writes one row per answered exercise, with the right correctness flag', async () => {
     const { service, recordAttempt } = makeServiceWithAttempts();
     const set = await service.generate(LESSON_ID, USER_A, 0);
-    const question = set.questions[0];
+    const question = asMultipleChoice(set.questions[0]);
     const expected = VOWELS.find((v) => v.kana === question.prompt)!.romaji;
     const correctOption = question.options.find((o) => o.value === expected)!;
 
-    await service.answer(LESSON_ID, question.exerciseId, USER_A, correctOption.id);
+    await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: correctOption.id,
+    });
 
     expect(recordAttempt).toHaveBeenCalledTimes(1);
     expect(recordAttempt).toHaveBeenCalledWith(
@@ -376,11 +420,13 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
   it('persists correct=false when the learner picks the wrong option', async () => {
     const { service, recordAttempt } = makeServiceWithAttempts();
     const set = await service.generate(LESSON_ID, USER_A, 0);
-    const question = set.questions[0];
+    const question = asMultipleChoice(set.questions[0]);
     const expected = VOWELS.find((v) => v.kana === question.prompt)!.romaji;
     const wrongOption = question.options.find((o) => o.value !== expected)!;
 
-    await service.answer(LESSON_ID, question.exerciseId, USER_A, wrongOption.id);
+    await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: wrongOption.id,
+    });
 
     expect(recordAttempt).toHaveBeenCalledWith(
       USER_A,
@@ -399,21 +445,25 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
     const recordAttempt = jest.fn(() => Promise.reject(new Error('mongo down')));
     const { service } = makeServiceWithAttempts(undefined, undefined, undefined, recordAttempt);
     const set = await service.generate(LESSON_ID, USER_A, 0);
-    const question = set.questions[0];
+    const question = asMultipleChoice(set.questions[0]);
 
     await expect(
-      service.answer(LESSON_ID, question.exerciseId, USER_A, question.options[0].id),
+      service.answer(LESSON_ID, question.exerciseId, USER_A, {
+        optionId: question.options[0].id,
+      }),
     ).resolves.toEqual(expect.objectContaining({ exerciseId: question.exerciseId }));
   });
 
   it('still writes the attempt for grammar lessons (cross-kind coverage)', async () => {
     const { service, recordAttempt } = grammarServiceWithAttempts();
     const set = await service.generate(LESSON_ID, USER_A, 0);
-    const question = set.questions[0];
+    const question = asMultipleChoice(set.questions[0]);
     const expected = POINTS.find((p) => p.sentence === question.prompt)!;
     const correctOption = question.options.find((o) => o.value === expected.answer)!;
 
-    await service.answer(LESSON_ID, question.exerciseId, USER_A, correctOption.id);
+    await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: correctOption.id,
+    });
 
     expect(recordAttempt).toHaveBeenCalledWith(
       USER_A,
@@ -426,8 +476,12 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
 });
 
 /** A fingerprint of question order + option order, for comparing shuffles. */
-function orderOf(set: { questions: { prompt: string; options: { value: string }[] }[] }): string {
-  return set.questions.map((q) => `${q.prompt}:${q.options.map((o) => o.value).join(',')}`).join('|');
+function orderOf(
+  set: { questions: { prompt: string; options?: { value: string }[] }[] },
+): string {
+  return set.questions
+    .map((q) => `${q.prompt}:${(q.options ?? []).map((o) => o.value).join(',')}`)
+    .join('|');
 }
 
 describe('ExerciseService.generate — vocabulary lessons', () => {
@@ -436,7 +490,9 @@ describe('ExerciseService.generate — vocabulary lessons', () => {
 
     expect(set.questionCount).toBe(WORDS.length);
 
-    for (const question of set.questions) {
+    for (const raw of set.questions) {
+      if (raw.type !== 'multipleChoice') continue;
+      const question = raw;
       expect(question.promptKind).toBe('vocab');
       expect(question.question).toBe('What does this word mean?');
       // The prompt is the word; the options are meanings, never other words.
@@ -450,7 +506,11 @@ describe('ExerciseService.generate — vocabulary lessons', () => {
   it('draws distractors from the whole vocabulary unit, not just the lesson', async () => {
     const set = await makeService(vocabLesson()).generate(LESSON_ID, USER_A, 0);
 
-    const offered = new Set(set.questions.flatMap((q) => q.options.map((o) => o.value)));
+    const offered = new Set(
+      set.questions.flatMap((q) =>
+        q.type === 'multipleChoice' ? q.options.map((o) => o.value) : [],
+      ),
+    );
     const beyondLesson = [...offered].filter(
       (gloss) => !WORDS.some((word) => word.gloss === gloss),
     );
@@ -461,7 +521,7 @@ describe('ExerciseService.generate — vocabulary lessons', () => {
   it('marks the right gloss correct, and a wrong one incorrect', async () => {
     const service = makeService(vocabLesson());
     const set = await service.generate(LESSON_ID, USER_A, 0);
-    const question = set.questions[0];
+    const question = asMultipleChoice(set.questions[0]);
     const expected = WORDS.find((word) => word.lemma === question.prompt);
 
     // The answer key never leaves the service, so find the right option the
@@ -469,11 +529,15 @@ describe('ExerciseService.generate — vocabulary lessons', () => {
     const correctOption = question.options.find((o) => o.value === expected?.gloss);
     const wrongOption = question.options.find((o) => o.value !== expected?.gloss);
 
-    const right = await service.answer(LESSON_ID, question.exerciseId, USER_A, correctOption!.id);
+    const right = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: correctOption!.id,
+    });
     expect(right.correct).toBe(true);
     expect(right.correctValue).toBe(expected?.gloss);
 
-    const wrong = await service.answer(LESSON_ID, question.exerciseId, USER_A, wrongOption!.id);
+    const wrong = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: wrongOption!.id,
+    });
     expect(wrong.correct).toBe(false);
     // Told what it should have been — the screen shows this after a miss.
     expect(wrong.correctValue).toBe(expected?.gloss);
@@ -544,7 +608,9 @@ describe('ExerciseService.generate — grammar lessons', () => {
 
     expect(set.questionCount).toBe(POINTS.length);
 
-    for (const question of set.questions) {
+    for (const raw of set.questions) {
+      if (raw.type !== 'multipleChoice') continue;
+      const question = raw;
       expect(question.promptKind).toBe('grammar');
       // The prompt is the gapped sentence itself.
       expect(question.prompt).toContain('＿');
@@ -576,11 +642,13 @@ describe('ExerciseService.generate — grammar lessons', () => {
   it('grades the gap correctly', async () => {
     const service = grammarService();
     const set = await service.generate(LESSON_ID, USER_A, 0);
-    const question = set.questions[0];
+    const question = asMultipleChoice(set.questions[0]);
     const expected = POINTS.find((p) => p.sentence === question.prompt)!;
 
     const correctOption = question.options.find((o) => o.value === expected.answer)!;
-    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, correctOption.id);
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: correctOption.id,
+    });
 
     expect(result.correct).toBe(true);
     expect(result.correctValue).toBe(expected.answer);
@@ -596,5 +664,199 @@ describe('ExerciseService.generate — grammar lessons', () => {
 
     expect(set.questionCount).toBe(1);
     expect(set.questions[0].prompt).toBe(POINTS[1].sentence);
+  });
+});
+
+/**
+ * The marks-words unit is the only place wordReading lives today. Each item
+ * is a vocabulary with a romaji; the prompt is the lemma, the answer is the
+ * romaji the learner types.
+ *
+ * The new exercise type only matters for っ and ー — a typo of "gakou"
+ * instead of "gakkou" is *the* mistake the lesson teaches, so the grader
+ * does exact comparison rather than apologetic fuzzy matching.
+ */
+const READING_WORDS = [
+  { id: 'w1', lemma: 'がっこう', romans: 'gakkou' },
+  { id: 'w2', lemma: 'コーヒー', romans: 'koohii' },
+  { id: 'w3', lemma: 'ベッド', romans: 'beddo' },
+];
+
+function wordReadingLesson(overrides: Partial<LessonDetail> = {}): LessonDetail {
+  return lessonDetail({
+    unit: 'hiragana-marks-extra',
+    title: 'Hiragana words: っ and ー',
+    exerciseTypes: ['wordReading'],
+    itemCount: READING_WORDS.length,
+    items: READING_WORDS.map((w) => ({
+      kind: 'vocab' as const,
+      id: w.id,
+      lemma: w.lemma,
+      reading: w.lemma,
+      gloss: 'placeholder',
+      pos: 'noun',
+      jlpt: 'N5',
+      romaji: w.romans,
+    })),
+    ...overrides,
+  });
+}
+
+function wordReadingService(): ExerciseService {
+  return makeService(wordReadingLesson());
+}
+
+describe('ExerciseService.generate — wordReading lessons (T1.1)', () => {
+  it('builds one question per item, with no `options` array', async () => {
+    const set = await wordReadingService().generate(LESSON_ID, USER_A, 0);
+
+    expect(set.questionCount).toBe(READING_WORDS.length);
+
+    for (const question of set.questions) {
+      expect(question.type).toBe('wordReading');
+      expect(question.promptKind).toBe('wordReading');
+      // The whole point: no options to pick. The learner types.
+      expect(question).not.toHaveProperty('options');
+    }
+  });
+
+  it('shows the lemma as the prompt and asks for the romaji', async () => {
+    const set = await wordReadingService().generate(LESSON_ID, USER_A, 0);
+
+    for (const question of set.questions) {
+      expect(READING_WORDS.map((w) => w.lemma)).toContain(question.prompt);
+      expect(question.question).toBe('How do you read this word?');
+    }
+  });
+
+  it('never leaks the answer key in the payload', async () => {
+    const set = await wordReadingService().generate(LESSON_ID, USER_A, 0);
+    const serialized = JSON.stringify(set);
+
+    // No `correctOptionId`, no `correctValue`, no `correct` flag — same
+    // allowlist as multipleChoice, applied to the new shape.
+    expect(serialized).not.toContain('correctOptionId');
+    expect(serialized).not.toContain('correctValue');
+    expect(serialized).not.toContain('correct');
+  });
+
+  it('is deterministic per (lesson, user, attempt)', async () => {
+    const first = await wordReadingService().generate(LESSON_ID, USER_A, 0);
+    const again = await wordReadingService().generate(LESSON_ID, USER_A, 0);
+
+    expect(again.questions).toEqual(first.questions);
+  });
+
+  it('rejects a lesson that has no vocabulary items', async () => {
+    const kanaOnly = lessonDetail({
+      exerciseTypes: ['wordReading'],
+      items: [{ kind: 'kana', id: 'k1', kana: 'あ', romaji: 'a', script: 'hiragana', row: 'a', order: 0 }],
+    });
+    const service = makeService(kanaOnly);
+
+    await expect(service.generate(LESSON_ID, USER_A, 0)).rejects.toBeInstanceOf(
+      UnprocessableEntityException,
+    );
+  });
+});
+
+describe('ExerciseService.answer — wordReading lessons (T1.1)', () => {
+  it('accepts the canonical romaji, with no options to choose from', async () => {
+    const service = wordReadingService();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = READING_WORDS.find((w) => w.lemma === question.prompt)!.romans;
+
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      text: expected,
+    });
+
+    expect(result.correct).toBe(true);
+    expect(result.correctValue).toBe(expected);
+    expect(result.prompt).toBe(question.prompt);
+  });
+
+  it('rejects a wrong answer (missed doubling, vowel swap) without being apologetic', async () => {
+    // The whole point of the lesson is the doubled consonant in がっこう.
+    // Writing `gakou` is the mistake that proves the rule is missing. A
+    // forgiving match would teach the wrong thing.
+    const service = wordReadingService();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = READING_WORDS.find((w) => w.lemma === question.prompt)!.romans;
+    const wrong = expected.slice(0, 1) + expected.slice(3);
+
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      text: wrong,
+    });
+
+    expect(result.correct).toBe(false);
+    expect(result.correctValue).toBe(expected);
+    expect(result.selectedValue).toBe(wrong);
+  });
+
+  it('normalises case: GAKKOU is the same as gakkou', async () => {
+    const service = wordReadingService();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = READING_WORDS.find((w) => w.lemma === question.prompt)!.romans;
+
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      text: expected.toUpperCase(),
+    });
+
+    expect(result.correct).toBe(true);
+  });
+
+  it('normalises whitespace: leading/trailing/inner spaces are collapsed', async () => {
+    const service = wordReadingService();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = READING_WORDS.find((w) => w.lemma === question.prompt)!.romans;
+
+    const padded = `  ${expected.slice(0, 2)} ${expected.slice(2)}  `;
+
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      text: padded,
+    });
+
+    expect(result.correct).toBe(true);
+  });
+
+  it('rejects sending optionId to a wordReading lesson', async () => {
+    const service = wordReadingService();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+
+    await expect(
+      service.answer(LESSON_ID, set.questions[0].exerciseId, USER_A, { optionId: 'opt-0' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('persists the typed attempt, so the lesson gate (T1.4) sees it', async () => {
+    const { service, recordAttempt } = makeServiceWithAttempts(wordReadingLesson());
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = READING_WORDS.find((w) => w.lemma === question.prompt)!.romans;
+
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      text: expected,
+    });
+
+    expect(result.correct).toBe(true);
+    expect(recordAttempt).toHaveBeenCalledWith(
+      USER_A,
+      LESSON_ID,
+      0,
+      question.exerciseId,
+      true,
+    );
+  });
+
+  it('rejects a malformed exercise id on a wordReading lesson', async () => {
+    const service = wordReadingService();
+
+    await expect(
+      service.answer(LESSON_ID, 'not-an-id', USER_A, { text: 'gakkou' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

@@ -561,26 +561,24 @@ these accounts hold no payment details or personal data beyond an email and
 chat transcripts (#24) — which is not nothing, and is the reason this is
 written down rather than shrugged at.
 
-### 25. っ and ー cannot be taught by the only exercise this app has (2026-07-22)
+### 25. RESOLVED (T1.1, 2026-07-26) — っ and ー cannot be taught by the only exercise this app has
 
-The marks units teach dakuten, handakuten and yōon but deliberately skip the
-sokuon (っ) and the chōonpu (ー). Both are marks rather than syllables: っ doubles
-the following consonant and has no reading of its own, ー lengthens the preceding
-vowel. `KanaItem.romaji` is required and a multiple-choice question asks "which
-romaji matches this character" — neither has an answer, and inventing one
-("(double)") makes a question whose odd-one-out is guessable without knowing
-anything.
+Second exercise type landed: **`wordReading`**. The prompt is a word
+(e.g. がっこう) and the answer is the romaji the learner types. Lives on two new
+units — `hiragana-marks-extra` and `katakana-marks-extra`, one lesson each,
+gated onto the existing chain between marks and grammar. The grader exact-
+matches against the canonical romaji with trim/lowercase/whitespace
+normalisation, so "gakou" instead of "gakkou" is *the* mistake the lesson
+catches. Two new content groups covered the new words; the romaji
+transliterator was extended in the spec to handle っ and ー.
 
-**Cost of getting it wrong:** がっこう (school), きって (stamp), コーヒー (coffee)
-and テーブル (table) remain unreadable, and those are common words. This is the
-one remaining gap between "knows the kana" and "can read Japanese text".
+Schema consequences, additive: `Question` becomes a discriminated union
+(`multipleChoice | wordReading`); `AnswerExerciseDto` becomes a discriminated
+union (`{ optionId } | { text }`) validated with `@ValidateIf`; `PromptKind`
+gains `'wordReading'`. Both clients gained a render branch in their lesson
+screen. Contract updated in the root CLAUDE.md.
 
-**Fix:** a second exercise type — most likely "read this word" over short words
-that contain the mark, which teaches the rule in the only context where it means
-anything. That is §14 step 8's "second exercise type".
-
-*(Grammar turned out **not** to have this problem — fill-in-the-blank fit the
-existing multiple-choice machinery. See item 26.)*
+### 26. GrammarPoint carries an `examples` field beyond §5 (2026-07-22)
 
 ### 26. GrammarPoint carries an `examples` field beyond §5 (2026-07-22)
 

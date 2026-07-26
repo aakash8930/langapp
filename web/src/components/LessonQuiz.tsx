@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 
 import {
   answerExercise,
@@ -8,7 +8,8 @@ import {
   type AnswerResult,
   type CompleteResult,
   type ExerciseSet,
-  type Question,
+  type MultipleChoiceQuestion,
+  type WordReadingQuestion,
 } from '../api';
 import { goBack } from '../useRoute';
 
@@ -61,12 +62,35 @@ export function LessonQuiz({
     };
   }, [lessonId]);
 
-  async function choose(question: Question, optionId: string) {
+  async function chooseMultipleChoice(question: MultipleChoiceQuestion, optionId: string) {
     if (phase.name !== 'asking' || phase.result || busy) return;
 
     setBusy(true);
     try {
-      const result = await answerExercise(lessonId, question.exerciseId, optionId);
+      const result = await answerExercise(lessonId, question.exerciseId, { optionId });
+      if (result.correct) setCorrect((n) => n + 1);
+      setPhase({ ...phase, result });
+    } catch (error) {
+      setPhase({
+        name: 'error',
+        message: error instanceof Error ? error.message : 'Could not check that answer.',
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitWordReading(question: WordReadingQuestion, text: string) {
+    if (phase.name !== 'asking' || phase.result || busy) return;
+    // Empty submissions are a foot-gun: a learner who hits Enter on an empty
+    // input would land on a wrong-answer screen with no idea why. The submit
+    // button is disabled while the input is empty, so this is a guard against
+    // direct key handling.
+    if (text.trim().length === 0) return;
+
+    setBusy(true);
+    try {
+      const result = await answerExercise(lessonId, question.exerciseId, { text });
       if (result.correct) setCorrect((n) => n + 1);
       setPhase({ ...phase, result });
     } catch (error) {
@@ -162,19 +186,26 @@ export function LessonQuiz({
         <p className={`quiz-prompt ja quiz-prompt-${question.promptKind}`}>{question.prompt}</p>
         <p className="quiz-question">{question.question}</p>
 
-        <div className="options">
-          {question.options.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={`option ${optionState(option.id, phase.result)}`}
-              onClick={() => void choose(question, option.id)}
-              disabled={phase.result !== null || busy}
-            >
-              {option.value}
-            </button>
-          ))}
-        </div>
+        {question.type === 'wordReading' ? (
+          <WordReadingInput
+            disabled={phase.result !== null || busy}
+            onSubmit={(text) => void submitWordReading(question, text)}
+          />
+        ) : (
+          <div className="options">
+            {question.options.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={`option ${optionState(option.id, phase.result)}`}
+                onClick={() => void chooseMultipleChoice(question, option.id)}
+                disabled={phase.result !== null || busy}
+              >
+                {option.value}
+              </button>
+            ))}
+          </div>
+        )}
 
         {phase.result ? (
           <div className="verdict" role="status">
@@ -183,11 +214,13 @@ export function LessonQuiz({
             </p>
             {phase.result.correct ? null : (
               <p className="verdict-detail">
-                {/* "sentence is 'は'" reads as nonsense — a gapped sentence is
-                    not a particle — so grammar shows the sentence filled in. */}
-                {question.promptKind === 'grammar'
+                {/* The widely-shared shape holds for both kinds: read the prompt,
+                    then the canonical romaji. The wordReading prompt is the
+                    word's written form, so "<word> is <romaji>" reads
+                    correctly without a grammar-specific branch. */}
+                {question.type === 'multipleChoice' && question.promptKind === 'grammar'
                   ? `The answer is “${phase.result.correctValue}”: ${question.prompt.replace('＿', phase.result.correctValue)}`
-                  : `${phase.result.prompt} is “${phase.result.correctValue}”.`}
+                  : `${question.prompt} is “${phase.result.correctValue}”.`}
               </p>
             )}
             <button className="button" type="button" onClick={() => void next()}>
@@ -205,6 +238,53 @@ function optionState(id: string, result: AnswerResult | null): string {
   if (id === result.correctOptionId) return 'option-answer';
   if (id === result.selectedOptionId) return 'option-wrong';
   return 'option-muted';
+}
+
+/**
+ * The wordReading input: a single line of text and a Submit button.
+ *
+ * The submit is form-driven so Enter on the keyboard submits naturally; the
+ * button click does the same thing. The disabled-when-empty guard is the
+ * part that prevents a learner from accidentally submitting nothing.
+ */
+function WordReadingInput({
+  disabled,
+  onSubmit,
+}: {
+  disabled: boolean;
+  onSubmit: (text: string) => void;
+}) {
+  const [text, setText] = useState('');
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onSubmit(text);
+  }
+
+  return (
+    <form className="typing" onSubmit={handleSubmit}>
+      <input
+        className="typing-input"
+        type="text"
+        value={text}
+        placeholder="Type the romaji"
+        autoComplete="off"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        onChange={(event) => setText(event.target.value)}
+        disabled={disabled}
+        aria-label="Type the romaji for this word"
+      />
+      <button
+        className="button"
+        type="submit"
+        disabled={disabled || text.trim().length === 0}
+      >
+        Submit
+      </button>
+    </form>
+  );
 }
 
 function Summary({
