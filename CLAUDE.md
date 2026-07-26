@@ -274,6 +274,18 @@ learner *just sent*, and are also persisted onto that user message — the
 assistant reply never carries corrections. Session opener is scripted, not
 generated, so creating a session costs zero tokens.
 
+**A corrected word becomes a review (T1.5, 2026-07-26).** Sending a message has a
+side effect on the learner's SRS: every correction's `span` and `fix` are matched
+against taught vocabulary, and each match either gets a new card due now or has
+its existing card's `due` pulled forward. **Only `due` is written** — never
+`stability`, `difficulty`, `state`, `reps` or `lapses`, because a correction is
+not a graded review and inventing a grade would corrupt the scheduler's model.
+Nothing about this appears in the response shape; the effect is visible on the
+next `GET /reviews/due`. Single-character words (に, ご, め, て) are deliberately
+never matched — に is both "two" and the commonest particle, so matching it would
+schedule the number every time a particle was corrected. Scheduling never fails a
+turn: a failure is logged and the reply is still returned.
+
 There is **no GET for chat history** — §9 lists exactly these two routes. The
 client keeps the transcript in memory for the life of the screen; a session
 abandoned mid-way is simply left behind and a new one started.

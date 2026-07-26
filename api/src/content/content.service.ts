@@ -118,6 +118,40 @@ export class ContentService {
   }
 
   /**
+   * Words from the taught vocabulary that appear anywhere in `texts`.
+   *
+   * This is the lookup §7 step 7 needs to turn a chat correction into something
+   * schedulable: a correction's `span` and `fix` are free text, and the only
+   * words worth scheduling are ones the course actually teaches. Substring match
+   * against the lemma, which works because these lemmas are kana-only and
+   * Japanese does not space its words — there is no token boundary to align to.
+   *
+   * **Single-character lemmas are excluded, and that is the important part.**
+   * The vocabulary contains に ("two"), ご ("five"), め ("eye") and て ("hand"),
+   * and に/ご are also two of the commonest particles in the language. A
+   * correction about a particle に would otherwise schedule the *number* に for
+   * review, which is not merely useless — it teaches the wrong thing. Requiring
+   * two characters costs those four words and removes the whole class of false
+   * positive. See OPEN-ITEMS #23.
+   *
+   * Reads the lemmas rather than building a Mongo regex: the collection is ~290
+   * documents, the match is a substring test, and a regex alternation of 290
+   * branches is both slower and unindexable.
+   */
+  async findVocabInTexts(texts: string[]): Promise<VocabItemDocument[]> {
+    const haystack = texts.filter((text) => text.length > 0);
+    if (haystack.length === 0) {
+      return [];
+    }
+
+    const candidates = await this.vocabModel.find({ lang: 'ja' }).exec();
+
+    return candidates.filter(
+      (doc) => doc.lemma.length > 1 && haystack.some((text) => text.includes(doc.lemma)),
+    );
+  }
+
+  /**
    * Every kanji taught in the unit. The distractors are other kanji from the
    * same unit, which is the set worth confusing: 日 and 目 differ by one stroke
    * and mean "sun" and "eye", so a meaning question is only a real test when the

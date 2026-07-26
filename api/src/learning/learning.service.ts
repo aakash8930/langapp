@@ -277,6 +277,102 @@ export class LearningService {
     return rows.map((row) => row.lessonId.toString());
   }
 
+  /**
+   * §7 step 7: schedule words the learner got wrong in conversation.
+   *
+   * `texts` are the free-text fragments of a chat correction — the `span` the
+   * learner wrote and the `fix` they should have written. Both are matched, not
+   * just the fix: a span is often a correct word used wrongly (わたしわ contains
+   * わたし), and a span misspelled beyond recognition simply matches nothing.
+   *
+   * Two outcomes per matched word, and the distinction is the whole design:
+   *
+   * - **No card yet** → create one, due now. Unambiguously right: the learner has
+   *   just demonstrated the word matters to them and nothing is tracking it.
+   * - **Card already exists** → pull `due` forward to now if it is later, and
+   *   change *nothing else*. `stability`, `difficulty`, `state`, `reps` and
+   *   `lapses` are FSRS's model of this learner, and the only honest way to move
+   *   them is a real grade. Manufacturing one from "the tutor corrected you"
+   *   would feed the scheduler an observation that never happened and quietly
+   *   degrade every interval it computes afterwards.
+   *
+   * So this makes a word come up sooner; it never claims to know how well the
+   * learner knows it. That is the most a correction can honestly say.
+   *
+   * Never throws. A chat turn has already cost a provider call and been
+   * persisted by the time this runs, and failing the request over a scheduling
+   * nicety would lose the learner's reply — same failure semantics as
+   * `AnalyticsService.record`.
+   */
+  async scheduleMissedWords(
+    userId: string,
+    texts: string[],
+  ): Promise<{ cardsCreated: number; cardsAdvanced: number }> {
+    try {
+      const matched = await this.contentService.findVocabInTexts(texts);
+      if (matched.length === 0) {
+        return { cardsCreated: 0, cardsAdvanced: 0 };
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      const now = new Date();
+
+      const existing = await this.srsCardModel
+        .find({
+          userId: userObjectId,
+          'itemRef.kind': 'vocab',
+          'itemRef.id': { $in: matched.map((doc) => doc._id) },
+        })
+        .select('itemRef due')
+        .exec();
+
+      const existingIds = new Set(existing.map((card) => card.itemRef.id.toString()));
+
+      const toCreate = matched
+        .filter((doc) => !existingIds.has(doc._id.toString()))
+        .map((doc) => ({
+          userId: userObjectId,
+          itemRef: { kind: 'vocab' as const, id: doc._id },
+          ...newCardFields(now),
+        }));
+
+      let cardsCreated = 0;
+      if (toCreate.length > 0) {
+        try {
+          const inserted = await this.srsCardModel.insertMany(toCreate, { ordered: false });
+          cardsCreated = inserted.length;
+        } catch (err) {
+          // Same race as seedCards: a concurrent completion may have created the
+          // card we wanted. That is the desired end state, so count what landed.
+          if (!isDuplicateKeyError(err)) throw err;
+          const writeErrors = (err as { writeErrors?: unknown[] }).writeErrors?.length ?? 0;
+          cardsCreated = Math.max(0, toCreate.length - writeErrors);
+        }
+      }
+
+      // Only cards that are not already due — pushing an already-due card's date
+      // to now would be a no-op write, and moving it *later* would be wrong.
+      const notYetDue = existing.filter((card) => card.due > now).map((card) => card._id);
+
+      let cardsAdvanced = 0;
+      if (notYetDue.length > 0) {
+        const result = await this.srsCardModel
+          .updateMany({ _id: { $in: notYetDue } }, { $set: { due: now } })
+          .exec();
+        cardsAdvanced = result.modifiedCount;
+      }
+
+      return { cardsCreated, cardsAdvanced };
+    } catch (err) {
+      this.logger.warn(
+        `Could not schedule missed words for user ${userId}: ${
+          err instanceof Error ? err.message : 'unknown error'
+        }`,
+      );
+      return { cardsCreated: 0, cardsAdvanced: 0 };
+    }
+  }
+
   async countCards(userId: string): Promise<number> {
     return this.srsCardModel.countDocuments({ userId: new Types.ObjectId(userId) }).exec();
   }

@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { AiOrchestratorService, ChatTurn } from '../ai-orchestrator/ai-orchestrator.service';
 import { DEFAULT_SCENARIO_ID } from '../ai-orchestrator/scenarios';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { LearningService } from '../learning/learning.service';
 import { ChatMessageResponse, ChatSessionResponse, ChatTurnResponse } from './dto/chat.dto';
 import { ChatMessage, ChatMessageDocument } from './schemas/chat-message.schema';
 import { ChatSession, ChatSessionDocument } from './schemas/chat-session.schema';
@@ -26,6 +27,9 @@ export class ChatService {
     @InjectModel(ChatMessage.name) private readonly messageModel: Model<ChatMessageDocument>,
     private readonly orchestrator: AiOrchestratorService,
     private readonly analytics: AnalyticsService,
+    // §7 step 7: corrections feed the SRS. The schema is owned by `learning`, so
+    // this goes through its service and never near `srsCards` (§4).
+    private readonly learning: LearningService,
   ) {}
 
   async createSession(userId: string, scenarioId?: string): Promise<ChatSessionResponse> {
@@ -97,6 +101,16 @@ export class ChatService {
       createdAt: new Date(),
     });
 
+    // §7 step 7 (T1.5): a corrected word becomes a review. Both halves of each
+    // correction are searched — the learner's `span` often contains a correct
+    // word used wrongly, and the `fix` is where the word reliably appears
+    // spelled properly. Never throws, so a scheduling failure cannot cost the
+    // learner the reply they just paid a provider call for.
+    const scheduled = await this.learning.scheduleMissedWords(
+      userId,
+      result.corrections.flatMap((correction) => [correction.span, correction.fix]),
+    );
+
     // Never throws (see AnalyticsService.record).
     await this.analytics.record({
       userId,
@@ -105,6 +119,8 @@ export class ChatService {
         sessionId: session._id.toString(),
         scenario: session.scenario,
         correctionCount: result.corrections.length,
+        cardsCreated: scheduled.cardsCreated,
+        cardsAdvanced: scheduled.cardsAdvanced,
       },
     });
 

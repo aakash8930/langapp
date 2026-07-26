@@ -647,22 +647,56 @@ gloss would silently make questions unanswerable rather than merely harder.
 of §14 work. §14's own test is whether it "feels good" enough to use daily —
 that's now answerable by actually using it.
 
-Still disconnected: the M3 exercise endpoint. `POST .../answer` grades a
-multiple-choice question but records nothing — it awards no XP and doesn't touch
-the SRS card for that item. So a learner's *exercise* answers and their *review*
-grades are two unrelated systems. Wiring "got it wrong in an exercise" into
-"schedule that card sooner" is the obvious next connection, and §7 step 7 assumes
-it exists ("schedule missed words into SRS").
+Still partly disconnected: the exercise endpoint. `POST .../answer` **does** record
+now — T1.4 added `exerciseAttempts`, with `correct` on each row, to power the
+completion gate — but it still awards no XP and still doesn't touch the SRS card
+for the item it asked about. So a learner's *exercise* answers and their *review*
+grades remain two systems that don't inform each other.
 
-### 23. Chat is wired to the LLM but not to the learning loop (2026-07-21)
+**T1.5 built the mechanism this needs.** `LearningService.scheduleMissedWords`
+already does "got it wrong → make that card due sooner, without inventing a
+grade", and an exercise answer is a *better* input than a chat correction: it
+carries the exact item id, so it needs no text matching and none of the
+single-character compromise. Wiring `answer()`'s wrong path to it is the obvious
+next connection and is now a small change rather than a design problem.
 
-Three deliberate gaps in the §14-step-7 build, all consequences of what exists
-today rather than oversights:
+### 23. Chat is wired to the LLM, and now partly to the learning loop (2026-07-21, updated T1.5 2026-07-26)
 
-- **Corrections don't touch SRS.** §7 step 7 says "schedule missed words into
-  SRS", but a correction `span` is free text — mapping it to a KnowledgeNode
-  needs vocab content and fuzzy matching that doesn't exist yet. Same class of
-  gap as the exercise/SRS disconnect above.
+Three deliberate gaps in the §14-step-7 build. **The first is now closed**; the
+other two remain.
+
+- ~~**Corrections don't touch SRS.**~~ **Done (T1.5, 2026-07-26.)**
+  `ChatService.sendMessage` passes both halves of every correction — the learner's
+  `span` and the tutor's `fix` — to `LearningService.scheduleMissedWords`, which
+  matches them against taught vocabulary via `ContentService.findVocabInTexts`
+  and then either creates a card due now or pulls an existing card's `due`
+  forward. See below for the three judgement calls it contains.
+
+  **It writes `due` and nothing else.** `stability`, `difficulty`, `state`,
+  `reps` and `lapses` are FSRS's model of the learner, and the only honest way to
+  move them is a real graded review. Manufacturing a grade from "the tutor
+  corrected you" would feed the scheduler an observation that never happened and
+  degrade every interval it computes afterwards. So the feature makes a word come
+  up sooner; it never claims to know how well the learner knows it. A test pins
+  that the update document has exactly one key.
+
+  **Single-character lemmas are never matched, and this is the load-bearing
+  compromise.** The vocabulary contains に ("two"), ご ("five"), め ("eye") and
+  て ("hand") — and に/ご are two of the commonest particles in the language. A
+  correction about a particle に would otherwise schedule the *number* に, which
+  teaches the wrong thing rather than merely wasting a card. Requiring two
+  characters costs those four words and removes the entire class of false
+  positive. The matching is substring-based because these lemmas are kana-only
+  and Japanese has no spaces to tokenise on — there is no morphological analyser
+  here and adding one is not a Phase 0 decision.
+
+  **Worth watching: this makes review XP reachable by writing bad Japanese.**
+  Pulling a card's `due` forward makes it gradeable, and grading a due card pays
+  `XP_PER_REVIEW`. So a learner could deliberately write errors to surface cards
+  and earn 2 XP each. Bounded by the chat throttle (10/60s), by provider quota,
+  and by only affecting words the correction actually touched — and the learner
+  still has to answer the review. Not worth a guard now; worth knowing before
+  chat XP (below) is added on top.
 - **Target words are static** in `ai-orchestrator/scenarios.ts`. §7 step 2 says
   retrieve them from the KnowledgeGraph; the graph holds only kana today, so a
   lookup would return nothing. Swap when a vocab pack is seeded.

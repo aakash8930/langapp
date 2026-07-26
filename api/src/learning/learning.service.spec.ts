@@ -421,3 +421,202 @@ describe('LearningService.completeLesson gate (T1.4)', () => {
     expect(countAttempts).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * §7 step 7 (T1.5): a chat correction schedules the words it touched.
+ *
+ * Its own harness rather than the shared one, because it needs `updateMany` on
+ * the card model and `findVocabInTexts` on content — neither of which the
+ * completion tests use.
+ */
+function buildScheduler(
+  opts: {
+    /** Words `findVocabInTexts` should claim to have matched. */
+    matched?: { id: string; lemma: string }[];
+    /** Cards the user already holds, as (itemId, due) pairs. */
+    existing?: { id: string; due: Date }[];
+  } = {},
+) {
+  const matched = (opts.matched ?? []).map(
+    (word) => ({ _id: new Types.ObjectId(word.id), lemma: word.lemma }) as never,
+  );
+  const existing = (opts.existing ?? []).map(
+    (card) =>
+      ({
+        _id: new Types.ObjectId(card.id),
+        itemRef: { kind: 'vocab', id: new Types.ObjectId(card.id) },
+        due: card.due,
+      }) as unknown as SrsCardDocument,
+  );
+
+  const insertMany = jest.fn((docs: unknown[]) => Promise.resolve(docs));
+  // Params are declared so `updateMany.mock.calls[0][1]` is typed — the test
+  // that pins "only `due` is written" reads the update document off the call.
+  const updateMany = jest.fn(
+    (_filter: unknown, _update: { $set: Record<string, unknown> }) => ({
+      exec: () => Promise.resolve({ modifiedCount: 99 }),
+    }),
+  );
+  const srsCardModel = {
+    find: () => ({ select: () => ({ exec: () => Promise.resolve(existing) }) }),
+    insertMany,
+    updateMany,
+    countDocuments: () => ({ exec: () => Promise.resolve(0) }),
+  };
+
+  const findVocabInTexts = jest.fn(() => Promise.resolve(matched));
+
+  const service = new LearningService(
+    srsCardModel as never,
+    { countDocuments: () => ({ exec: () => Promise.resolve(0) }) } as never,
+    { findVocabInTexts } as unknown as ContentService,
+    {} as unknown as UserService,
+    { record: jest.fn() } as unknown as AnalyticsService,
+    {} as unknown as ExerciseAttemptsService,
+    { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
+  );
+
+  return { service, insertMany, updateMany, findVocabInTexts };
+}
+
+const WORD_A = '707f1f77bcf86cd799439001';
+const WORD_B = '707f1f77bcf86cd799439002';
+
+describe('LearningService.scheduleMissedWords (T1.5)', () => {
+  it('creates a card, due now, for a corrected word the learner has none for', async () => {
+    const { service, insertMany } = buildScheduler({
+      matched: [{ id: WORD_A, lemma: 'がっこう' }],
+    });
+
+    const result = await service.scheduleMissedWords(USER_ID, ['がっこ', 'がっこう']);
+
+    expect(result.cardsCreated).toBe(1);
+    const inserted = insertMany.mock.calls[0][0] as {
+      itemRef: { kind: string; id: Types.ObjectId };
+      due: Date;
+    }[];
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0].itemRef.kind).toBe('vocab');
+    expect(inserted[0].itemRef.id.toString()).toBe(WORD_A);
+    // Due immediately: the learner has just got it wrong.
+    expect(inserted[0].due.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('pulls an existing card forward instead of inserting a duplicate', async () => {
+    const later = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+    const { service, insertMany, updateMany } = buildScheduler({
+      matched: [{ id: WORD_A, lemma: 'がっこう' }],
+      existing: [{ id: WORD_A, due: later }],
+    });
+
+    const result = await service.scheduleMissedWords(USER_ID, ['がっこう']);
+
+    expect(insertMany).not.toHaveBeenCalled();
+    expect(updateMany).toHaveBeenCalled();
+    expect(result.cardsAdvanced).toBe(99);
+  });
+
+  /**
+   * The core promise of the design: `due` moves, the FSRS model does not. A
+   * correction is not a graded review, and writing stability or difficulty from
+   * one would feed the scheduler an observation that never happened.
+   */
+  it('touches only `due` — never stability, difficulty, state, reps or lapses', async () => {
+    const later = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+    const { service, updateMany } = buildScheduler({
+      matched: [{ id: WORD_A, lemma: 'がっこう' }],
+      existing: [{ id: WORD_A, due: later }],
+    });
+
+    await service.scheduleMissedWords(USER_ID, ['がっこう']);
+
+    const update = updateMany.mock.calls[0][1];
+    expect(Object.keys(update.$set)).toEqual(['due']);
+  });
+
+  it('leaves an already-due card alone rather than writing the same date again', async () => {
+    const past = new Date(Date.now() - 60_000);
+    const { service, updateMany } = buildScheduler({
+      matched: [{ id: WORD_A, lemma: 'がっこう' }],
+      existing: [{ id: WORD_A, due: past }],
+    });
+
+    const result = await service.scheduleMissedWords(USER_ID, ['がっこう']);
+
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(result).toEqual({ cardsCreated: 0, cardsAdvanced: 0 });
+  });
+
+  it('handles a turn that matched nothing without touching the database', async () => {
+    const { service, insertMany, updateMany } = buildScheduler({ matched: [] });
+
+    const result = await service.scheduleMissedWords(USER_ID, ['zzz']);
+
+    expect(result).toEqual({ cardsCreated: 0, cardsAdvanced: 0 });
+    expect(insertMany).not.toHaveBeenCalled();
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('creates and advances in the same turn when a correction touches both', async () => {
+    const later = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+    const { service, insertMany } = buildScheduler({
+      matched: [
+        { id: WORD_A, lemma: 'がっこう' },
+        { id: WORD_B, lemma: 'せんせい' },
+      ],
+      existing: [{ id: WORD_B, due: later }],
+    });
+
+    const result = await service.scheduleMissedWords(USER_ID, ['がっこ せんせい']);
+
+    expect(result.cardsCreated).toBe(1);
+    expect(result.cardsAdvanced).toBe(99);
+    const inserted = insertMany.mock.calls[0][0] as { itemRef: { id: Types.ObjectId } }[];
+    expect(inserted.map((d) => d.itemRef.id.toString())).toEqual([WORD_A]);
+  });
+
+  /**
+   * A chat turn has already cost a provider call and been persisted by the time
+   * this runs. Failing the request over a scheduling nicety would throw away the
+   * learner's reply.
+   */
+  it('never throws — a scheduling failure must not cost the learner their reply', async () => {
+    const { service, findVocabInTexts } = buildScheduler({
+      matched: [{ id: WORD_A, lemma: 'がっこう' }],
+    });
+    findVocabInTexts.mockRejectedValueOnce(new Error('content is on fire'));
+
+    await expect(service.scheduleMissedWords(USER_ID, ['がっこう'])).resolves.toEqual({
+      cardsCreated: 0,
+      cardsAdvanced: 0,
+    });
+  });
+
+  it('also swallows a genuine write failure rather than surfacing it', async () => {
+    const { service, insertMany } = buildScheduler({
+      matched: [{ id: WORD_A, lemma: 'がっこう' }],
+    });
+    insertMany.mockRejectedValueOnce(new Error('mongo is on fire'));
+
+    await expect(service.scheduleMissedWords(USER_ID, ['がっこう'])).resolves.toEqual({
+      cardsCreated: 0,
+      cardsAdvanced: 0,
+    });
+  });
+
+  it('survives a lost insert race, counting only what landed', async () => {
+    const { service, insertMany } = buildScheduler({
+      matched: [
+        { id: WORD_A, lemma: 'がっこう' },
+        { id: WORD_B, lemma: 'せんせい' },
+      ],
+    });
+    insertMany.mockRejectedValueOnce(
+      Object.assign(new Error('dup'), { code: 11000, writeErrors: [{ err: { code: 11000 } }] }),
+    );
+
+    const result = await service.scheduleMissedWords(USER_ID, ['がっこう せんせい']);
+
+    expect(result.cardsCreated).toBe(1);
+  });
+});

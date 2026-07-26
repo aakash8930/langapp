@@ -111,3 +111,91 @@ describe('ContentService.findLessonById', () => {
     );
   });
 });
+
+/**
+ * The lookup §7 step 7 needs: turn a chat correction's free text into the
+ * taught words it mentions. Built with a real vocabulary slice, because the
+ * behaviour worth pinning is which words match — not that a mock was called.
+ */
+function vocabDoc(id: Types.ObjectId, lemma: string) {
+  return { _id: id, lemma } as unknown as never;
+}
+
+function makeVocabService(lemmas: [string, string][]): ContentService {
+  const docs = lemmas.map(([id, lemma]) => vocabDoc(oid(id), lemma));
+  const vocabModel = { find: () => ({ exec: () => Promise.resolve(docs) }) };
+  const empty = { find: () => ({ exec: () => Promise.resolve([]) }) };
+
+  return new ContentService(
+    empty as never,
+    empty as never,
+    vocabModel as never,
+    empty as never,
+    empty as never,
+  );
+}
+
+describe('ContentService.findVocabInTexts (T1.5)', () => {
+  const VOCAB: [string, string][] = [
+    ['b1', 'わたし'],
+    ['b2', 'がっこう'],
+    ['b3', 'せんせい'],
+    // Single-character lemmas: real words, and also two of the commonest
+    // particles in the language.
+    ['b4', 'に'],
+    ['b5', 'て'],
+  ];
+
+  it('finds a taught word inside a correction fragment', async () => {
+    const service = makeVocabService(VOCAB);
+
+    const found = await service.findVocabInTexts(['がっこう']);
+
+    expect(found.map((d) => d.lemma)).toEqual(['がっこう']);
+  });
+
+  it('matches mid-string, since Japanese does not space its words', async () => {
+    const service = makeVocabService(VOCAB);
+
+    const found = await service.findVocabInTexts(['わたしはがっこうにいきます']);
+
+    expect(found.map((d) => d.lemma).sort()).toEqual(['がっこう', 'わたし']);
+  });
+
+  /**
+   * The important one. に is both the number "two" and the commonest particle
+   * in the language, so matching it would schedule the *number* for review every
+   * time the tutor corrected a particle — teaching the wrong thing, not merely
+   * a useless card. OPEN-ITEMS #23.
+   */
+  it('never matches a single-character lemma, however often it appears', async () => {
+    const service = makeVocabService(VOCAB);
+
+    const found = await service.findVocabInTexts(['がっこうにいきます', 'てにもって']);
+
+    expect(found.map((d) => d.lemma)).toEqual(['がっこう']);
+  });
+
+  it('searches every fragment it is given, deduplicated by document', async () => {
+    const service = makeVocabService(VOCAB);
+
+    // The learner's misspelling and the tutor's fix, which is how the caller
+    // passes them. わたし appears in both and must be returned once.
+    const found = await service.findVocabInTexts(['わたしわ', 'わたしは']);
+
+    expect(found.map((d) => d.lemma)).toEqual(['わたし']);
+  });
+
+  it('returns nothing for text that mentions no taught word', async () => {
+    const service = makeVocabService(VOCAB);
+
+    expect(await service.findVocabInTexts(['ねこ'])).toEqual([]);
+  });
+
+  it('skips the query entirely when there is nothing to search', async () => {
+    const service = makeVocabService(VOCAB);
+
+    expect(await service.findVocabInTexts([])).toEqual([]);
+    expect(await service.findVocabInTexts(['', ''])).toEqual([]);
+  });
+});
