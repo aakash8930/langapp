@@ -5,6 +5,7 @@ import { KATAKANA_ROWS } from './katakana';
 import { KATAKANA_MARKS_ROWS } from './katakana-marks';
 import { MARKS_GROUPS } from './marks-words';
 import { VOCAB_GROUPS } from './vocab';
+import { VOCAB_EVERYDAY_GROUPS } from './vocab-everyday';
 
 /**
  * Romaji is authored, not generated — so this is what stops it drifting from
@@ -136,6 +137,7 @@ function bare(romaji: string): string {
 const ALL_WORDS = [
   ...Object.values(VOCAB_GROUPS).flat(),
   ...Object.values(MARKS_GROUPS).flat(),
+  ...Object.values(VOCAB_EVERYDAY_GROUPS).flat(),
 ];
 const ALL_EXAMPLES = Object.values(GRAMMAR_GROUPS)
   .flat()

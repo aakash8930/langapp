@@ -4,7 +4,7 @@ Decisions I made on your behalf, trade-offs I took, and things deliberately
 deferred. Nothing here is broken; it's the list of places where a reasonable
 person could choose differently, plus the bills that come due later.
 
-Ordered by when they'll bite you. Last updated after T1.10 / T1.3.
+Ordered by when they'll bite you. Last updated after T1.6.
 
 ---
 
@@ -483,7 +483,7 @@ four is done:
 |---|---|
 | Hiragana | **complete** — all 46 base characters, 5 lessons (2026-07-21) |
 | Katakana | **complete** — all 46 base characters, 5 lessons, gated behind hiragana (2026-07-21) |
-| Basic vocabulary | **first unit complete** — 58 words, 6 themed lessons (2026-07-22) |
+| Basic vocabulary | **two units complete** — 58 words in 6 lessons (2026-07-22) plus 220 words in 14 lessons (T1.6, 2026-07-26) |
 | Basic grammar | **first unit complete** — 12 points, 4 lessons (2026-07-22) |
 | *(kana marks — not a §1 line)* | **complete** — 116 syllables, 12 lessons (2026-07-22) |
 
@@ -492,14 +492,42 @@ that §1 does not ask for. What remains is depth, not coverage.
 
 Three follow-ups the marks unit created rather than closed:
 
-- **A second vocabulary unit is now unblocked and is the obvious next content.**
-  The first one was capped at words avoiding dakuten; たべる, ありがとう, みず,
-  ともだち and the katakana loanwords are all readable now. The unblock is real
-  but currently theoretical — nothing uses it yet.
+- ~~**A second vocabulary unit is now unblocked and is the obvious next
+  content.**~~ **Done (T1.6, 2026-07-26): `vocab-everyday`, 220 words in 14
+  themed lessons.** The unblock is no longer theoretical — たべる, ともだち,
+  がくせい, みず and the loanwords are all in it. See item 29 for the one quality
+  issue the size of the unit exposed.
 - **§7's chat still uses a static word list** (item 23). Vocabulary exists in the
   KnowledgeGraph as `vocab` nodes, so the retrieval that item describes is
   finally possible; it was not before.
-- **っ and ー are still untaught** — see item 25.
+- ~~**っ and ー are still untaught**~~ — resolved by T1.1, see item 25.
+
+### 29. A big unit makes multiple-choice easier, not harder (2026-07-26)
+
+Found while verifying T1.6, and it is a *consequence* of that unit rather than a
+pre-existing bug.
+
+Distractors come from the whole **unit** pool (`findUnitVocabPool`), not the
+lesson. That was fine at 58 words across 6 themed lessons and is visibly wrong at
+220 across 14: the live quiz for チーズ came back offering "two", "an answer" and
+"library". Every distractor is from a different theme, so a learner eliminates
+three options on category alone without knowing the word. A themed lesson in a
+themed unit is exactly where this bites.
+
+**Cost of getting it wrong:** low but real — it inflates the correct-answer rate
+without teaching anything, which quietly corrupts the SRS signal too, since
+`/complete` seeds cards for items the learner may only have guessed.
+
+**The fix, not applied:** prefer distractors from the same lesson and fall back to
+the unit when a lesson cannot supply three. ~10 lines in `distractorPool`'s
+caller. Not done here because it changes generated questions for **every** unit
+including the seeded, deterministic ones — every existing `(lesson, user,
+attempt)` triple would produce a different quiz — and that is a behaviour change
+to exercise generation, not part of authoring a content unit. Worth doing
+deliberately, with the option-count floor of item 10c in mind: a 15-word lesson
+can supply 3 same-theme distractors comfortably, but the 6-word marks-words
+lessons cannot, which is exactly why the fallback is required rather than
+optional.
 
 ### 28. RESOLVED (T1.2, 2026-07-26) — provider 503 retried with bounded backoff
 

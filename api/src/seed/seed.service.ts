@@ -18,6 +18,11 @@ import {
 } from './japanese/marks-words';
 import type { VocabLessonSeed } from './japanese/vocab';
 import { VOCAB_GROUPS, VOCAB_LESSONS, VOCAB_UNIT } from './japanese/vocab';
+import {
+  VOCAB_EVERYDAY_GROUPS,
+  VOCAB_EVERYDAY_LESSONS,
+  VOCAB_EVERYDAY_UNIT,
+} from './japanese/vocab-everyday';
 
 /** The base gojūon, both scripts. Everything else assumes these. */
 const BASE_PACKS: KanaPack[] = [HIRAGANA_PACK, KATAKANA_PACK];
@@ -62,6 +67,18 @@ const KATAKANA_MARKS_EXTRA_PACK: VocabPack = {
 };
 
 /**
+ * The second words unit — 220 words, and the first one that is not constrained
+ * by what the kana units have got to yet. It comes last of the vocab packs
+ * because it assumes every mark: たべる needs べ, ぎゅうにゅう needs both a
+ * dakuten and two yōon, きっぷ needs っ.
+ */
+const VOCAB_EVERYDAY_PACK: VocabPack = {
+  unit: VOCAB_EVERYDAY_UNIT,
+  groups: VOCAB_EVERYDAY_GROUPS,
+  lessons: VOCAB_EVERYDAY_LESSONS,
+};
+
+/**
  * A pack-with-exercise-type union. `seed.run` walks this in order, so the
  * chain below *is* the curriculum order. Pack instances are concrete rather
  * than polymorphic because the seed only needs to call one of three
@@ -83,7 +100,8 @@ interface OrderedPack {
  *
  *   hiragana-basics → katakana-basics → vocab-basics →
  *   hiragana-marks → katakana-marks →
- *   hiragana-marks-extra → katakana-marks-extra → grammar
+ *   hiragana-marks-extra → katakana-marks-extra →
+ *   vocab-everyday → grammar
  */
 const ORDERED_PACKS: OrderedPack[] = [
   ...BASE_PACKS.map((p) => ({ kind: 'kana' as const, kana: p })),
@@ -91,6 +109,7 @@ const ORDERED_PACKS: OrderedPack[] = [
   ...MARKS_PACKS.map((p) => ({ kind: 'kana' as const, kana: p })),
   { kind: 'vocab', vocab: HIRAGANA_MARKS_EXTRA_PACK },
   { kind: 'vocab', vocab: KATAKANA_MARKS_EXTRA_PACK },
+  { kind: 'vocab', vocab: VOCAB_EVERYDAY_PACK },
 ];
 
 export interface SeedSummary {
@@ -103,9 +122,10 @@ export interface SeedSummary {
 }
 
 /**
- * §14 step 2, grown into the whole Phase 0 curriculum: eight units as
+ * §14 step 2, grown into the whole Phase 0 curriculum: nine units as
  * Lessons plus KnowledgeNodes — both kana tables, the marks, the first words,
- * the marks-words, and the grammar that turns them into sentences.
+ * the marks-words, a second and much larger words unit, and the grammar that
+ * turns them into sentences.
  *
  * Every write is an upsert on a natural key, so `npm run seed` is idempotent —
  * running it twice leaves the same documents with the same _ids, which matters

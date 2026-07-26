@@ -27,7 +27,7 @@ cd api
 docker compose up -d          # mongo + redis, localhost-only ports
 cp .env.example .env          # then fill in the two JWT secrets
 npm install
-npm run seed                  # loads the Japanese content pack (6 units)
+npm run seed                  # loads the Japanese content pack (9 units)
 npm run start:dev             # api on :3000
 ```
 
@@ -494,7 +494,7 @@ sentence slightly wrong is the ordinary case in practice, not an error.
 
 ## Seeded content
 
-`npm run seed` loads **six units — 208 kana, 58 words, 12 grammar points, 32
+`npm run seed` loads **nine units — 208 kana, 290 words, 12 grammar points, 48
 lessons** — each item with a `KnowledgeNode`, chained via `prerequisiteLessonIds`.
 
 It starts with `hiragana-basics` and `katakana-basics`: 92 characters, both base
@@ -571,6 +571,24 @@ typed romaji. がっこう (gakkou), きって (kitte), コーヒー (koohii),
 reading; the grader exact-matches so a missed doubled consonant or vowel is
 the wrong answer rather than a near-miss.
 
+**Then `vocab-everyday` — 220 words in 14 themed lessons (T1.6, 2026-07-26),
+the largest unit in the pack.** It is the unit the marks made possible: by here
+a learner knows **151 distinct characters**, effectively all of kana, so the
+words the first unit had to leave out arrive at last — たべる, ともだち, がくせい,
+みず, おかあさん, ぎゅうにゅう, and loanwords from パン to パソコン. Fifteen words
+a lesson rather than ten, since a learner reaching lesson 35 is no longer meeting
+their first Japanese word; the verb and adjective lessons carry twenty, because
+those are the two groups where having more to compare is what makes each stick.
+
+Two limits remain, both enforced by `vocab-everyday.spec.ts` rather than trusted:
+**the small vowels ぁぃぅぇぉ / ァィゥェォ and ヴ are never taught by any unit**, so
+フォーク and パーティー are still unspellable and look deceptively like beginner
+words; and **っ before ち is avoided**, because the transliterator's doubling rule
+yields `ccha` where Hepburn writes まっちゃ as `matcha` — one exception not worth
+carrying. The spec also refuses any lemma an earlier unit owns, which is what
+keeps はな "nose" from silently overwriting はな "flower": `lemma` is the key the
+seed upserts on.
+
 Last comes `grammar-basics`: **12 points in 4 lessons** — です/は/か, polite verb
 endings, the particles that go with verbs, and noun-linking. Quizzed by filling
 a gap: 「わたし＿せんせいです。」with は / を / に / の to choose from, which tests
@@ -586,9 +604,10 @@ Japanese does not space its words, and short sentences are what make that
 survivable.
 
 The whole curriculum is one chain: hiragana → katakana → first words → hiragana
-marks → katakana marks → hiragana marks-extra → katakana marks-extra → grammar,
-**34 lessons across 8 units**, each unit's first lesson gated on the previous
-unit's last. Grammar is last because it is the one part that genuinely depends
-on all the rest: its sentences are built from the vocabulary and use the marks.
+marks → katakana marks → hiragana marks-extra → katakana marks-extra →
+everyday words → grammar, **48 lessons across 9 units**, each unit's first lesson
+gated on the previous unit's last. Grammar is last because it is the one part
+that genuinely depends on all the rest: its sentences are built from the
+vocabulary and use the marks.
 Every write is an upsert on a natural key, so re-running preserves `_id`s — which
 matters because SRS cards will reference them.
