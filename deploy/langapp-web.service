@@ -1,0 +1,32 @@
+# Template systemd user unit for the langapp web (Vite-built static bundle).
+#
+# Mirror of langapp-api.service: place at ~/.config/systemd/user/langapp-web.service,
+# then `systemctl --user daemon-reload && systemctl --user enable --now langapp-web.service`.
+#
+# vite preview serves the contents of web/dist/. The build is produced by the
+# deploy script (`~/deploy/langapp-deploy.sh`) on every git pull. There is no
+# .env to load here — VITE_API_URL is baked into the bundle at *build* time by
+# `npm run build`, which the deploy script runs after `npm ci`. Forgetting this
+# is the one thing that ships a web build pointing at the wrong API.
+#
+# Port 7703 is hard-coded so it does not collide with the API on 7702. The
+# Funnel mounts /learn -> 127.0.0.1:7703 on the same hostname the API is on;
+# the two services share origin, so CORS_ORIGINS does not need a new entry.
+#
+# Restart=on-failure, not always — a build error should not bounce the service
+# forever; the deploy script's `test -s dist/index.html` is the real gate, and
+# if a broken dist sneaks through, the service exits and you notice.
+
+[Unit]
+Description=langapp web (Vite preview, built static bundle)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/aakash/deploy/langapp/web
+ExecStart=/usr/bin/npx vite preview --port 7703 --host 127.0.0.1
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

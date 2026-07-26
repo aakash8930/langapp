@@ -235,23 +235,29 @@ moving timezone backwards across the date line resets the streak.
 
 Live on the laptop, public via Tailscale Funnel:
 
-**https://aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net/langapp**
+**API:** https://aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net/langapp
+**Web:** https://aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net/learn
 
 Same pull-based pattern as the other projects here — see `~/deploy/README.md`.
 A systemd user timer polls `origin/main` every minute; on a new commit it resets
-the deploy clone at `~/deploy/langapp`, rebuilds, and restarts the service.
+the deploy clone at `~/deploy/langapp`, rebuilds, and restarts the services.
 
 | Piece | Where |
 |---|---|
 | Deploy clone | `~/deploy/langapp` (read-only deploy key) |
-| Deploy script | `~/deploy/langapp-deploy.sh` (builds in `api/`) |
-| Service | `langapp-api.service` → `node dist/main` from `~/deploy/langapp/api` on **:7702** |
+| Deploy script | `~/deploy/langapp-deploy.sh` (builds `api/` and `web/`) |
+| API service | `langapp-api.service` → `node dist/main` from `~/deploy/langapp/api` on **:7702** |
+| Web service | `langapp-web.service` → `vite preview` from `~/deploy/langapp/web` on **:7703** |
 | Timer | `langapp-deploy.timer`, every 60s |
-| Funnel mount | path `/langapp` → `127.0.0.1:7702` |
+| Funnel mounts | `/langapp` → `127.0.0.1:7702`, `/learn` → `127.0.0.1:7703` |
+
+See `deploy/` for the web service unit template and install steps.
 
 ```bash
-systemctl --user status langapp-api          # is it up
-journalctl --user -u langapp-api -f          # app logs
+systemctl --user status langapp-api          # is the api up
+systemctl --user status langapp-web          # is the web up
+journalctl --user -u langapp-api -f          # api logs
+journalctl --user -u langapp-web -f          # web logs
 journalctl --user -u langapp-deploy -f       # deploy logs
 ```
 
