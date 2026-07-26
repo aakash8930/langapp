@@ -106,16 +106,44 @@ export default function Friends() {
         />
       }
     >
-      <Text
+      <View
         style={{
-          fontFamily: theme.families.ui,
-          fontSize: theme.fontSize.heading,
-          lineHeight: theme.lineHeight.heading,
-          color: theme.colors.ink,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: theme.spacing.md,
         }}
       >
-        Friends
-      </Text>
+        <Text
+          style={{
+            fontFamily: theme.families.ui,
+            fontSize: theme.fontSize.heading,
+            lineHeight: theme.lineHeight.heading,
+            color: theme.colors.ink,
+          }}
+        >
+          Friends
+        </Text>
+        {/* The league lives behind the friends screen rather than on home: it is
+            the same "other people" idea, and home already carries four cards. */}
+        <Pressable
+          onPress={() => router.push('/leaderboard')}
+          accessibilityRole="button"
+          accessibilityLabel="This week's league table"
+          hitSlop={theme.spacing.md}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
+          <Text
+            style={{
+              fontFamily: theme.families.ui,
+              fontSize: theme.fontSize.body,
+              color: theme.colors.ai,
+            }}
+          >
+            League
+          </Text>
+        </Pressable>
+      </View>
 
       {requests.data && requests.data.length > 0 ? (
         <View style={{ gap: theme.spacing.sm }}>

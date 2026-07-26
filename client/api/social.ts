@@ -103,3 +103,34 @@ export function reportUser(input: {
 }): Promise<{ id: string }> {
   return api.post<{ id: string }>('/social/reports', input);
 }
+
+/** Mirrors `Leaderboard` in api/src/social/league.service.ts. */
+export type LeaderboardRow = {
+  rank: number;
+  userId: string;
+  displayName: string;
+  weeklyXp: number;
+  isYou: boolean;
+};
+
+export type Leaderboard = {
+  /** ISO week, e.g. '2026-W31'. */
+  week: string;
+  /** When this week closes, so a countdown can be shown. */
+  endsAt: string;
+  tier: number;
+  tierName: string;
+  tierCount: number;
+  rows: LeaderboardRow[];
+  yourRank: number | null;
+  /**
+   * Zero when the tier is too small to settle — the client should say so rather
+   * than promising promotions that will not happen.
+   */
+  promotionCount: number;
+  relegationCount: number;
+};
+
+export function fetchLeaderboard(): Promise<Leaderboard> {
+  return api.get<Leaderboard>('/social/leaderboard');
+}
