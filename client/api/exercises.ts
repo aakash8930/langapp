@@ -14,7 +14,7 @@ export type ExerciseOption = {
  * wrap; a `wordReading` prompt is a word and behaves like `vocab` for sizing.
  * The server says which rather than the client guessing from string length.
  */
-export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading';
+export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
 
 export type MultipleChoiceQuestion = {
   exerciseId: string;

@@ -250,7 +250,7 @@ export function fetchProgress(): Promise<Progress> {
 }
 
 export type ExerciseOption = { id: string; value: string };
-export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading';
+export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
 
 export type MultipleChoiceQuestion = {
   exerciseId: string;

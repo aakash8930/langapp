@@ -94,6 +94,31 @@ export class ExerciseService {
       })),
   };
 
+  /**
+   * Kanji → English meaning, and deliberately *not* kanji → reading.
+   *
+   * A kanji has several readings and which one applies depends on the word it
+   * sits in: 山 is やま alone and サン in 火山, and both are correct. "Which
+   * reading is this kanji?" therefore has two right answers, the same defect the
+   * grammar unit hit with 「わたしはいき＿。」 (see OPEN-ITEMS #26). The meaning is
+   * the one thing a kanji has independently of context, so it is the only
+   * question this shape can ask honestly.
+   *
+   * Readings are still taught — `GET /lessons/:id` returns `on` and `kun` on the
+   * resolved item, so the lesson screen shows them. They are study material
+   * here, not the answer key.
+   */
+  private readonly KANJI_STYLE: QuestionStyle = {
+    promptKind: 'kanji',
+    question: () => 'What does this kanji mean?',
+    pool: async (unit) =>
+      (await this.contentService.findUnitKanjiPool(unit)).map((doc) => ({
+        id: doc._id.toString(),
+        prompt: doc.char,
+        answer: doc.meanings.join(', '),
+      })),
+  };
+
   private readonly GRAMMAR_STYLE: QuestionStyle = {
     promptKind: 'grammar',
     question: (choice) =>
@@ -360,6 +385,7 @@ export class ExerciseService {
     const kana = lesson.items.filter(isKana).map(kanaChoice);
     const vocab = lesson.items.filter(isVocab).map(vocabChoice);
     const grammar = lesson.items.filter(isGrammar).flatMap(toGrammarChoice);
+    const kanji = lesson.items.filter(isKanji).flatMap(toKanjiChoice);
 
     const [answerable, style] =
       kana.length > 0
@@ -368,11 +394,13 @@ export class ExerciseService {
           ? ([vocab, this.VOCAB_STYLE] as const)
           : grammar.length > 0
             ? ([grammar, this.GRAMMAR_STYLE] as const)
-            : ([[], null] as const);
+            : kanji.length > 0
+              ? ([kanji, this.KANJI_STYLE] as const)
+              : ([[], null] as const);
 
     if (!style) {
       throw new UnprocessableEntityException(
-        `Lesson has no kana, vocabulary or grammar items with examples, and ` +
+        `Lesson has no kana, vocabulary, grammar or kanji items to ask about, and ` +
           `${lesson.exerciseTypes.join(', ') || 'this lesson'} asks about those`,
       );
     }
@@ -508,6 +536,27 @@ function vocabChoice(item: Extract<ResolvedItem, { kind: 'vocab' }>): Choice {
 
 function isGrammar(item: ResolvedItem): item is Extract<ResolvedItem, { kind: 'grammar' }> {
   return item.kind === 'grammar';
+}
+
+function isKanji(item: ResolvedItem): item is Extract<ResolvedItem, { kind: 'kanji' }> {
+  return item.kind === 'kanji';
+}
+
+/**
+ * The glyph is the prompt and its meanings are the answer.
+ *
+ * Returns an array rather than a Choice so a kanji with no meanings drops out
+ * instead of producing an option with an empty label — the same shape
+ * `toGrammarChoice` uses for a point with no examples. `meanings` is
+ * `default: []` on the schema, so an entry seeded without them is possible and
+ * would otherwise render a blank option.
+ */
+function toKanjiChoice(item: Extract<ResolvedItem, { kind: 'kanji' }>): Choice[] {
+  if (item.meanings.length === 0) {
+    return [];
+  }
+
+  return [{ id: item.id, prompt: item.char, answer: item.meanings.join(', ') }];
 }
 
 /**

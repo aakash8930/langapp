@@ -16,8 +16,13 @@ export interface ExerciseOption {
  * and types romaji — the prompt is the same shape as `vocab`, and the same
  * sizing rules apply. Without this the client would have to guess from string
  * length.
+ *
+ * `kanji` is one glyph like `kana`, but deliberately its own kind rather than
+ * reusing it: a kanji is denser than a kana at the same point size — 曜 has 18
+ * strokes where the busiest kana has 4 — so a client that renders it in a kana
+ * cell renders an unreadable smudge. Same sizing *rule*, different size.
  */
-export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading';
+export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
 
 export interface MultipleChoiceQuestion {
   exerciseId: string;

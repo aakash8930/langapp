@@ -12,6 +12,15 @@ import { useTheme } from '@/theme';
  * three or four characters and would either overflow that square or be shrunk
  * until the point of the cell is lost, so it is set large in plain type
  * instead. Same decision the review card makes, for the same reason.
+ *
+ * A kanji is one glyph too, but it does **not** get a genkouyoushi cell: the cell
+ * is ruled with the quadrant guides a learner uses to place kana, and a kanji
+ * sitting inside them reads as a character being written rather than one being
+ * recognised — which is the wrong question here, since this unit asks for meaning.
+ * It is set at `displayKanji` (56) rather than `displayKana` (72) because a kanji
+ * packs far more detail into the same box; 顔 has 18 strokes where the busiest
+ * kana has 4, so the same point size that flatters a kana turns a kanji into a
+ * smudge.
  */
 export function QuestionPrompt({ prompt, kind }: { prompt: string; kind: PromptKind }) {
   const theme = useTheme();
@@ -19,6 +28,24 @@ export function QuestionPrompt({ prompt, kind }: { prompt: string; kind: PromptK
   // One cell, or two for a yōon like きゃ.
   if (kind === 'kana') {
     return <KanaCells kana={prompt} />;
+  }
+
+  if (kind === 'kanji') {
+    return (
+      <Text
+        style={{
+          fontFamily: theme.families.jaMedium,
+          fontSize: theme.fontSize.displayKanji,
+          // No lineHeight token goes this large, and a display glyph does not
+          // need one: it is a single line, and letting it size itself avoids
+          // clipping the ascenders on a dense character.
+          color: theme.colors.ink,
+          textAlign: 'center',
+        }}
+      >
+        {prompt}
+      </Text>
+    );
   }
 
   return (

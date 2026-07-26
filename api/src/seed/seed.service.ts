@@ -6,6 +6,7 @@ import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.servic
 import { GRAMMAR_GROUPS, GRAMMAR_LESSONS, GRAMMAR_UNIT } from './japanese/grammar';
 import { HIRAGANA_PACK } from './japanese/hiragana';
 import { HIRAGANA_MARKS_PACK } from './japanese/hiragana-marks';
+import { KANJI_GROUPS, KANJI_LESSONS, KANJI_UNIT } from './japanese/kanji';
 import type { KanaPack } from './japanese/kana-pack';
 import { KATAKANA_PACK } from './japanese/katakana';
 import { KATAKANA_MARKS_PACK } from './japanese/katakana-marks';
@@ -116,16 +117,17 @@ export interface SeedSummary {
   kanaItems: number;
   vocabItems: number;
   grammarPoints: number;
+  kanjiEntries: number;
   knowledgeNodes: number;
   knowledgeEdges: number;
   lessons: number;
 }
 
 /**
- * §14 step 2, grown into the whole Phase 0 curriculum: nine units as
+ * §14 step 2, grown into the whole Phase 0 curriculum: ten units as
  * Lessons plus KnowledgeNodes — both kana tables, the marks, the first words,
- * the marks-words, a second and much larger words unit, and the grammar that
- * turns them into sentences.
+ * the marks-words, a second and much larger words unit, the grammar that
+ * turns them into sentences, and finally the kanji that rewrite the lot.
  *
  * Every write is an upsert on a natural key, so `npm run seed` is idempotent —
  * running it twice leaves the same documents with the same _ids, which matters
@@ -145,10 +147,14 @@ export class SeedService {
   ) {}
 
   /**
-   * Walks the ordered pack list, seeding each onto the chain. Grammar is
-   * last: its example sentences are built from the vocabulary above and use
-   * marks the units before it teach, so it is the one part of the curriculum
-   * that genuinely depends on all the rest.
+   * Walks the ordered pack list, seeding each onto the chain, then grammar and
+   * finally kanji.
+   *
+   * Grammar comes after all the words because its example sentences are built
+   * from them. Kanji comes after *everything*: the unit is deliberately a
+   * re-reading of words the learner already knows in kana, so it depends on the
+   * whole vocabulary above it (see `kanji.ts`, and `kanji.spec.ts` enforces the
+   * dependency word by word).
    */
   async run(): Promise<SeedSummary> {
     let previousLessonId: Types.ObjectId | null = null;
@@ -168,12 +174,14 @@ export class SeedService {
       }
     }
 
-    await this.seedGrammar(previousLessonId);
+    previousLessonId = await this.seedGrammar(previousLessonId);
+    await this.seedKanji(previousLessonId);
 
     const summary: SeedSummary = {
       kanaItems: await this.contentService.countKana(),
       vocabItems: await this.contentService.countVocab(),
       grammarPoints: await this.contentService.countGrammar(),
+      kanjiEntries: await this.contentService.countKanji(),
       knowledgeNodes: await this.knowledgeGraph.countNodes(),
       knowledgeEdges: await this.knowledgeGraph.countEdges(),
       lessons: await this.contentService.countLessons(),
@@ -181,7 +189,8 @@ export class SeedService {
 
     this.logger.log(
       `Seeded ${summary.kanaItems} kana, ${summary.vocabItems} words, ` +
-        `${summary.grammarPoints} grammar points, ${summary.knowledgeNodes} nodes, ` +
+        `${summary.grammarPoints} grammar points, ${summary.kanjiEntries} kanji, ` +
+        `${summary.knowledgeNodes} nodes, ` +
         `${summary.knowledgeEdges} edges, ${summary.lessons} lessons`,
     );
 
@@ -336,7 +345,9 @@ export class SeedService {
    * No prerequisite edges between points, for the same reason vocabulary has
    * none — は does not require です, they are simply taught together.
    */
-  private async seedGrammar(carriedLessonId: Types.ObjectId | null): Promise<void> {
+  private async seedGrammar(
+    carriedLessonId: Types.ObjectId | null,
+  ): Promise<Types.ObjectId | null> {
     const idsByGroup = new Map<string, Types.ObjectId[]>();
 
     for (const [group, points] of Object.entries(GRAMMAR_GROUPS)) {
@@ -381,6 +392,73 @@ export class SeedService {
     }
 
     this.logger.log(`Seeded ${GRAMMAR_UNIT}: ${countGrammarPoints()} points`);
+
+    return previousLessonId;
+  }
+
+  /**
+   * The kanji unit, chained onto the end of everything.
+   *
+   * No prerequisite edges between characters, for the same reason vocabulary has
+   * none: 山 does not require 海, they are simply taught in the same lesson.
+   * That is also the mistake OPEN-ITEMS #9 records the kana units making — and
+   * with 104 characters, linking them pairwise would add over a thousand edges
+   * asserting relationships that do not exist.
+   *
+   * What *would* be true here is an edge from each kanji to the words it writes
+   * (山 → やま), which is a genuine dependency rather than lesson packaging. Not
+   * built: `upsertEdge` takes a relation type and there is no `writes` relation
+   * in the graph yet, and inventing one is a knowledge-graph decision rather than
+   * a seeding one.
+   */
+  private async seedKanji(carriedLessonId: Types.ObjectId | null): Promise<void> {
+    const idsByGroup = new Map<string, Types.ObjectId[]>();
+
+    for (const [group, entries] of Object.entries(KANJI_GROUPS)) {
+      const ids: Types.ObjectId[] = [];
+
+      for (const entry of entries) {
+        const kanji = await this.contentService.upsertKanji({
+          char: entry.char,
+          on: entry.on,
+          kun: entry.kun,
+          meanings: entry.meanings,
+          strokes: entry.strokes,
+          radical: entry.radical,
+          jlpt: 'N5',
+        });
+
+        const node = await this.knowledgeGraph.upsertNode({
+          kind: 'kanji',
+          refId: kanji._id,
+          label: `${entry.char} (${entry.meanings.join(', ')})`,
+        });
+
+        await this.contentService.setKanjiConceptId(kanji._id, node._id);
+        ids.push(kanji._id);
+      }
+
+      idsByGroup.set(group, ids);
+    }
+
+    let previousLessonId = carriedLessonId;
+
+    for (const seed of KANJI_LESSONS) {
+      const kanjiIds = seed.groups.flatMap((group) => idsByGroup.get(group) ?? []);
+
+      const lesson = await this.contentService.upsertLesson({
+        unit: KANJI_UNIT,
+        order: seed.order,
+        title: seed.title,
+        itemRefs: kanjiIds.map((id) => ({ kind: 'kanji', id })),
+        exerciseTypes: seed.exerciseTypes,
+        prerequisiteLessonIds: previousLessonId ? [previousLessonId] : [],
+      });
+
+      previousLessonId = lesson._id;
+    }
+
+    this.logger.log(`Seeded ${KANJI_UNIT}: ${countKanji()} kanji`);
   }
 
   /**
@@ -422,6 +500,10 @@ function countCharacters(pack: KanaPack): number {
 
 function countGrammarPoints(): number {
   return Object.values(GRAMMAR_GROUPS).reduce((total, group) => total + group.length, 0);
+}
+
+function countKanji(): number {
+  return Object.values(KANJI_GROUPS).reduce((total, group) => total + group.length, 0);
 }
 
 function countWordsIn(pack: VocabPack): number {

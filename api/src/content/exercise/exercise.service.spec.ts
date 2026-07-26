@@ -668,6 +668,114 @@ describe('ExerciseService.generate — grammar lessons', () => {
 });
 
 /**
+ * The kanji unit (T1.7). Kanji → meaning, never kanji → reading: 山 is both やま
+ * and サン, so a reading question would have two right answers.
+ */
+const KANJI = [
+  { id: 'k1', char: '山', meanings: ['mountain'] },
+  { id: 'k2', char: '海', meanings: ['sea'] },
+  { id: 'k3', char: '空', meanings: ['sky', 'empty'] },
+  { id: 'k4', char: '花', meanings: ['flower'] },
+  { id: 'k5', char: '雨', meanings: ['rain'] },
+];
+
+function kanjiItem(k: (typeof KANJI)[number]) {
+  return {
+    kind: 'kanji' as const,
+    id: k.id,
+    char: k.char,
+    on: ['サン'],
+    kun: ['やま'],
+    meanings: k.meanings,
+    strokes: 3,
+  };
+}
+
+function kanjiService(items = KANJI.map(kanjiItem)): ExerciseService {
+  const contentService = {
+    findLessonById: () =>
+      Promise.resolve(
+        lessonDetail({ unit: 'kanji-basics', title: 'Kanji', itemCount: items.length, items }),
+      ),
+    findUnitKanjiPool: () =>
+      Promise.resolve(
+        KANJI.map((k) => ({ _id: k.id, char: k.char, meanings: k.meanings }) as unknown as never),
+      ),
+  };
+  const exerciseAttempts = {
+    recordAttempt: jest.fn(() => Promise.resolve(true)),
+  } as unknown as ExerciseAttemptsService;
+
+  return new ExerciseService(contentService as unknown as ContentService, exerciseAttempts);
+}
+
+describe('ExerciseService.generate — kanji lessons (T1.7)', () => {
+  it('asks what the kanji means, offering meanings of other kanji in the unit', async () => {
+    const set = await kanjiService().generate(LESSON_ID, USER_A, 0);
+
+    expect(set.questionCount).toBe(KANJI.length);
+
+    const allMeanings = KANJI.map((k) => k.meanings.join(', '));
+    for (const raw of set.questions) {
+      const question = asMultipleChoice(raw);
+      expect(question.promptKind).toBe('kanji');
+      expect(question.question).toBe('What does this kanji mean?');
+      // The prompt is a single glyph — that is what promptKind 'kanji' promises.
+      expect([...question.prompt]).toHaveLength(1);
+      for (const option of question.options) {
+        expect(allMeanings).toContain(option.value);
+      }
+    }
+  });
+
+  it('never puts a reading in the options, because a reading question has two answers', async () => {
+    const set = await kanjiService().generate(LESSON_ID, USER_A, 0);
+
+    for (const raw of set.questions) {
+      for (const option of asMultipleChoice(raw).options) {
+        // No kana anywhere in an option: the answer is English meaning only.
+        expect(option.value).not.toMatch(/[ぁ-んァ-ヴ]/);
+      }
+    }
+  });
+
+  it('joins multiple meanings into one option rather than offering them separately', async () => {
+    const set = await kanjiService().generate(LESSON_ID, USER_A, 0);
+    const sky = set.questions.find((q) => q.prompt === '空');
+
+    const option = asMultipleChoice(sky!).options.find((o) => o.value === 'sky, empty');
+    expect(option).toBeDefined();
+  });
+
+  it('grades the meaning correctly', async () => {
+    const service = kanjiService();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = asMultipleChoice(set.questions[0]);
+    const expected = KANJI.find((k) => k.char === question.prompt)!;
+
+    const correct = question.options.find((o) => o.value === expected.meanings.join(', '))!;
+    const result = await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: correct.id,
+    });
+
+    expect(result.correct).toBe(true);
+    expect(result.correctValue).toBe(expected.meanings.join(', '));
+  });
+
+  it('skips a kanji with no meanings rather than offering a blank option', async () => {
+    const meaningless = { ...kanjiItem(KANJI[0]), meanings: [] };
+    const set = await kanjiService([kanjiItem(KANJI[1]), meaningless]).generate(
+      LESSON_ID,
+      USER_A,
+      0,
+    );
+
+    expect(set.questionCount).toBe(1);
+    expect(set.questions[0].prompt).toBe('海');
+  });
+});
+
+/**
  * The marks-words unit is the only place wordReading lives today. Each item
  * is a vocabulary with a romaji; the prompt is the lemma, the answer is the
  * romaji the learner types.

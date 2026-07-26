@@ -118,6 +118,26 @@ export class ContentService {
   }
 
   /**
+   * Every kanji taught in the unit. The distractors are other kanji from the
+   * same unit, which is the set worth confusing: 日 and 目 differ by one stroke
+   * and mean "sun" and "eye", so a meaning question is only a real test when the
+   * wrong answers are neighbours rather than words from a different lesson.
+   */
+  async findUnitKanjiPool(unit: string): Promise<KanjiEntryDocument[]> {
+    const lessons = await this.lessonModel.find({ lang: 'ja', unit }).exec();
+
+    const kanjiIds = lessons.flatMap((lesson) =>
+      lesson.itemRefs.filter((ref) => ref.kind === 'kanji').map((ref) => ref.id),
+    );
+
+    if (kanjiIds.length === 0) {
+      return [];
+    }
+
+    return this.kanjiModel.find({ _id: { $in: kanjiIds } }).exec();
+  }
+
+  /**
    * Turns polymorphic itemRefs into full documents.
    *
    * One query per *kind* rather than one per item, and the result is re-sorted
@@ -259,6 +279,38 @@ export class ContentService {
     await this.grammarModel.updateOne({ _id: grammarId }, { $set: { conceptId } }).exec();
   }
 
+  async upsertKanji(input: {
+    char: string;
+    on: string[];
+    kun: string[];
+    meanings: string[];
+    strokes: number;
+    radical: string;
+    jlpt: JlptLevel;
+  }): Promise<KanjiEntryDocument> {
+    return this.kanjiModel
+      .findOneAndUpdate(
+        // `char` is the natural key — the schema's unique index is on it.
+        { lang: 'ja', char: input.char },
+        {
+          $set: {
+            on: input.on,
+            kun: input.kun,
+            meanings: input.meanings,
+            strokes: input.strokes,
+            radical: input.radical,
+            jlpt: input.jlpt,
+          },
+        },
+        { new: true, upsert: true },
+      )
+      .exec();
+  }
+
+  async setKanjiConceptId(kanjiId: Types.ObjectId, conceptId: Types.ObjectId): Promise<void> {
+    await this.kanjiModel.updateOne({ _id: kanjiId }, { $set: { conceptId } }).exec();
+  }
+
   async upsertLesson(input: {
     unit: string;
     order: number;
@@ -293,6 +345,10 @@ export class ContentService {
 
   async countGrammar(): Promise<number> {
     return this.grammarModel.countDocuments().exec();
+  }
+
+  async countKanji(): Promise<number> {
+    return this.kanjiModel.countDocuments().exec();
   }
 
   async countLessons(): Promise<number> {

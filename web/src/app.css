@@ -659,6 +659,18 @@
 .quiz-prompt-grammar {
   font-size: var(--text-title);
 }
+/* A typed-reading prompt is a word, so it sizes like one. Without this rule the
+   class simply does not match and the prompt falls back to body size — which is
+   what T1.1 shipped, and it looked like a caption rather than the question. */
+.quiz-prompt-wordReading {
+  font-size: var(--text-heading);
+}
+/* A kanji is one glyph like a kana, but a much denser one: 顔 has 18 strokes
+   where the busiest kana has 4. At the kana size the strokes merge, so it steps
+   down rather than matching. */
+.quiz-prompt-kanji {
+  font-size: 64px;
+}
 .quiz-question {
   margin: 0;
   font-size: var(--text-small);
