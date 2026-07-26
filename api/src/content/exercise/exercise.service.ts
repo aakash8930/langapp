@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, UnprocessableEntityException, forwardRef } from '@nestjs/common';
 import { ContentService } from '../content.service';
 import {
   AnswerResult,
@@ -9,6 +9,7 @@ import {
   toPublicQuestion,
 } from '../dto/exercise-response.dto';
 import { LessonDetail, ResolvedItem } from '../dto/lesson-response.dto';
+import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
 import { mulberry32, seedFrom, shuffle } from './deterministic-random';
 
 const EXERCISE_TYPE = 'multipleChoice';
@@ -61,6 +62,8 @@ interface QuestionStyle {
  */
 @Injectable()
 export class ExerciseService {
+  private readonly logger = new Logger(ExerciseService.name);
+
   private readonly KANA_STYLE: QuestionStyle = {
     promptKind: 'kana',
     question: () => 'Which romaji matches this character?',
@@ -93,7 +96,16 @@ export class ExerciseService {
       ),
   };
 
-  constructor(private readonly contentService: ContentService) {}
+  constructor(
+    private readonly contentService: ContentService,
+    // Cross-module write. The schema is owned by `learning`; the write has to
+    // happen here because this is the only call site with the (userId,
+    // lessonId, attempt, exerciseId, correct) tuple. The service is the only
+    // thing we touch — never the model — which keeps the "module doesn't
+    // reach into another module's collections" rule intact.
+    @Inject(forwardRef(() => ExerciseAttemptsService))
+    private readonly exerciseAttempts: ExerciseAttemptsService,
+  ) {}
 
   async generate(lessonId: string, userId: string, attempt: number): Promise<ExerciseSet> {
     const { lesson, questions } = await this.buildSet(lessonId, userId, attempt);
@@ -131,9 +143,28 @@ export class ExerciseService {
       );
     }
 
+    const correct = selected.id === question.correctOptionId;
+
+    // Persist the attempt. Done after the correctness check so a duplicate-key
+    // race is impossible: the only failure mode is "row already exists" (same
+    // user re-answering the same question in the same attempt), and the
+    // service swallows it. We do not gate the answer response on the write
+    // succeeding — losing one attempt record is recoverable, denying the
+    // learner their answer is not.
+    await this.exerciseAttempts
+      .recordAttempt(userId, lessonId, attempt, question.exerciseId, correct)
+      .catch((err: unknown) => {
+        // Service already handles duplicate-key. Anything else is unexpected
+        // and worth a log; we still let the answer through.
+        this.logger.warn(
+          `exerciseAttempt record lost for user ${userId} lesson ${lessonId}: ` +
+            `${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+
     return {
       exerciseId: question.exerciseId,
-      correct: selected.id === question.correctOptionId,
+      correct,
       selectedOptionId: selected.id,
       selectedValue: selected.value,
       correctOptionId: question.correctOptionId,

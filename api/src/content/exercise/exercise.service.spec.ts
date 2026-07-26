@@ -3,6 +3,7 @@ import { ContentService } from '../content.service';
 import { LessonDetail } from '../dto/lesson-response.dto';
 import { KanaItemDocument } from '../schemas/kana-item.schema';
 import { VocabItemDocument } from '../schemas/vocab-item.schema';
+import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
 import { ExerciseService } from './exercise.service';
 
 const UNIT = 'hiragana-basics';
@@ -93,6 +94,20 @@ function makeService(
   pool = UNIT_POOL,
   vocabPool = VOCAB_UNIT_POOL,
 ): ExerciseService {
+  return makeServiceWithAttempts(lesson, pool, vocabPool).service;
+}
+
+/**
+ * Like `makeService`, but returns the `recordAttempt` mock too — for tests that
+ * need to assert on what was persisted (T1.4: the completion gate's data
+ * source). Default mock resolves to `true` so existing behaviour is preserved.
+ */
+function makeServiceWithAttempts(
+  lesson: LessonDetail = lessonDetail(),
+  pool = UNIT_POOL,
+  vocabPool = VOCAB_UNIT_POOL,
+  recordAttempt: jest.Mock = jest.fn(() => Promise.resolve(true)),
+): { service: ExerciseService; recordAttempt: jest.Mock } {
   const contentService = {
     findLessonById: () => Promise.resolve(lesson),
     findUnitKanaPool: () =>
@@ -106,8 +121,13 @@ function makeService(
         ),
       ),
   };
+  const exerciseAttempts = { recordAttempt } as unknown as ExerciseAttemptsService;
 
-  return new ExerciseService(contentService as unknown as ContentService);
+  const service = new ExerciseService(
+    contentService as unknown as ContentService,
+    exerciseAttempts,
+  );
+  return { service, recordAttempt };
 }
 
 describe('ExerciseService.generate', () => {
@@ -333,6 +353,78 @@ describe('ExerciseService.answer', () => {
   });
 });
 
+describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
+  it('writes one row per answered exercise, with the right correctness flag', async () => {
+    const { service, recordAttempt } = makeServiceWithAttempts();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = VOWELS.find((v) => v.kana === question.prompt)!.romaji;
+    const correctOption = question.options.find((o) => o.value === expected)!;
+
+    await service.answer(LESSON_ID, question.exerciseId, USER_A, correctOption.id);
+
+    expect(recordAttempt).toHaveBeenCalledTimes(1);
+    expect(recordAttempt).toHaveBeenCalledWith(
+      USER_A,
+      LESSON_ID,
+      0,
+      question.exerciseId,
+      true,
+    );
+  });
+
+  it('persists correct=false when the learner picks the wrong option', async () => {
+    const { service, recordAttempt } = makeServiceWithAttempts();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = VOWELS.find((v) => v.kana === question.prompt)!.romaji;
+    const wrongOption = question.options.find((o) => o.value !== expected)!;
+
+    await service.answer(LESSON_ID, question.exerciseId, USER_A, wrongOption.id);
+
+    expect(recordAttempt).toHaveBeenCalledWith(
+      USER_A,
+      LESSON_ID,
+      0,
+      question.exerciseId,
+      false,
+    );
+  });
+
+  it('does not gate the answer response on the persist succeeding', async () => {
+    // Losing one attempt record is recoverable — denying the learner the answer
+    // they just earned is not. The exception here is for non-duplicate-key
+    // failures (the service swallows those internally); this simulates one
+    // landing in the catch on `exercise.service.ts`.
+    const recordAttempt = jest.fn(() => Promise.reject(new Error('mongo down')));
+    const { service } = makeServiceWithAttempts(undefined, undefined, undefined, recordAttempt);
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+
+    await expect(
+      service.answer(LESSON_ID, question.exerciseId, USER_A, question.options[0].id),
+    ).resolves.toEqual(expect.objectContaining({ exerciseId: question.exerciseId }));
+  });
+
+  it('still writes the attempt for grammar lessons (cross-kind coverage)', async () => {
+    const { service, recordAttempt } = grammarServiceWithAttempts();
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+    const expected = POINTS.find((p) => p.sentence === question.prompt)!;
+    const correctOption = question.options.find((o) => o.value === expected.answer)!;
+
+    await service.answer(LESSON_ID, question.exerciseId, USER_A, correctOption.id);
+
+    expect(recordAttempt).toHaveBeenCalledWith(
+      USER_A,
+      LESSON_ID,
+      0,
+      question.exerciseId,
+      true,
+    );
+  });
+});
+
 /** A fingerprint of question order + option order, for comparing shuffles. */
 function orderOf(set: { questions: { prompt: string; options: { value: string }[] }[] }): string {
   return set.questions.map((q) => `${q.prompt}:${q.options.map((o) => o.value).join(',')}`).join('|');
@@ -415,7 +507,11 @@ function grammarItem(p: (typeof POINTS)[number]) {
   };
 }
 
-function grammarService(items = POINTS.map(grammarItem)) {
+function grammarService(items = POINTS.map(grammarItem)): ExerciseService {
+  return grammarServiceWithAttempts(items).service;
+}
+
+function grammarServiceWithAttempts(items = POINTS.map(grammarItem)) {
   const contentService = {
     findLessonById: () =>
       Promise.resolve(
@@ -432,8 +528,14 @@ function grammarService(items = POINTS.map(grammarItem)) {
         ),
       ),
   };
+  const recordAttempt = jest.fn(() => Promise.resolve(true));
+  const exerciseAttempts = { recordAttempt } as unknown as ExerciseAttemptsService;
 
-  return new ExerciseService(contentService as unknown as ContentService);
+  const service = new ExerciseService(
+    contentService as unknown as ContentService,
+    exerciseAttempts,
+  );
+  return { service, recordAttempt };
 }
 
 describe('ExerciseService.generate — grammar lessons', () => {

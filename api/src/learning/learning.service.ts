@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -7,6 +7,7 @@ import { ContentService } from '../content/content.service';
 import { ResolvedItem } from '../content/dto/lesson-response.dto';
 import { UserService } from '../user/user.service';
 import { CompleteLessonResponse } from './dto/complete-lesson-response.dto';
+import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { newCardFields } from './fsrs-card.mapper';
 import { LessonCompletion, LessonCompletionDocument } from './schemas/lesson-completion.schema';
 import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
@@ -40,6 +41,7 @@ export class LearningService {
     private readonly contentService: ContentService,
     private readonly userService: UserService,
     private readonly analyticsService: AnalyticsService,
+    private readonly exerciseAttempts: ExerciseAttemptsService,
     config: ConfigService,
   ) {
     this.xpPerPractice =
@@ -51,6 +53,15 @@ export class LearningService {
     // `items` excludes refs whose content is gone, so no card is created for
     // an item the learner could never actually review.
     const lesson = await this.contentService.findLessonById(lessonId);
+
+    // Two preconditions before any XP cards or completion rows are written.
+    // Both are 409 Conflict: the request is well-formed, but the user's state
+    // does not allow it. The client derives lesson lock state from
+    // `completedLessonIds` and disables access itself — these server checks
+    // are the defence for the API-spoof paths (curl, replay, future client
+    // that forgets the prerequisite check).
+    await this.assertPrerequisitesMet(userId, lesson.prerequisiteLessonIds);
+    await this.assertUserEngagedWithLesson(userId, lesson.id);
 
     const created = await this.seedCards(userId, lesson.items);
 
@@ -103,6 +114,53 @@ export class LearningService {
       firstCompletion,
       totalXp: user.gamification.xp,
     };
+  }
+
+  /**
+   * Gate #1: every prerequisite lesson id must be in this user's completed set.
+   *
+   * `prerequisiteLessonIds` is the order the lesson tree enforces; comparing
+   * against `findCompletedLessonIds()` is the natural test. The error message
+   * names the missing ids so the client can show them — that's the only
+   * structured signal available, since `api/CLAUDE.md` forbids a custom error
+   * framework and the response is a flat `{ statusCode, message, error }`.
+   *
+   * Empty prerequisite list short-circuits — no read, no throw — so the common
+   * case (early lessons) costs nothing.
+   */
+  private async assertPrerequisitesMet(
+    userId: string,
+    prerequisiteLessonIds: string[],
+  ): Promise<void> {
+    if (prerequisiteLessonIds.length === 0) return;
+
+    const completed = new Set(await this.findCompletedLessonIds(userId));
+    const missing = prerequisiteLessonIds.filter((id) => !completed.has(id));
+    if (missing.length === 0) return;
+
+    throw new ConflictException(
+      `Complete these lessons first: ${missing.join(', ')}`,
+    );
+  }
+
+  /**
+   * Gate #2: at least one exercise answered for this lesson, in any attempt.
+   *
+   * "Any answer" is the smallest useful gate — it stops the open-and-complete
+   * path without forcing the learner to 100% a lesson they're stuck on. The
+   * client reaches the "Finish lesson" button only after answering the last
+   * question, so honest users always satisfy this gate; the gate fires only
+   * for API-spoof paths (curl, replay, future clients that skip exercises).
+   *
+   * Index `{userId, lessonId}` makes the count an O(1) seek at Phase 0 volume.
+   */
+  private async assertUserEngagedWithLesson(userId: string, lessonId: string): Promise<void> {
+    const attempts = await this.exerciseAttempts.countAttemptsForLesson(userId, lessonId);
+    if (attempts === 0) {
+      throw new ConflictException(
+        'Answer at least one exercise before completing this lesson.',
+      );
+    }
   }
 
   /**

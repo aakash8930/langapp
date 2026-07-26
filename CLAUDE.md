@@ -195,6 +195,16 @@ from the answer endpoint.
 on every repeat. `firstCompletion` says which happened, so don't infer it from
 `cardsCreated`.
 
+**`/complete` has two preconditions (T1.4, 2026-07-26).** It returns **409 Conflict**
+unless (a) every id in the lesson's `prerequisiteLessonIds` is in the caller's
+`completedLessonIds`, **and** (b) the caller has answered at least one exercise
+for this lesson in any attempt. The error message names the missing prereq ids
+or says `"Answer at least one exercise before completing this lesson."`. This
+is server hardening: honest clients (web, Expo) only call `/complete` after
+reaching the last question, so they always satisfy the gate. The gate exists
+to stop API-spoof paths — `curl`, replay, a future client that skips the
+exercise step — from harvesting XP for a lesson the user never engaged with.
+
 ### Reviews — bearer
 
 ```

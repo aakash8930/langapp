@@ -5,6 +5,7 @@ import { ContentService } from '../content/content.service';
 import { LessonDetail } from '../content/dto/lesson-response.dto';
 import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
+import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { LearningService, XP_PER_LESSON_COMPLETION } from './learning.service';
 import { LessonCompletionDocument } from './schemas/lesson-completion.schema';
 import { SrsCardDocument } from './schemas/srs-card.schema';
@@ -21,7 +22,7 @@ const ITEM_IDS = [
   '607f1f77bcf86cd7994390a3',
 ];
 
-function lessonDetail(): LessonDetail {
+function lessonDetail(prerequisiteLessonIds: string[] = []): LessonDetail {
   return {
     id: LESSON_ID,
     lang: 'ja',
@@ -30,7 +31,7 @@ function lessonDetail(): LessonDetail {
     title: 'Hiragana: the five vowels (あ row)',
     exerciseTypes: ['multipleChoice'],
     itemCount: ITEM_IDS.length,
-    prerequisiteLessonIds: [],
+    prerequisiteLessonIds,
     items: ITEM_IDS.map((id, i) => ({
       kind: 'kana' as const,
       id,
@@ -56,6 +57,7 @@ interface Harness {
   awardXp: jest.Mock;
   record: jest.Mock;
   completionUpdate: jest.Mock;
+  countAttempts: jest.Mock;
 }
 
 function build(
@@ -66,6 +68,10 @@ function build(
     timesCompleted?: number;
     /** Lesson ids the completions collection should report for this user. */
     completedLessonIds?: string[];
+    /** Prerequisite ids the lesson should declare. */
+    prerequisiteLessonIds?: string[];
+    /** How many exercise attempts the user has logged for this lesson. */
+    attemptCount?: number;
   } = {},
 ): Harness {
   const insertMany = jest.fn((docs: unknown[]) => Promise.resolve(docs));
@@ -109,16 +115,28 @@ function build(
   );
   const record = jest.fn(() => Promise.resolve());
 
+  // Gate #2 (at-least-one-answered) is wired here. By default every call
+  // returns 1 so the existing tests — which all rely on the gate passing —
+  // keep working without per-test plumbing. Tests for the failure mode set
+  // `attemptCount: 0` explicitly.
+  const countAttempts = jest.fn(() => Promise.resolve(opts.attemptCount ?? 1));
+  const exerciseAttempts = {
+    countAttemptsForLesson: countAttempts,
+  } as unknown as ExerciseAttemptsService;
+
   const service = new LearningService(
     srsCardModel as never,
     lessonCompletionModel as never,
-    { findLessonById: () => Promise.resolve(lessonDetail()) } as unknown as ContentService,
+    {
+      findLessonById: () => Promise.resolve(lessonDetail(opts.prerequisiteLessonIds)),
+    } as unknown as ContentService,
     { awardXp } as unknown as UserService,
     { record } as unknown as AnalyticsService,
+    exerciseAttempts,
     { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
   );
 
-  return { service, insertMany, awardXp, record, completionUpdate };
+  return { service, insertMany, awardXp, record, completionUpdate, countAttempts };
 }
 
 describe('LearningService.completeLesson', () => {
@@ -332,5 +350,74 @@ describe('LearningService.findCompletedLessonIds', () => {
     const { service } = build();
 
     await expect(service.findCompletedLessonIds(USER_ID)).resolves.toEqual([]);
+  });
+});
+
+describe('LearningService.completeLesson gate (T1.4)', () => {
+  it('returns 409 when any prerequisite is missing, naming the missing ids', async () => {
+    const { service, awardXp, insertMany, countAttempts } = build({
+      prerequisiteLessonIds: ['507f1f77bcf86cd7994390aa', '507f1f77bcf86cd7994390bb'],
+      // Both are absent from completedLessonIds.
+      completedLessonIds: [],
+    });
+
+    await expect(service.completeLesson(USER_ID, LESSON_ID)).rejects.toThrow(
+      /Complete these lessons first: .*507f1f77bcf86cd7994390aa.*507f1f77bcf86cd7994390bb/,
+    );
+
+    // No XP, no cards, no attempt-count read for the second gate.
+    expect(awardXp).not.toHaveBeenCalled();
+    expect(insertMany).not.toHaveBeenCalled();
+    expect(countAttempts).not.toHaveBeenCalled();
+  });
+
+  it('passes the prerequisite gate when every prerequisite is completed', async () => {
+    const prereqA = '507f1f77bcf86cd7994390aa';
+    const prereqB = '507f1f77bcf86cd7994390bb';
+    const { service, awardXp } = build({
+      prerequisiteLessonIds: [prereqA, prereqB],
+      completedLessonIds: [prereqA, prereqB],
+    });
+
+    const result = await service.completeLesson(USER_ID, LESSON_ID);
+
+    expect(result.xpAwarded).toBe(XP_PER_LESSON_COMPLETION);
+    expect(awardXp).toHaveBeenCalledWith(USER_ID, XP_PER_LESSON_COMPLETION);
+  });
+
+  it('returns 409 when the user has answered zero exercises for this lesson', async () => {
+    const { service, awardXp, insertMany, completionUpdate } = build({ attemptCount: 0 });
+
+    await expect(service.completeLesson(USER_ID, LESSON_ID)).rejects.toThrow(
+      'Answer at least one exercise before completing this lesson.',
+    );
+
+    // Nothing past the gate ran.
+    expect(awardXp).not.toHaveBeenCalled();
+    expect(insertMany).not.toHaveBeenCalled();
+    expect(completionUpdate).not.toHaveBeenCalled();
+  });
+
+  it('passes the engagement gate when the user has answered at least one exercise', async () => {
+    const { service, awardXp } = build({ attemptCount: 3 });
+
+    const result = await service.completeLesson(USER_ID, LESSON_ID);
+
+    expect(result.xpAwarded).toBe(XP_PER_LESSON_COMPLETION);
+    expect(awardXp).toHaveBeenCalled();
+  });
+
+  it('checks prerequisites before engagement, so a missing prereq does not even probe attempts', async () => {
+    const { service, countAttempts } = build({
+      prerequisiteLessonIds: ['507f1f77bcf86cd7994390aa'],
+      completedLessonIds: [],
+      attemptCount: 0,
+    });
+
+    await expect(service.completeLesson(USER_ID, LESSON_ID)).rejects.toThrow();
+
+    // Order matters: prereq first, so we don't spend a query on a request
+    // that's already going to fail.
+    expect(countAttempts).not.toHaveBeenCalled();
   });
 });

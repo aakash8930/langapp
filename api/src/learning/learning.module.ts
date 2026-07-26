@@ -1,32 +1,44 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { ContentModule } from '../content/content.module';
 import { UserModule } from '../user/user.module';
+import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { LearningController } from './learning.controller';
 import { LearningService } from './learning.service';
 import { ProgressController } from './progress.controller';
 import { ReviewController } from './review.controller';
 import { ReviewService } from './review.service';
+import {
+  ExerciseAttempt,
+  ExerciseAttemptSchema,
+} from './schemas/exercise-attempt.schema';
 import { LessonCompletion, LessonCompletionSchema } from './schemas/lesson-completion.schema';
 import { SrsCard, SrsCardSchema } from './schemas/srs-card.schema';
 
 /**
  * Imports three modules for their exported services only. Learning owns
- * `srsCards` and `lessonCompletions`, and nothing else.
+ * `srsCards`, `lessonCompletions` and `exerciseAttempts`, and nothing else.
+ *
+ * `ContentModule` is wrapped in `forwardRef` because `ContentModule` exports
+ * `ExerciseService`, which injects `ExerciseAttemptsService` from this module
+ * to record exercise attempts. The dependency runs both ways at compile time
+ * but only one way at runtime — the write is initiated by the exercise
+ * endpoint, the read by the completion gate.
  */
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: SrsCard.name, schema: SrsCardSchema },
       { name: LessonCompletion.name, schema: LessonCompletionSchema },
+      { name: ExerciseAttempt.name, schema: ExerciseAttemptSchema },
     ]),
-    ContentModule,
+    forwardRef(() => ContentModule),
     UserModule,
     AnalyticsModule,
   ],
   controllers: [LearningController, ProgressController, ReviewController],
-  providers: [LearningService, ReviewService],
-  exports: [LearningService, ReviewService],
+  providers: [LearningService, ReviewService, ExerciseAttemptsService],
+  exports: [LearningService, ReviewService, ExerciseAttemptsService],
 })
 export class LearningModule {}
