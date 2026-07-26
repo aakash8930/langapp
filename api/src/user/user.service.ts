@@ -192,7 +192,26 @@ export class UserService {
    * about 30, and that is the concept to add here rather than a `limit`.
    */
   async findByLeagueTier(tier: number): Promise<UserDocument[]> {
-    return this.userModel.find({ 'gamification.leagueTier': tier }).exec();
+    // A schema default is applied on *write*, so every account created before
+    // `leagueTier` existed has no such field and matches `{ leagueTier: 0 }`
+    // nowhere. Without this the entire pre-league user base would be invisible
+    // to the leaderboard forever — caught on the live API, where Bronze showed
+    // one player out of 33.
+    //
+    // Treating absent as Bronze in the query rather than backfilling once keeps
+    // it correct after a restore from an old backup too, which a migration would
+    // not.
+    const filter =
+      tier === 0
+        ? {
+            $or: [
+              { 'gamification.leagueTier': 0 },
+              { 'gamification.leagueTier': { $exists: false } },
+            ],
+          }
+        : { 'gamification.leagueTier': tier };
+
+    return this.userModel.find(filter).exec();
   }
 
   /** Move a learner between tiers when a week settles. */
