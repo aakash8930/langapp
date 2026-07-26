@@ -64,6 +64,10 @@ export class ProgressController {
     // to notice the local day has turned. UserService owns that rule.
     const xpToday = this.userService.todayXpFor(user, now);
 
+    // Same `now` again: a heart that regenerated between two clock reads would
+    // make `nextHeartAt` disagree with `current`.
+    const heartState = this.userService.heartsFor(user, now);
+
     return {
       xp,
       level,
@@ -82,6 +86,12 @@ export class ProgressController {
         reviewsDone: todayCounts['review.graded'] ?? 0,
         lessonsDone: todayCounts['lesson.completed'] ?? 0,
       },
+      hearts: {
+        current: heartState.hearts,
+        max: heartState.maxHearts,
+        nextHeartAt: heartState.nextHeartAt ? heartState.nextHeartAt.toISOString() : null,
+      },
+      gems: heartState.gems,
       cardsDueNow,
       lessonsCompleted: completedLessonIds.length,
       completedLessonIds,

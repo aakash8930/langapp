@@ -9,6 +9,13 @@ export const THEMES = ['light', 'dark', 'system'] as const;
 export type Theme = (typeof THEMES)[number];
 
 /**
+ * Full hearts. Five is Duolingo's number and it is a good one: enough that a
+ * careless answer is not fatal, few enough that the fifth mistake in a session
+ * actually stings.
+ */
+export const MAX_HEARTS = 5;
+
+/**
  * §5: embed what is read together and bounded. Profile, gamification and
  * settings are always read with the user, so they are sub-documents, not refs.
  * `_id: false` keeps them plain embedded objects.
@@ -53,6 +60,45 @@ export class Gamification {
    */
   @Prop({ required: true, default: 0, min: 0 })
   todayXp: number;
+
+  /**
+   * Hearts — the Duolingo loss-aversion mechanic. Beyond §5 entirely; §5's
+   * gamification block is xp/streak only.
+   *
+   * ## How it is stored, and why there is no timer
+   *
+   * `hearts` is the count at `heartsUpdatedAt`, **not** the count now. Regenerated
+   * hearts are computed on read from the elapsed time — exactly the pattern
+   * `todayXp` already uses, and for the same reason: nothing rewrites the row
+   * while the user is away, so a stored "current" value is stale the moment it is
+   * written. A cron job that topped everyone up would be a second source of truth
+   * for the same number.
+   *
+   * ## The tension worth knowing about
+   *
+   * In Duolingo, running out of hearts is a sales funnel — you buy a refill.
+   * Phase 0 excludes in-app purchases, so here it is pure friction with no
+   * escape hatch except waiting or spending gems. That is why the regen interval
+   * is an env var (`HEARTS_REGEN_MINUTES`) rather than a constant: the right
+   * value for a solo learner who wants to grind is very different from the one
+   * that maximises revenue, and this app has no revenue to maximise.
+   */
+  @Prop({ required: true, default: MAX_HEARTS, min: 0 })
+  hearts: number;
+
+  /** When `hearts` was last written. Regeneration is measured from here. */
+  @Prop({ type: Date, default: null })
+  heartsUpdatedAt: Date | null;
+
+  /**
+   * Gems — earned by finishing lessons, spent refilling hearts.
+   *
+   * The pair is deliberate: a currency with no sink is a scoreboard, and hearts
+   * with no refill are a wall. Together they are a loop that needs no purchase,
+   * which is the only kind this app can have.
+   */
+  @Prop({ required: true, default: 0, min: 0 })
+  gems: number;
 }
 export const GamificationSchema = SchemaFactory.createForClass(Gamification);
 

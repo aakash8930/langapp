@@ -10,6 +10,7 @@ import {
 } from '../dto/exercise-response.dto';
 import { LessonDetail, ResolvedItem } from '../dto/lesson-response.dto';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
+import { UserService } from '../../user/user.service';
 import { mulberry32, seedFrom, shuffle } from './deterministic-random';
 
 const OPTION_BASED_TYPES = ['multipleChoice'];
@@ -138,6 +139,10 @@ export class ExerciseService {
     // reach into another module's collections" rule intact.
     @Inject(forwardRef(() => ExerciseAttemptsService))
     private readonly exerciseAttempts: ExerciseAttemptsService,
+    // Hearts live on the user document, so the deduction goes through the owning
+    // service. No forwardRef needed — `user` knows nothing about `content`, so
+    // this edge runs one way only, unlike the learning pair above.
+    private readonly userService: UserService,
   ) {}
 
   async generate(lessonId: string, userId: string, attempt: number): Promise<ExerciseSet> {
@@ -225,22 +230,13 @@ export class ExerciseService {
 
     const correct = selected.id === question.correctOptionId;
 
-    // Persist the attempt. Done after the correctness check so a duplicate-key
-    // race is impossible: the only failure mode is "row already exists" (same
-    // user re-answering the same question in the same attempt), and the
-    // service swallows it. We do not gate the answer response on the write
-    // succeeding — losing one attempt record is recoverable, denying the
-    // learner their answer is not.
-    await this.exerciseAttempts
-      .recordAttempt(userId, lessonId, attempt, question.exerciseId, correct)
-      .catch((err: unknown) => {
-        // Service already handles duplicate-key. Anything else is unexpected
-        // and worth a log; we still let the answer through.
-        this.logger.warn(
-          `exerciseAttempt record lost for user ${userId} lesson ${lessonId}: ` +
-            `${err instanceof Error ? err.message : String(err)}`,
-        );
-      });
+    const heartsLeft = await this.settleAnswer(
+      userId,
+      lessonId,
+      attempt,
+      question.exerciseId,
+      correct,
+    );
 
     return {
       exerciseId: question.exerciseId,
@@ -250,7 +246,56 @@ export class ExerciseService {
       correctOptionId: question.correctOptionId,
       correctValue: question.correctValue,
       prompt: question.prompt,
+      heartsLeft,
     };
+  }
+
+  /**
+   * The two side effects every answer has, in one place so the multipleChoice and
+   * wordReading paths cannot drift: record the attempt, and take a heart if it was
+   * wrong.
+   *
+   * **Neither can fail the answer.** The attempt record's only expected failure is
+   * a duplicate key (the same learner re-answering the same question in the same
+   * attempt) which the service swallows; anything else is logged. The heart write
+   * is the same bargain — losing a heart deduction is a small unfairness in the
+   * learner's favour, while a 500 in place of their answer is not recoverable.
+   * Same reasoning `AnalyticsService.record` documents.
+   *
+   * Returns the hearts remaining, or `null` when nothing was charged (a correct
+   * answer) or the charge failed, so the client can leave its counter alone rather
+   * than rendering a wrong number.
+   */
+  private async settleAnswer(
+    userId: string,
+    lessonId: string,
+    attempt: number,
+    exerciseId: string,
+    correct: boolean,
+  ): Promise<number | null> {
+    await this.exerciseAttempts
+      .recordAttempt(userId, lessonId, attempt, exerciseId, correct)
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `exerciseAttempt record lost for user ${userId} lesson ${lessonId}: ` +
+            `${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+
+    if (correct) {
+      return null;
+    }
+
+    return this.userService
+      .loseHeart(userId)
+      .then((result) => result.hearts)
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `heart deduction lost for user ${userId}: ` +
+            `${err instanceof Error ? err.message : String(err)}`,
+        );
+        return null;
+      });
   }
 
   /**
@@ -277,16 +322,16 @@ export class ExerciseService {
     const normalized = normaliseAnswer(text);
     const correct = normalized === normaliseAnswer(question.correctValue);
 
-    await this.exerciseAttempts
-      .recordAttempt(userId, lessonId, attempt, question.exerciseId, correct)
-      .catch((err: unknown) => {
-        this.logger.warn(
-          `exerciseAttempt record lost for user ${userId} lesson ${lessonId}: ` +
-            `${err instanceof Error ? err.message : String(err)}`,
-        );
-      });
+    const heartsLeft = await this.settleAnswer(
+      userId,
+      lessonId,
+      attempt,
+      question.exerciseId,
+      correct,
+    );
 
     return {
+      heartsLeft,
       exerciseId: question.exerciseId,
       correct,
       // The body sent a typed answer, not an option selection.

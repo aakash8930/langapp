@@ -86,6 +86,16 @@ export interface AnswerResult {
   correctOptionId: string;
   correctValue: string;
   prompt: string;
+  /**
+   * Hearts remaining after this answer, or `null` when nothing was charged.
+   *
+   * Null means one of two things and the client treats them the same way — leave
+   * the counter alone: either the answer was **correct** (no charge), or the
+   * charge itself failed (logged server-side, and deliberately not fatal to the
+   * answer). Sending a stale number in the failure case would be worse than
+   * sending none, since the header would then disagree with `/me/progress`.
+   */
+  heartsLeft: number | null;
 }
 
 /**

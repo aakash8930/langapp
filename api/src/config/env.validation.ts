@@ -18,6 +18,7 @@ export interface EnvConfig {
   CHAT_THROTTLE_TTL_SECONDS: number;
   STORAGE_DIR: string;
   XP_PER_LESSON_PRACTICE: number;
+  HEARTS_REGEN_MINUTES: number;
   GEMINI_API_KEY: string;
   GEMINI_MODEL: string;
   CORS_ORIGINS: string;
@@ -79,6 +80,11 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     CHAT_THROTTLE_TTL_SECONDS: positiveInt(raw, 'CHAT_THROTTLE_TTL_SECONDS', 60),
     STORAGE_DIR: optional(raw, 'STORAGE_DIR', './storage'),
     XP_PER_LESSON_PRACTICE: positiveInt(raw, 'XP_PER_LESSON_PRACTICE', 2),
+    // Minutes per regenerated heart. Tunable because Duolingo's value exists to
+    // sell refills and this app has nothing to sell — the right number for a solo
+    // learner who wants to grind is much lower. `positiveInt` also stops a zero
+    // from reaching the divide in `heartsNow`.
+    HEARTS_REGEN_MINUTES: positiveInt(raw, 'HEARTS_REGEN_MINUTES', 30),
     // Empty means "chat not configured": boot succeeds, chat routes 503. The
     // seed, tests, and every non-chat flow must not require a Google account.
     GEMINI_API_KEY: optional(raw, 'GEMINI_API_KEY', ''),

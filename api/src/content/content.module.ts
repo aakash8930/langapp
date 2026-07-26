@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { UserModule } from '../user/user.module';
 import { LearningModule } from '../learning/learning.module';
 import { ContentService } from './content.service';
 import { ExerciseController } from './exercise.controller';
@@ -29,6 +30,8 @@ import { VocabItem, VocabItemSchema } from './schemas/vocab-item.schema';
       { name: KanjiEntry.name, schema: KanjiEntrySchema },
     ]),
     forwardRef(() => LearningModule),
+    // Hearts are user state; ExerciseService charges one for a wrong answer.
+    UserModule,
   ],
   controllers: [LessonController, ExerciseController],
   providers: [ContentService, ExerciseService],

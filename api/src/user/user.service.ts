@@ -1,9 +1,17 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
+import {
+  DEFAULT_HEARTS_REGEN_MINUTES,
+  GEM_COST_HEART_REFILL,
+  heartsNow,
+  nextHeartAt,
+  spendHeart,
+} from './gamification/hearts';
 import { localDateString, nextStreak } from './gamification/streak';
-import { User, UserDocument } from './schemas/user.schema';
+import { MAX_HEARTS, User, UserDocument } from './schemas/user.schema';
 
 export interface CreateUserInput {
   email: string;
@@ -19,7 +27,124 @@ export interface CreateUserInput {
  */
 @Injectable()
 export class UserService {
-  constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) {}
+  private readonly heartsRegenMinutes: number;
+
+  constructor(
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    config: ConfigService,
+  ) {
+    this.heartsRegenMinutes =
+      config.get<number>('HEARTS_REGEN_MINUTES') ?? DEFAULT_HEARTS_REGEN_MINUTES;
+  }
+
+  /**
+   * Hearts and gems as they should be read — hearts regenerated from elapsed
+   * time, the same shape `todayXpFor` has for XP.
+   */
+  heartsFor(user: UserDocument, now: Date = new Date()) {
+    const state = {
+      hearts: user.gamification.hearts,
+      heartsUpdatedAt: user.gamification.heartsUpdatedAt,
+    };
+
+    return {
+      hearts: heartsNow(state, this.heartsRegenMinutes, now),
+      maxHearts: MAX_HEARTS,
+      nextHeartAt: nextHeartAt(state, this.heartsRegenMinutes, now),
+      gems: user.gamification.gems,
+    };
+  }
+
+  /**
+   * Take a heart for a wrong answer, and report what is left.
+   *
+   * Writes the regenerated count rather than the stored one, so time that passed
+   * while the learner was away is banked before the deduction — see
+   * `spendHeart`. Returns the new count so the answer response can carry it
+   * without a second read.
+   */
+  async loseHeart(id: string, now: Date = new Date()): Promise<{ hearts: number }> {
+    const user = await this.userModel.findById(id).exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const next = spendHeart(
+      { hearts: user.gamification.hearts, heartsUpdatedAt: user.gamification.heartsUpdatedAt },
+      this.heartsRegenMinutes,
+      now,
+    );
+
+    await this.userModel
+      .updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            'gamification.hearts': next.hearts,
+            'gamification.heartsUpdatedAt': next.heartsUpdatedAt,
+          },
+        },
+      )
+      .exec();
+
+    return { hearts: next.hearts };
+  }
+
+  /** Gems for finishing a lesson. Never negative — callers pass the award, not a delta. */
+  async awardGems(id: string, amount: number): Promise<void> {
+    if (amount <= 0) {
+      return;
+    }
+    await this.userModel
+      .updateOne({ _id: id }, { $inc: { 'gamification.gems': amount } })
+      .exec();
+  }
+
+  /**
+   * Spend gems to refill hearts to full.
+   *
+   * The only sink for gems and the only escape from an empty heart bar, which is
+   * what makes the pair a loop rather than two separate counters. Phase 0 has no
+   * in-app purchases, so this is deliberately the *whole* economy.
+   *
+   * Conditional on both the gem balance and on not already being full, in a single
+   * `updateOne` — two taps racing must not both deduct. A 409 on either, because
+   * both are "your state doesn't allow this" rather than a bad request.
+   */
+  async refillHearts(id: string, now: Date = new Date()): Promise<{ hearts: number; gems: number }> {
+    const user = await this.userModel.findById(id).exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const current = this.heartsFor(user, now);
+    if (current.hearts >= MAX_HEARTS) {
+      throw new ConflictException('Your hearts are already full');
+    }
+    if (current.gems < GEM_COST_HEART_REFILL) {
+      throw new ConflictException(
+        `Refilling costs ${GEM_COST_HEART_REFILL} gems — you have ${current.gems}`,
+      );
+    }
+
+    // The gem check is repeated in the filter so a concurrent refill cannot
+    // overdraw: whichever write lands second matches nothing.
+    const result = await this.userModel
+      .updateOne(
+        { _id: user._id, 'gamification.gems': { $gte: GEM_COST_HEART_REFILL } },
+        {
+          $inc: { 'gamification.gems': -GEM_COST_HEART_REFILL },
+          $set: { 'gamification.hearts': MAX_HEARTS, 'gamification.heartsUpdatedAt': null },
+        },
+      )
+      .exec();
+
+    if (result.modifiedCount === 0) {
+      throw new ConflictException('Not enough gems to refill');
+    }
+
+    return { hearts: MAX_HEARTS, gems: current.gems - GEM_COST_HEART_REFILL };
+  }
 
   /** Returns null when the email is already taken, so callers decide the error shape. */
   async create(input: CreateUserInput): Promise<UserDocument | null> {

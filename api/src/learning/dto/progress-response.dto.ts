@@ -41,6 +41,26 @@ export interface ProgressResponse {
     lessonsDone: number;
   };
 
+  /**
+   * Hearts and gems — the game loop (slice 2, 2026-07-26).
+   *
+   * Here rather than on `UserResponse` for the same reason `xpToday` is: the
+   * stored `hearts` is the count at `heartsUpdatedAt`, and the true count depends
+   * on elapsed time. `toUserResponse` is a pure document→shape function with no
+   * access to the regen interval, so putting hearts there would ship a number
+   * that is stale the moment the learner closes the app.
+   *
+   * `nextHeartAt` is an instant, not a duration, so the client can tick a
+   * countdown down locally without the value going stale in transit. Null at
+   * full hearts.
+   */
+  hearts: {
+    current: number;
+    max: number;
+    nextHeartAt: string | null;
+  };
+  gems: number;
+
   /** Cards whose `due` has passed as of this request. */
   cardsDueNow: number;
   /** Distinct lessons completed at least once. Always `completedLessonIds.length`. */
