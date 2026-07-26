@@ -40,7 +40,7 @@ unnoticed until a browser tried.
 ### Auth
 
 ```
-POST /auth/register  { email, password, displayName, nativeLanguage?, tz? }  -> 201
+POST /auth/register  { email, password, displayName, dateOfBirth, nativeLanguage?, tz? }  -> 201
 POST /auth/login     { email, password }                                     -> 200
      both -> { user: <UserResponse>, tokens: { accessToken, refreshToken, expiresIn } }
 
@@ -49,6 +49,15 @@ POST /auth/refresh   { refreshToken }  -> 200
 ```
 
 `displayName` is required, 1–60 chars. `password` is 8–128, `email` ≤254.
+
+**`dateOfBirth` is required** (ISO `YYYY-MM-DD`), added 2026-07-26 with the social
+features. Under-13 registration is **400**. The check runs before the email lookup
+and before argon2, so an under-age attempt neither spends a hash nor learns whether
+an address is taken. It is required by the DTO but **optional on the schema** —
+making it required would have invalidated every account created before it existed.
+Absent means "unknown age", which every age check treats as a refusal rather than a
+pass. **This is a breaking change for any client built before it**: an old build
+sends no `dateOfBirth` and gets a 400.
 
 Refresh tokens **rotate**: the presented token is consumed, so replaying one fails at
 the Redis check even though the signature still verifies. A client must therefore
@@ -343,6 +352,53 @@ limits as **429** — the client should show "try again shortly", not retry-loop
 A session hard-caps at 50 messages (400 past that). Chat routes are throttled
 separately from auth (`CHAT_THROTTLE_*`, default 10 per 60s) — also a 429, so
 the client cannot tell throttle from provider limit and shouldn't try.
+
+### Social — bearer
+
+```
+GET    /social/users?q=                      -> [ <PublicProfile> ]   (display name prefix, ≥2 chars)
+GET    /social/friends                       -> [ <PublicProfile> ]
+GET    /social/friends/requests              -> [ { requestId, from: <PublicProfile> } ]
+POST   /social/friends/requests/:userId      -> { status: 'pending' | 'accepted' }
+POST   /social/friends/requests/:id/accept   -> { status: 'accepted' }
+POST   /social/friends/requests/:id/decline  -> { status: 'declined' }
+DELETE /social/friends/:userId               -> { removed: true }
+GET    /social/messages/:userId              -> [ { id, text, mine, createdAt } ]  (oldest first, 50)
+POST   /social/messages/:userId  { text }    -> { id, text, createdAt }
+GET    /social/blocks                        -> [ <PublicProfile> ]
+POST   /social/blocks/:userId                -> { blocked: true }
+DELETE /social/blocks/:userId                -> { blocked: false }
+POST   /social/reports  { userId, reason, note?, messageId? }  -> { id }
+
+PublicProfile = { id, displayName, level, xp, streakDays }
+```
+
+Added 2026-07-26. `PublicProfile` is a **much shorter allowlist than
+`UserResponse`** because it is shown to strangers: no email, no settings, no date
+of birth, no lesson history.
+
+**Four rules, all enforced in `SocialService`** so a future route cannot skip them:
+
+1. **A message requires an accepted friendship** — 403 otherwise. There is no route
+   by which a stranger opens a conversation. This is why the age minimum can be 13
+   rather than 18: the protection is structural, not age-segregating.
+2. **A block in either direction disqualifies** messaging, friend requests and
+   search results — and the 403 body is byte-identical whichever way the block
+   runs, because saying "they blocked you" discloses what a blocker did not agree
+   to share. Blocking also deletes the friendship.
+3. **Messaging requires a known age** ≥ `MIN_AGE_FOR_MESSAGING` (13). Accounts with
+   no `dateOfBirth` get 403 with a message telling them to set one.
+4. **Not yourself** — 400 on befriending, messaging, blocking or reporting yourself.
+
+Reading a conversation **re-checks** the friendship, so unfriending or blocking
+closes the history rather than only stopping new messages.
+
+Search is by **display name only, never email** — an email search would rebuild the
+enumeration oracle `/auth/login` burns a dummy argon2 verify to prevent. Minimum two
+characters, capped at 20 rows, throttled at 20/min. Messages are throttled at 30/min.
+
+Reports are **write-only** in this build: `status` is always `open` and there is no
+review route — see OPEN-ITEMS #31.
 
 ### The leak rule
 

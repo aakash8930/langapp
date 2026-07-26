@@ -306,7 +306,28 @@ Consequence: a learner who wants a zone that is neither their stored one nor
 their device's cannot set it from the app. `PATCH /me/settings { tz }` still
 takes anything the runtime's tz database knows.
 
-### 7. No age gate, privacy policy, or ToS
+### 7. PARTLY RESOLVED (slice 5, 2026-07-26) — age gate exists; privacy policy and ToS do not
+
+**The age gate landed** with the social features, because shipping stranger
+messaging without one was not an option. `dateOfBirth` is required at
+registration, under-13s are refused, and messaging additionally requires a
+known age — with **unknown failing closed**, so the 32 accounts predating the
+gate cannot message until they supply one.
+
+The minimum is **13, not 18**, and that is a decision worth being able to
+defend: the protection against adults reaching minors is structural rather
+than age-based — messages are only possible between accepted friends, so no
+stranger can open a conversation — plus per-user blocking and reporting.
+Busuu and HelloTalk make the same trade. If minor↔adult contact ever needs
+restricting outright, `MIN_AGE_FOR_MESSAGING` is the seam, and the schema
+already stores what such a check would read.
+
+**Still missing: the privacy policy and the ToS**, and they are now worse
+than before. The app collects a date of birth, stores messages between
+learners, and retains reports about people — all of which a privacy policy is
+supposed to disclose. §13 item 5 is unfinished.
+
+The original report follows.
 
 §13 item 5. Language apps pull in minors whether or not you target them. Tiny
 now, painful to retrofit after launch.
@@ -462,6 +483,51 @@ or a longer period ("activation funnel", "week-over-week retention"), this shape
 is wrong and wants a real Mongo aggregation with the `{type, ts}` index. The
 method doc says so, but the risk is that the next daily-ish number gets bolted on
 here because it is the closest thing available.
+
+### 31. Reports are filed but nobody reads them (slice 5, 2026-07-26)
+
+The social module ships blocking and reporting alongside DMs, deliberately —
+a messaging feature without them is the thing you cannot ship and fix later.
+But **reports are write-only**: `status` starts `open` and nothing in the
+codebase moves it. There is no moderation queue, no notification, and no
+review UI. The rows are readable with `mongosh` and that is the whole of it.
+
+This is a stated trade, not an oversight. A review UI is a bigger piece than
+the slice it would have sat in, and a half-built one that silently drops
+reports would be worse than none. A report button that files a row a human
+can read beats one that goes nowhere.
+
+**Cost of getting it wrong:** grows directly with the number of strangers who
+can reach each other. At 32 accounts, mostly the operator's own, a solo
+operator reading `db.reports.find({status:'open'})` is defensible. It stops
+being defensible the moment registration brings in people who do not know
+each other, because a report nobody reads is a promise the app is not
+keeping — and the UI does promise it.
+
+**Cheapest honest fix:** a `GET /social/reports` behind an admin check, or
+even just an email on report creation, so the operator finds out without
+remembering to look.
+
+**Related and unbuilt:** there is no rate limit on friend requests (a person
+can be requested by many accounts), and no way to see *who* blocked you
+(deliberate — see the note on the opaque error message).
+
+### 32. `DELETE /me` is now overdue, not merely late (slice 5, 2026-07-26)
+
+Item 5 has said since Phase 0 that erasure gets harder every milestone. Slice
+5 made it materially harder **and** materially more necessary in one commit:
+there is now a social graph (`friendships`), user-written content about other
+people (`directMessages`, `reports`), and `blocks` — and a cascade has to
+decide what happens to each.
+
+The hard question is the messages. Deleting an account cannot simply delete
+its messages, because the *other* participant's conversation is their record
+too, and a report's `messageText` snapshot exists precisely so evidence
+survives the sender leaving. Tombstoning the sender ("deleted user") is the
+usual answer and needs deciding rather than defaulting.
+
+DPDP applies now, and this was already the item that "gets harder with every
+milestone". It just got harder.
 
 ### 17. Analytics writes are synchronous
 
