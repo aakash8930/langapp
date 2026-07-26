@@ -331,14 +331,9 @@ export type DueCard = {
 export type DueReviews = { count: number; totalDue: number; cap: number; cards: DueCard[] };
 
 /**
- * Deliberately narrower than the server's `GradeReviewResponse`, which also
- * returns `stability` and `difficulty`.
- *
- * The leak rule in the root CLAUDE.md says FSRS internals must not reach a
- * client, and the API is currently in violation of it. Leaving the two fields
- * out of this type is how the site keeps its side of the rule: they cannot be
- * rendered by accident, because as far as this codebase is concerned they do
- * not exist.
+ * Mirrors the server's `GradeReviewResponse`. The leak rule in the root
+ * CLAUDE.md says FSRS internals (stability, difficulty) must not reach a
+ * client; this type does not declare them, so they cannot be rendered.
  */
 export type GradeResult = {
   cardId: string;

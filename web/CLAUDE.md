@@ -100,10 +100,10 @@ renders fully visible. Never write a bare `opacity: 0` starting state.
   path: a failed grade re-queues the card *once*, never on the last card (the
   summary is already up), and otherwise counts as lost and is reported. Do not
   "simplify" this into awaiting each grade.
-- `GradeResult` in `api.ts` is deliberately narrower than the server's
-  response, which still returns `stability` and `difficulty`. The leak rule
-  says FSRS internals must not reach a client and the API is in violation;
-  omitting the fields from the type is how this site keeps its side of it.
+- `GradeResult` in `api.ts` matches the server's `GradeReviewResponse` — it
+  does not declare `stability` or `difficulty`, so they cannot be rendered.
+  The leak rule says FSRS internals must not reach a client; the API enforces
+  it server-side.
 
 ## Commands
 

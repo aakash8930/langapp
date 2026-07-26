@@ -203,7 +203,7 @@ GET  /reviews/due  -> { count, totalDue, cap,
                                    item: <ResolvedItem> } ] }
 POST /reviews/:cardId/grade   { grade: 'again'|'hard'|'good'|'easy' }  -> 200
      -> { cardId, grade, state, due, intervalMinutes, reps, lapses,
-          stability, difficulty, xpAwarded, totalXp }
+          xpAwarded, totalXp }
 ```
 
 Also an object wrapping the array, not a bare array. `totalDue` is the true count and
@@ -254,17 +254,16 @@ A session hard-caps at 50 messages (400 past that). Chat routes are throttled
 separately from auth (`CHAT_THROTTLE_*`, default 10 per 60s) — also a 429, so
 the client cannot tell throttle from provider limit and shouldn't try.
 
-### The leak rule, and where it is currently broken
+### The leak rule
 
 **Never leak `passwordHash` or FSRS internals (`stability`, `difficulty`) to the
 client.** The client shows `due` / `intervalMinutes`, not the scheduling math.
 
-`passwordHash` is safe — `toUserResponse` is an explicit allowlist.
-
-⚠️ **`POST /reviews/:cardId/grade` violates this today**: `GradeReviewResponse`
-declares and `review.service.ts` returns both `stability` and `difficulty`. Either
-drop them from that DTO or amend this rule — but until one of those happens, the
-client must not read or display them.
+`passwordHash` is safe — `toUserResponse` is an explicit allowlist. `stability`
+and `difficulty` are kept off `GradeReviewResponse` for the same reason:
+omitting them from the DTO is what makes "we don't send them" the property of
+the contract, not a property the code could quietly lose. Resolved 2026-07-26
+(T1.3) — see OPEN-ITEMS #21.
 
 ## Ground rules across both projects
 

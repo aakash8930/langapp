@@ -181,8 +181,6 @@ export class ReviewService {
       intervalMinutes: Math.round((fields.due.getTime() - now.getTime()) / 60_000),
       reps: fields.reps,
       lapses: fields.lapses,
-      stability: fields.stability,
-      difficulty: fields.difficulty,
       xpAwarded,
       totalXp: user.gamification.xp,
     };

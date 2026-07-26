@@ -4,7 +4,7 @@ Decisions I made on your behalf, trade-offs I took, and things deliberately
 deferred. Nothing here is broken; it's the list of places where a reasonable
 person could choose differently, plus the bills that come due later.
 
-Ordered by when they'll bite you. Last updated after Milestone 6.
+Ordered by when they'll bite you. Last updated after T1.10 / T1.3.
 
 ---
 
@@ -258,11 +258,23 @@ Two API changes were needed for M5 and were approved before being made: a write
 path for `dailyGoalXp`, and `'system'` added to the theme enum. Both are in the
 root CLAUDE.md contract.
 
-### 21. `POST /reviews/:cardId/grade` violates the leak rule
+### 21. RESOLVED (T1.3, 2026-07-26) — `POST /reviews/:cardId/grade` violated the leak rule
 
-`GradeReviewResponse` declares — and `review.service.ts` returns — `stability`
-and `difficulty`. The root CLAUDE.md says FSRS internals must never reach the
-client, so the API is in violation of its own rule.
+`GradeReviewResponse` and `review.service.ts` no longer declare or return
+`stability` / `difficulty`. The contract and the code agree; the client types
+already didn't have them, so the change is invisible to phone and web. The
+comments that said "the API is in violation" have been rewritten in
+`client/api/reviews.ts`, `web/src/api.ts`, `web/CLAUDE.md`, and the root
+`CLAUDE.md` so the next reader does not re-add the fields by accident.
+
+Found while writing #28; **pre-existing**, and the cost of leaving it was only
+that the contract was self-contradictory.
+
+The original report follows, for the shape of the bug.
+
+`GradeReviewResponse` declared — and `review.service.ts` returned — `stability`
+and `difficulty`. The root CLAUDE.md said FSRS internals must never reach the
+client, so the API was in violation of its own rule.
 
 Nothing is exploitable; the cost is that the contract says one thing and the code
 does another, which is how a rule stops being enforced at all.
@@ -489,24 +501,40 @@ Three follow-ups the marks unit created rather than closed:
   finally possible; it was not before.
 - **っ and ー are still untaught** — see item 25.
 
-### 28. A provider 503 becomes a hard 502 mid-conversation (2026-07-22)
+### 28. RESOLVED (T1.2, 2026-07-26) — provider 503 retried with bounded backoff
 
-`GeminiProvider` maps any non-ok response to a 502 and gives up. That is fine
-for a 400 or a 404, which will fail identically forever — but **503 is the one
-upstream error that is worth retrying**, and on the free tier it is common:
-`gemini-3.5-flash` returned `UNAVAILABLE` six times in a row while
+`GeminiProvider.post` now retries a provider 503 up to `MAX_ATTEMPTS = 3`
+times with backoff `[1s, 2s]` before mapping to 502. The 503-vs-502 distinction
+the client relies on is preserved: the API's *own* 503 (no `GEMINI_API_KEY`)
+still surfaces as 503 to the client, and only provider-side 503s are retried.
+
+400, 404, 429 and 500 are explicitly not retried. 400/404 fail identically
+forever, 429 is a quota that a retry makes worse, 500 is broader than the
+transient 503 we know how to handle. Four new tests in
+`gemini.provider.spec.ts` pin the policy: retry-then-success, retry-then-give-up,
+429-no-retry, 500-no-retry.
+
+The latency budget is now up to ~3s on the worst case (backoff 1s + 2s plus
+two extra round-trips). §8's "a few seconds, not instant" still holds; the
+chat composer already waits on a real LLM call and is disabled while one is
+in flight. Verified live on the deployed API: a first turn that 502'd in T1.10
+on a single attempt round-trips on a retry.
+
+Found while verifying T1.10; **pre-existing**, and the live test caught it
+the moment the first real turn went out.
+
+The original report follows.
+
+`GeminiProvider` used to map any non-ok response to a 502 and give up. That
+is fine for a 400 or a 404, which will fail identically forever — but **503
+is the one upstream error that is worth retrying**, and on the free tier it
+is common: `gemini-3.5-flash` returned `UNAVAILABLE` six times in a row while
 `gemini-flash-latest` answered immediately.
 
 **Cost of getting it wrong:** a learner mid-conversation gets "the AI tutor hit
 an error" for something that would have worked on the next attempt. Switching to
 the alias made it much less likely, but did not remove it — any free-tier model
 can be swamped for a minute.
-
-**Fix:** retry a 503 two or three times with backoff inside `generateJson`,
-before mapping to 502. It has to stay bounded and short — the client already
-waits on a real LLM call, and §8's latency budget is "a few seconds, not
-instant". Do not retry 400, 404 or 429: the first two are permanent and the
-third is a quota that a retry makes worse.
 
 ### 27. The website keeps auth tokens in localStorage (2026-07-22)
 

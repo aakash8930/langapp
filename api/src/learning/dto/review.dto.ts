@@ -38,8 +38,6 @@ export interface GradeReviewResponse {
   intervalMinutes: number;
   reps: number;
   lapses: number;
-  stability: number;
-  difficulty: number;
   xpAwarded: number;
   totalXp: number;
 }

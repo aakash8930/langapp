@@ -34,6 +34,18 @@ const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models
 const REQUEST_TIMEOUT_MS = 30_000;
 
 /**
+ * Bounded retry policy for provider 503s. The free tier returns 503
+ * UNAVAILABLE under load — distinct from quota (429) or any 4xx — and a
+ * short, capped retry reliably clears it. OPEN-ITEMS #28.
+ *
+ * 400, 404 and 429 are deliberately *not* retried: 400/404 fail identically
+ * forever, 429 is a quota that a retry only makes worse.
+ */
+const RETRYABLE_STATUS = 503;
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAYS_MS = [1_000, 2_000] as const;
+
+/**
  * Hand-rolled call to Gemini's generateContent — one HTTPS POST, no SDK
  * dependency (same trade as the Redis ThrottlerStorage). Stage A runs on the
  * Gemini free tier (§8): swap this class behind AiOrchestratorService to move
@@ -72,40 +84,60 @@ export class GeminiProvider {
   }
 
   private async post(model: string, apiKey: string, body: unknown): Promise<GeminiResponseBody> {
-    let response: Response;
-    try {
-      response = await fetch(`${GEMINI_BASE_URL}/${model}:generateContent`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          // Header, not ?key= query param — keys in URLs end up in logs.
-          'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-    } catch (err) {
-      this.logger.warn(
-        `Gemini request failed before a response: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      throw new BadGatewayException('The AI tutor is unreachable right now — try again shortly');
-    }
+    const url = `${GEMINI_BASE_URL}/${model}:generateContent`;
+    const init: RequestInit = {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        // Header, not ?key= query param — keys in URLs end up in logs.
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    };
 
-    if (response.status === 429) {
-      throw new HttpException(
-        'The AI tutor is rate limited right now — wait a minute and try again',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      let response: Response;
+      try {
+        response = await fetch(url, init);
+      } catch (err) {
+        this.logger.warn(
+          `Gemini request failed before a response (attempt ${attempt}/${MAX_ATTEMPTS}): ` +
+            `${err instanceof Error ? err.message : String(err)}`,
+        );
+        throw new BadGatewayException('The AI tutor is unreachable right now — try again shortly');
+      }
 
-    if (!response.ok) {
+      if (response.status === 429) {
+        throw new HttpException(
+          'The AI tutor is rate limited right now — wait a minute and try again',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+      if (response.ok) {
+        return (await response.json()) as GeminiResponseBody;
+      }
+
+      // Only retry the one status that's transient on the free tier.
+      if (response.status === RETRYABLE_STATUS && attempt < MAX_ATTEMPTS) {
+        const delayMs = RETRY_DELAYS_MS[attempt - 1];
+        this.logger.warn(
+          `Gemini ${RETRYABLE_STATUS} (attempt ${attempt}/${MAX_ATTEMPTS}), retrying in ${delayMs}ms`,
+        );
+        await sleep(delayMs);
+        continue;
+      }
+
       // Log status + provider error text (no user content lives in there).
       const detail = await response.text().catch(() => '');
       this.logger.warn(`Gemini returned ${response.status}: ${detail.slice(0, 500)}`);
       throw new BadGatewayException('The AI tutor hit an error — try again shortly');
     }
 
-    return (await response.json()) as GeminiResponseBody;
+    // Unreachable: the loop either returns, throws, or continues. This is here
+    // so TypeScript knows the function never falls off the end.
+    throw new BadGatewayException('The AI tutor hit an error — try again shortly');
   }
 
   private extractJson(data: GeminiResponseBody): unknown {
@@ -137,4 +169,8 @@ export class GeminiProvider {
       throw new BadGatewayException('The AI tutor hit an error — try again shortly');
     }
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

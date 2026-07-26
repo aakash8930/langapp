@@ -172,4 +172,79 @@ describe('GeminiProvider.generateJson', () => {
 
     await expect(call(provider)).rejects.toThrow(BadGatewayException);
   });
+
+  describe('provider 503 retry (OPEN-ITEMS #28)', () => {
+    beforeEach(() => {
+      // Backoff in the provider is real `setTimeout`. Use fake timers so the
+      // tests don't actually sleep 3 seconds, and assert against the call
+      // count rather than wall-clock time.
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('retries a 503, then succeeds, and returns the model answer', async () => {
+      fetchMock
+        .mockResolvedValueOnce({ ok: false, status: 503 } as unknown as Response)
+        .mockResolvedValueOnce(geminiOk({ reply: 'after one retry' }));
+
+      const provider = new GeminiProvider(makeConfig());
+      const promise = call(provider);
+
+      // Drain the scheduled backoff.
+      await jest.advanceTimersByTimeAsync(1_000);
+
+      await expect(promise).resolves.toEqual({ reply: 'after one retry' });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries a 503 up to MAX_ATTEMPTS times, then surfaces 502', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 503,
+        text: () => Promise.resolve('unavailable'),
+      } as unknown as Response);
+
+      const provider = new GeminiProvider(makeConfig());
+      // Attach the rejection handler up front so the rejection is never
+      // observed as unhandled while the timer-driven microtasks unfold.
+      const promise = call(provider).catch((err: unknown) => err);
+
+      // Drive both backoffs (1s, then 2s) and flush microtasks between them
+      // so the next `await fetch()` runs and the loop can advance.
+      await jest.advanceTimersByTimeAsync(1_000);
+      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(2_000);
+      await Promise.resolve();
+
+      await expect(promise).resolves.toThrow(BadGatewayException);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry a 429 — quota retries only make the situation worse', async () => {
+      fetchMock.mockResolvedValue({ ok: false, status: 429 } as unknown as Response);
+
+      const provider = new GeminiProvider(makeConfig());
+
+      const error = await call(provider).catch((err: HttpException) => err);
+      expect(error).toBeInstanceOf(HttpException);
+      expect((error as HttpException).getStatus()).toBe(429);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry a 500 — only 503 is retryable', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve('boom'),
+      } as unknown as Response);
+
+      const provider = new GeminiProvider(makeConfig());
+
+      await expect(call(provider)).rejects.toThrow(BadGatewayException);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  });
 });
