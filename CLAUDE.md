@@ -244,15 +244,34 @@ from the answer endpoint.
 on every repeat. `firstCompletion` says which happened, so don't infer it from
 `cardsCreated`.
 
-**`/complete` has two preconditions (T1.4, 2026-07-26).** It returns **409 Conflict**
-unless (a) every id in the lesson's `prerequisiteLessonIds` is in the caller's
-`completedLessonIds`, **and** (b) the caller has answered at least one exercise
-for this lesson in any attempt. The error message names the missing prereq ids
-or says `"Answer at least one exercise before completing this lesson."`. This
-is server hardening: honest clients (web, Expo) only call `/complete` after
-reaching the last question, so they always satisfy the gate. The gate exists
-to stop API-spoof paths — `curl`, replay, a future client that skips the
-exercise step — from harvesting XP for a lesson the user never engaged with.
+**`/complete` has two preconditions.** It returns **409 Conflict** unless (a) every
+id in the lesson's `prerequisiteLessonIds` is in the caller's
+`completedLessonIds`, **and** (b) the caller has finished some attempt of this
+lesson with **every question they were asked answered correctly**.
+
+Gate (b) was tightened on 2026-07-26 from "answered at least one exercise"
+(T1.4) after a live report: you could answer everything wrong and still finish,
+which made the XP, the "done" tick and the chapter progress all certify
+something untrue. Messages are `"Answer the exercises before completing this
+lesson."` when nothing was answered and `"Answer every exercise correctly
+before completing this lesson."` when answers are outstanding — distinct on
+purpose, since telling a learner mid-lesson that they answered nothing is wrong.
+
+**It is not "all correct first try".** Both clients re-ask a question the learner
+got wrong until they answer it correctly, so a mistake costs a heart and a repeat
+rather than the lesson. That matters because `/complete` is what seeds the SRS
+cards: hard-blocking would mean a word the learner got wrong never enters review,
+which is backwards — that is the word they most need scheduled.
+
+The check groups attempts **by attempt number** and looks for one with `answered
+≥ 1 and incorrect = 0`, so a messy attempt 1 followed by a clean attempt 2 passes,
+and abandoning attempt 2 half-done does not un-earn attempt 1. `recordAttempt`
+promotes `correct` **false → true only**, never back, so the field means "got this
+right at some point during this attempt".
+
+The gate is still server hardening as well as a rule: honest clients satisfy it by
+construction, and it stops API-spoof paths — `curl`, replay, a future client that
+skips the exercise step — from harvesting XP.
 
 ### Reviews — bearer
 
