@@ -422,7 +422,20 @@ Kept here because it's the one documented divergence from §5's data model: if y
 ever diff the blueprint against the schema, this is the difference and it's
 deliberate.
 
-### 16. Lesson completion is not gated on prerequisites or on actually answering
+### 16. RESOLVED (T1.4, 2026-07-26) — lesson completion is gated on both counts
+
+`POST /lessons/:id/complete` now returns **409** unless every id in the lesson's
+`prerequisiteLessonIds` is in the caller's `completedLessonIds` **and** the caller
+has answered at least one exercise for that lesson in any attempt. The missing
+piece both fixes wanted — a record of exercise attempts — is the
+`exerciseAttempts` collection, owned by `learning` and written by `ExerciseService`
+through `ExerciseAttemptsService`.
+
+*(This entry sat unresolved until 2026-07-26 even though T1.4 closed it. Noting
+that, because a stale "known bug" is worse than an unrecorded one: the next reader
+budgets time for work already done.)*
+
+The original report follows.
 
 `POST /lessons/:id/complete` succeeds for any lesson at any time. It does not
 check `prerequisiteLessonIds`, and it has no idea whether the learner answered a
@@ -643,8 +656,6 @@ Schema consequences, additive: `Question` becomes a discriminated union
 union (`{ optionId } | { text }`) validated with `@ValidateIf`; `PromptKind`
 gains `'wordReading'`. Both clients gained a render branch in their lesson
 screen. Contract updated in the root CLAUDE.md.
-
-### 26. GrammarPoint carries an `examples` field beyond §5 (2026-07-22)
 
 ### 26. GrammarPoint carries an `examples` field beyond §5 (2026-07-22)
 
