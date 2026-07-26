@@ -427,8 +427,13 @@ export function newAttempt(): number {
  * Display names and teaching order for unit slugs.
  *
  * Duplicated from `client/lib/lessons.ts` rather than shared: the two apps have
- * separate `node_modules` by design, and a shared package for six strings would
+ * separate `node_modules` by design, and a shared package for ten labels would
  * cost more than it saves. If a third copy ever appears, extract it.
+ *
+ * **Both copies drifted on 2026-07-26** — four units were added to the seed and
+ * neither list was updated, so they rendered as raw slugs and sorted wrongly.
+ * Insertion order here *is* teaching order (`UNIT_ORDER` is `Object.keys`), so a
+ * new unit has to go in the right slot, not just get appended.
  */
 const UNIT_LABELS: Record<string, { label: string; ja: string; blurb: string }> = {
   'hiragana-basics': {
@@ -456,20 +461,36 @@ const UNIT_LABELS: Record<string, { label: string; ja: string; blurb: string }> 
     ja: 'ダクテン',
     blurb: 'The same three rules, applied to the second script.',
   },
+  // `ja` here was 'とおぼこ' / 'トオボコ', which is not a Japanese word — it looks
+  // like a slip from the T1.1 build. The marks have real names: 促音 そくおん is
+  // the small tsu, 長音 ちょうおん the vowel-lengthening bar. Fixed 2026-07-26.
+  // This site's own README calls confidently teaching wrong Japanese the
+  // existential risk of the project (OPEN-ITEMS #8), and a unit heading is as
+  // front-of-house as it gets.
   'hiragana-marks-extra': {
     label: 'Hiragana っ / ー',
-    ja: 'とおぼこ',
+    ja: 'そくおん',
     blurb: 'The doubling marks — pronounced by eating the next consonant or stretching the previous vowel.',
   },
   'katakana-marks-extra': {
     label: 'Katakana ッ / ー',
-    ja: 'トオボコ',
+    ja: 'ちょうおん',
     blurb: 'Same marks, loanword-heavy words. The contrast with hiragana is the lesson.',
+  },
+  'vocab-everyday': {
+    label: 'Everyday words',
+    ja: 'にちじょう',
+    blurb: '220 words the marks unlocked — food, family, travel, work, and the verbs you actually use.',
   },
   'grammar-basics': {
     label: 'First sentences',
     ja: 'ぶんぽう',
     blurb: 'Particles and polite endings — what turns words into sentences.',
+  },
+  'kanji-basics': {
+    label: 'First kanji',
+    ja: 'かんじ',
+    blurb: 'Every character here writes a word you already know in kana. 山 is just やま.',
   },
 };
 

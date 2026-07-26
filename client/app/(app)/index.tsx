@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,16 +8,17 @@ import { fetchLessons } from '@/api/lessons';
 import { fetchProgress } from '@/api/progress';
 import { useAuth } from '@/components/AuthProvider';
 import { ChatCallout } from '@/components/ChatCallout';
+import { ContinueCard, CourseComplete } from '@/components/ContinueCard';
 import { ErrorState } from '@/components/ErrorState';
 import {
   CalloutSkeleton,
-  LessonListSkeleton,
+  LessonPathSkeleton,
   ProgressSkeleton,
 } from '@/components/HomeSkeletons';
-import { LessonRow } from '@/components/LessonRow';
 import { ProgressSummary } from '@/components/ProgressSummary';
 import { ReviewCallout, ReviewEmptyState } from '@/components/ReviewCallout';
-import { groupByUnit, withLockState, type UnitGroup } from '@/lib/lessons';
+import { UnitChapter } from '@/components/UnitChapter';
+import { groupByUnit, nextLesson, withLockState, type UnitGroup } from '@/lib/lessons';
 import { useTheme } from '@/theme';
 
 export default function Home() {
@@ -24,6 +26,25 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
+
+  /**
+   * Which chapters the learner has opened by hand.
+   *
+   * The current chapter is expanded by default and the rest are collapsed, but a
+   * tap overrides that either way — hence a set of explicit overrides rather than
+   * a set of "expanded" ids, so the default can stay derived from progress as it
+   * moves. Local UI state on purpose: it should reset when the screen does.
+   */
+  const [toggled, setToggled] = useState<Set<string>>(new Set());
+
+  function toggleUnit(unit: string) {
+    setToggled((current) => {
+      const next = new Set(current);
+      if (next.has(unit)) next.delete(unit);
+      else next.add(unit);
+      return next;
+    });
+  }
 
   const progress = useQuery({
     queryKey: ['progress'],
@@ -56,6 +77,10 @@ export default function Home() {
     progress.data && lessons.data
       ? groupByUnit(withLockState(lessons.data, progress.data.completedLessonIds))
       : [];
+
+  const next = nextLesson(units);
+  const nextUnitLabel = units.find((unit) => unit.unit === next?.unit)?.label ?? '';
+  const nothingDoneYet = (progress.data?.lessonsCompleted ?? 0) === 0;
 
   return (
     <ScrollView
@@ -121,10 +146,7 @@ export default function Home() {
       )}
 
       {lessons.isPending ? (
-        <View style={{ gap: theme.spacing.sm }}>
-          <UnitHeading label="Hiragana basics" />
-          <LessonListSkeleton />
-        </View>
+        <LessonPathSkeleton />
       ) : lessons.isError ? (
         <View style={{ paddingTop: theme.spacing.md }}>
           <ErrorState error={lessons.error} onRetry={refetchAll} />
@@ -132,81 +154,35 @@ export default function Home() {
       ) : units.length === 0 ? (
         <EmptyLessons />
       ) : (
-        units.map((unit) => (
-          <View key={unit.unit} style={{ gap: theme.spacing.sm }}>
-            <UnitHeading
-              label={unit.label}
-              done={unit.completedCount}
-              total={unit.lessons.length}
+        <>
+          {next ? (
+            <ContinueCard
+              lesson={next}
+              unitLabel={nextUnitLabel}
+              fresh={nothingDoneYet}
+              onPress={(lesson) => router.push(`/lesson/${lesson.id}`)}
             />
-            {unit.lessons.map((lesson) => (
-              <LessonRow
-                key={lesson.id}
-                lesson={lesson}
-                onPress={(next) => router.push(`/lesson/${next.id}`)}
-              />
-            ))}
-          </View>
-        ))
+          ) : (
+            <CourseComplete />
+          )}
+
+          {units.map((unit) => (
+            <UnitChapter
+              key={unit.unit}
+              group={unit}
+              nextLessonId={next?.id}
+              // The current chapter is open by default — it is the only one whose
+              // path the learner needs — and a tap flips whichever chapter it hits.
+              expanded={
+                toggled.has(unit.unit) ? unit.status !== 'current' : unit.status === 'current'
+              }
+              onToggle={toggleUnit}
+              onPressLesson={(lesson) => router.push(`/lesson/${lesson.id}`)}
+            />
+          ))}
+        </>
       )}
     </ScrollView>
-  );
-}
-
-/**
- * A unit's name, and how far through it you are.
- *
- * The count earns its place now that there are two units and ten lessons —
- * "2 / 5" answers "where was I" at a glance, which one unit of three lessons
- * never needed.
- */
-function UnitHeading({
-  label,
-  done,
-  total,
-}: {
-  label: string;
-  done?: number;
-  total?: number;
-}) {
-  const theme = useTheme();
-
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: theme.spacing.md,
-      }}
-    >
-      <Text
-        style={{
-          fontFamily: theme.families.ui,
-          fontSize: theme.fontSize.caption,
-          color: theme.colors.inkSoft,
-          textTransform: 'uppercase',
-          letterSpacing: 1,
-        }}
-      >
-        {label}
-      </Text>
-      {total !== undefined && done !== undefined ? (
-        <Text
-          // Spoken as a sentence; "2 / 5" alone would be read as a fraction
-          // with no idea what it counts.
-          accessibilityLabel={`${done} of ${total} lessons complete`}
-          style={{
-            fontFamily: theme.families.ui,
-            fontSize: theme.fontSize.caption,
-            color: done === total ? theme.colors.shu : theme.colors.inkSoft,
-            ...theme.tabularFigures,
-          }}
-        >
-          {done} / {total}
-        </Text>
-      ) : null}
-    </View>
   );
 }
 
