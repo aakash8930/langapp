@@ -23,6 +23,9 @@ interface Stored {
   lastStudyDate: string | null;
   todayXp: number;
   tz: string;
+  weeklyXp: number;
+  /** Defaults to the ISO week of NOW, so the common path is "same week". */
+  weeklyXpWeek: string | null;
 }
 
 interface Harness {
@@ -38,6 +41,8 @@ function build(stored: Partial<Stored> = {}, opts: { rollLosesRace?: boolean } =
     lastStudyDate: '2026-07-18',
     todayXp: 40,
     tz: 'Asia/Kolkata',
+    weeklyXp: 120,
+    weeklyXpWeek: '2026-W29',
     ...stored,
   };
 
@@ -47,6 +52,8 @@ function build(stored: Partial<Stored> = {}, opts: { rollLosesRace?: boolean } =
       streakDays: state.streakDays,
       lastStudyDate: state.lastStudyDate,
       todayXp: state.todayXp,
+      weeklyXp: state.weeklyXp,
+      weeklyXpWeek: state.weeklyXpWeek,
     },
     settings: { tz: state.tz },
   } as unknown as UserDocument;
@@ -89,9 +96,14 @@ describe('UserService.awardXp', () => {
     expect(findOneAndUpdate).not.toHaveBeenCalled();
 
     const update = updateArg(findByIdAndUpdate);
-    // Both counters increment; nothing resets and no streak field is written.
-    expect(update.$inc).toEqual({ 'gamification.xp': 10, 'gamification.todayXp': 10 });
-    expect(update.$set).toBeUndefined();
+    // Every counter increments; nothing resets and no streak field is written.
+    // The weekly counter rides along because the stored week matches NOW's.
+    expect(update.$inc).toEqual({
+      'gamification.xp': 10,
+      'gamification.todayXp': 10,
+      'gamification.weeklyXp': 10,
+    });
+    expect(update.$set).toEqual({ 'gamification.weeklyXpWeek': '2026-W29' });
   });
 
   it('rolls the streak and restarts todayXp on the first action of a new day', async () => {
@@ -112,12 +124,17 @@ describe('UserService.awardXp', () => {
     // advance the streak.
     expect(filter['gamification.lastStudyDate']).toBe('2026-07-18');
 
-    expect(update.$inc).toEqual({ 'gamification.xp': 10 });
+    expect(update.$inc).toEqual({
+      'gamification.xp': 10,
+      // The stored week already matches, so this accumulates rather than resets.
+      'gamification.weeklyXp': 10,
+    });
     expect(update.$set).toEqual({
       'gamification.streakDays': 4,
       'gamification.lastStudyDate': '2026-07-19',
       // The critical bit: yesterday's 40 is replaced, not added to.
       'gamification.todayXp': 10,
+      'gamification.weeklyXpWeek': '2026-W29',
     });
   });
 
@@ -140,8 +157,56 @@ describe('UserService.awardXp', () => {
     // The winner already set the streak and date correctly; re-setting them
     // here would double-count the day.
     const update = updateArg(findByIdAndUpdate);
+    expect(update.$inc).toEqual({
+      'gamification.xp': 10,
+      'gamification.todayXp': 10,
+      'gamification.weeklyXp': 10,
+    });
+    // The week is re-stamped rather than reset — the winner already rolled it.
+    expect(update.$set).toEqual({ 'gamification.weeklyXpWeek': '2026-W29' });
+  });
+
+  /**
+   * The weekly counter rolls on a **UTC week**, the daily one on the learner's
+   * **local day**. They are independent, and this is the case that proves it:
+   * same local day, but the stored week is last week's.
+   */
+  it('restarts the weekly counter when the UTC week has turned but the day has not', async () => {
+    const { service, findByIdAndUpdate } = build({
+      lastStudyDate: '2026-07-19',
+      weeklyXp: 300,
+      weeklyXpWeek: '2026-W28',
+    });
+
+    await service.awardXp(USER_ID, 10, NOW);
+
+    const update = updateArg(findByIdAndUpdate);
+    // Daily still accumulates; weekly is replaced, not added to.
     expect(update.$inc).toEqual({ 'gamification.xp': 10, 'gamification.todayXp': 10 });
-    expect(update.$set).toBeUndefined();
+    expect(update.$set).toEqual({
+      'gamification.weeklyXp': 10,
+      'gamification.weeklyXpWeek': '2026-W29',
+    });
+  });
+
+  it('restarts both counters when the day and the week turn together', async () => {
+    const { service, findOneAndUpdate } = build({
+      lastStudyDate: '2026-07-18',
+      weeklyXp: 300,
+      weeklyXpWeek: '2026-W28',
+    });
+
+    await service.awardXp(USER_ID, 10, NOW);
+
+    const update = updateArg(findOneAndUpdate);
+    expect(update.$inc).toEqual({ 'gamification.xp': 10 });
+    expect(update.$set).toEqual(
+      expect.objectContaining({
+        'gamification.todayXp': 10,
+        'gamification.weeklyXp': 10,
+        'gamification.weeklyXpWeek': '2026-W29',
+      }),
+    );
   });
 
   it('uses the learner own timezone to decide what "today" is', async () => {
@@ -243,5 +308,30 @@ describe('UserService.updateSettings', () => {
       service.updateSettings(USER_ID, { tz: 'Mars/Olympus_Mons' }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserService.weeklyXpFor', () => {
+  const doc = (weeklyXpWeek: string | null, weeklyXp: number): UserDocument =>
+    ({ gamification: { weeklyXpWeek, weeklyXp } }) as unknown as UserDocument;
+
+  const service = new UserService({} as never, noConfig);
+  // A Wednesday in 2026-W30.
+  const NOW = new Date('2026-07-22T12:00:00Z');
+
+  it('returns the stored counter when it belongs to this week', () => {
+    expect(service.weeklyXpFor(doc('2026-W30', 250), NOW)).toBe(250);
+  });
+
+  /**
+   * Without this, the first leaderboard read after a Monday would rank everyone
+   * by last week's totals — nothing rewrites a row until its owner earns again.
+   */
+  it('returns 0 once the UTC week has turned', () => {
+    expect(service.weeklyXpFor(doc('2026-W29', 250), NOW)).toBe(0);
+  });
+
+  it('returns 0 for someone who has never earned any', () => {
+    expect(service.weeklyXpFor(doc(null, 0), NOW)).toBe(0);
   });
 });

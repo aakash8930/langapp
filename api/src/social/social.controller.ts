@@ -12,6 +12,7 @@ import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { ReportUserDto, SearchUsersDto, SendMessageDto } from './dto/social.dto';
+import { LeagueService } from './league.service';
 import { SocialService } from './social.service';
 
 /**
@@ -26,7 +27,22 @@ import { SocialService } from './social.service';
 @Controller('social')
 @UseGuards(JwtAuthGuard)
 export class SocialController {
-  constructor(private readonly social: SocialService) {}
+  constructor(
+    private readonly social: SocialService,
+    private readonly leagues: LeagueService,
+  ) {}
+
+  /**
+   * This week's league table.
+   *
+   * Also the trigger for settling a week that has closed — there is no job
+   * runner, so the first read after Monday does the work. That is why this can
+   * be marginally slower than the rest; see `LeagueService.settleClosedWeeks`.
+   */
+  @Get('leaderboard')
+  async leaderboard(@CurrentUser() current: AuthenticatedUser) {
+    return this.leagues.leaderboard(current.userId);
+  }
 
   /**
    * Search by display name.

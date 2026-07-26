@@ -76,6 +76,34 @@ export class Gamification {
   todayXp: number;
 
   /**
+   * XP earned this **UTC** week, and which week that is.
+   *
+   * The same shape as `todayXp`/`lastStudyDate` — a counter plus the period it
+   * belongs to, corrected on read — but on a *global* boundary rather than the
+   * learner's local one. That difference is the point: `todayXp` answers "have I
+   * studied today", which is a question about the learner's own day, while
+   * weekly XP feeds a leaderboard that compares people to each other and
+   * therefore needs one shared clock. See `gamification/week.ts`.
+   *
+   * Null week means "never earned any", which reads as 0.
+   */
+  @Prop({ required: true, default: 0, min: 0 })
+  weeklyXp: number;
+
+  /** ISO week identifier, e.g. '2026-W31'. */
+  @Prop({ type: String, default: null })
+  weeklyXpWeek: string | null;
+
+  /**
+   * Which league this learner competes in, as an index into `LEAGUE_TIERS`.
+   *
+   * Everyone starts in the lowest. Promotion and relegation are settled when a
+   * week closes — see `LeagueService`.
+   */
+  @Prop({ required: true, default: 0, min: 0 })
+  leagueTier: number;
+
+  /**
    * Hearts — the Duolingo loss-aversion mechanic. Beyond §5 entirely; §5's
    * gamification block is xp/streak only.
    *

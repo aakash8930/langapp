@@ -12,6 +12,7 @@ import {
 } from './gamification/hearts';
 import { levelFromXp } from './gamification/level';
 import { localDateString, nextStreak } from './gamification/streak';
+import { isoWeek } from './gamification/week';
 import { MAX_HEARTS, User, UserDocument } from './schemas/user.schema';
 
 export interface CreateUserInput {
@@ -182,6 +183,25 @@ export class UserService {
     return this.userModel.findOne({ email: email.toLowerCase() }).exec();
   }
 
+  /**
+   * Everyone competing in one league tier.
+   *
+   * Unpaginated on purpose at this scale — a tier holds tens of people, and the
+   * leaderboard shows all of them. This is the read that will need sharding
+   * first if the user base ever grows: Duolingo splits a tier into cohorts of
+   * about 30, and that is the concept to add here rather than a `limit`.
+   */
+  async findByLeagueTier(tier: number): Promise<UserDocument[]> {
+    return this.userModel.find({ 'gamification.leagueTier': tier }).exec();
+  }
+
+  /** Move a learner between tiers when a week settles. */
+  async setLeagueTier(id: string, tier: number): Promise<void> {
+    await this.userModel
+      .updateOne({ _id: id }, { $set: { 'gamification.leagueTier': tier } })
+      .exec();
+  }
+
   /** Bulk lookup for the social module's friend and block lists. */
   async findManyByIds(ids: string[]): Promise<UserDocument[]> {
     const valid = ids.filter((id) => Types.ObjectId.isValid(id));
@@ -277,9 +297,16 @@ export class UserService {
     const previousStudyDate = user.gamification.lastStudyDate;
     const outcome = nextStreak(user.gamification.streakDays, previousStudyDate, today);
 
+    // The weekly counter rolls on a *different* boundary from the daily one —
+    // UTC weeks against local days — so it is checked separately. A UTC week can
+    // turn without the learner's local day turning, and vice versa.
+    const week = isoWeek(now);
+    const resetWeek = user.gamification.weeklyXpWeek !== week;
+
     if (!outcome.isNewDay) {
-      // Same local day: pure accumulation, no streak or rollover concerns.
-      return this.incrementXp(id, amount, { resetToday: false });
+      // Same local day: pure accumulation, no streak concerns — but the week may
+      // still have rolled underneath it.
+      return this.incrementXp(id, amount, { resetToday: false, resetWeek, week });
     }
 
     // A new local day. Guard on lastStudyDate still holding the value we read,
@@ -288,12 +315,20 @@ export class UserService {
       .findOneAndUpdate(
         { _id: id, 'gamification.lastStudyDate': previousStudyDate },
         {
-          $inc: { 'gamification.xp': amount },
+          // Built rather than spread: an `...(cond ? {$inc: …} : {})` after a
+          // literal `$inc` *replaces* it, which silently dropped lifetime XP on
+          // every day-roll. A test caught it; the shape below cannot do that.
+          $inc: {
+            'gamification.xp': amount,
+            ...(resetWeek ? {} : { 'gamification.weeklyXp': amount }),
+          },
           $set: {
             'gamification.streakDays': outcome.streakDays,
             'gamification.lastStudyDate': today,
             // The day rolled over, so today's counter starts from this award.
             'gamification.todayXp': amount,
+            'gamification.weeklyXpWeek': week,
+            ...(resetWeek ? { 'gamification.weeklyXp': amount } : {}),
           },
         },
         { new: true },
@@ -305,22 +340,32 @@ export class UserService {
     }
 
     // Lost the race: another request already rolled the day. The streak and
-    // date are correct as they stand, so only this award still needs applying.
-    return this.incrementXp(id, amount, { resetToday: false });
+    // date are correct as they stand, so only this award still needs applying —
+    // and the winner already rolled the week too, so this must not reset it.
+    return this.incrementXp(id, amount, { resetToday: false, resetWeek: false, week });
   }
 
   private async incrementXp(
     id: string,
     amount: number,
-    opts: { resetToday: boolean },
+    opts: { resetToday: boolean; resetWeek: boolean; week: string },
   ): Promise<UserDocument> {
     // `$inc` so concurrent awards accumulate instead of overwriting each other;
-    // a read-modify-write here would silently lose XP.
-    const update = opts.resetToday
-      ? { $inc: { 'gamification.xp': amount }, $set: { 'gamification.todayXp': amount } }
-      : { $inc: { 'gamification.xp': amount, 'gamification.todayXp': amount } };
+    // a read-modify-write here would silently lose XP. A counter whose period
+    // just rolled is `$set` to this award instead — incrementing would carry
+    // last period's total forward.
+    const inc: Record<string, number> = { 'gamification.xp': amount };
+    const set: Record<string, unknown> = { 'gamification.weeklyXpWeek': opts.week };
 
-    const user = await this.userModel.findByIdAndUpdate(id, update, { new: true }).exec();
+    if (opts.resetToday) set['gamification.todayXp'] = amount;
+    else inc['gamification.todayXp'] = amount;
+
+    if (opts.resetWeek) set['gamification.weeklyXp'] = amount;
+    else inc['gamification.weeklyXp'] = amount;
+
+    const user = await this.userModel
+      .findByIdAndUpdate(id, { $inc: inc, $set: set }, { new: true })
+      .exec();
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -337,6 +382,18 @@ export class UserService {
   todayXpFor(user: UserDocument, now: Date = new Date()): number {
     const today = localDateString(now, user.settings.tz);
     return user.gamification.lastStudyDate === today ? user.gamification.todayXp : 0;
+  }
+
+  /**
+   * This week's XP as it should be *read* — same correction as `todayXpFor`, on
+   * the UTC week boundary instead of the learner's local day.
+   *
+   * Without it, the first leaderboard read after a Monday would rank everyone by
+   * last week's totals, because nothing rewrites a user's row until their next
+   * award. Reading `gamification.weeklyXp` directly is a bug.
+   */
+  weeklyXpFor(user: UserDocument, now: Date = new Date()): number {
+    return user.gamification.weeklyXpWeek === isoWeek(now) ? user.gamification.weeklyXp : 0;
   }
 
   async updateSettings(id: string, dto: UpdateSettingsDto): Promise<UserDocument> {

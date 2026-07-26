@@ -4,8 +4,10 @@ import { UserModule } from '../user/user.module';
 import { Block, BlockSchema } from './schemas/block.schema';
 import { DirectMessage, DirectMessageSchema } from './schemas/direct-message.schema';
 import { Friendship, FriendshipSchema } from './schemas/friendship.schema';
+import { LeagueStanding, LeagueStandingSchema } from './schemas/league-standing.schema';
 import { Report, ReportSchema } from './schemas/report.schema';
 import { SocialController } from './social.controller';
+import { LeagueService } from './league.service';
 import { SocialService } from './social.service';
 
 /**
@@ -22,11 +24,12 @@ import { SocialService } from './social.service';
       { name: DirectMessage.name, schema: DirectMessageSchema },
       { name: Block.name, schema: BlockSchema },
       { name: Report.name, schema: ReportSchema },
+      { name: LeagueStanding.name, schema: LeagueStandingSchema },
     ]),
     UserModule,
   ],
   controllers: [SocialController],
-  providers: [SocialService],
-  exports: [SocialService],
+  providers: [SocialService, LeagueService],
+  exports: [SocialService, LeagueService],
 })
 export class SocialModule {}
