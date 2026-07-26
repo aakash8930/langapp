@@ -599,7 +599,7 @@ four is done:
 |---|---|
 | Hiragana | **complete** — all 46 base characters, 5 lessons (2026-07-21) |
 | Katakana | **complete** — all 46 base characters, 5 lessons, gated behind hiragana (2026-07-21) |
-| Basic vocabulary | **two units complete** — 58 words in 6 lessons (2026-07-22) plus 220 words in 14 lessons (T1.6, 2026-07-26) |
+| Basic vocabulary | **N5 complete — 802 words** across three units: 58 in 6 lessons (2026-07-22), 220 in 14 (T1.6, 2026-07-26), 512 in 32 (2026-07-27) |
 | Basic grammar | **first unit complete** — 12 points, 4 lessons (2026-07-22) |
 | *(kana marks — not a §1 line)* | **complete** — 116 syllables, 12 lessons (2026-07-22) |
 | *(kanji — a Phase 1 line, not §1)* | **first unit complete** — 104 characters, 10 lessons (T1.7, 2026-07-26) |

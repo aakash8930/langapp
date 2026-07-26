@@ -501,6 +501,11 @@ const UNIT_LABELS: Record<string, { label: string; ja: string; blurb: string }> 
     ja: 'かんじ',
     blurb: 'Every character here writes a word you already know in kana. 山 is just やま.',
   },
+  'vocab-n5': {
+    label: 'Everything else at N5',
+    ja: 'ごい',
+    blurb: '512 more words — the ones that take the course to a full N5 vocabulary of 802.',
+  },
 };
 
 const UNIT_ORDER = Object.keys(UNIT_LABELS);

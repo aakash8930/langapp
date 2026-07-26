@@ -19,6 +19,7 @@ import {
 } from './japanese/marks-words';
 import type { VocabLessonSeed } from './japanese/vocab';
 import { VOCAB_GROUPS, VOCAB_LESSONS, VOCAB_UNIT } from './japanese/vocab';
+import { VOCAB_N5_GROUPS, VOCAB_N5_LESSONS, VOCAB_N5_UNIT } from './japanese/vocab-n5';
 import {
   VOCAB_EVERYDAY_GROUPS,
   VOCAB_EVERYDAY_LESSONS,
@@ -73,6 +74,22 @@ const KATAKANA_MARKS_EXTRA_PACK: VocabPack = {
  * because it assumes every mark: たべる needs べ, ぎゅうにゅう needs both a
  * dakuten and two yōon, きっぷ needs っ.
  */
+/**
+ * The 512 words that finish N5, and the **last** unit in the course.
+ *
+ * Placed after grammar and kanji rather than beside the other vocabulary, which
+ * is a pedagogical call rather than a technical one. Slotting 32 lessons in
+ * before grammar would push the first grammar lesson from 49 to 81 — a learner
+ * would meet eight hundred words before being shown how to put two of them in a
+ * sentence. This unit is depth on top of a complete course, so it goes last,
+ * where the learner already has the grammar and the kanji to use it with.
+ */
+const VOCAB_N5_PACK: VocabPack = {
+  unit: VOCAB_N5_UNIT,
+  groups: VOCAB_N5_GROUPS,
+  lessons: VOCAB_N5_LESSONS,
+};
+
 const VOCAB_EVERYDAY_PACK: VocabPack = {
   unit: VOCAB_EVERYDAY_UNIT,
   groups: VOCAB_EVERYDAY_GROUPS,
@@ -102,7 +119,7 @@ interface OrderedPack {
  *   hiragana-basics → katakana-basics → vocab-basics →
  *   hiragana-marks → katakana-marks →
  *   hiragana-marks-extra → katakana-marks-extra →
- *   vocab-everyday → grammar
+ *   vocab-everyday → grammar → kanji → vocab-n5
  */
 const ORDERED_PACKS: OrderedPack[] = [
   ...BASE_PACKS.map((p) => ({ kind: 'kana' as const, kana: p })),
@@ -124,7 +141,7 @@ export interface SeedSummary {
 }
 
 /**
- * §14 step 2, grown into the whole Phase 0 curriculum: ten units as
+ * §14 step 2, grown into the whole Phase 0 curriculum: eleven units as
  * Lessons plus KnowledgeNodes — both kana tables, the marks, the first words,
  * the marks-words, a second and much larger words unit, the grammar that
  * turns them into sentences, and finally the kanji that rewrite the lot.
@@ -175,7 +192,9 @@ export class SeedService {
     }
 
     previousLessonId = await this.seedGrammar(previousLessonId);
-    await this.seedKanji(previousLessonId);
+    previousLessonId = await this.seedKanji(previousLessonId);
+    await this.seedVocabPack(VOCAB_N5_PACK, previousLessonId);
+    this.logger.log(`Seeded ${VOCAB_N5_UNIT}: ${countWordsIn(VOCAB_N5_PACK)} words`);
 
     const summary: SeedSummary = {
       kanaItems: await this.contentService.countKana(),
@@ -411,7 +430,9 @@ export class SeedService {
    * in the graph yet, and inventing one is a knowledge-graph decision rather than
    * a seeding one.
    */
-  private async seedKanji(carriedLessonId: Types.ObjectId | null): Promise<void> {
+  private async seedKanji(
+    carriedLessonId: Types.ObjectId | null,
+  ): Promise<Types.ObjectId | null> {
     const idsByGroup = new Map<string, Types.ObjectId[]>();
 
     for (const [group, entries] of Object.entries(KANJI_GROUPS)) {
@@ -459,6 +480,8 @@ export class SeedService {
     }
 
     this.logger.log(`Seeded ${KANJI_UNIT}: ${countKanji()} kanji`);
+
+    return previousLessonId;
   }
 
   /**

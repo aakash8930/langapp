@@ -62,6 +62,7 @@ const UNIT_LABELS: Record<string, string> = {
   'vocab-everyday': 'Everyday words',
   'grammar-basics': 'First sentences',
   'kanji-basics': 'First kanji',
+  'vocab-n5': 'Everything else at N5',
 };
 
 /**
@@ -88,6 +89,7 @@ const UNIT_ORDER = [
   'vocab-everyday',
   'grammar-basics',
   'kanji-basics',
+  'vocab-n5',
 ];
 
 /**

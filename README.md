@@ -27,7 +27,7 @@ cd api
 docker compose up -d          # mongo + redis, localhost-only ports
 cp .env.example .env          # then fill in the two JWT secrets
 npm install
-npm run seed                  # loads the Japanese content pack (10 units)
+npm run seed                  # loads the Japanese content pack (11 units)
 npm run start:dev             # api on :3000
 ```
 
@@ -528,8 +528,8 @@ sentence slightly wrong is the ordinary case in practice, not an error.
 
 ## Seeded content
 
-`npm run seed` loads **ten units — 208 kana, 290 words, 12 grammar points, 104
-kanji, 58 lessons** — each item with a `KnowledgeNode`, chained via
+`npm run seed` loads **eleven units — 208 kana, 802 words, 12 grammar points, 104
+kanji, 90 lessons** — each item with a `KnowledgeNode`, chained via
 `prerequisiteLessonIds`.
 
 It starts with `hiragana-basics` and `katakana-basics`: 92 characters, both base
@@ -655,9 +655,20 @@ answers — the same defect the grammar unit hit with 「わたしはいき＿�
 are still taught: `GET /lessons/:id` returns `on` and `kun` and the lesson screen
 shows them. They are study material, not an answer key.
 
+**Last of all, `vocab-n5` — 512 words in 32 themed lessons (2026-07-27).** JLPT
+N5 is conventionally about 800 words and 100 kanji; the kanji side was already
+there, but the vocabulary was 290, roughly a third of the level. This unit takes
+the course to **802 words**, which is N5's vocabulary complete.
+
+It sits after grammar and kanji rather than beside the other vocabulary, and that
+is a pedagogical call: slotting 32 lessons in before grammar would push the first
+grammar lesson from 49 to 81, so a learner would meet eight hundred words before
+being shown how to put two of them in a sentence. Depth belongs on top of a
+complete course, not in the middle of one.
+
 The whole curriculum is one chain: hiragana → katakana → first words → hiragana
 marks → katakana marks → hiragana marks-extra → katakana marks-extra →
-everyday words → grammar → kanji, **58 lessons across 10 units**, each unit's
+everyday words → grammar → kanji → the rest of N5, **90 lessons across 11 units**, each unit's
 first lesson gated on the previous unit's last. Grammar comes after all the words
 because its sentences are built from them, and kanji after everything because it
 depends on the whole vocabulary above it.
