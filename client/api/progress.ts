@@ -23,6 +23,17 @@ export type Progress = {
     reviewsDone: number;
     lessonsDone: number;
   };
+  /**
+   * Hearts as the server computed them, including regeneration — never derive
+   * these locally. `nextHeartAt` is an ISO instant so a countdown can tick down
+   * client-side without the number going stale; null at full hearts.
+   */
+  hearts: {
+    current: number;
+    max: number;
+    nextHeartAt: string | null;
+  };
+  gems: number;
   cardsDueNow: number;
   lessonsCompleted: number;
   /** Drives lesson lock state. See lib/lessons.ts. */
