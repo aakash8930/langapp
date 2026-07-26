@@ -239,7 +239,20 @@ export type Progress = {
   xpForNextLevel: number;
   streakDays: number;
   lastStudyDate: string | null;
-  daily: { xpToday: number; goalXp: number; percentOfGoal: number; goalMet: boolean };
+  daily: {
+    xpToday: number;
+    goalXp: number;
+    percentOfGoal: number;
+    goalMet: boolean;
+    /**
+     * Counted on the user's local day (T1.8). Declared to keep this type an
+     * honest mirror of the server's `ProgressResponse`; the site does not render
+     * them yet — the header carries XP and streak, and a third metric would
+     * crowd it. The app's home screen is where the daily summary lives.
+     */
+    reviewsDone: number;
+    lessonsDone: number;
+  };
   cardsDueNow: number;
   lessonsCompleted: number;
   completedLessonIds: string[];

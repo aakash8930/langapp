@@ -69,7 +69,8 @@ GET   /me            bearer -> <UserResponse>
 PATCH /me/settings   bearer  { audioSpeed?, theme?, tz?, dailyGoalXp? }  -> <UserResponse>
 GET   /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
                                  streakDays, lastStudyDate,
-                                 daily: { xpToday, goalXp, percentOfGoal, goalMet },
+                                 daily: { xpToday, goalXp, percentOfGoal, goalMet,
+                                          reviewsDone, lessonsDone },
                                  cardsDueNow, lessonsCompleted, completedLessonIds }
 
 UserResponse = { id, email, createdAt,
@@ -101,6 +102,16 @@ Settings — that is a stored value, not a bug.
 Progress nests the daily numbers under `daily` — there is no top-level `todayXp` or
 `dailyGoalXp`. `xpToday` is recomputed on read, because the stored counter still holds
 yesterday's total until the next award rewrites it.
+
+`daily.reviewsDone` and `daily.lessonsDone` were added 2026-07-26 (T1.8). They are
+counted from the **event log**, not from a stored counter, and on the user's own
+local day — the same rule `xpToday` follows, from the same `now`, so the whole
+`daily` block can never disagree about when today started. They exist because XP
+alone is ambiguous: 30 XP is three lessons or fifteen reviews, and "nothing done
+yet" and "reviews done, goal just set high" are different things for a client to
+say. Counting is a 48-hour window filtered by local date string rather than a
+Mongo range on local midnight, deliberately — deriving a UTC offset for an IANA
+zone is the DST-boundary bug class of OPEN-ITEMS #18.
 
 `completedLessonIds` exists so the client can compute lesson lock state; it was added
 2026-07-19, since a bare `lessonsCompleted` count cannot answer which prerequisites are

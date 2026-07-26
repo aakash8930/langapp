@@ -25,6 +25,20 @@ export interface ProgressResponse {
     /** Clamped to 100 so a big day can't overflow a progress ring. */
     percentOfGoal: number;
     goalMet: boolean;
+    /**
+     * What the learner actually *did* today, counted from the event log rather
+     * than a stored counter (T1.8).
+     *
+     * These answer the question XP cannot: 30 XP could be three lessons or
+     * fifteen reviews, and "you have done nothing today" versus "you have done
+     * your reviews, the goal is just set high" are different messages for a home
+     * screen to show.
+     *
+     * Counted on *their* local day, the same rule `xpToday` follows — so these
+     * reset together and can never disagree about when today started.
+     */
+    reviewsDone: number;
+    lessonsDone: number;
   };
 
   /** Cards whose `due` has passed as of this request. */

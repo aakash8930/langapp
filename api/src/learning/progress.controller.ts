@@ -1,4 +1,5 @@
 import { Controller, Get, NotFoundException, UseGuards } from '@nestjs/common';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { levelFromXp } from '../user/gamification/level';
@@ -24,6 +25,9 @@ export class ProgressController {
     private readonly userService: UserService,
     private readonly learningService: LearningService,
     private readonly reviewService: ReviewService,
+    // Read side of `events`, for the daily summary (T1.8). Learning already
+    // depends on analytics for the write side, so this adds no new module edge.
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Get()
@@ -38,9 +42,18 @@ export class ProgressController {
     // must agree, and two calls to new Date() can straddle a midnight boundary.
     const now = new Date();
 
-    const [cardsDueNow, completedLessonIds] = await Promise.all([
+    const [cardsDueNow, completedLessonIds, todayCounts] = await Promise.all([
       this.reviewService.countDue(current.userId, now),
       this.learningService.findCompletedLessonIds(current.userId),
+      // Counted on the user's own local day, the same `now` and the same tz rule
+      // `todayXpFor` uses below — so the whole `daily` block agrees about when
+      // today started rather than two clocks straddling a midnight.
+      this.analyticsService.countTodayByType(
+        current.userId,
+        ['review.graded', 'lesson.completed'],
+        user.settings.tz,
+        now,
+      ),
     ]);
 
     const { xp, streakDays, lastStudyDate, dailyGoalXp } = user.gamification;
@@ -66,6 +79,8 @@ export class ProgressController {
         percentOfGoal:
           dailyGoalXp > 0 ? Math.min(100, Math.round((xpToday / dailyGoalXp) * 100)) : 100,
         goalMet: xpToday >= dailyGoalXp,
+        reviewsDone: todayCounts['review.graded'] ?? 0,
+        lessonsDone: todayCounts['lesson.completed'] ?? 0,
       },
       cardsDueNow,
       lessonsCompleted: completedLessonIds.length,
