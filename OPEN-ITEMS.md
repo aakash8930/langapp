@@ -68,6 +68,17 @@ and `0` in Pacific/Niue. The read side is *correct* — that user genuinely
 hasn't earned XP on their local 18th. It's the write side that would reset a
 streak the learner didn't actually break.
 
+**A second symptom of the same root cause, found verifying T1.8 (2026-07-26):**
+`daily.xpToday` and `daily.reviewsDone`/`lessonsDone` disagree after a tz change.
+`xpToday` compares the *stored* `lastStudyDate` against local today, so it reads 0
+for a day the learner worked; the T1.8 counts re-derive from event timestamps and
+stay correct. Measured on one account: `xpToday: 0` in Pacific/Kiritimati and `16`
+in Pacific/Niue, with `reviewsDone: 3, lessonsDone: 1` in both.
+
+That makes the event-derived counts a small argument for the "store the instant
+and re-derive" option below — they demonstrate it works and costs little. Within a
+fixed zone nothing disagrees, which is why this stays a low-priority edge.
+
 **Cost of getting it wrong:** low, and it needs a real tz change plus a
 date-line crossing to trigger. Lifetime `xp` is never affected, only the streak.
 **Options:** treat "today or later" as same-day (`lastStudyDate >= today` →
@@ -420,6 +431,24 @@ lesson 3 first, having answered nothing.
 
 Fine for a vertical slice; wrong for a shipped product. Both fixes want the same
 missing piece: a record of exercise attempts, which is Milestone 5-ish territory.
+
+### 30. The events collection now has a read path, and it is not an aggregation (T1.8, 2026-07-26)
+
+`AnalyticsService` was write-only by design — §5 calls `events` "append-only,
+write-heavy, never updated" and §13's funnel reads are [Later]. T1.8 needed
+"how many reviews did this learner do today", which is genuinely a read of that
+log, so `countTodayByType` exists now.
+
+It is deliberately the *small* version: one user, one day, a 48-hour window
+filtered in memory by local date string. That choice buys correctness across
+timezones without offset arithmetic (see #18 for why that matters), and it is
+honest at this scale — a learner's day is a handful of rows.
+
+**What it is not:** a foundation for analytics. The moment a question spans users
+or a longer period ("activation funnel", "week-over-week retention"), this shape
+is wrong and wants a real Mongo aggregation with the `{type, ts}` index. The
+method doc says so, but the risk is that the next daily-ish number gets bolted on
+here because it is the closest thing available.
 
 ### 17. Analytics writes are synchronous
 

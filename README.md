@@ -231,6 +231,40 @@ skipped / non-UTC learner, plus DST and leap day) and `user.service.spec.ts`
 (the writes those rules produce). See OPEN-ITEMS #18 for the one known edge:
 moving timezone backwards across the date line resets the streak.
 
+### The daily summary (T1.8)
+
+`daily` also carries `reviewsDone` and `lessonsDone`, so the home screen can say
+what the learner *did* rather than only what it scored. XP alone is ambiguous —
+30 XP is three lessons or fifteen reviews — and "0 of 50 XP today" reads the same
+whether nothing has happened or the reviews are done against a high goal.
+
+Both are counted from the **event log** (`review.graded`, `lesson.completed`),
+which has been accumulating since M4, and on the learner's local day using the
+same `localDateString` helper and the same `now` as `xpToday`.
+
+**They can disagree with `xpToday` after a timezone change, and the counts are
+the ones to trust.** `xpToday` compares the *stored* `lastStudyDate` — written
+under whatever zone was in effect at the time — against local today, so changing
+zone can make it read 0 for a day that had work in it. These counts re-derive from
+event timestamps and are unaffected. Caught while verifying T1.8 live: one account
+reads `xpToday: 0` in Pacific/Kiritimati and `16` in Pacific/Niue while both
+counts hold at `reviewsDone: 3, lessonsDone: 1`. It is the same root cause as
+OPEN-ITEMS #18, and within a fixed zone all three agree.
+
+`AnalyticsService.countTodayByType` fetches a **48-hour window and filters by
+local date string** rather than issuing a Mongo range query from local midnight.
+A range query needs the *instant* of midnight in an IANA zone, which means
+deriving a UTC offset, and getting that wrong across a DST boundary is precisely
+the bug class item #18 documents. The window covers every zone from UTC−12 to
+UTC+14, a learner's day is a handful of rows, and the existing `{userId, ts}`
+index serves it. This is a per-user daily count and deliberately not a foundation
+for §13's funnel reads, which want a real aggregation.
+
+The app shows it as one quiet line under the XP sentence — "2 lessons and 5
+reviews today", or "Nothing studied yet today" on an empty day rather than
+"0 reviews, 0 lessons", which reads as a scoreboard of failure on the first
+screen someone opens.
+
 ## Deployment
 
 Live on the laptop, public via Tailscale Funnel:

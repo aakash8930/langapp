@@ -105,13 +105,22 @@ yesterday's total until the next award rewrites it.
 
 `daily.reviewsDone` and `daily.lessonsDone` were added 2026-07-26 (T1.8). They are
 counted from the **event log**, not from a stored counter, and on the user's own
-local day — the same rule `xpToday` follows, from the same `now`, so the whole
-`daily` block can never disagree about when today started. They exist because XP
-alone is ambiguous: 30 XP is three lessons or fifteen reviews, and "nothing done
-yet" and "reviews done, goal just set high" are different things for a client to
-say. Counting is a 48-hour window filtered by local date string rather than a
-Mongo range on local midnight, deliberately — deriving a UTC offset for an IANA
-zone is the DST-boundary bug class of OPEN-ITEMS #18.
+local day, from the same `now` as `xpToday`. They exist because XP alone is
+ambiguous: 30 XP is three lessons or fifteen reviews, and "nothing done yet" and
+"reviews done, goal just set high" are different things for a client to say.
+Counting is a 48-hour window filtered by local date string rather than a Mongo
+range on local midnight, deliberately — deriving a UTC offset for an IANA zone is
+the DST-boundary bug class of OPEN-ITEMS #18.
+
+**`xpToday` and these two counts can disagree after the learner changes
+timezone**, and it is worth knowing which to trust. `xpToday` compares the
+*stored* `lastStudyDate` — a string written under whatever zone was in effect at
+the time — against local today, so a zone change makes it read 0 for a day the
+learner did work. `reviewsDone`/`lessonsDone` re-derive from event timestamps, so
+they stay right. Verified live: the same account reads `xpToday: 0` in
+Pacific/Kiritimati and `16` in Pacific/Niue while both counts stay at
+`reviewsDone: 3, lessonsDone: 1`. Same root cause as #18; within a fixed zone the
+three agree.
 
 `completedLessonIds` exists so the client can compute lesson lock state; it was added
 2026-07-19, since a bare `lessonsCompleted` count cannot answer which prerequisites are
