@@ -2,6 +2,8 @@ import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from '../user/user.module';
 import { LearningModule } from '../learning/learning.module';
+import { StorageModule } from '../common/storage/storage.module';
+import { AudioController } from './audio.controller';
 import { ContentService } from './content.service';
 import { ExerciseController } from './exercise.controller';
 import { ExerciseService } from './exercise/exercise.service';
@@ -32,8 +34,10 @@ import { VocabItem, VocabItemSchema } from './schemas/vocab-item.schema';
     forwardRef(() => LearningModule),
     // Hearts are user state; ExerciseService charges one for a wrong answer.
     UserModule,
+    // Audio bytes live behind StorageService, never `fs` directly.
+    StorageModule,
   ],
-  controllers: [LessonController, ExerciseController],
+  controllers: [LessonController, ExerciseController, AudioController],
   providers: [ContentService, ExerciseService],
   exports: [ContentService, ExerciseService],
 })

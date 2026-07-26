@@ -1,0 +1,57 @@
+import { Controller, Get, Header, NotFoundException, Param, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { StorageService } from '../common/storage/storage.service';
+
+/**
+ * Spoken audio for a vocabulary word.
+ *
+ * ## Unauthenticated, like `/lessons`
+ *
+ * This is shared reference content with no per-user state — the same reasoning
+ * that leaves the lesson routes open (and the same caveat, OPEN-ITEMS #1: on a
+ * public funnel anyone with the link can enumerate it). Requiring a bearer token
+ * would also mean the client could not hand the URL to a plain `<audio>` element
+ * or `expo-av`, which is exactly what makes playback trivial.
+ *
+ * ## Nothing is synthesised here
+ *
+ * The files are produced ahead of time by `tools/generate-audio.py` and read
+ * straight off storage. No model runs in this process: the vocabulary is fixed,
+ * so synthesising on demand would burn CPU re-making a file that cannot change,
+ * and would put a TTS runtime on a server that is a laptop.
+ *
+ * `id` is the vocabulary item's own `_id`, so the key is derivable from anything
+ * the client already has — no second lookup, and no filename to keep in step with
+ * a renamed word.
+ */
+@Controller('content/vocab')
+export class AudioController {
+  constructor(private readonly storage: StorageService) {}
+
+  @Get(':id/audio')
+  @Header('Content-Type', 'audio/wav')
+  // Immutable: a word's pronunciation does not change, and the key is its id, so
+  // a regenerated voice would be a new deploy rather than new bytes at this URL.
+  // Long cache means the phone fetches each word once, ever.
+  @Header('Cache-Control', 'public, max-age=31536000, immutable')
+  async audio(@Param('id') id: string, @Res() res: Response): Promise<void> {
+    // The id goes into a storage key, and `resolveKey` in LocalStorageService is
+    // the containment boundary — but a hex check here refuses the obviously
+    // hostile shape before it ever gets there, and turns a traversal attempt into
+    // a plain 404 rather than an error page.
+    if (!/^[a-f0-9]{24}$/i.test(id)) {
+      throw new NotFoundException('No audio for that word');
+    }
+
+    let bytes: Buffer;
+    try {
+      bytes = await this.storage.get(`audio/${id}.wav`);
+    } catch {
+      // A word whose audio has not been generated yet is a 404, not a 500. That
+      // is the normal state for content added since the last generation run.
+      throw new NotFoundException('No audio for that word');
+    }
+
+    res.send(bytes);
+  }
+}

@@ -21,3 +21,9 @@ dist
 coverage
 *.log
 .DS_Store
+
+# Local TTS toolchain (slice 3). Big, machine-specific, and rebuildable:
+# `python3 -m venv tools/tts-venv` then install from tools/README.md.
+tools/tts-venv/
+# Kokoro model + voice bin — ~350MB of weights, downloaded not authored.
+tools/voices/

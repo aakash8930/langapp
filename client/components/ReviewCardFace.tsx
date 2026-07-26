@@ -4,6 +4,7 @@ import type { ResolvedItem } from '@/api/items';
 import { GenkouyoushiCell } from '@/components/GenkouyoushiCell';
 import { KanaCells } from '@/components/KanaCells';
 import { showsRomaji } from '@/lib/romaji';
+import { SpeakButton } from '@/components/SpeakButton';
 import { useTheme } from '@/theme';
 
 /**
@@ -52,6 +53,18 @@ export function CardBack({ item }: { item: ResolvedItem }) {
           {line}
         </Text>
       ))}
+
+      {/* Only vocabulary is spoken. A kanji has several readings and which one
+          applies depends on the word, so voicing one beside a bare glyph would
+          teach the learner that *that* is how it is read — the same falsehood the
+          quiz refuses to state when it asks a kanji's meaning rather than its
+          reading. On the back, not the front: hearing it before recalling it
+          would answer the card for you. */}
+      {item.kind === 'vocab' ? (
+        <View style={{ paddingTop: theme.spacing.sm }}>
+          <SpeakButton vocabId={item.id} label="Hear it" />
+        </View>
+      ) : null}
     </View>
   );
 }
