@@ -159,12 +159,18 @@ Question = { exerciseId, type, prompt, promptKind, question } with two shapes:
   wordReading    { ... type: 'wordReading' }  // no options; learner types romaji
 ```
 
-`promptKind` is `'kana' | 'vocab' | 'grammar' | 'wordReading'` (widened to
-include `wordReading` on 2026-07-26 with T1.1, when っ/ー + chōonpu teaching
-landed). It says what the prompt *is* so the client can size it — one glyph
-belongs in a genkouyoushi cell, a word does not fit in one, a sentence has to
-wrap, a word typed in romaji sizes like vocab. A lesson with none of the four
-kinds still 422s.
+`promptKind` is `'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji'`
+(widened to include `wordReading` on 2026-07-26 with T1.1, when っ/ー + chōonpu
+teaching landed, and `kanji` the same day with T1.7). It says what the prompt
+*is* so the client can size it — one glyph belongs in a genkouyoushi cell, a
+word does not fit in one, a sentence has to wrap, a word typed in romaji sizes
+like vocab. A lesson with none of the five kinds still 422s.
+
+`kanji` is its own kind rather than reusing `kana` even though both are a single
+glyph: a kanji is much denser (顔 has 18 strokes, the busiest kana has 4), so it
+renders at a smaller size and **not** in a genkouyoushi cell — the cell's
+quadrant guides are for placing kana being written, and this unit asks for
+meaning, not handwriting.
 
 The answer body is a discriminated union on the lesson's `exerciseTypes`:
 `multipleChoice` lessons take `{ optionId: 'opt-N' }` and `wordReading` lessons
@@ -182,11 +188,21 @@ lesson teaches. On `wordReading` answers both `selectedOptionId` and
 | vocab | the word | English glosses | constant |
 | grammar | a sentence with a `＿` gap | particles and endings | **carries the English gloss** |
 | marks-words | the word (e.g. がっこう) | none — typed | constant (`'How do you read this word?'`) |
+| kanji | the character | English meanings | constant (`'What does this kanji mean?'`) |
 
 **Grammar's `question` is per-item and load-bearing.** 「わたしはいき＿。」is
 grammatical with ます, ません *and* ました, so the question text states which
 meaning is wanted: `Which fills the gap? — "I went to the sea."` Without it the
 question has three right answers. Kana and vocab questions are still constant.
+
+**Kanji asks for the meaning, never the reading**, and that is a correctness
+constraint rather than a preference: 山 is やま alone and サン in 火山, so a
+reading question would have two right answers — the same defect as grammar's
+gap. The meaning is what a kanji has independently of context. `on` and `kun`
+*are* returned by `GET /lessons/:id` so the lesson screen can teach them; they
+never reach the exercise payload, because `toPublicQuestion` is an allowlist.
+Multiple meanings are joined into one option (`'sky, empty'`), not offered
+separately.
 
 `GrammarPoint.examples` is a **documented departure from §5** (the second, after
 `SrsCard` — see OPEN-ITEMS #15 and #26). §5's GrammarPoint has nowhere to put a

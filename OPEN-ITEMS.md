@@ -355,6 +355,14 @@ call content for the item pool instead. Cheap to move now, expensive later.
 
 ### 10b. Multiple choice only asks kana → romaji
 
+**RESOLVED (T1.7, 2026-07-26)**: `KANJI_STYLE` answers the fourth kind — kanji →
+meaning — and `kanji-basics` seeds 104 characters for it. All four item kinds in
+`RESOLVABLE_KINDS` are now quizzable, so nothing 422s for want of a style.
+
+Deliberately **kanji → meaning and not kanji → reading**: 山 is やま alone and
+サン in 火山, so a reading question has two right answers. Same defect as
+grammar's gap, and the reason the meaning is the only thing this shape asks.
+
 **Mostly resolved 2026-07-22**: the service answers three kinds now — kana →
 romaji, word → gloss, and grammar as fill-in-the-blank (item 26). Only
 `KanjiEntry` still 422s, and there is no seeded kanji to ask about anyway.
@@ -486,6 +494,7 @@ four is done:
 | Basic vocabulary | **two units complete** — 58 words in 6 lessons (2026-07-22) plus 220 words in 14 lessons (T1.6, 2026-07-26) |
 | Basic grammar | **first unit complete** — 12 points, 4 lessons (2026-07-22) |
 | *(kana marks — not a §1 line)* | **complete** — 116 syllables, 12 lessons (2026-07-22) |
+| *(kanji — a Phase 1 line, not §1)* | **first unit complete** — 104 characters, 10 lessons (T1.7, 2026-07-26) |
 
 **§1's content line is complete.** All four tracks exist, plus the marks unit
 that §1 does not ask for. What remains is depth, not coverage.

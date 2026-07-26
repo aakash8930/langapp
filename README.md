@@ -27,7 +27,7 @@ cd api
 docker compose up -d          # mongo + redis, localhost-only ports
 cp .env.example .env          # then fill in the two JWT secrets
 npm install
-npm run seed                  # loads the Japanese content pack (9 units)
+npm run seed                  # loads the Japanese content pack (10 units)
 npm run start:dev             # api on :3000
 ```
 
@@ -494,8 +494,9 @@ sentence slightly wrong is the ordinary case in practice, not an error.
 
 ## Seeded content
 
-`npm run seed` loads **nine units — 208 kana, 290 words, 12 grammar points, 48
-lessons** — each item with a `KnowledgeNode`, chained via `prerequisiteLessonIds`.
+`npm run seed` loads **ten units — 208 kana, 290 words, 12 grammar points, 104
+kanji, 58 lessons** — each item with a `KnowledgeNode`, chained via
+`prerequisiteLessonIds`.
 
 It starts with `hiragana-basics` and `katakana-basics`: 92 characters, both base
 kana tables in full, 10 lessons.
@@ -603,11 +604,28 @@ vocabulary unit or conjugations this unit teaches, and at most 16 characters —
 Japanese does not space its words, and short sentences are what make that
 survivable.
 
+**Last of all, `kanji-basics` — 104 characters in 10 themed lessons (T1.7,
+2026-07-26).** It is placed last so it can be a *re-reading* rather than a
+memorisation slog: **every kanji in it writes a word the learner already knows in
+kana.** 山 is not a new glyph, it is how やま — learned in the first words unit —
+is really written; 学 and 校 are the two halves of がっこう; 食 is the 食 in
+たべる. Each entry lists the seeded words it writes and `kanji.spec.ts` checks
+every one against the actual vocabulary, so the unit cannot drift into teaching
+characters for words the course never taught. It caught たべもの on 物 the first
+time it ran — a plausible word, and not one this course teaches.
+
+The unit asks **kanji → meaning, and never kanji → reading.** A kanji has several
+readings and which one applies depends on the word: 山 is やま alone and サン in
+火山, and both are right, so "which reading is this?" would have two correct
+answers — the same defect the grammar unit hit with 「わたしはいき＿。」. Readings
+are still taught: `GET /lessons/:id` returns `on` and `kun` and the lesson screen
+shows them. They are study material, not an answer key.
+
 The whole curriculum is one chain: hiragana → katakana → first words → hiragana
 marks → katakana marks → hiragana marks-extra → katakana marks-extra →
-everyday words → grammar, **48 lessons across 9 units**, each unit's first lesson
-gated on the previous unit's last. Grammar is last because it is the one part
-that genuinely depends on all the rest: its sentences are built from the
-vocabulary and use the marks.
+everyday words → grammar → kanji, **58 lessons across 10 units**, each unit's
+first lesson gated on the previous unit's last. Grammar comes after all the words
+because its sentences are built from them, and kanji after everything because it
+depends on the whole vocabulary above it.
 Every write is an upsert on a natural key, so re-running preserves `_id`s — which
 matters because SRS cards will reference them.
