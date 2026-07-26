@@ -185,4 +185,6 @@ export const api = {
     }),
   patch: <T>(path: string, body: unknown) =>
     apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
+  // Added for the social routes — unfriending and unblocking are both DELETEs.
+  delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
 };

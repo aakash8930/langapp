@@ -1,11 +1,12 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { User } from '@/api/auth';
 import { updateSettings, type SettingsPatch } from '@/api/settings';
+import { fetchBlocked, unblockUser, type PublicProfile } from '@/api/social';
 import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/Button';
 import { ErrorState } from '@/components/ErrorState';
@@ -211,6 +212,10 @@ export default function Settings() {
         )}
       </Section>
 
+      <Section title="Blocked people">
+        <BlockedList />
+      </Section>
+
       <Section title="Account">
         <Row label="Signed in as" value={user.email} />
         <Button label="Log out" variant="secondary" onPress={confirmLogout} />
@@ -319,4 +324,99 @@ function withPatch(user: User, patch: SettingsPatch): User {
       ...(patch.audioSpeed === undefined ? {} : { audioSpeed: patch.audioSpeed }),
     },
   };
+}
+
+/**
+ * The people this learner has blocked, and the only way to undo it.
+ *
+ * Settings is the right home for this and the block button is not: blocking
+ * happens in the heat of a conversation, unblocking is a considered act done
+ * later. A block with no visible undo is a trap — you would have to remember the
+ * person's name and search for someone the search deliberately hides from you.
+ *
+ * Silent when empty and when it fails. Most people will never block anyone, and
+ * an error banner about a list that is almost always empty would be noise on a
+ * screen that is mostly about themes and timezones.
+ */
+function BlockedList() {
+  const theme = useTheme();
+  const queryClient = useQueryClient();
+
+  const blocked = useQuery({ queryKey: ['blocked'], queryFn: fetchBlocked, staleTime: 0 });
+
+  const unblock = useMutation({
+    mutationFn: (userId: string) => unblockUser(userId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['blocked'] }),
+  });
+
+  if (blocked.isPending || blocked.isError) return null;
+
+  if (blocked.data.length === 0) {
+    return (
+      <Text
+        style={{
+          fontFamily: theme.families.ui,
+          fontSize: theme.fontSize.body,
+          lineHeight: theme.lineHeight.body,
+          color: theme.colors.inkSoft,
+        }}
+      >
+        You have not blocked anyone.
+      </Text>
+    );
+  }
+
+  return (
+    <View style={{ gap: theme.spacing.sm }}>
+      {blocked.data.map((person: PublicProfile) => (
+        <View
+          key={person.id}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: theme.spacing.md,
+            paddingVertical: theme.spacing.sm,
+          }}
+        >
+          <Text
+            style={{
+              flexShrink: 1,
+              fontFamily: theme.families.ui,
+              fontSize: theme.fontSize.body,
+              color: theme.colors.ink,
+            }}
+          >
+            {person.displayName}
+          </Text>
+          <Pressable
+            onPress={() =>
+              Alert.alert(
+                `Unblock ${person.displayName}?`,
+                'They will be able to send you a friend request again. You will not become friends automatically.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Unblock', onPress: () => unblock.mutate(person.id) },
+                ],
+              )
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`Unblock ${person.displayName}`}
+            hitSlop={theme.spacing.md}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          >
+            <Text
+              style={{
+                fontFamily: theme.families.ui,
+                fontSize: theme.fontSize.body,
+                color: theme.colors.ai,
+              }}
+            >
+              Unblock
+            </Text>
+          </Pressable>
+        </View>
+      ))}
+    </View>
+  );
 }

@@ -6,9 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchLessons } from '@/api/lessons';
 import { fetchProgress } from '@/api/progress';
+import { fetchRequests } from '@/api/social';
 import { useAuth } from '@/components/AuthProvider';
 import { ChatCallout } from '@/components/ChatCallout';
 import { ContinueCard, CourseComplete } from '@/components/ContinueCard';
+import { FriendsCallout } from '@/components/FriendsCallout';
 import { ErrorState } from '@/components/ErrorState';
 import {
   CalloutSkeleton,
@@ -54,6 +56,17 @@ export default function Home() {
     // underneath while it does.
     staleTime: 0,
     refetchOnMount: 'always',
+  });
+
+  /**
+   * Only for the badge. Kept cheap and non-blocking: the home screen must render
+   * fully even if this fails, so its error is never surfaced here — a friends
+   * request count is not worth an error state on the first screen someone opens.
+   */
+  const requests = useQuery({
+    queryKey: ['friendRequests'],
+    queryFn: fetchRequests,
+    staleTime: 30_000,
   });
 
   const lessons = useQuery({
@@ -142,6 +155,11 @@ export default function Home() {
           )}
 
           <ChatCallout onPress={() => router.push('/chat')} />
+
+          <FriendsCallout
+            pendingRequests={requests.data?.length ?? 0}
+            onPress={() => router.push('/friends')}
+          />
         </>
       )}
 
