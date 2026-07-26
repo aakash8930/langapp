@@ -369,9 +369,35 @@ GET    /social/blocks                        -> [ <PublicProfile> ]
 POST   /social/blocks/:userId                -> { blocked: true }
 DELETE /social/blocks/:userId                -> { blocked: false }
 POST   /social/reports  { userId, reason, note?, messageId? }  -> { id }
+GET    /social/leaderboard                   -> <Leaderboard>
 
 PublicProfile = { id, displayName, level, xp, streakDays }
+Leaderboard   = { week, endsAt, tier, tierName, tierCount,
+                  rows: [ { rank, userId, displayName, weeklyXp, isYou } ],
+                  yourRank, promotionCount, relegationCount }
 ```
+
+**The leaderboard runs on a UTC week, and that is a deliberate departure** from
+everything else time-related here. `lastStudyDate`, `todayXp` and the daily goal
+are all measured in the *learner's* zone, because "did I study today" is a
+question about their day. A ranking compares people to each other, so it needs one
+shared clock — otherwise Auckland and Los Angeles are ranked over windows offset
+by nearly a day and whoever's week ends later can always see the target first.
+`gamification/week.ts` holds the ISO-week arithmetic; `endsAt` is sent as an
+instant so the client never re-derives the boundary.
+
+`weeklyXp` is a counter-plus-period like `todayXp`, corrected on read — reading
+the stored value directly is a bug on the first request after a Monday.
+
+**Settlement is lazy**: the first `/social/leaderboard` request after a week
+closes promotes and relegates, because there is no job runner. A unique index on
+`leagueStandings {week, tier}` makes that exactly-once under concurrency. Only the
+immediately preceding week is settled — older gaps cannot be settled honestly
+because the totals they need have already been reset.
+
+`promotionCount: 0` means the tier has too few players to settle (below 8) — a
+client should say so rather than draw cut-off lines that will not be honoured.
+Nobody on zero XP is ever promoted, whatever their rank.
 
 Added 2026-07-26. `PublicProfile` is a **much shorter allowlist than
 `UserResponse`** because it is shown to strangers: no email, no settings, no date
