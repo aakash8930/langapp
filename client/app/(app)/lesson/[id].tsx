@@ -40,7 +40,19 @@ export default function Lesson() {
 
   // Drawn once per entry and held for the run. See newAttempt().
   const [attempt] = useState(newAttempt);
-  const [index, setIndex] = useState(0);
+  /**
+   * Indices into `questions`, front-first, holding only what is **not yet
+   * answered correctly**.
+   *
+   * A queue rather than a walking index because a wrong answer must not let the
+   * learner past it: the question goes to the back and comes round again. So a
+   * finished lesson is a drained queue, which is the same rule the server's
+   * completion gate enforces — you finish having answered everything right.
+   *
+   * Null until the set arrives; `[]` would be indistinguishable from "drained"
+   * and would fire the completion immediately.
+   */
+  const [queue, setQueue] = useState<number[] | null>(null);
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [summary, setSummary] = useState<CompleteLessonResult | null>(null);
@@ -82,13 +94,25 @@ export default function Lesson() {
   });
 
   const questions = exercises.data?.questions ?? [];
-  const question = questions[index];
   const total = questions.length;
-  const isLast = total > 0 && index === total - 1;
+
+  // Fill the queue once the set lands. Every question starts unresolved.
+  useEffect(() => {
+    if (queue === null && total > 0) {
+      setQueue(questions.map((_, position) => position));
+    }
+  }, [queue, questions, total]);
+
+  const currentIndex = queue?.[0];
+  const question = currentIndex === undefined ? undefined : questions[currentIndex];
+  /** Answered correctly, so gone from the queue. Drives the progress bar. */
+  const mastered = queue === null ? 0 : total - queue.length;
+  /** True when answering *this* one correctly drains the queue. */
+  const isLast = queue !== null && queue.length === 1 && result?.correct === true;
 
   // Answers live only in this component's state, so there is something to lose
   // from the first one until `/complete` has landed.
-  const answersAtRisk = summary === null && (index > 0 || result !== null);
+  const answersAtRisk = summary === null && (mastered > 0 || result !== null);
 
   const leave = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -101,16 +125,15 @@ export default function Lesson() {
       return;
     }
 
-    const answered = index + (result ? 1 : 0);
     Alert.alert(
       'Leave this lesson?',
-      `You have answered ${answered} of ${total}. Leaving discards them — a lesson only counts once you finish it.`,
+      `You have ${mastered} of ${total} correct. Leaving discards them — a lesson only counts once you finish it.`,
       [
         { text: 'Keep going', style: 'cancel' },
         { text: 'Leave', style: 'destructive', onPress: leave },
       ],
     );
-  }, [answersAtRisk, index, leave, result, total]);
+  }, [answersAtRisk, leave, mastered, total]);
 
   // Android's hardware back would otherwise walk straight out of the lesson.
   // iOS has no equivalent event; its swipe-back is disabled below instead.
@@ -142,11 +165,21 @@ export default function Lesson() {
   }
 
   function advance() {
-    if (isLast) {
+    if (queue === null || currentIndex === undefined) return;
+
+    // Right answers leave the queue; wrong ones go to the back to be re-asked.
+    // Answering the last outstanding question wrongly therefore re-asks it
+    // immediately, which is correct — there is nothing else left to interleave,
+    // and the lesson cannot finish while it is unanswered.
+    const rest = queue.slice(1);
+    const next = result?.correct ? rest : [...rest, currentIndex];
+
+    if (next.length === 0) {
       complete.mutate();
       return;
     }
-    setIndex((current) => current + 1);
+
+    setQueue(next);
     setResult(null);
     // Clear the typed text along with the previous result. A typed answer
     // that survived across questions would be a stale state leak.
@@ -210,10 +243,13 @@ export default function Lesson() {
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
               <LeaveButton onPress={requestExit} />
             </View>
+            {/* Counts what is *learned*, not what is seen — a re-asked question
+                must not advance the bar, or getting things wrong would look like
+                progress. */}
             <SessionProgress
-              position={index + 1}
+              position={mastered}
               total={total}
-              caption={`${index + 1} / ${total}`}
+              caption={`${mastered} / ${total} correct`}
             />
           </View>
 
@@ -268,7 +304,13 @@ export default function Lesson() {
             )}
 
             <Button
-              label={isLast ? 'Finish lesson' : 'Next question'}
+              label={
+                isLast
+                  ? 'Finish lesson'
+                  : result && !result.correct
+                    ? 'Try this one again later'
+                    : 'Next question'
+              }
               onPress={advance}
               // Always rendered, so answering never shifts the options out from
               // under a thumb that is already moving.

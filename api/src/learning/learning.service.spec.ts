@@ -63,6 +63,7 @@ interface Harness {
   record: jest.Mock;
   completionUpdate: jest.Mock;
   countAttempts: jest.Mock;
+  hasCleanAttempt: jest.Mock;
 }
 
 function build(
@@ -77,6 +78,13 @@ function build(
     prerequisiteLessonIds?: string[];
     /** How many exercise attempts the user has logged for this lesson. */
     attemptCount?: number;
+    /**
+     * Whether some attempt of this lesson was finished with nothing wrong — the
+     * completion gate's real condition since the all-correct rule landed.
+     * Defaults true so the many tests that only care about cards and XP keep
+     * passing without per-test plumbing.
+     */
+    cleanAttempt?: boolean;
   } = {},
 ): Harness {
   const insertMany = jest.fn((docs: unknown[]) => Promise.resolve(docs));
@@ -128,8 +136,10 @@ function build(
   // keep working without per-test plumbing. Tests for the failure mode set
   // `attemptCount: 0` explicitly.
   const countAttempts = jest.fn(() => Promise.resolve(opts.attemptCount ?? 1));
+  const hasCleanAttempt = jest.fn(() => Promise.resolve(opts.cleanAttempt ?? true));
   const exerciseAttempts = {
     countAttemptsForLesson: countAttempts,
+    hasCleanAttemptForLesson: hasCleanAttempt,
   } as unknown as ExerciseAttemptsService;
 
   const service = new LearningService(
@@ -144,7 +154,16 @@ function build(
     { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
   );
 
-  return { service, insertMany, awardXp, awardGems, record, completionUpdate, countAttempts };
+  return {
+    service,
+    insertMany,
+    awardXp,
+    awardGems,
+    record,
+    completionUpdate,
+    countAttempts,
+    hasCleanAttempt,
+  };
 }
 
 describe('LearningService.completeLesson', () => {
@@ -373,7 +392,7 @@ describe('LearningService.completeLesson gate (T1.4)', () => {
       /Complete these lessons first: .*507f1f77bcf86cd7994390aa.*507f1f77bcf86cd7994390bb/,
     );
 
-    // No XP, no cards, no attempt-count read for the second gate.
+    // No XP, no cards, no attempt read for the second gate.
     expect(awardXp).not.toHaveBeenCalled();
     expect(insertMany).not.toHaveBeenCalled();
     expect(countAttempts).not.toHaveBeenCalled();
@@ -394,10 +413,13 @@ describe('LearningService.completeLesson gate (T1.4)', () => {
   });
 
   it('returns 409 when the user has answered zero exercises for this lesson', async () => {
-    const { service, awardXp, insertMany, completionUpdate } = build({ attemptCount: 0 });
+    const { service, awardXp, insertMany, completionUpdate } = build({
+      attemptCount: 0,
+      cleanAttempt: false,
+    });
 
     await expect(service.completeLesson(USER_ID, LESSON_ID)).rejects.toThrow(
-      'Answer at least one exercise before completing this lesson.',
+      'Answer the exercises before completing this lesson.',
     );
 
     // Nothing past the gate ran.
@@ -406,13 +428,64 @@ describe('LearningService.completeLesson gate (T1.4)', () => {
     expect(completionUpdate).not.toHaveBeenCalled();
   });
 
-  it('passes the engagement gate when the user has answered at least one exercise', async () => {
-    const { service, awardXp } = build({ attemptCount: 3 });
+  /**
+   * The bug this rule exists for, reported from the live site: answering
+   * everything wrong and still finishing the lesson. Getting a question wrong
+   * means you did not know it, so completing on that basis makes the XP and the
+   * "done" tick both lie.
+   */
+  it('returns 409 when questions were answered but some are still wrong', async () => {
+    const { service, awardXp, insertMany, completionUpdate } = build({
+      attemptCount: 5,
+      cleanAttempt: false,
+    });
+
+    await expect(service.completeLesson(USER_ID, LESSON_ID)).rejects.toThrow(
+      'Answer every exercise correctly before completing this lesson.',
+    );
+
+    expect(awardXp).not.toHaveBeenCalled();
+    expect(insertMany).not.toHaveBeenCalled();
+    expect(completionUpdate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The two failures say different things on purpose — "you have not started" and
+   * "you have work left" are not the same message, and conflating them would tell
+   * a learner mid-lesson that they had answered nothing.
+   */
+  it('distinguishes "answered nothing" from "answered wrongly" in the message', async () => {
+    const nothing = build({ attemptCount: 0, cleanAttempt: false });
+    const wrong = build({ attemptCount: 4, cleanAttempt: false });
+
+    await expect(nothing.service.completeLesson(USER_ID, LESSON_ID)).rejects.toThrow(
+      /Answer the exercises/,
+    );
+    await expect(wrong.service.completeLesson(USER_ID, LESSON_ID)).rejects.toThrow(
+      /every exercise correctly/,
+    );
+  });
+
+  it('passes once some attempt was finished with everything correct', async () => {
+    const { service, awardXp, hasCleanAttempt } = build({ cleanAttempt: true });
 
     const result = await service.completeLesson(USER_ID, LESSON_ID);
 
+    expect(hasCleanAttempt).toHaveBeenCalledWith(USER_ID, LESSON_ID);
     expect(result.xpAwarded).toBe(XP_PER_LESSON_COMPLETION);
     expect(awardXp).toHaveBeenCalled();
+  });
+
+  /**
+   * Only asked for the error copy, so the happy path stays one read rather than
+   * two — the gate is on every completion.
+   */
+  it('does not count attempts at all when the clean check already passed', async () => {
+    const { service, countAttempts } = build({ cleanAttempt: true });
+
+    await service.completeLesson(USER_ID, LESSON_ID);
+
+    expect(countAttempts).not.toHaveBeenCalled();
   });
 
   it('checks prerequisites before engagement, so a missing prereq does not even probe attempts', async () => {

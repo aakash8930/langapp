@@ -65,7 +65,7 @@ export class LearningService {
     // are the defence for the API-spoof paths (curl, replay, future client
     // that forgets the prerequisite check).
     await this.assertPrerequisitesMet(userId, lesson.prerequisiteLessonIds);
-    await this.assertUserEngagedWithLesson(userId, lesson.id);
+    await this.assertUserAnsweredEverythingCorrectly(userId, lesson.id);
 
     const created = await this.seedCards(userId, lesson.items);
 
@@ -162,21 +162,44 @@ export class LearningService {
   }
 
   /**
-   * Gate #2: at least one exercise answered for this lesson, in any attempt.
+   * Gate #2: the learner must have finished some attempt of this lesson with
+   * every question they were asked answered **correctly**.
    *
-   * "Any answer" is the smallest useful gate — it stops the open-and-complete
-   * path without forcing the learner to 100% a lesson they're stuck on. The
-   * client reaches the "Finish lesson" button only after answering the last
-   * question, so honest users always satisfy this gate; the gate fires only
-   * for API-spoof paths (curl, replay, future clients that skip exercises).
+   * ## Why this got stricter
    *
-   * Index `{userId, lessonId}` makes the count an O(1) seek at Phase 0 volume.
+   * It used to be "at least one exercise answered", which let a learner answer
+   * everything wrong and still complete the lesson — reported from the live site
+   * on 2026-07-26. Getting a question wrong means you did not know it, so
+   * finishing on that basis is the app certifying something untrue, and the XP and
+   * the "done" tick both lie.
+   *
+   * ## Why it is not "all correct first try"
+   *
+   * The clients re-ask a question the learner got wrong until they answer it
+   * correctly, so a mistake costs a heart and a repeat rather than the lesson.
+   * That matters more here than it looks: **`/complete` is what seeds the SRS
+   * cards.** Hard-blocking completion would mean a word the learner got wrong
+   * never enters review at all, which is precisely backwards — that is the word
+   * they most need scheduled, and it is what T1.5 exists to arrange.
+   *
+   * So the rule is "you finished having got everything right", reached by
+   * persistence rather than by first-try perfection.
    */
-  private async assertUserEngagedWithLesson(userId: string, lessonId: string): Promise<void> {
-    const attempts = await this.exerciseAttempts.countAttemptsForLesson(userId, lessonId);
-    if (attempts === 0) {
+  private async assertUserAnsweredEverythingCorrectly(
+    userId: string,
+    lessonId: string,
+  ): Promise<void> {
+    const clean = await this.exerciseAttempts.hasCleanAttemptForLesson(userId, lessonId);
+    if (!clean) {
+      const answered = await this.exerciseAttempts.countAttemptsForLesson(userId, lessonId);
+
+      // Two different situations, and the copy should not conflate them: nothing
+      // answered at all is a spoofed request, while answers outstanding is a
+      // learner who has work left.
       throw new ConflictException(
-        'Answer at least one exercise before completing this lesson.',
+        answered === 0
+          ? 'Answer the exercises before completing this lesson.'
+          : 'Answer every exercise correctly before completing this lesson.',
       );
     }
   }

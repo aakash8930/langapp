@@ -16,12 +16,22 @@ import { goBack } from '../useRoute';
 type Phase =
   | { name: 'loading' }
   | { name: 'error'; message: string }
-  | { name: 'asking'; set: ExerciseSet; index: number; result: AnswerResult | null }
+  /**
+   * `queue` holds indices into `set.questions`, front-first, containing only the
+   * questions **not yet answered correctly**. A wrong answer sends its question
+   * to the back rather than letting the learner past it, so a finished lesson is
+   * a drained queue — the same rule the server's completion gate enforces.
+   *
+   * Replaced a walking `index`, which let someone answer everything wrong and
+   * still finish. Reported from the live site 2026-07-26.
+   */
+  | { name: 'asking'; set: ExerciseSet; queue: number[]; result: AnswerResult | null }
   | { name: 'finishing'; set: ExerciseSet }
   | { name: 'done'; set: ExerciseSet; summary: CompleteResult; correct: number };
 
 /**
- * One run through a lesson: every item asked once, then the lesson is completed.
+ * One run through a lesson: every item asked until answered correctly, then the
+ * lesson is completed.
  *
  * Answering is a **round trip** — the exercise payload carries no answer key, by
  * design, so the server is the only thing that knows. That is why an option
@@ -46,7 +56,14 @@ export function LessonQuiz({
 
     fetchExercises(lessonId, attempt)
       .then((set) => {
-        if (!cancelled) setPhase({ name: 'asking', set, index: 0, result: null });
+        if (!cancelled) {
+          setPhase({
+            name: 'asking',
+            set,
+            queue: set.questions.map((_, position) => position),
+            result: null,
+          });
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -106,9 +123,12 @@ export function LessonQuiz({
   async function next() {
     if (phase.name !== 'asking') return;
 
-    const isLast = phase.index === phase.set.questions.length - 1;
-    if (!isLast) {
-      setPhase({ ...phase, index: phase.index + 1, result: null });
+    const [current, ...rest] = phase.queue;
+    // Right answers leave the queue; wrong ones go to the back to be re-asked.
+    const queue = phase.result?.correct ? rest : [...rest, current];
+
+    if (queue.length > 0) {
+      setPhase({ ...phase, queue, result: null });
       return;
     }
 
@@ -157,8 +177,12 @@ export function LessonQuiz({
     return <Summary summary={phase.summary} correct={phase.correct} total={phase.set.questionCount} />;
   }
 
-  const question = phase.set.questions[phase.index];
+  const question = phase.set.questions[phase.queue[0]];
   const total = phase.set.questions.length;
+  /** Answered correctly, so gone from the queue. Drives the count and the bar. */
+  const mastered = total - phase.queue.length;
+  /** True when answering *this* one correctly drains the queue. */
+  const isLast = phase.queue.length === 1 && phase.result?.correct === true;
 
   return (
     <div className="quiz">
@@ -167,7 +191,7 @@ export function LessonQuiz({
           ← Leave
         </button>
         <span className="quiz-count tabular">
-          {phase.index + 1} / {total}
+          {mastered} / {total} correct
         </span>
       </div>
 
@@ -176,10 +200,13 @@ export function LessonQuiz({
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={total}
-        aria-valuenow={phase.index}
+        aria-valuenow={mastered}
         aria-label="Lesson progress"
       >
-        <span style={{ width: `${(phase.index / total) * 100}%` }} />
+        {/* Counts what is learned, not what is seen — a re-asked question must
+            not advance the bar, or getting things wrong would look like
+            progress. */}
+        <span style={{ width: `${(mastered / total) * 100}%` }} />
       </div>
 
       <div className="glass panel quiz-card">
@@ -224,7 +251,11 @@ export function LessonQuiz({
               </p>
             )}
             <button className="button" type="button" onClick={() => void next()}>
-              {phase.index === total - 1 ? 'Finish lesson' : 'Next'}
+              {isLast
+                ? 'Finish lesson'
+                : phase.result.correct
+                  ? 'Next'
+                  : 'Try this one again later'}
             </button>
           </div>
         ) : null}
