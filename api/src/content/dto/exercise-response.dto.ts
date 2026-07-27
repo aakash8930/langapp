@@ -86,8 +86,26 @@ export interface WordReadingQuestion {
   question: string;
 }
 
+export type ExerciseType =
+  | 'multipleChoice'
+  | 'wordReading'
+  | 'listening'
+  | 'sentenceBuilding'
+  | 'fillInTheBlank'
+  | 'flashcard';
+
+export interface GenericExerciseQuestion {
+  exerciseId: string;
+  itemId: ItemId;
+  type: Exclude<ExerciseType, 'multipleChoice' | 'wordReading'>;
+  prompt: string;
+  promptKind: PromptKind;
+  question: string;
+  options?: ExerciseOption[];
+}
+
 /** The public question, no answer key. */
-export type Question = MultipleChoiceQuestion | WordReadingQuestion;
+export type Question = MultipleChoiceQuestion | WordReadingQuestion | GenericExerciseQuestion;
 
 export interface ExerciseSet {
   lessonId: string;
@@ -146,7 +164,7 @@ export interface AnswerResult {
 export interface GeneratedQuestion {
   exerciseId: string;
   itemId: ItemId;
-  type: 'multipleChoice' | 'wordReading';
+  type: ExerciseType;
   prompt: string;
   promptKind: PromptKind;
   question: string;
@@ -161,25 +179,38 @@ export function toPublicQuestion(question: GeneratedQuestion): Question {
   // Explicit field copy, not a delete — an allowlist can't leak a field that
   // someone adds to GeneratedQuestion later.
   if (question.type === 'multipleChoice') {
-    return {
+    const mc: MultipleChoiceQuestion = {
       exerciseId: question.exerciseId,
       itemId: question.itemId,
       type: 'multipleChoice',
       prompt: question.prompt,
       promptKind: question.promptKind,
       question: question.question,
-      // The options are an exercise-specific field; the public type explicitly
-      // declares it, so a missing value here is a code bug, not a missing field.
       options: (question.options ?? []).map((option) => ({ id: option.id, value: option.value })),
     };
+    return mc;
   }
 
-  return {
+  if (question.type === 'wordReading') {
+    const wr: WordReadingQuestion = {
+      exerciseId: question.exerciseId,
+      itemId: question.itemId,
+      type: 'wordReading',
+      prompt: question.prompt,
+      promptKind: question.promptKind,
+      question: question.question,
+    };
+    return wr;
+  }
+
+  const generic: GenericExerciseQuestion = {
     exerciseId: question.exerciseId,
     itemId: question.itemId,
-    type: 'wordReading',
+    type: question.type,
     prompt: question.prompt,
     promptKind: question.promptKind,
     question: question.question,
+    options: question.options ? question.options.map((option) => ({ id: option.id, value: option.value })) : undefined,
   };
+  return generic;
 }

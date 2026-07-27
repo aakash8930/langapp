@@ -414,8 +414,92 @@ export class LearningService {
     }
   }
 
+  /**
+   * §26 exercise-answer path: pull the SRS card for a specific item due when a
+   * learner gets it wrong in an exercise.
+   *
+   * Identical guarantee to `scheduleMissedWords`, but without the text-matching
+   * step — exercise answers already carry the exact item id, so there is nothing
+   * to infer. Both branches follow the same "only move `due`, never the FSRS
+   * model" rule:
+   *
+   * - **No card yet** → create one due now. The lesson should have seeded one on
+   *   completion, but this is the correct fallback if for any reason it is absent.
+   * - **Card exists** → pull `due` to now if it is in the future; leave an
+   *   already-due card alone (a no-op write, and the card is already coming up).
+   *
+   * Never throws — a wrong answer has already been recorded by
+   * `ExerciseAttemptsService`; failing over a scheduling side-effect would cost
+   * the learner their answer feedback rather than the scheduling nicety.
+   */
+  async scheduleItemDue(
+    userId: string,
+    itemId: string,
+    kind: string,
+  ): Promise<{ cardCreated: boolean; cardAdvanced: boolean }> {
+    try {
+      const userObjectId = new Types.ObjectId(userId);
+      const itemObjectId = new Types.ObjectId(itemId);
+      const now = new Date();
+
+      const existing = await this.srsCardModel
+        .findOne({
+          userId: userObjectId,
+          'itemRef.kind': kind,
+          'itemRef.id': itemObjectId,
+        })
+        .select('due')
+        .exec();
+
+      if (!existing) {
+        await this.srsCardModel.create({
+          userId: userObjectId,
+          itemRef: { kind, id: itemObjectId },
+          ...newCardFields(now),
+        });
+        return { cardCreated: true, cardAdvanced: false };
+      }
+
+      if (existing.due > now) {
+        await this.srsCardModel
+          .updateOne({ _id: existing._id }, { $set: { due: now } })
+          .exec();
+        return { cardCreated: false, cardAdvanced: true };
+      }
+
+      // Already due — nothing to do.
+      return { cardCreated: false, cardAdvanced: false };
+    } catch (err) {
+      this.logger.warn(
+        `Could not schedule item ${itemId} (${kind}) due for user ${userId}: ${
+          err instanceof Error ? err.message : 'unknown error'
+        }`,
+      );
+      return { cardCreated: false, cardAdvanced: false };
+    }
+  }
+
   async countCards(userId: string): Promise<number> {
     return this.srsCardModel.countDocuments({ userId: new Types.ObjectId(userId) }).exec();
+  }
+
+  /**
+   * Account-deletion cascade for OPEN-ITEMS #5/#32.
+   *
+   * Erases every piece of learning data owned by this module for the given user.
+   * Called by `AccountDeletionService` as part of the `DELETE /me` cascade —
+   * never by any other path.
+   *
+   * Parallel deletes rather than sequential: all three collections are indexed on
+   * `userId`, so each is an O(1) index seek, and none depends on the other.
+   */
+  async deleteAllForUser(userId: string): Promise<void> {
+    const objectId = new Types.ObjectId(userId);
+    await Promise.all([
+      this.srsCardModel.deleteMany({ userId: objectId }).exec(),
+      this.lessonCompletionModel.deleteMany({ userId: objectId }).exec(),
+      this.exerciseAttempts.deleteAllForUser(userId),
+    ]);
   }
 }
 

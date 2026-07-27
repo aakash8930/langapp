@@ -36,7 +36,7 @@ function makeUser(overrides: Partial<{ id: string; email: string; passwordHash: 
 
 interface Mocks {
   userService: jest.Mocked<Pick<UserService, 'create' | 'findById' | 'findByEmail' | 'findByEmailWithPassword'>>;
-  store: jest.Mocked<Pick<RefreshTokenStore, 'store' | 'consume'>>;
+  store: jest.Mocked<Pick<RefreshTokenStore, 'store' | 'consume' | 'revokeAll'>>;
 }
 
 function build(): { service: AuthService; mocks: Mocks } {
@@ -50,6 +50,7 @@ function build(): { service: AuthService; mocks: Mocks } {
     store: {
       store: jest.fn().mockResolvedValue(undefined),
       consume: jest.fn().mockResolvedValue(true),
+      revokeAll: jest.fn().mockResolvedValue(1),
     },
   };
 
@@ -179,7 +180,7 @@ describe('AuthService', () => {
       expect(newJti).not.toBe('original-jti');
     });
 
-    it('rejects a replayed token whose jti is already consumed', async () => {
+    it('rejects a replayed token whose jti is already consumed and revokes token family', async () => {
       const { service, mocks } = build();
       mocks.store.consume.mockResolvedValue(false);
 
@@ -191,6 +192,9 @@ describe('AuthService', () => {
       await expect(service.refresh({ refreshToken: token })).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
+
+      // OPEN-ITEMS #4: Token reuse revokes full token family!
+      expect(mocks.store.revokeAll).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
     });
 
     it('rejects a refresh token signed with the access secret', async () => {

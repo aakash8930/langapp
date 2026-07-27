@@ -34,4 +34,11 @@ export class AuthController {
   async refresh(@Body() dto: RefreshDto): Promise<TokenPair> {
     return this.authService.refresh(dto);
   }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(@Body() dto: RefreshDto): Promise<void> {
+    await this.authService.logout(dto);
+  }
 }
+

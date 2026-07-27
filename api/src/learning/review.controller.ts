@@ -21,6 +21,6 @@ export class ReviewController {
     @Body() dto: GradeReviewDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<GradeReviewResponse> {
-    return this.reviewService.grade(user.userId, cardId, dto.grade);
+    return this.reviewService.grade(user.userId, cardId, dto.grade, dto.responseTimeMs);
   }
 }

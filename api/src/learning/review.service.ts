@@ -13,7 +13,7 @@ import {
   GradeReviewResponse,
 } from './dto/review.dto';
 import { fromFsrsCard, gradeToRating, ReviewGrade, toFsrsCard } from './fsrs-card.mapper';
-import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
+import { computeMastery, SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
 
 /** §6: cap a session so it's bounded. */
 export const REVIEW_SESSION_CAP = 20;
@@ -75,12 +75,19 @@ export class ReviewService {
         continue;
       }
 
+      const totalReviews = card.totalReviews ?? 0;
+      const correctReviews = card.correctReviews ?? 0;
+      const accuracyRate = totalReviews > 0 ? Number((correctReviews / totalReviews).toFixed(2)) : 0;
+
       due.push({
         cardId: card._id.toString(),
         state: card.state,
+        mastery: computeMastery(card),
         due: card.due,
         reps: card.reps,
         lapses: card.lapses,
+        totalReviews,
+        accuracyRate,
         item,
       });
     }
@@ -105,6 +112,7 @@ export class ReviewService {
     userId: string,
     cardId: string,
     grade: ReviewGrade,
+    responseTimeMs?: number,
   ): Promise<GradeReviewResponse> {
     if (!isValidObjectId(cardId)) {
       throw new BadRequestException(`Malformed card id: ${cardId}`);
@@ -136,6 +144,10 @@ export class ReviewService {
     const fields = fromFsrsCard(scheduled);
 
     card.set(fields);
+    card.totalReviews = (card.totalReviews ?? 0) + 1;
+    if (grade === 'good' || grade === 'easy') {
+      card.correctReviews = (card.correctReviews ?? 0) + 1;
+    }
     await card.save();
 
     const xpAwarded = wasDue ? XP_PER_REVIEW : 0;
@@ -163,6 +175,7 @@ export class ReviewService {
           lapses: fields.lapses,
           xpAwarded,
           wasDue,
+          responseTimeMs: responseTimeMs ?? null,
         },
       })
       .catch((err: unknown) => {
@@ -173,14 +186,21 @@ export class ReviewService {
         );
       });
 
+    const totalReviews = card.totalReviews;
+    const correctReviews = card.correctReviews;
+    const accuracyRate = totalReviews > 0 ? Number((correctReviews / totalReviews).toFixed(2)) : 0;
+
     return {
       cardId: card._id.toString(),
       grade,
       state: fields.state,
+      mastery: computeMastery(card),
       due: fields.due,
       intervalMinutes: Math.round((fields.due.getTime() - now.getTime()) / 60_000),
       reps: fields.reps,
       lapses: fields.lapses,
+      totalReviews,
+      accuracyRate,
       xpAwarded,
       totalXp: user.gamification.xp,
     };

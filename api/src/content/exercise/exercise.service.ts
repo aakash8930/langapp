@@ -10,8 +10,10 @@ import {
 } from '../dto/exercise-response.dto';
 import { LessonDetail, ResolvedItem } from '../dto/lesson-response.dto';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
+import { LearningService } from '../../learning/learning.service';
 import { UserService } from '../../user/user.service';
 import { mulberry32, seedFrom, shuffle } from './deterministic-random';
+import { ExercisePluginRegistry } from './plugins/exercise-plugin.registry';
 
 const OPTION_BASED_TYPES = ['multipleChoice'];
 const TYPING_TYPES = ['wordReading'];
@@ -143,16 +145,25 @@ export class ExerciseService {
     // service. No forwardRef needed — `user` knows nothing about `content`, so
     // this edge runs one way only, unlike the learning pair above.
     private readonly userService: UserService,
+    // SRS scheduling on wrong answers. forwardRef because ContentModule and
+    // LearningModule already have a mutual dependency for ExerciseAttemptsService
+    // — this is a second edge in the same cycle, not a new cycle.
+    @Inject(forwardRef(() => LearningService))
+    private readonly learningService: LearningService,
+    // Phase 2 Exercise Strategy Plugin Registry
+    private readonly pluginRegistry?: ExercisePluginRegistry,
   ) {}
 
-  async generate(lessonId: string, userId: string, attempt: number): Promise<ExerciseSet> {
-    const { lesson, questions } = await this.buildSet(lessonId, userId, attempt);
+  async generate(lessonId: string, userId: string, attempt?: number): Promise<ExerciseSet> {
+    const resolvedAttempt =
+      attempt ?? (await this.exerciseAttempts.getLatestAttempt(userId, lessonId));
+    const { lesson, questions } = await this.buildSet(lessonId, userId, resolvedAttempt);
 
     return {
       lessonId: lesson.id,
       unit: lesson.unit,
       title: lesson.title,
-      attempt,
+      attempt: resolvedAttempt,
       questionCount: questions.length,
       questions: questions.map(toPublicQuestion),
     };
@@ -176,7 +187,7 @@ export class ExerciseService {
     lessonId: string,
     exerciseId: string,
     userId: string,
-    body: { optionId?: string; text?: string },
+    body: { optionId?: string; text?: string; responseTimeMs?: number },
   ): Promise<AnswerResult> {
     const { attempt, index } = parseExerciseId(exerciseId);
 
@@ -192,6 +203,37 @@ export class ExerciseService {
     // carrying it from generate) means a request without a preceding generate
     // still works, and the gate against a wrong body is local.
     const exerciseType = pickExerciseType(lesson.exerciseTypes);
+
+    // Phase 2 Exercise Plugin Strategy Routing
+    if (this.pluginRegistry && this.pluginRegistry.hasPlugin(exerciseType) && exerciseType !== 'multipleChoice' && exerciseType !== 'wordReading') {
+      const plugin = this.pluginRegistry.getPlugin(exerciseType);
+      const gradeResult = plugin.gradeAnswer(question, {
+        optionId: body.optionId,
+        text: body.text,
+      });
+
+      const heartsLeft = await this.settleAnswer(
+        userId,
+        lessonId,
+        attempt,
+        question.exerciseId,
+        gradeResult.correct,
+        question,
+        body.responseTimeMs,
+      );
+
+      return {
+        exerciseId: question.exerciseId,
+        correct: gradeResult.correct,
+        selectedOptionId: body.optionId ?? '',
+        selectedValue: gradeResult.selectedValue,
+        correctOptionId: question.correctOptionId ?? '',
+        correctValue: gradeResult.correctValue,
+        prompt: question.prompt,
+        heartsLeft,
+      };
+    }
+
     if (exerciseType === 'wordReading') {
       if (body.optionId !== undefined) {
         throw new BadRequestException(
@@ -201,7 +243,14 @@ export class ExerciseService {
       if (typeof body.text !== 'string') {
         throw new BadRequestException('This lesson takes a typed romaji in the `text` field.');
       }
-      return this.answerWordReading(question, lessonId, userId, attempt, body.text);
+      return this.answerWordReading(
+        question,
+        lessonId,
+        userId,
+        attempt,
+        body.text,
+        body.responseTimeMs,
+      );
     }
 
     // exerciseType === 'multipleChoice'.
@@ -236,6 +285,8 @@ export class ExerciseService {
       attempt,
       question.exerciseId,
       correct,
+      question,
+      body.responseTimeMs,
     );
 
     return {
@@ -255,12 +306,17 @@ export class ExerciseService {
    * wordReading paths cannot drift: record the attempt, and take a heart if it was
    * wrong.
    *
+   * On a wrong answer there is a third side-effect: pull the SRS card for this
+   * item due immediately so the learner will see it in their next review session.
+   * This closes the gap where exercise mistakes were recorded in `exerciseAttempts`
+   * but never fed back into the SRS schedule (OPEN-ITEMS §26 exercise-answer path).
+   *
    * **Neither can fail the answer.** The attempt record's only expected failure is
    * a duplicate key (the same learner re-answering the same question in the same
    * attempt) which the service swallows; anything else is logged. The heart write
-   * is the same bargain — losing a heart deduction is a small unfairness in the
-   * learner's favour, while a 500 in place of their answer is not recoverable.
-   * Same reasoning `AnalyticsService.record` documents.
+   * and the SRS scheduling are the same bargain — losing them is a small
+   * unfairness in the learner's favour, while a 500 in place of their answer is
+   * not recoverable. Same reasoning `AnalyticsService.record` documents.
    *
    * Returns the hearts remaining, or `null` when nothing was charged (a correct
    * answer) or the charge failed, so the client can leave its counter alone rather
@@ -272,9 +328,11 @@ export class ExerciseService {
     attempt: number,
     exerciseId: string,
     correct: boolean,
+    question?: GeneratedQuestion,
+    responseTimeMs?: number,
   ): Promise<number | null> {
     await this.exerciseAttempts
-      .recordAttempt(userId, lessonId, attempt, exerciseId, correct)
+      .recordAttempt(userId, lessonId, attempt, exerciseId, correct, responseTimeMs)
       .catch((err: unknown) => {
         this.logger.warn(
           `exerciseAttempt record lost for user ${userId} lesson ${lessonId}: ` +
@@ -284,6 +342,23 @@ export class ExerciseService {
 
     if (correct) {
       return null;
+    }
+
+    // Wrong answer: pull this item's SRS card due immediately so it surfaces in
+    // the learner's next review. Fire-and-forget — `scheduleItemDue` never
+    // throws, so this cannot fail the answer response.
+    if (question?.itemId && question.promptKind) {
+      const kind = promptKindToSrsKind(question.promptKind);
+      this.learningService
+        .scheduleItemDue(userId, question.itemId, kind)
+        .catch((err: unknown) => {
+          // scheduleItemDue already swallows, but guard here too in case the
+          // shape of the method changes.
+          this.logger.warn(
+            `SRS scheduling lost for user ${userId} item ${question.itemId}: ` +
+              `${err instanceof Error ? err.message : String(err)}`,
+          );
+        });
     }
 
     return this.userService
@@ -318,6 +393,7 @@ export class ExerciseService {
     userId: string,
     attempt: number,
     text: string,
+    responseTimeMs?: number,
   ): Promise<AnswerResult> {
     const normalized = normaliseAnswer(text);
     const correct = normalized === normaliseAnswer(question.correctValue);
@@ -328,6 +404,8 @@ export class ExerciseService {
       attempt,
       question.exerciseId,
       correct,
+      question,
+      responseTimeMs,
     );
 
     return {
@@ -453,7 +531,18 @@ export class ExerciseService {
       );
     }
 
-    const pool = await style.pool(lesson.unit);
+    const unitPool = await style.pool(lesson.unit);
+
+    // Lesson-scoped preferred pool: items from this lesson, keyed by answer so
+    // the prefer-then-fallback logic in buildMultipleChoiceQuestion can dedup
+    // correctly. This is what fixes OPEN-ITEMS #29 — without it, a question
+    // about チーズ in a themed lesson could offer "two", "an answer" and "library"
+    // as distractors, all from wildly different themes in the same unit pool.
+    //
+    // The lesson's answerable items *are* the preferred pool. We re-use the
+    // same array rather than a second lookup — they were derived from
+    // lesson.items above.
+    const lessonPool: Choice[] = answerable;
 
     // Question order is shuffled — this is a quiz, not the lesson itself, so
     // the pedagogical あいうえお ordering of the lesson deliberately does not
@@ -461,7 +550,7 @@ export class ExerciseService {
     const order = shuffle(answerable, mulberry32(seedFrom(lesson.id, userId, attempt, 'questions')));
 
     const questions = order.map((item, index) =>
-      this.buildMultipleChoiceQuestion(item, pool, style, lesson.id, userId, attempt, index),
+      this.buildMultipleChoiceQuestion(item, lessonPool, unitPool, style, lesson.id, userId, attempt, index),
     );
 
     return { lesson, questions };
@@ -469,7 +558,8 @@ export class ExerciseService {
 
   private buildMultipleChoiceQuestion(
     correct: Choice,
-    pool: Choice[],
+    lessonPool: Choice[],
+    unitPool: Choice[],
     style: QuestionStyle,
     lessonId: string,
     userId: string,
@@ -480,12 +570,35 @@ export class ExerciseService {
     // even if the surrounding order changes.
     const random = mulberry32(seedFrom(lessonId, userId, attempt, 'options', correct.id));
 
-    const distractors = shuffle(distractorPool(pool, correct), random).slice(
-      0,
-      OPTIONS_PER_QUESTION - 1,
-    );
+    // Prefer distractors from the lesson (same theme), fall back to the unit
+    // when the lesson cannot supply enough. This is the fix for OPEN-ITEMS #29:
+    // a question about チーズ should be confused with other food words, not
+    // with "library" and "two" from different themed lessons in the same unit.
+    //
+    // Strategy:
+    //   1. Take up to OPTIONS_PER_QUESTION-1 from the lesson pool (excluding
+    //      the correct answer and any answer-duplicate).
+    //   2. If still short, fill from the unit pool (same dedup rules).
+    // The seen-set spans both passes so a unit item that duplicates a lesson
+    // item's *answer text* is also excluded.
+    const needed = OPTIONS_PER_QUESTION - 1;
+    const lessonDistractors = shuffle(distractorPool(lessonPool, correct), random);
+    const taken = lessonDistractors.slice(0, needed);
 
-    const options: ExerciseOption[] = shuffle([correct, ...distractors], random).map(
+    if (taken.length < needed) {
+      // Build a dedup set from what we already have (including the correct answer).
+      const seen = new Set<string>([correct.answer, ...taken.map((c) => c.answer)]);
+      const fallback: Choice[] = [];
+      for (const candidate of shuffle(distractorPool(unitPool, correct), random)) {
+        if (seen.has(candidate.answer)) continue;
+        seen.add(candidate.answer);
+        fallback.push(candidate);
+        if (taken.length + fallback.length >= needed) break;
+      }
+      taken.push(...fallback);
+    }
+
+    const options: ExerciseOption[] = shuffle([correct, ...taken], random).map(
       (choice, position) => ({ id: `opt-${position}`, value: choice.answer }),
     );
 
@@ -639,4 +752,15 @@ function parseExerciseId(exerciseId: string): { attempt: number; index: number }
   }
 
   return { attempt: Number(match[1]), index: Number(match[2]) };
+}
+
+/**
+ * Maps the prompt kind (how the question is displayed) to the SRS item kind
+ * (how the card is stored). They are mostly identical, but `wordReading` is a
+ * display-level concept — the underlying item is always a vocabulary word, so
+ * the card kind is `'vocab'`.
+ */
+function promptKindToSrsKind(promptKind: PromptKind): string {
+  if (promptKind === 'wordReading') return 'vocab';
+  return promptKind; // 'kana' | 'vocab' | 'grammar' | 'kanji' map to themselves
 }

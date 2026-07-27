@@ -5,6 +5,7 @@ import { MultipleChoiceQuestion, Question } from '../dto/exercise-response.dto';
 import { KanaItemDocument } from '../schemas/kana-item.schema';
 import { VocabItemDocument } from '../schemas/vocab-item.schema';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
+import { LearningService } from '../../learning/learning.service';
 import { UserService } from '../../user/user.service';
 import { ExerciseService } from './exercise.service';
 
@@ -20,7 +21,7 @@ function asMultipleChoice(question: Question): MultipleChoiceQuestion {
   if (question.type !== 'multipleChoice') {
     throw new Error(`expected multipleChoice, got ${question.type}`);
   }
-  return question;
+  return question as MultipleChoiceQuestion;
 }
 
 const UNIT = 'hiragana-basics';
@@ -144,6 +145,7 @@ function makeServiceWithAttempts(
     contentService as unknown as ContentService,
     exerciseAttempts,
     fakeUserService(),
+    fakeLearningService(),
   );
   return { service, recordAttempt };
 }
@@ -157,6 +159,17 @@ function makeServiceWithAttempts(
 function fakeUserService() {
   const loseHeart = jest.fn(() => Promise.resolve({ hearts: 4 }));
   return { loseHeart } as unknown as UserService;
+}
+
+/**
+ * SRS scheduling is a fire-and-forget side effect of wrong answers. Tests in
+ * this file care about grading and persistence; scheduling is asserted in its
+ * own dedicated block below. Stubbed here so all existing tests keep passing.
+ */
+function fakeLearningService() {
+  return {
+    scheduleItemDue: jest.fn(() => Promise.resolve({ cardCreated: false, cardAdvanced: false })),
+  } as unknown as LearningService;
 }
 
 describe('ExerciseService.generate', () => {
@@ -427,6 +440,7 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
       0,
       question.exerciseId,
       true,
+      undefined,
     );
   });
 
@@ -447,6 +461,7 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
       0,
       question.exerciseId,
       false,
+      undefined,
     );
   });
 
@@ -484,6 +499,7 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
       0,
       question.exerciseId,
       true,
+      undefined,
     );
   });
 });
@@ -516,7 +532,10 @@ describe('ExerciseService.generate — vocabulary lessons', () => {
     }
   });
 
-  it('draws distractors from the whole vocabulary unit, not just the lesson', async () => {
+  it('falls back to the unit pool when the lesson cannot supply enough distractors', async () => {
+    // WORDS has 3 items; each question needs 3 distractors but the lesson only
+    // provides 2 others (the remaining lesson items). So 1 must come from the
+    // unit pool. This is the OPEN-ITEMS #29 fallback in action.
     const set = await makeService(vocabLesson()).generate(LESSON_ID, USER_A, 0);
 
     const offered = new Set(
@@ -528,7 +547,12 @@ describe('ExerciseService.generate — vocabulary lessons', () => {
       (gloss) => !WORDS.some((word) => word.gloss === gloss),
     );
 
+    // At least one distractor must come from outside the lesson (unit fallback).
     expect(beyondLesson.length).toBeGreaterThan(0);
+    // But every option is still a real vocab item from the unit.
+    for (const gloss of offered) {
+      expect(VOCAB_UNIT_POOL.map((w) => w.gloss)).toContain(gloss);
+    }
   });
 
   it('marks the right gloss correct, and a wrong one incorrect', async () => {
@@ -612,6 +636,7 @@ function grammarServiceWithAttempts(items = POINTS.map(grammarItem)) {
     contentService as unknown as ContentService,
     exerciseAttempts,
     fakeUserService(),
+    fakeLearningService(),
   );
   return { service, recordAttempt };
 }
@@ -724,6 +749,7 @@ function kanjiService(items = KANJI.map(kanjiItem)): ExerciseService {
     contentService as unknown as ContentService,
     exerciseAttempts,
     fakeUserService(),
+    fakeLearningService(),
   );
 }
 
@@ -975,6 +1001,7 @@ describe('ExerciseService.answer — wordReading lessons (T1.1)', () => {
       0,
       question.exerciseId,
       true,
+      undefined,
     );
   });
 
@@ -1004,6 +1031,7 @@ describe('ExerciseService.answer — hearts (slice 2)', () => {
       contentService as unknown as ContentService,
       { recordAttempt: jest.fn(() => Promise.resolve(true)) } as unknown as ExerciseAttemptsService,
       { loseHeart } as unknown as UserService,
+      fakeLearningService(),
     );
     return { service, loseHeart };
   }

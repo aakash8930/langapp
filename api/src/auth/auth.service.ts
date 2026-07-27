@@ -117,6 +117,10 @@ export class AuthService {
 
     const consumed = await this.refreshTokens.consume(payload.sub, payload.jti);
     if (!consumed) {
+      // Re-use detection (OPEN-ITEMS #4): RFC 6819 §5.2.2.3 — if a refresh token
+      // is re-used after already being consumed, assume it was stolen and revoke
+      // all active refresh tokens for this user.
+      await this.refreshTokens.revokeAll(payload.sub);
       throw new UnauthorizedException('Refresh token has been used or revoked');
     }
 
@@ -126,6 +130,23 @@ export class AuthService {
     }
 
     return this.issueTokens(user);
+  }
+
+  /** Revoke a single refresh token (standard logout). */
+  async logout(dto: RefreshDto): Promise<void> {
+    try {
+      const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(dto.refreshToken, {
+        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      });
+      await this.refreshTokens.consume(payload.sub, payload.jti);
+    } catch {
+      // Token is already invalid, expired, or malformed — logout is idempotent.
+    }
+  }
+
+  /** Revoke all active refresh tokens for the user (logout everywhere). */
+  async logoutAll(userId: string): Promise<number> {
+    return this.refreshTokens.revokeAll(userId);
   }
 
   private async buildAuthResponse(user: UserDocument): Promise<AuthResponse> {

@@ -351,3 +351,42 @@ describe('ReviewService.findDue', () => {
     expect(REVIEW_SESSION_CAP).toBe(20);
   });
 });
+
+describe('ReviewService — Mastery & Weakness Model', () => {
+  it('includes mastery level, totalReviews, and accuracyRate in findDue', async () => {
+    const card = makeCard({ state: 'review', stability: 12, reps: 5, totalReviews: 4, correctReviews: 3 });
+    const { service } = build({ card });
+
+    const response = await service.findDue(USER_ID);
+
+    expect(response.cards[0].mastery).toBe('familiar');
+    expect(response.cards[0].totalReviews).toBe(4);
+    expect(response.cards[0].accuracyRate).toBe(0.75);
+  });
+
+  it('updates totalReviews and correctReviews on grade good/easy', async () => {
+    const { service, card } = build();
+
+    const result = await service.grade(USER_ID, CARD_ID, 'good', 2500);
+
+    expect(result.mastery).toBe('learning');
+    expect(result.totalReviews).toBe(1);
+    expect(result.accuracyRate).toBe(1);
+    expect((card as unknown as Record<string, unknown>).totalReviews).toBe(1);
+    expect((card as unknown as Record<string, unknown>).correctReviews).toBe(1);
+  });
+
+  it('passes responseTimeMs to analytics event on grade', async () => {
+    const { service, record } = build();
+
+    await service.grade(USER_ID, CARD_ID, 'good', 1450);
+
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'review.graded',
+        payload: expect.objectContaining({ responseTimeMs: 1450 }),
+      }),
+    );
+  });
+});
+

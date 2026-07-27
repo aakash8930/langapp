@@ -14,6 +14,15 @@ import { KanaItem, KanaItemSchema } from './schemas/kana-item.schema';
 import { KanjiEntry, KanjiEntrySchema } from './schemas/kanji-entry.schema';
 import { Lesson, LessonSchema } from './schemas/lesson.schema';
 import { VocabItem, VocabItemSchema } from './schemas/vocab-item.schema';
+import { ContentReport, ContentReportSchema } from './schemas/content-report.schema';
+import { ContentReportController } from './content-report.controller';
+import { ExercisePluginRegistry } from './exercise/plugins/exercise-plugin.registry';
+import { MultipleChoicePlugin } from './exercise/plugins/multiple-choice.plugin';
+import { WordReadingPlugin } from './exercise/plugins/word-reading.plugin';
+import { ListeningPlugin } from './exercise/plugins/listening.plugin';
+import { SentenceBuildingPlugin } from './exercise/plugins/sentence-building.plugin';
+import { FillInTheBlankPlugin } from './exercise/plugins/fill-in-the-blank.plugin';
+import { FlashcardPlugin } from './exercise/plugins/flashcard.plugin';
 
 /**
  * `LearningModule` is wrapped in `forwardRef` because `ExerciseService` (in
@@ -31,6 +40,7 @@ import { VocabItem, VocabItemSchema } from './schemas/vocab-item.schema';
       { name: VocabItem.name, schema: VocabItemSchema },
       { name: GrammarPoint.name, schema: GrammarPointSchema },
       { name: KanjiEntry.name, schema: KanjiEntrySchema },
+      { name: ContentReport.name, schema: ContentReportSchema },
     ]),
     forwardRef(() => LearningModule),
     // Hearts are user state; ExerciseService charges one for a wrong answer.
@@ -38,8 +48,24 @@ import { VocabItem, VocabItemSchema } from './schemas/vocab-item.schema';
     // Audio bytes live behind StorageService, never `fs` directly.
     StorageModule,
   ],
-  controllers: [LessonController, ExerciseController, AudioController, StrokesController],
-  providers: [ContentService, ExerciseService],
-  exports: [ContentService, ExerciseService],
+  controllers: [
+    LessonController,
+    ExerciseController,
+    AudioController,
+    StrokesController,
+    ContentReportController,
+  ],
+  providers: [
+    ContentService,
+    ExerciseService,
+    ExercisePluginRegistry,
+    MultipleChoicePlugin,
+    WordReadingPlugin,
+    ListeningPlugin,
+    SentenceBuildingPlugin,
+    FillInTheBlankPlugin,
+    FlashcardPlugin,
+  ],
+  exports: [ContentService, ExerciseService, ExercisePluginRegistry],
 })
 export class ContentModule {}

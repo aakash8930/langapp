@@ -146,6 +146,33 @@ export class ChatService {
 
     return session;
   }
+
+  /**
+   * Account-deletion cascade (OPEN-ITEMS #5/#32).
+   *
+   * Deletes all chat sessions and their messages for the given user. Messages
+   * are keyed by sessionId rather than userId, so the session ids are fetched
+   * first, then both collections are wiped in parallel.
+   *
+   * Called by AccountDeletionService as part of the DELETE /me cascade.
+   */
+  async deleteAllForUser(userId: string): Promise<void> {
+    const userObjectId = new Types.ObjectId(userId);
+    const sessions = await this.sessionModel
+      .find({ userId: userObjectId })
+      .select('_id')
+      .lean<{ _id: Types.ObjectId }[]>()
+      .exec();
+
+    const sessionIds = sessions.map((s) => s._id);
+
+    await Promise.all([
+      sessionIds.length > 0
+        ? this.messageModel.deleteMany({ sessionId: { $in: sessionIds } }).exec()
+        : Promise.resolve(),
+      this.sessionModel.deleteMany({ userId: userObjectId }).exec(),
+    ]);
+  }
 }
 
 function toMessageResponse(message: ChatMessageDocument): ChatMessageResponse {

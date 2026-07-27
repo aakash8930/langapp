@@ -30,6 +30,10 @@ export class ExerciseAttempt {
 
   @Prop({ type: Boolean, required: true })
   correct: boolean;
+
+  /** Response time in milliseconds (optional). */
+  @Prop({ type: Number, default: null, min: 0 })
+  responseTimeMs: number | null;
 }
 
 export type ExerciseAttemptDocument = HydratedDocument<ExerciseAttempt>;

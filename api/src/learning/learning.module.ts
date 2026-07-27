@@ -3,9 +3,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { ContentModule } from '../content/content.module';
 import { UserModule } from '../user/user.module';
+import { KnowledgeGraphModule } from '../knowledge-graph/knowledge-graph.module';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { LearningController } from './learning.controller';
 import { LearningService } from './learning.service';
+import { LearningEngineController } from './learning-engine.controller';
+import { LearningEngineService } from './learning-engine.service';
 import { ProgressController } from './progress.controller';
 import { ReviewController } from './review.controller';
 import { ReviewService } from './review.service';
@@ -36,9 +39,25 @@ import { SrsCard, SrsCardSchema } from './schemas/srs-card.schema';
     forwardRef(() => ContentModule),
     UserModule,
     AnalyticsModule,
+    KnowledgeGraphModule,
   ],
-  controllers: [LearningController, ProgressController, ReviewController],
-  providers: [LearningService, ReviewService, ExerciseAttemptsService],
-  exports: [LearningService, ReviewService, ExerciseAttemptsService],
+  controllers: [
+    LearningController,
+    ProgressController,
+    ReviewController,
+    LearningEngineController,
+  ],
+  providers: [
+    LearningService,
+    ReviewService,
+    ExerciseAttemptsService,
+    LearningEngineService,
+  ],
+  exports: [
+    LearningService,
+    ReviewService,
+    ExerciseAttemptsService,
+    LearningEngineService,
+  ],
 })
 export class LearningModule {}

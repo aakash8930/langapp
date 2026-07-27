@@ -18,8 +18,11 @@ import { KanjiEntry, KanjiEntryDocument } from './schemas/kanji-entry.schema';
 import { ItemRef, Lesson, LessonDocument } from './schemas/lesson.schema';
 import { JlptLevel, VocabItem, VocabItemDocument } from './schemas/vocab-item.schema';
 
+import { ContentReport, ContentReportDocument } from './schemas/content-report.schema';
+import { ReportMistakeDto } from './dto/report-mistake.dto';
+
 /**
- * Owns the content collections: kana, vocab, grammar, kanji and lessons.
+ * Owns the content collections: kana, vocab, grammar, kanji, lessons and contentReports.
  * Other modules (learning, later the AI orchestrator) come through here.
  */
 @Injectable()
@@ -30,6 +33,7 @@ export class ContentService {
     @InjectModel(VocabItem.name) private readonly vocabModel: Model<VocabItemDocument>,
     @InjectModel(GrammarPoint.name) private readonly grammarModel: Model<GrammarPointDocument>,
     @InjectModel(KanjiEntry.name) private readonly kanjiModel: Model<KanjiEntryDocument>,
+    @InjectModel(ContentReport.name) private readonly reportModel: Model<ContentReportDocument>,
   ) {}
 
   async findLessons(unit?: string): Promise<LessonSummary[]> {
@@ -230,6 +234,9 @@ export class ContentService {
         const docs = await this.kanjiModel.find({ _id: { $in: ids } }).exec();
         return docs.map(kanjiToResolved);
       }
+      case 'lesson': {
+        return [];
+      }
     }
   }
 
@@ -387,5 +394,24 @@ export class ContentService {
 
   async countLessons(): Promise<number> {
     return this.lessonModel.countDocuments().exec();
+  }
+
+  /**
+   * OPEN-ITEMS #8: "Report a mistake" affordance.
+   * File a report on a content item (kana, vocab, grammar, kanji, lesson).
+   */
+  async reportMistake(
+    userId: string,
+    dto: ReportMistakeDto,
+  ): Promise<{ id: string; status: string }> {
+    const report = await this.reportModel.create({
+      reporterId: new Types.ObjectId(userId),
+      itemKind: dto.itemKind,
+      itemId: new Types.ObjectId(dto.itemId),
+      issueType: dto.issueType,
+      description: dto.description ?? '',
+    });
+
+    return { id: report._id.toString(), status: report.status };
   }
 }

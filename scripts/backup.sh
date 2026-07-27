@@ -93,5 +93,22 @@ ls -1t "$ROOT" | grep -E '^[0-9]{8}_[0-9]{6}$' | tail -n +$((KEEP + 1)) | while 
   rm -rf "${ROOT:?}/$old"
 done
 
+# ---------------------------------------------------------------------------
+# Off-device / Cloud Sync (OPEN-ITEMS #6)
+# ---------------------------------------------------------------------------
+# If LANGAPP_CLOUD_SYNC_CMD (e.g., "rclone sync $ROOT remote:langapp-backups")
+# or LANGAPP_CLOUD_SYNC_DIR (e.g., a mounted cloud drive) is set, sync the backup.
+if [[ -n "${LANGAPP_CLOUD_SYNC_CMD:-}" ]]; command -v bash >/dev/null; then
+  if [[ -n "${LANGAPP_CLOUD_SYNC_CMD:-}" ]]; then
+    echo "[$(date -Is)] Syncing off-device with command: $LANGAPP_CLOUD_SYNC_CMD" >> "$LOG"
+    eval "$LANGAPP_CLOUD_SYNC_CMD" >> "$LOG" 2>&1 || echo "[$(date -Is)] WARNING: cloud sync command failed" >> "$LOG"
+  fi
+fi
+
+if [[ -n "${LANGAPP_CLOUD_SYNC_DIR:-}" && -d "${LANGAPP_CLOUD_SYNC_DIR:-}" ]]; then
+  echo "[$(date -Is)] Copying archive off-device to $LANGAPP_CLOUD_SYNC_DIR" >> "$LOG"
+  cp "$DEST/$DB.archive.gz" "$LANGAPP_CLOUD_SYNC_DIR/" >> "$LOG" 2>&1 || echo "[$(date -Is)] WARNING: cloud dir copy failed" >> "$LOG"
+fi
+
 echo "Backed up $DB to $DEST/$DB.archive.gz ($SIZE)"
 echo "$COUNTS"

@@ -5,6 +5,25 @@ import { CONTENT_KINDS, ContentKind } from '../../knowledge-graph/schemas/knowle
 export type SrsState = 'new' | 'learning' | 'review' | 'relearning';
 export const SRS_STATES: SrsState[] = ['new', 'learning', 'review', 'relearning'];
 
+export type MasteryLevel = 'new' | 'learning' | 'familiar' | 'mastered';
+export const MASTERY_LEVELS: MasteryLevel[] = ['new', 'learning', 'familiar', 'mastered'];
+
+/**
+ * Computes the human-understandable mastery level from FSRS card stability and reps.
+ */
+export function computeMastery(card: { state: string; stability: number; reps: number }): MasteryLevel {
+  if (card.state === 'new' || card.reps === 0) {
+    return 'new';
+  }
+  if (card.stability < 7) {
+    return 'learning';
+  }
+  if (card.stability < 30) {
+    return 'familiar';
+  }
+  return 'mastered';
+}
+
 @Schema({ _id: false })
 export class SrsItemRef {
   @Prop({ type: String, required: true, enum: CONTENT_KINDS })
@@ -59,6 +78,14 @@ export class SrsCard {
    */
   @Prop({ type: Number, required: true, default: 0, min: 0 })
   learningSteps: number;
+
+  // ---- Learner Weakness & Memory Model fields ----
+
+  @Prop({ type: Number, required: true, default: 0, min: 0 })
+  totalReviews: number;
+
+  @Prop({ type: Number, required: true, default: 0, min: 0 })
+  correctReviews: number;
 }
 
 export type SrsCardDocument = HydratedDocument<SrsCard>;

@@ -267,16 +267,15 @@ export class SeedService {
     carriedLessonId: Types.ObjectId | null,
   ): Promise<Types.ObjectId | null> {
     let previousLessonId = carriedLessonId;
-    // Starts empty on purpose. The character-level edges stay *inside* a unit:
-    // "ん before ア" is not a claim about characters, it is a claim about
-    // stages, and the lesson prerequisite above already makes it. Linking
-    // across the boundary would add 55 edges asserting something the graph
-    // does not mean.
-    let previousKanaIds: Types.ObjectId[] = [];
+    let previousLessonNodeId: Types.ObjectId | null = null;
+
+    if (carriedLessonId) {
+      const prevNode = await this.knowledgeGraph.findNodeByRef('lesson', carriedLessonId);
+      if (prevNode) previousLessonNodeId = prevNode._id;
+    }
 
     for (const seed of pack.lessons) {
       const kanaIds = seed.rows.flatMap((row) => kanaIdsByRow.get(row) ?? []);
-
       const itemRefs: ItemRef[] = kanaIds.map((id) => ({ kind: 'kana', id }));
 
       const lesson = await this.contentService.upsertLesson({
@@ -288,10 +287,27 @@ export class SeedService {
         prerequisiteLessonIds: previousLessonId ? [previousLessonId] : [],
       });
 
-      await this.linkPrerequisiteNodes(previousKanaIds, kanaIds);
+      // OPEN-ITEMS #9 fix: create a lesson node in the knowledge graph, link it to items via 'contains',
+      // and link consecutive lesson nodes via 'prerequisite'.
+      const lessonNode = await this.knowledgeGraph.upsertNode({
+        kind: 'lesson',
+        refId: lesson._id,
+        label: lesson.title,
+      });
+
+      if (previousLessonNodeId) {
+        await this.knowledgeGraph.upsertEdge(previousLessonNodeId, lessonNode._id, 'prerequisite');
+      }
+
+      for (const kanaId of kanaIds) {
+        const itemNode = await this.knowledgeGraph.findNodeByRef('kana', kanaId);
+        if (itemNode) {
+          await this.knowledgeGraph.upsertEdge(lessonNode._id, itemNode._id, 'contains');
+        }
+      }
 
       previousLessonId = lesson._id;
-      previousKanaIds = kanaIds;
+      previousLessonNodeId = lessonNode._id;
     }
 
     return previousLessonId;
@@ -484,37 +500,7 @@ export class SeedService {
     return previousLessonId;
   }
 
-  /**
-   * Edge per (previous character -> current character), within a unit only.
-   * Quadratic, and the curve is now unmistakable: **1614 edges for 208
-   * characters**, up from 150 for 25 four milestones ago. The marks units are
-   * the worst offenders — their lessons are larger, and 12×12 for the last one
-   * alone is 144 edges asserting that ぴょ requires りょ.
-   *
-   * That last sentence is the actual argument against this design, not the
-   * count. The fix is a node per *row* rather than per character
-   * (OPEN-ITEMS #9), which turns 1614 into 42.
-   */
-  private async linkPrerequisiteNodes(
-    previousKanaIds: Types.ObjectId[],
-    currentKanaIds: Types.ObjectId[],
-  ): Promise<void> {
-    if (previousKanaIds.length === 0) {
-      return;
-    }
 
-    for (const currentId of currentKanaIds) {
-      const currentNode = await this.knowledgeGraph.findNodeByRef('kana', currentId);
-      if (!currentNode) continue;
-
-      for (const previousId of previousKanaIds) {
-        const previousNode = await this.knowledgeGraph.findNodeByRef('kana', previousId);
-        if (!previousNode) continue;
-
-        await this.knowledgeGraph.upsertEdge(previousNode._id, currentNode._id, 'prerequisite');
-      }
-    }
-  }
 }
 
 function countCharacters(pack: KanaPack): number {

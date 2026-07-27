@@ -16,6 +16,8 @@ import { ThrottlerStorageModule } from './common/throttler/throttler-storage.mod
 import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
+import { AccountDeletionModule } from './user/account-deletion.module';
+import { LegalModule } from './legal/legal.module';
 import { SocialModule } from './social/social.module';
 import { UserModule } from './user/user.module';
 
@@ -76,6 +78,9 @@ import { UserModule } from './user/user.module';
     AiOrchestratorModule,
     ChatModule,
     SocialModule,
+    // Account deletion — must come after all owning modules it depends on.
+    AccountDeletionModule,
+    LegalModule,
   ],
 })
 export class AppModule {}

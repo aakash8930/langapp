@@ -58,6 +58,7 @@ export class ExerciseAttemptsService {
     attempt: number,
     exerciseId: string,
     correct: boolean,
+    responseTimeMs?: number,
   ): Promise<boolean> {
     const key = {
       userId: new Types.ObjectId(userId),
@@ -67,7 +68,11 @@ export class ExerciseAttemptsService {
     };
 
     try {
-      await this.attemptModel.create({ ...key, correct });
+      await this.attemptModel.create({
+        ...key,
+        correct,
+        responseTimeMs: responseTimeMs ?? null,
+      });
       return true;
     } catch (err) {
       if (!isDuplicateKeyError(err)) {
@@ -78,7 +83,15 @@ export class ExerciseAttemptsService {
       // re-answer matches nothing because of the `correct: false` clause.
       if (correct) {
         await this.attemptModel
-          .updateOne({ ...key, correct: false }, { $set: { correct: true } })
+          .updateOne(
+            { ...key, correct: false },
+            {
+              $set: {
+                correct: true,
+                ...(responseTimeMs !== undefined ? { responseTimeMs } : {}),
+              },
+            },
+          )
           .exec();
       }
       return false;
@@ -130,6 +143,20 @@ export class ExerciseAttemptsService {
   }
 
   /**
+   * OPEN-ITEMS #4a: Returns the latest attempt number for a user and lesson.
+   * If no attempt exists, returns 0.
+   */
+  async getLatestAttempt(userId: string, lessonId: string): Promise<number> {
+    const latest = await this.attemptModel
+      .findOne({ userId: new Types.ObjectId(userId), lessonId: new Types.ObjectId(lessonId) })
+      .sort({ attempt: -1 })
+      .select('attempt')
+      .exec();
+
+    return latest ? latest.attempt : 0;
+  }
+
+  /**
    * "Has this user answered anything for this lesson?" — the gate read.
    * Returns the row count; a positive number satisfies the gate. Index
    * `{userId, lessonId}` makes this an O(1) index seek at Phase 0 volume.
@@ -141,6 +168,14 @@ export class ExerciseAttemptsService {
         lessonId: new Types.ObjectId(lessonId),
       })
       .exec();
+  }
+
+  /**
+   * Account-deletion cascade (OPEN-ITEMS #5/#32).
+   * Called by LearningService.deleteAllForUser as part of the DELETE /me cascade.
+   */
+  async deleteAllForUser(userId: string): Promise<void> {
+    await this.attemptModel.deleteMany({ userId: new Types.ObjectId(userId) }).exec();
   }
 }
 

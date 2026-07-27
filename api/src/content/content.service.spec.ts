@@ -41,6 +41,7 @@ function makeService(opts: {
     empty as never,
     empty as never,
     empty as never,
+    empty as never,
   );
 }
 
@@ -132,6 +133,7 @@ function makeVocabService(lemmas: [string, string][]): ContentService {
     vocabModel as never,
     empty as never,
     empty as never,
+    empty as never,
   );
 }
 
@@ -197,5 +199,41 @@ describe('ContentService.findVocabInTexts (T1.5)', () => {
 
     expect(await service.findVocabInTexts([])).toEqual([]);
     expect(await service.findVocabInTexts(['', ''])).toEqual([]);
+  });
+});
+
+describe('ContentService.reportMistake (OPEN-ITEMS #8)', () => {
+  it('creates a content report and returns its id and open status', async () => {
+    const create = jest.fn().mockResolvedValue({
+      _id: { toString: () => 'report-123' },
+      status: 'open',
+    });
+    const reportModel = { create };
+    const empty = { find: () => ({ exec: () => Promise.resolve([]) }) };
+
+    const service = new ContentService(
+      empty as never,
+      empty as never,
+      empty as never,
+      empty as never,
+      empty as never,
+      reportModel as never,
+    );
+
+    const result = await service.reportMistake('507f1f77bcf86cd799439011', {
+      itemKind: 'vocab',
+      itemId: '607f1f77bcf86cd799439011',
+      issueType: 'typo',
+      description: 'The gloss has a typo in mountain',
+    });
+
+    expect(result).toEqual({ id: 'report-123', status: 'open' });
+    expect(create).toHaveBeenCalledWith({
+      reporterId: expect.any(Types.ObjectId),
+      itemKind: 'vocab',
+      itemId: expect.any(Types.ObjectId),
+      issueType: 'typo',
+      description: 'The gloss has a typo in mountain',
+    });
   });
 });

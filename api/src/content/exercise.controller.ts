@@ -20,7 +20,7 @@ export class ExerciseController {
     @Query() query: FindExercisesDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ExerciseSet> {
-    return this.exerciseService.generate(lessonId, user.userId, query.attempt ?? 0);
+    return this.exerciseService.generate(lessonId, user.userId, query.attempt);
   }
 
   @Post(':exerciseId/answer')

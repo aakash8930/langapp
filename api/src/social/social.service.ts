@@ -456,6 +456,39 @@ export class SocialService {
     ids.delete(viewerId);
     return ids;
   }
+
+  /**
+   * Account-deletion cascade (OPEN-ITEMS #5/#32).
+   *
+   * Removes all social data that belongs to the user: friendships where they are
+   * either requester or addressee, all their blocks (they blocked / were blocked),
+   * and all their direct messages (sent or received).
+   *
+   * Reports are intentionally **not** deleted. A report that a user filed against
+   * someone else is evidence for moderation — erasing it because the reporter
+   * closes their account would let bad actors wipe the record by deleting and
+   * re-registering. A report about the user is similar: the subject cannot
+   * suppress a complaint just by leaving.
+   *
+   * Called by AccountDeletionService as part of the DELETE /me cascade.
+   */
+  async deleteAllForUser(userId: string): Promise<void> {
+    const id = new Types.ObjectId(userId);
+    await Promise.all([
+      // Friendships in either direction
+      this.friendshipModel
+        .deleteMany({ $or: [{ requesterId: id }, { addresseeId: id }] })
+        .exec(),
+      // Blocks where this user is either the blocker or the blocked party
+      this.blockModel
+        .deleteMany({ $or: [{ userId: id }, { blockedUserId: id }] })
+        .exec(),
+      // Direct messages sent or received
+      this.messageModel
+        .deleteMany({ $or: [{ senderId: id }, { recipientId: id }] })
+        .exec(),
+    ]);
+  }
 }
 
 function isDuplicateKeyError(err: unknown): boolean {

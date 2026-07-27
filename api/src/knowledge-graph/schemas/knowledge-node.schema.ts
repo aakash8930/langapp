@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
-export type ContentKind = 'vocab' | 'grammar' | 'kanji' | 'kana';
-export const CONTENT_KINDS: ContentKind[] = ['vocab', 'grammar', 'kanji', 'kana'];
+export type ContentKind = 'vocab' | 'grammar' | 'kanji' | 'kana' | 'lesson';
+export const CONTENT_KINDS: ContentKind[] = ['vocab', 'grammar', 'kanji', 'kana', 'lesson'];
 
 /**
  * §5: one node per concept. `refId` points at the content document that the

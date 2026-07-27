@@ -439,6 +439,17 @@ export class UserService {
     }
     return user;
   }
+
+  /**
+   * Permanently remove the user document.
+   *
+   * Called **only** by AccountDeletionService, after all cross-module data has
+   * been erased. Never call this directly from a controller — use the deletion
+   * service so the cascade runs first.
+   */
+  async deleteUser(id: string): Promise<void> {
+    await this.userModel.deleteOne({ _id: id }).exec();
+  }
 }
 
 function isValidTimeZone(tz: string): boolean {

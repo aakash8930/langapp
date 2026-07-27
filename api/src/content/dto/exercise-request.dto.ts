@@ -60,4 +60,11 @@ export class AnswerExerciseDto {
   @IsString()
   @Matches(/^.{1,40}$/, { message: 'text must be 1–40 characters' })
   text?: string;
+
+  /** Time taken to answer in milliseconds (optional). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  responseTimeMs?: number;
 }

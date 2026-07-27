@@ -111,4 +111,13 @@ export class AnalyticsService {
 
     return counts;
   }
+
+  /**
+   * Account-deletion cascade (OPEN-ITEMS #5/#32).
+   * Erases all analytics events for the given user.
+   * Called by AccountDeletionService as part of the DELETE /me cascade.
+   */
+  async deleteAllForUser(userId: string): Promise<void> {
+    await this.eventModel.deleteMany({ userId: new Types.ObjectId(userId) }).exec();
+  }
 }
