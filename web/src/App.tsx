@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { fetchLessons, groupByUnit, type Unit } from './api';
+import { Continue } from './components/Continue';
 import { Curriculum } from './components/Curriculum';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -159,6 +160,17 @@ export default function App() {
                 <span>Clear these before starting something new.</span>
               </span>
             </a>
+          </div>
+        </section>
+      ) : null}
+
+      {session.state === 'signedIn' ? (
+        <section className="section section-tight">
+          <div className="wrap">
+            <Continue
+              units={load.state === 'ready' ? load.units : []}
+              progress={session.progress}
+            />
           </div>
         </section>
       ) : null}

@@ -107,3 +107,28 @@ export function countUp(element: Element, to: number): void {
     autoplay: onScroll({ target: element, enter: 'bottom-=40', repeat: false }),
   });
 }
+
+/**
+ * The same count, but starting now rather than on scroll.
+ *
+ * The end-of-lesson XP is already in view when it mounts — waiting for a scroll
+ * that will never come would leave it reading zero, which is exactly the number
+ * it must not show.
+ */
+export function countUpNow(element: Element, to: number): void {
+  if (!armed) {
+    element.textContent = String(to);
+    return;
+  }
+
+  const state = { value: 0 };
+
+  animate(state, {
+    value: to,
+    duration: 900,
+    ease: 'out(3)',
+    onUpdate: () => {
+      element.textContent = String(utils.round(state.value, 0));
+    },
+  });
+}

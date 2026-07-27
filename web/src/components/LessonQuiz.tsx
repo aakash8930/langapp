@@ -15,6 +15,7 @@ import {
   type WordReadingQuestion,
 } from '../api';
 import { hasAudio, revealsAnswer } from '../audio';
+import { countUpNow } from '../motion';
 import { SpeakButton } from './SpeakButton';
 import { go, goBack } from '../useRoute';
 
@@ -320,6 +321,9 @@ export function LessonQuiz({
     phase.answered.filter((result) => result.correct).length +
     (phase.result?.correct ? 1 : 0);
   const isLast = phase.index === total - 1;
+  /** Already failed: the run cannot complete the lesson whatever happens next. */
+  const broken =
+    phase.answered.some((result) => !result.correct) || phase.result?.correct === false;
 
   return (
     <div className="quiz">
@@ -332,19 +336,50 @@ export function LessonQuiz({
         </span>
       </div>
 
+      {/*
+        One pip per question rather than a filling bar.
+
+        A bar answers "how far through am I", which was the only question worth
+        asking when a wrong answer merely came round again. Now that a single
+        mistake decides the lesson, "is this run still clean" is the more useful
+        question, and it needs per-question state — which a single bar cannot
+        carry.
+      */}
       <div
-        className="quiz-progress"
+        className="quiz-pips"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={seen}
         aria-label="Lesson progress"
       >
-        {/* Counts questions answered, not questions got right. Every question is
-            asked exactly once now, so position through the lesson and score are
-            different numbers and the bar is the former. */}
-        <span style={{ width: `${(seen / total) * 100}%` }} />
+        {phase.set.questions.map((q, position) => (
+          <span
+            key={q.exerciseId}
+            className={`pip pip-${pipState(position, phase.index, phase.answered, phase.result)}`}
+          />
+        ))}
       </div>
+
+      {/*
+        Said as soon as it is true, not held back to the end.
+
+        Letting someone answer eighteen more questions in a run that is already
+        doomed, and only then telling them, would be the kind of surprise this
+        screen should never spring. The offer to restart now is the point: the
+        alternative is finishing a run that cannot count.
+      */}
+      {broken ? (
+        <p className="run-broken" role="status">
+          <span>
+            This run can’t complete the lesson any more — finishing it still shows you the
+            rest, but you’ll need a clean run to pass.
+          </span>
+          <button className="link-button" type="button" onClick={() => setRun((n) => n + 1)}>
+            Start over now
+          </button>
+        </p>
+      ) : null}
 
       <div className="glass panel quiz-card">
         <p className={`quiz-prompt ja quiz-prompt-${question.promptKind}`}>{question.prompt}</p>
@@ -513,6 +548,27 @@ function Retry({
   );
 }
 
+/**
+ * What one pip shows.
+ *
+ * `answered` is parallel to `questions` because the walk only ever moves
+ * forward — question *n* is answered at step *n* — which is what lets a
+ * position index read its own result without a lookup.
+ */
+function pipState(
+  position: number,
+  index: number,
+  answered: AnswerResult[],
+  result: AnswerResult | null,
+): 'right' | 'wrong' | 'now' | 'todo' {
+  if (position < answered.length) return answered[position].correct ? 'right' : 'wrong';
+  if (position === index) {
+    if (result === null) return 'now';
+    return result.correct ? 'right' : 'wrong';
+  }
+  return 'todo';
+}
+
 function optionState(id: string, result: AnswerResult | null): string {
   if (!result) return '';
   if (id === result.correctOptionId) return 'option-answer';
@@ -613,6 +669,15 @@ function Summary({
   held: boolean;
   onHold: (held: boolean) => void;
 }) {
+  const xpRef = useRef<HTMLSpanElement>(null);
+
+  // Counts from zero on mount. `countUpNow` writes the final value straight in
+  // when motion is reduced or anime.js never armed, so the number is never left
+  // reading zero — which is the one value it must not show.
+  useEffect(() => {
+    if (xpRef.current) countUpNow(xpRef.current, summary.xpAwarded);
+  }, [summary.xpAwarded]);
+
   return (
     <div
       className="glass panel quiz-summary"
@@ -623,16 +688,17 @@ function Summary({
     >
       <h2>Lesson complete</h2>
 
+      {/* Every completion is now a clean run by construction — the only way to
+          reach this screen is to have got everything right — so the score line
+          says so rather than making the reader compare two equal numbers. */}
+      <p className="clean-run">Clean run — {total} of {total}.</p>
+
       <dl className="summary-rows">
         <div>
-          <dt>Correct</dt>
-          <dd className="tabular">
-            {total} of {total}
-          </dd>
-        </div>
-        <div>
           <dt>XP earned</dt>
-          <dd className="tabular accent">+{summary.xpAwarded}</dd>
+          <dd className="tabular accent">
+            +<span ref={xpRef}>{summary.xpAwarded}</span>
+          </dd>
         </div>
         <div>
           <dt>{summary.firstCompletion ? 'New review cards' : 'Cards already in review'}</dt>

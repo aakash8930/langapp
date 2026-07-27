@@ -855,6 +855,108 @@
   }
 }
 
+/* ---- Where you are ---- */
+
+/*
+ * The "pick up here" row. Quieter than the due-cards callout by construction —
+ * it only ever renders when that one is absent, so the two never compete, but
+ * it is also a glass panel rather than a solid vermilion field so that if the
+ * rule ever changed the hierarchy would still read correctly.
+ */
+.continue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-xl);
+  flex-wrap: wrap;
+}
+.continue-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+  min-width: 0;
+}
+.continue-label {
+  margin: 0;
+  font-size: var(--text-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.continue-title {
+  margin: 0;
+  font-size: var(--text-large);
+  color: var(--ink);
+}
+
+/* A hairline under the unit head, the same weight as the pips. */
+.unit-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hairline);
+  overflow: hidden;
+  margin-top: var(--s-md);
+}
+.unit-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--shu);
+}
+
+/* ---- Run state ---- */
+
+/*
+ * One pip per question. A bar answered "how far through am I", which was the
+ * only useful question while a wrong answer merely came round again; now that a
+ * single mistake decides the lesson, "is this run still clean" matters more, and
+ * that needs per-question state.
+ *
+ * Pips flex, so a twenty-item lesson gets slivers rather than an overflow. The
+ * wrong state is the only one that uses `danger`, which keeps it the loudest
+ * thing in the row.
+ */
+.quiz-pips {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+}
+.pip {
+  flex: 1 1 0;
+  height: 4px;
+  min-width: 2px;
+  border-radius: 2px;
+  background: var(--hairline);
+  transition: background-color 180ms ease;
+}
+.pip-right {
+  background: var(--shu);
+}
+.pip-wrong {
+  background: var(--danger);
+}
+/* The one being asked: dark rather than coloured, since it has no outcome. */
+.pip-now {
+  background: var(--ink-soft);
+}
+
+.run-broken {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-lg);
+  flex-wrap: wrap;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.clean-run {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--shu-glass);
+  font-weight: 700;
+}
+
 /* ---- Audio ---- */
 
 /*

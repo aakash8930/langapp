@@ -125,6 +125,21 @@ function UnitCard({
         </span>
       </div>
 
+      {/*
+        Only once there is progress to show. An empty bar on every unit of an
+        untouched course is six rows of nothing, and it makes the syllabus look
+        like a list of things not done rather than a list of things to do.
+
+        Not a `progressbar` role: the count beside it already says "3 / 5
+        lessons" in text, and announcing the same ratio twice is noise. This is
+        the picture of that number.
+      */}
+      {done > 0 ? (
+        <div className="unit-progress" aria-hidden="true">
+          <span style={{ width: `${(done / unit.lessons.length) * 100}%` }} />
+        </div>
+      ) : null}
+
       <ol className="lessons">
         {unit.lessons.map((lesson) => (
           <LessonRow
