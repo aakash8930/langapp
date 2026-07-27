@@ -855,6 +855,76 @@
   }
 }
 
+/* ---- The teach step ---- */
+
+/*
+ * One item, large. The list on the home page is the right shape for browsing a
+ * syllabus; this is the right shape for actually looking at a character, and
+ * the size difference is most of what separates them.
+ */
+.study-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-lg);
+  text-align: center;
+  min-height: 340px;
+  justify-content: center;
+}
+.study-kicker {
+  margin: 0;
+  font-size: var(--text-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* The shared `Item` renders inline spans; stack and centre them here rather
+   than in the component, so the curriculum list is untouched. */
+.study-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-sm);
+}
+.study-item .item-word {
+  font-size: var(--text-display);
+  line-height: 1.1;
+}
+.study-item .cell {
+  width: 132px;
+  height: 132px;
+  font-size: 5rem;
+}
+.study-item .item-answer {
+  font-size: var(--text-title);
+  color: var(--ink);
+}
+.study-item .item-romaji {
+  font-size: var(--text-large);
+  color: var(--ink-soft);
+}
+/* A sentence cannot take display size and still fit — grammar keeps prose
+   proportions and only gains the centring. */
+.study-item-grammar .item-word {
+  font-size: var(--text-heading);
+}
+.study-item-grammar .item-example .ja {
+  font-size: var(--text-title);
+}
+
+.study-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-xl);
+  width: 100%;
+  max-width: 360px;
+}
+.study-skip {
+  font-size: var(--text-small);
+}
+
 /* ---- Where you are ---- */
 
 /*
@@ -937,6 +1007,11 @@
 /* The one being asked: dark rather than coloured, since it has no outcome. */
 .pip-now {
   background: var(--ink-soft);
+}
+/* Restates the base so the class list reads as a complete set of states rather
+   than three states and an absence. */
+.pip-todo {
+  background: var(--hairline);
 }
 
 .run-broken {

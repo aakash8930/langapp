@@ -24,7 +24,13 @@ export function LessonItems({ items }: { items: ResolvedItem[] }) {
   );
 }
 
-function Item({ item }: { item: ResolvedItem }) {
+/**
+ * One item's content, exported so the study walkthrough shows exactly what the
+ * curriculum list shows. The two disagreeing about romaji rules or which fields
+ * appear would be a way for a learner to be taught one thing and quizzed on
+ * another.
+ */
+export function Item({ item }: { item: ResolvedItem }) {
   switch (item.kind) {
     case 'kana':
       return (

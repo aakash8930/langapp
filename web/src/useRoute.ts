@@ -23,6 +23,8 @@ import { useEffect, useState } from 'react';
 export type Route =
   | { name: 'home'; learn?: string }
   | { name: 'lesson'; id: string }
+  /** The teach step — the lesson's items, one at a time, before any question. */
+  | { name: 'study'; id: string }
   | { name: 'review' };
 
 function parse(hash: string): Route {
@@ -30,6 +32,9 @@ function parse(hash: string): Route {
 
   const lesson = /^#\/lesson\/([A-Za-z0-9]+)$/.exec(hash);
   if (lesson) return { name: 'lesson', id: lesson[1] };
+
+  const study = /^#\/study\/([A-Za-z0-9]+)$/.exec(hash);
+  if (study) return { name: 'study', id: study[1] };
 
   const learn = /^#\/learn\/([A-Za-z0-9]+)$/.exec(hash);
   if (learn) return { name: 'home', learn: learn[1] };
@@ -53,11 +58,13 @@ export function go(route: Route): void {
   window.location.hash =
     route.name === 'lesson'
       ? `#/lesson/${route.id}`
-      : route.name === 'review'
-        ? '#/review'
-        : route.learn
-          ? `#/learn/${route.learn}`
-          : '#/';
+      : route.name === 'study'
+        ? `#/study/${route.id}`
+        : route.name === 'review'
+          ? '#/review'
+          : route.learn
+            ? `#/learn/${route.learn}`
+            : '#/';
 }
 
 /**

@@ -246,10 +246,26 @@ function LessonRow({
                       ? `Finish “${state.lockedBy}” to unlock this.`
                       : 'Finish the previous lesson to unlock this.'}
                   </p>
-                ) : (
+                ) : state.completed ? (
+                  // Already taught. Straight to the questions — walking the
+                  // cards again is what the list above is for.
                   <a className="button" href={`#/lesson/${lesson.id}`}>
-                    {state.completed ? 'Practise again' : 'Start lesson'}
+                    Practise again
                   </a>
+                ) : (
+                  <>
+                    {/* Never seen. The teach step first, because a quiz on
+                        material that has not been presented is a guessing
+                        game — the same reason a finished lesson whose
+                        successor is unlearned sends you here rather than
+                        into its quiz. */}
+                    <a className="button" href={`#/study/${lesson.id}`}>
+                      Learn it
+                    </a>
+                    <a className="link-button" href={`#/lesson/${lesson.id}`}>
+                      Skip to the quiz
+                    </a>
+                  </>
                 )}
               </div>
             </>

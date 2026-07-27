@@ -8,6 +8,7 @@ import { Hero } from './components/Hero';
 import { LessonQuiz } from './components/LessonQuiz';
 import { Review } from './components/Review';
 import { SignIn } from './components/SignIn';
+import { Study } from './components/Study';
 import { armMotion, playHero } from './motion';
 import { useRoute } from './useRoute';
 import { useSession } from './useSession';
@@ -77,6 +78,20 @@ export default function App() {
               </a>
             </div>
           )}
+        </main>
+      </>
+    );
+  }
+
+  // The teach step. Unauthenticated on purpose, like the lesson content it
+  // shows — browsing the course never needed an account, and this is browsing
+  // with better pacing. The quiz behind it still asks for one.
+  if (route.name === 'study') {
+    return (
+      <>
+        <Header session={session} onSignOut={signOut} />
+        <main className="wrap lesson-screen">
+          <Study lessonId={route.id} />
         </main>
       </>
     );
