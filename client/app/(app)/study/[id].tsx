@@ -5,11 +5,13 @@ import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchLesson } from '@/api/lessons';
+import { kindHasStrokes } from '@/api/strokes';
 import { Button } from '@/components/Button';
 import { ErrorState } from '@/components/ErrorState';
 import { CardBack, CardFront } from '@/components/ReviewCardFace';
 import { LessonSkeleton } from '@/components/LessonSkeleton';
 import { SessionProgress } from '@/components/SessionProgress';
+import { StrokeOrder } from '@/components/StrokeOrder';
 import { tapFeedback } from '@/lib/haptics';
 import { useTheme } from '@/theme';
 
@@ -132,6 +134,25 @@ export default function Study() {
             <View key={item.id} style={{ alignItems: 'center', gap: theme.spacing.xl }}>
               <CardFront item={item} />
               <CardBack item={item} />
+
+              {/* Yōon are two glyphs: きゃ gets a diagram each, in reading
+                  order — the same way the cells above lay it out. */}
+              {kindHasStrokes(item.kind) ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    justifyContent: 'center',
+                    gap: theme.spacing.lg,
+                  }}
+                >
+                  {[...(item.kind === 'kana' ? item.kana : item.kind === 'kanji' ? item.char : '')].map(
+                    (glyph, position) => (
+                      <StrokeOrder key={`${position}-${glyph}`} char={glyph} />
+                    ),
+                  )}
+                </View>
+              ) : null}
             </View>
           </ScrollView>
 

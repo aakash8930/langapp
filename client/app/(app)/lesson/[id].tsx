@@ -366,9 +366,20 @@ export default function Lesson() {
                 exactly once now, so the two are different numbers — the caption
                 carries the score. */}
             <SessionProgress
-              position={seen}
+              position={index}
               total={total}
               caption={`${correctCount} / ${total} correct`}
+              // Parallel to `questions`, because the walk only moves forward:
+              // question n is answered at step n. The one showing feedback
+              // right now is included, so a verdict colours its pip
+              // immediately rather than on the way to the next question.
+              outcomes={questions.map((_, position) =>
+                position < answered.length
+                  ? answered[position].correct
+                  : position === index && result
+                    ? result.correct
+                    : undefined,
+              )}
             />
 
             {/* Said the moment it is true rather than held to the end. Letting
