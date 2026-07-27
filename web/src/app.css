@@ -813,6 +813,127 @@
   color: var(--ink-soft);
 }
 
+/* ---- Auto-advance ---- */
+
+/*
+ * The countdown that runs while a verdict is on screen.
+ *
+ * Decorative and `aria-hidden`: the timer it mirrors lives in an effect, so
+ * under `prefers-reduced-motion` — where the global rule collapses every
+ * animation to 0.01ms — the bar simply fills at once while the timer runs its
+ * full length regardless. The advance is never faster than it looks; it is only
+ * ever less animated.
+ *
+ * A hairline, not a bar: this is a hint about what is about to happen, and it
+ * sits under a verdict that is the actual message.
+ */
+.tick {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  height: 2px;
+  background: var(--hairline);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.tick-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--ink-soft);
+  transform-origin: left center;
+  animation-name: tick-drain;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes tick-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ---- Failing a lesson ---- */
+
+/*
+ * The list of what was missed, shown when a run ends with a wrong answer.
+ *
+ * The point is to make the repeat a study aid: the learner reads the four they
+ * got wrong before re-answering all twelve. Vermilion on the answer because it
+ * is the thing to memorise before running it again.
+ */
+.missed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.missed li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-lg);
+  padding: var(--s-md) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.missed-prompt {
+  font-size: var(--text-large);
+}
+.missed-answer {
+  color: var(--shu-glass);
+  font-weight: 700;
+  text-align: right;
+}
+
+.summary-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-lg);
+  flex-wrap: wrap;
+}
+
+/* ---- What comes next ---- */
+
+.up-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  padding-top: var(--s-lg);
+  border-top: 1px solid var(--hairline);
+}
+.up-next-line {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.up-next-line strong {
+  color: var(--ink);
+}
+
+/*
+ * The row the learner was sent to the curriculum to read.
+ *
+ * A left rule rather than a fill: the lesson body underneath is the content
+ * that matters, and a tinted panel behind Japanese text is a contrast problem
+ * for no gain. The marker sits outside the text entirely.
+ */
+.lesson-highlight {
+  border-left: 2px solid var(--shu);
+  padding-left: var(--s-md);
+  margin-left: calc(var(--s-md) * -1 - 2px);
+}
+.learn-first {
+  margin: 0 0 var(--s-lg);
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.learn-first strong {
+  color: var(--shu-glass);
+}
+
 /* ---- Reviews ---- */
 
 /*

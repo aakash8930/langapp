@@ -85,7 +85,16 @@ export default function App() {
         <Header session={session} onSignOut={signOut} />
         <main className="wrap lesson-screen">
           {session.state === 'signedIn' ? (
-            <LessonQuiz lessonId={route.id} onFinished={() => void refreshProgress()} />
+            // Keyed by lesson id: finishing a lesson can navigate straight into
+            // the next one, and without a remount the quiz would keep the
+            // finished lesson's state while fetching the new one's questions.
+            <LessonQuiz
+              key={route.id}
+              lessonId={route.id}
+              units={load.state === 'ready' ? load.units : []}
+              completedLessonIds={session.progress?.completedLessonIds ?? null}
+              onFinished={() => void refreshProgress()}
+            />
           ) : session.state === 'loading' ? (
             <div className="glass panel note" role="status">
               Checking your session…
@@ -156,6 +165,7 @@ export default function App() {
           completedLessonIds={
             session.state === 'signedIn' ? (session.progress?.completedLessonIds ?? []) : null
           }
+          learnId={route.learn ?? null}
         />
       </main>
 

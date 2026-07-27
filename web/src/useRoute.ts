@@ -9,12 +9,32 @@ import { useEffect, useState } from 'react';
  *
  * Three routes exist. A router library would be more code than the feature.
  */
-export type Route = { name: 'home' } | { name: 'lesson'; id: string } | { name: 'review' };
+/**
+ * `home.learn` names a lesson the home page should open and scroll to.
+ *
+ * It exists for one flow: finishing a lesson whose successor has not been
+ * learned yet. Sending the learner to a bare `#/` would drop them at the top of
+ * a six-unit page with no indication of which row mattered — so the route
+ * carries the lesson, and the curriculum opens it.
+ *
+ * It is part of the route rather than component state because it has to survive
+ * the navigation: the quiz screen unmounts on the way.
+ */
+export type Route =
+  | { name: 'home'; learn?: string }
+  | { name: 'lesson'; id: string }
+  | { name: 'review' };
 
 function parse(hash: string): Route {
   if (hash === '#/review') return { name: 'review' };
-  const match = /^#\/lesson\/([A-Za-z0-9]+)$/.exec(hash);
-  return match ? { name: 'lesson', id: match[1] } : { name: 'home' };
+
+  const lesson = /^#\/lesson\/([A-Za-z0-9]+)$/.exec(hash);
+  if (lesson) return { name: 'lesson', id: lesson[1] };
+
+  const learn = /^#\/learn\/([A-Za-z0-9]+)$/.exec(hash);
+  if (learn) return { name: 'home', learn: learn[1] };
+
+  return { name: 'home' };
 }
 
 export function useRoute(): Route {
@@ -31,7 +51,13 @@ export function useRoute(): Route {
 
 export function go(route: Route): void {
   window.location.hash =
-    route.name === 'lesson' ? `#/lesson/${route.id}` : route.name === 'review' ? '#/review' : '#/';
+    route.name === 'lesson'
+      ? `#/lesson/${route.id}`
+      : route.name === 'review'
+        ? '#/review'
+        : route.learn
+          ? `#/learn/${route.learn}`
+          : '#/';
 }
 
 /**

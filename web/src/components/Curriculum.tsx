@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 import { fetchLesson, type LessonDetail, type LessonSummary, type Unit } from '../api';
 import { revealOnScroll } from '../motion';
@@ -16,9 +16,16 @@ type LessonState = { completed: boolean; locked: boolean; lockedBy?: string };
 export function Curriculum({
   load,
   completedLessonIds,
+  learnId,
 }: {
   load: Load;
   completedLessonIds: string[] | null;
+  /**
+   * A lesson the learner was sent here to read, set by `#/learn/<id>` when a
+   * finished lesson's successor has not been learned yet. That row opens itself
+   * and scrolls into view.
+   */
+  learnId: string | null;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +79,13 @@ export function Curriculum({
         ) : (
           <div className="units" ref={listRef}>
             {load.units.map((unit, index) => (
-              <UnitCard key={unit.slug} unit={unit} index={index} stateOf={stateOf} />
+              <UnitCard
+                key={unit.slug}
+                unit={unit}
+                index={index}
+                stateOf={stateOf}
+                learnId={learnId}
+              />
             ))}
           </div>
         )}
@@ -85,10 +98,12 @@ function UnitCard({
   unit,
   index,
   stateOf,
+  learnId,
 }: {
   unit: Unit;
   index: number;
   stateOf: (lesson: LessonSummary) => LessonState;
+  learnId: string | null;
 }) {
   const done = unit.lessons.filter((l) => stateOf(l).completed).length;
 
@@ -112,7 +127,12 @@ function UnitCard({
 
       <ol className="lessons">
         {unit.lessons.map((lesson) => (
-          <LessonRow key={lesson.id} lesson={lesson} state={stateOf(lesson)} />
+          <LessonRow
+            key={lesson.id}
+            lesson={lesson}
+            state={stateOf(lesson)}
+            highlight={lesson.id === learnId}
+          />
         ))}
       </ol>
     </article>
@@ -125,12 +145,43 @@ function UnitCard({
  * load on first open — 32 lessons fetched eagerly would be 32 requests for
  * content most visitors never expand.
  */
-function LessonRow({ lesson, state }: { lesson: LessonSummary; state: LessonState }) {
+function LessonRow({
+  lesson,
+  state,
+  highlight,
+}: {
+  lesson: LessonSummary;
+  state: LessonState;
+  highlight: boolean;
+}) {
   const [detail, setDetail] = useState<LessonDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
 
-  function open(event: React.SyntheticEvent<HTMLDetailsElement>) {
+  /**
+   * Open and scroll to the lesson the learner was sent here to read.
+   *
+   * Setting `.open` imperatively rather than passing `open` as a prop: React
+   * would then own the attribute, and the learner collapsing the row by hand
+   * would put the DOM and React's idea of it out of step. Assigning the
+   * property still fires `toggle`, so the content fetch below runs exactly as
+   * it does for a click.
+   */
+  useEffect(() => {
+    if (!highlight || !detailsRef.current) return;
+
+    const node = detailsRef.current;
+    node.open = true;
+    node.scrollIntoView({
+      block: 'center',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+    });
+  }, [highlight]);
+
+  function open(event: SyntheticEvent<HTMLDetailsElement>) {
     if (!event.currentTarget.open || detail || loading) return;
 
     setLoading(true);
@@ -144,7 +195,11 @@ function LessonRow({ lesson, state }: { lesson: LessonSummary; state: LessonStat
 
   return (
     <li>
-      <details className="lesson" onToggle={open}>
+      <details
+        ref={detailsRef}
+        className={`lesson${highlight ? ' lesson-highlight' : ''}`}
+        onToggle={open}
+      >
         <summary>
           <span className="lesson-title">{lesson.title}</span>
           {state.completed ? (
@@ -162,6 +217,12 @@ function LessonRow({ lesson, state }: { lesson: LessonSummary; state: LessonStat
             <p className="muted">{error}</p>
           ) : detail ? (
             <>
+              {highlight ? (
+                <p className="learn-first" role="status">
+                  <strong>Learn this one first.</strong> Read through what it teaches, then
+                  start it — the quiz asks about every item below.
+                </p>
+              ) : null}
               <LessonItems items={detail.items} />
               <div className="lesson-actions">
                 {state.locked ? (

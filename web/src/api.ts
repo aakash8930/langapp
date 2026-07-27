@@ -553,3 +553,44 @@ function rank(slug: string): number {
   const index = UNIT_ORDER.indexOf(slug);
   return index === -1 ? UNIT_ORDER.length : index;
 }
+
+/**
+ * Every lesson in teaching order, units included — the course as one list.
+ *
+ * `groupByUnit` already sorts units by `UNIT_ORDER` and lessons by `order`, so
+ * flattening it is the whole of the ordering logic. Kept as its own function
+ * because "what comes after this lesson" is asked from two places and getting
+ * the order from a different route in each would be a way for them to disagree.
+ */
+export function inTeachingOrder(units: Unit[]): LessonSummary[] {
+  return units.flatMap((unit) => unit.lessons);
+}
+
+/**
+ * The lesson that follows `lessonId`, or null at the end of the course.
+ *
+ * Null is also the answer for a lesson that is not in the list at all, which is
+ * the honest result: if we cannot place it, we cannot say what follows it.
+ */
+export function nextLessonAfter(units: Unit[], lessonId: string): LessonSummary | null {
+  const all = inTeachingOrder(units);
+  const index = all.findIndex((lesson) => lesson.id === lessonId);
+  if (index === -1) return null;
+  return all[index + 1] ?? null;
+}
+
+/**
+ * The first lesson the learner has not completed — "you are here" on the home
+ * page.
+ *
+ * Prerequisites are not consulted: the course is a straight line, so the first
+ * uncompleted lesson in teaching order is by construction the one whose
+ * prerequisites are satisfied. Null means everything is done.
+ */
+export function nextUnlearnedLesson(
+  units: Unit[],
+  completedLessonIds: string[],
+): LessonSummary | null {
+  const done = new Set(completedLessonIds);
+  return inTeachingOrder(units).find((lesson) => !done.has(lesson.id)) ?? null;
+}
