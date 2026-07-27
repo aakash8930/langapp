@@ -4,6 +4,7 @@ import { UserModule } from '../user/user.module';
 import { LearningModule } from '../learning/learning.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { AudioController } from './audio.controller';
+import { StrokesController } from './strokes.controller';
 import { ContentService } from './content.service';
 import { ExerciseController } from './exercise.controller';
 import { ExerciseService } from './exercise/exercise.service';
@@ -37,7 +38,7 @@ import { VocabItem, VocabItemSchema } from './schemas/vocab-item.schema';
     // Audio bytes live behind StorageService, never `fs` directly.
     StorageModule,
   ],
-  controllers: [LessonController, ExerciseController, AudioController],
+  controllers: [LessonController, ExerciseController, AudioController, StrokesController],
   providers: [ContentService, ExerciseService],
   exports: [ContentService, ExerciseService],
 })

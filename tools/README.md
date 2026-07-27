@@ -76,9 +76,16 @@ runs `git clean`, which is the specific thing that would delete it.
 So after a generation run:
 
 ```bash
-mkdir -p ~/deploy/langapp/api/storage/audio
-cp -n api/storage/audio/*.wav ~/deploy/langapp/api/storage/audio/
+mkdir -p ~/deploy/langapp/api/storage/audio ~/deploy/langapp/api/storage/strokes
+cp -n api/storage/audio/*.wav    ~/deploy/langapp/api/storage/audio/
+cp -n api/storage/strokes/*.json ~/deploy/langapp/api/storage/strokes/
 ```
+
+**Both directories, and the trap is the same for each.** `strokes/` was added
+2026-07-27 by `fetch-stroke-order.py` and has exactly the same shape as the
+audio: gitignored, generated here, invisible to users until copied. Forgetting
+it means every stroke diagram 404s and the character renders without one — which
+is the designed fallback, so nothing looks broken.
 
 `-n` so an existing file is never overwritten, which makes the copy as
 re-runnable as the generation. Recent coreutils warns that `-n` is non-portable

@@ -855,6 +855,92 @@
   }
 }
 
+/* ---- Stroke order ---- */
+
+.strokes-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-xl);
+}
+.strokes-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-sm);
+}
+.strokes {
+  display: block;
+}
+.strokes-loading {
+  border-radius: 4px;
+  background: var(--hairline);
+  opacity: 0.4;
+}
+
+/*
+ * Both layers use the same geometry; only the paint differs. Round caps and
+ * joins because a brush stroke has no square corners, and this is meant to read
+ * as handwriting rather than as engineering.
+ */
+.stroke-ghost,
+.stroke-draw {
+  fill: none;
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.stroke-ghost {
+  stroke: var(--hairline);
+}
+.stroke-draw {
+  stroke: var(--shu);
+  /* pathLength="1" normalises every stroke, so one dash length fits all of
+     them and long and short strokes draw at the same visual speed. */
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: stroke-draw 0.4s ease-out forwards;
+}
+@keyframes stroke-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/*
+ * Reduced motion: show the finished character rather than a faster animation,
+ * and never leave it part-drawn. The global rule collapses the duration to
+ * 0.01ms; this makes sure what lands is the *complete* glyph by removing the
+ * dash entirely, since a collapsed animation with `forwards` would otherwise
+ * depend on the fill mode landing correctly.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .stroke-draw {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+}
+
+.strokes-foot {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-lg);
+}
+.strokes-count {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.strokes-credit {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
+.strokes-credit a {
+  color: var(--ink-soft);
+}
+
 /* ---- The teach step ---- */
 
 /*

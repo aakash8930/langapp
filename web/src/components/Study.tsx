@@ -4,6 +4,7 @@ import { fetchLesson, type LessonDetail } from '../api';
 import { go, goBack } from '../useRoute';
 import { Item } from './LessonItems';
 import { SpeakButton } from './SpeakButton';
+import { StrokeOrder } from './StrokeOrder';
 
 /**
  * The teach step: one item at a time, before any question is asked.
@@ -145,6 +146,23 @@ export function Study({ lessonId }: { lessonId: string }) {
         </div>
 
         {item.kind === 'vocab' ? <SpeakButton vocabId={item.id} label="Hear it" /> : null}
+
+        {/*
+          Stroke order, for the two kinds that are a single character to be
+          written. A vocabulary word is several characters and a grammar point
+          is a sentence — neither is something you learn to write as a unit, and
+          stacking five diagrams under a word would bury the word.
+
+          Yōon are two glyphs: きゃ gets a diagram each, in reading order, which
+          is also how the cells above it are laid out.
+        */}
+        {item.kind === 'kana' || item.kind === 'kanji' ? (
+          <div className="strokes-row">
+            {[...(item.kind === 'kana' ? item.kana : item.char)].map((glyph, position) => (
+              <StrokeOrder key={`${position}-${glyph}`} char={glyph} />
+            ))}
+          </div>
+        ) : null}
 
         <div className="study-nav">
           <button

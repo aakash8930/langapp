@@ -1,0 +1,55 @@
+# Third-party content
+
+This file records content in langapp that came from somewhere else, and what
+each source obliges. Code dependencies are not listed here — `package.json` and
+its lockfile are the record for those. This is for *content*: the material a
+learner actually sees.
+
+---
+
+## Stroke-order outlines — KanjiVG
+
+**Source:** https://kanjivg.tagaini.net/ (https://github.com/KanjiVG/kanjivg)
+**Copyright:** © Ulrich Apel and the KanjiVG contributors
+**Licence:** Creative Commons Attribution-Share Alike 3.0
+            https://creativecommons.org/licenses/by-sa/3.0/
+**Added:** 2026-07-27
+**Where it lives:** `api/storage/strokes/*.json`, fetched by
+                    `tools/fetch-stroke-order.py`, served by
+                    `GET /content/strokes/:codepoint`
+
+The 252 characters the course teaches — hiragana, katakana and the N5 kanji —
+each stored as the ordered list of SVG stroke paths taken from that character's
+KanjiVG file.
+
+### What the licence requires, in practice
+
+1. **Attribution.** Every surface that draws these strokes credits KanjiVG
+   visibly. Not buried in a settings screen three taps deep — the credit is
+   shown where the strokes are.
+
+2. **Share-alike on this data.** These files, and anything derived from them,
+   stay under CC BY-SA 3.0. If the stroke paths are ever reshaped, simplified or
+   re-exported, the result carries the same licence.
+
+### What it does *not* require
+
+CC BY-SA is not a copyleft that spreads to surrounding software. It does not
+reach the API, the clients, the lesson content, the audio, or anything else in
+this repository. The obligation is bounded to the files listed above.
+
+Chosen after checking the alternatives: there is no MIT or public-domain
+kanji stroke-order dataset. animCJK is under the Arphic Public License and is
+itself KanjiVG-derived; strokesvg covers kana only and derives from the Klee One
+font. Using a properly licensed source with a credit line is the option with the
+*least* copyright exposure, not the most — the risk would be taking stroke data
+from somewhere that grants no permission at all.
+
+---
+
+## Everything else is original
+
+The Japanese course content — the kana, vocabulary, grammar points, kanji
+entries, their glosses, readings and example sentences — is written for this
+project. The spoken audio in `api/storage/audio/` is synthesised locally by
+`tools/generate-audio.py` from that original text.
