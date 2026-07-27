@@ -145,7 +145,10 @@ export function Study({ lessonId }: { lessonId: string }) {
           <Item item={item} />
         </div>
 
+        {/* Nothing here is graded, so a character can be heard on sight — which
+            is exactly what the quiz has to withhold for kana. */}
         {item.kind === 'vocab' ? <SpeakButton vocabId={item.id} label="Hear it" /> : null}
+        {item.kind === 'kana' ? <SpeakButton kanaId={item.id} label="Hear it" /> : null}
 
         {/*
           Stroke order, for the two kinds that are a single character to be

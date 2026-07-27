@@ -16,9 +16,15 @@ import { API_BASE } from '../api';
  * ## Animated with dash offset
  *
  * Each path is drawn by animating `stroke-dashoffset` from its own length to
- * zero, staggered so stroke two starts as stroke one lands. No library: this is
- * the technique SVG line-drawing has always used, and pulling in an animation
- * dependency to do it would be the tail wagging the dog.
+ * zero, staggered so stroke two starts just after stroke one lands. No library:
+ * this is the technique SVG line-drawing has always used, and pulling in an
+ * animation dependency to do it would be the tail wagging the dog.
+ *
+ * Timings are set to be *watchable*. The first pass drew each stroke in 400ms,
+ * which was reported as too fast — and it was: the point is to follow the line
+ * with your eye and know where the next one starts, not to see a finished
+ * character appear. 750ms a stroke, with the next beginning just after the last
+ * lands, is closer to writing speed.
  *
  * `pathLength="1"` normalises every path to a unit length, which is what lets a
  * single CSS rule animate strokes of wildly different real lengths at the same
@@ -95,7 +101,7 @@ export function StrokeOrder({ char, size = 132 }: { char: string; size?: number 
             className="stroke-draw"
             d={d}
             pathLength={1}
-            style={{ animationDelay: `${index * 0.42}s` }}
+            style={{ animationDelay: `${index * 0.82}s` }}
           />
         ))}
       </svg>

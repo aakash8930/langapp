@@ -32,11 +32,12 @@ import { useTheme } from '@/theme';
 
 /**
  * How long feedback stays before the screen moves itself along. Matches the
- * website — same rule, same reasoning: a wrong answer is the only place the
- * correct one is shown, and for grammar that is a whole sentence.
+ * website — same rule, same reasoning: a right answer only needs to register,
+ * while a wrong one has to be read, and for grammar that is a whole sentence.
+ * Both were cut after the first pass read as sluggish.
  */
-const CORRECT_MS = 850;
-const WRONG_MS = 3200;
+const CORRECT_MS = 400;
+const WRONG_MS = 2400;
 
 /** How long the summary sits before it carries on by itself. */
 const NEXT_MS = 4200;
@@ -421,7 +422,12 @@ export default function Lesson() {
             */}
             {hasAudio(question.promptKind) &&
             (!revealsAnswer(question.promptKind) || result !== null) ? (
-              <SpeakButton vocabId={question.itemId} label="Hear it" />
+              <SpeakButton
+                {...(question.promptKind === 'kana'
+                  ? { kanaId: question.itemId }
+                  : { vocabId: question.itemId })}
+                label="Hear it"
+              />
             ) : null}
 
             <Text

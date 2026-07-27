@@ -1,7 +1,7 @@
 import { useAudioPlayer } from 'expo-audio';
 import { Pressable, Text } from 'react-native';
 
-import { audioUrlForVocab } from '@/api/audio';
+import { audioUrlForKana, audioUrlForVocab } from '@/api/audio';
 import { useTheme } from '@/theme';
 
 /**
@@ -26,14 +26,20 @@ import { useTheme } from '@/theme';
  */
 export function SpeakButton({
   vocabId,
+  kanaId,
   label = 'Play',
 }: {
-  vocabId: string;
+  /** A vocabulary item. Exactly one of this and `kanaId` is given. */
+  vocabId?: string;
+  /** A kana item — same bytes, different route. */
+  kanaId?: string;
   /** Overridden on the lesson screen, where the word itself is the context. */
   label?: string;
 }) {
   const theme = useTheme();
-  const player = useAudioPlayer(audioUrlForVocab(vocabId));
+  const player = useAudioPlayer(
+    vocabId ? audioUrlForVocab(vocabId) : kanaId ? audioUrlForKana(kanaId) : null,
+  );
 
   return (
     <Pressable
@@ -44,7 +50,7 @@ export function SpeakButton({
         player.play();
       }}
       accessibilityRole="button"
-      accessibilityLabel="Play this word"
+      accessibilityLabel="Play this"
       hitSlop={theme.spacing.md}
       style={({ pressed }) => ({
         flexDirection: 'row',

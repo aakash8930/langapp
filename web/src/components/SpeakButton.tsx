@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { audioUrlForVocab } from '../audio';
+import { audioUrlForKana, audioUrlForVocab } from '../audio';
 
 /**
  * Plays a word aloud.
@@ -24,14 +24,19 @@ import { audioUrlForVocab } from '../audio';
  */
 export function SpeakButton({
   vocabId,
+  kanaId,
   label = 'Play',
   speed = 1,
 }: {
-  vocabId: string;
+  /** A vocabulary item. Exactly one of this and `kanaId` is given. */
+  vocabId?: string;
+  /** A kana item — same bytes, different route. */
+  kanaId?: string;
   label?: string;
   /** The learner's `settings.audioSpeed`, 0.5–2.0. */
   speed?: number;
 }) {
+  const src = vocabId ? audioUrlForVocab(vocabId) : kanaId ? audioUrlForKana(kanaId) : null;
   const elementRef = useRef<HTMLAudioElement | null>(null);
   const [dead, setDead] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -39,7 +44,12 @@ export function SpeakButton({
   // Rebuild when the word changes — the same button instance is reused as the
   // quiz moves from question to question.
   useEffect(() => {
-    const element = new Audio(audioUrlForVocab(vocabId));
+    if (!src) {
+      setDead(true);
+      return;
+    }
+
+    const element = new Audio(src);
     element.preload = 'none';
     elementRef.current = element;
     setDead(false);
@@ -59,11 +69,11 @@ export function SpeakButton({
       element.pause();
       elementRef.current = null;
     };
-  }, [vocabId]);
+  }, [src]);
 
   useEffect(() => {
     if (elementRef.current) elementRef.current.playbackRate = speed;
-  }, [speed, vocabId]);
+  }, [speed, src]);
 
   function play() {
     const element = elementRef.current;
@@ -86,8 +96,8 @@ export function SpeakButton({
       className={`speak${playing ? ' speak-playing' : ''}`}
       onClick={play}
       disabled={dead}
-      aria-label={dead ? 'No audio for this word' : 'Play this word'}
-      title={dead ? 'No audio for this word' : undefined}
+      aria-label={dead ? 'No audio for this' : 'Play this'}
+      title={dead ? 'No audio for this' : undefined}
     >
       {/* A text glyph rather than an icon font — one less dependency, and it
           takes the palette colour, which an emoji speaker would not. */}

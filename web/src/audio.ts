@@ -19,19 +19,33 @@ export function audioUrlForVocab(vocabId: string): string {
 }
 
 /**
+ * The same file, reached by a different noun.
+ *
+ * Kana audio lives at `audio/<item id>.wav` exactly as vocabulary does; the
+ * route differs only so a caller asking for a kana does not have to call it a
+ * vocab. Kana were missing from the first generation pass on the reasoning that
+ * romaji already spells the sound — which is true only for someone who reads
+ * romaji, and the first unit exists to stop needing it.
+ */
+export function audioUrlForKana(kanaId: string): string {
+  return `${API_BASE}/content/kana/${encodeURIComponent(kanaId)}/audio`;
+}
+
+/**
  * Whether a prompt of this kind has a recording at all.
  *
- * Only vocabulary is voiced. A kanji deliberately gets no audio — it has
- * several readings and which applies depends on the word (山 is やま alone and
- * サン in 火山), so speaking one beside a bare glyph teaches that *that* is how
- * the character reads. Kana would be a recording of a sound the romaji already
- * spells, and a gapped grammar sentence has no single word to say.
+ * Kana and vocabulary are voiced. Kanji deliberately are not, and that is a
+ * content decision rather than a gap: one kanji has several readings and which
+ * applies depends on the word (山 is やま alone and サン in 火山), so speaking
+ * one beside a bare glyph teaches that *that* is how the character reads. A
+ * kana has exactly one reading, which is what makes it safe to speak. A gapped
+ * grammar sentence has no single word to say.
  *
  * `wordReading` prompts are vocabulary and do have audio — but see
  * `revealsAnswer` below before offering it.
  */
 export function hasAudio(promptKind: string): boolean {
-  return promptKind === 'vocab' || promptKind === 'wordReading';
+  return promptKind === 'vocab' || promptKind === 'wordReading' || promptKind === 'kana';
 }
 
 /**
@@ -39,16 +53,21 @@ export function hasAudio(promptKind: string): boolean {
  *
  * True for `wordReading`, and this is the whole reason the check exists: that
  * question shows a word and asks the learner to type its romaji, so the
- * recording *is* the answer read aloud. Offering play before they answer would
- * turn a transcription exercise into a dictation one — and worse, into a free
- * pass, since the doubled consonant in がっこう is audible.
+ * recording *is* the answer read aloud — and the doubled consonant in がっこう
+ * is audible.
+ *
+ * **Also true for `kana`**, which is easy to miss now that kana are voiced. A
+ * kana question shows あ and asks which romaji matches; playing it says "a". The
+ * options are romaji, so listening does not merely hint, it answers. Audio on a
+ * kana question therefore waits for the verdict, where it stops being a hint
+ * and becomes the correction.
  *
  * A `vocab` prompt asks what a word means in English, which no amount of
  * listening reveals, so it may be played freely.
  *
- * Same rule the app applies to review cards, where the play button lives on the
- * back of the card: hearing a word before recalling it would answer it.
+ * The study screen is unaffected by all of this — nothing there is graded, so
+ * every character can be heard on sight, which is the point of a teach step.
  */
 export function revealsAnswer(promptKind: string): boolean {
-  return promptKind === 'wordReading';
+  return promptKind === 'wordReading' || promptKind === 'kana';
 }

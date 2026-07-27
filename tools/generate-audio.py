@@ -43,18 +43,42 @@ MONGO_CONTAINER = "langapp-mongo"
 MONGO_DB = "langapp"
 
 
-def fetch_words() -> list[dict]:
+def fetch_words(collection: str = "vocab") -> list[dict]:
     """
-    Read every vocabulary item straight from the seeded database.
+    Read the items to speak straight from the seeded database.
 
     Via `mongosh` in the container rather than a Python driver, so this script
     needs no database dependency of its own — it is a build tool, not a service.
+
+    ## Two collections, and why kana were not here originally
+
+    Vocabulary was the obvious first pass, and kana were left out on the
+    reasoning that romaji already spells the sound. That was wrong in practice:
+    romaji spells it for someone who reads romaji, and the whole point of the
+    first unit is to stop needing it. Reported from using the site — the kana
+    lessons were the only ones with nothing to hear.
+
+    Kanji stay out, and that is a different reason entirely, unchanged: a kanji
+    has several readings and which applies depends on the word (山 is やま alone
+    and サン in 火山), so voicing one beside a bare glyph teaches that *that* is
+    how it reads. Kana have exactly one reading each, which is precisely why
+    they are safe to speak and kanji are not.
+
+    A yōon like きゃ is one item of two characters and one syllable, so it is
+    synthesised whole rather than as two sounds.
     """
-    script = (
-        f'JSON.stringify(db.getSiblingDB("{MONGO_DB}").vocabItems'
-        '.find({}, {_id:1, lemma:1, reading:1}).toArray()'
-        '.map(d => ({id: d._id.toString(), lemma: d.lemma, reading: d.reading})))'
-    )
+    if collection == "kana":
+        script = (
+            f'JSON.stringify(db.getSiblingDB("{MONGO_DB}").kanaItems'
+            '.find({}, {_id:1, kana:1, romaji:1}).toArray()'
+            '.map(d => ({id: d._id.toString(), lemma: d.kana, reading: d.kana})))'
+        )
+    else:
+        script = (
+            f'JSON.stringify(db.getSiblingDB("{MONGO_DB}").vocabItems'
+            '.find({}, {_id:1, lemma:1, reading:1}).toArray()'
+            '.map(d => ({id: d._id.toString(), lemma: d.lemma, reading: d.reading})))'
+        )
     result = subprocess.run(
         ["docker", "exec", MONGO_CONTAINER, "mongosh", "--quiet", "--eval", script],
         capture_output=True,
@@ -75,15 +99,22 @@ def main() -> int:
     parser.add_argument("--voice", default="jf_alpha", help="Kokoro Japanese voice")
     parser.add_argument("--limit", type=int, default=0, help="stop after N words (for a smoke test)")
     parser.add_argument("--force", action="store_true", help="re-synthesise existing files")
+    parser.add_argument(
+        "--collection",
+        default="vocab",
+        choices=["vocab", "kana"],
+        help="which content to speak; both write into the same output directory, "
+        "keyed by item id, so the route serving them does not care which is which",
+    )
     args = parser.parse_args()
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
-    words = fetch_words()
+    words = fetch_words(args.collection)
     if args.limit:
         words = words[: args.limit]
-    print(f"{len(words)} words to consider", flush=True)
+    print(f"{len(words)} {args.collection} items to consider", flush=True)
 
     # Imported late so `--help` works without the model being present.
     import numpy as np

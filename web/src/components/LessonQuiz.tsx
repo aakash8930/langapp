@@ -22,17 +22,19 @@ import { go, goBack } from '../useRoute';
 /**
  * How long a verdict stays on screen before the quiz moves itself along.
  *
- * A right answer needs only long enough to register as right. A wrong one has
- * to be *read* — it is the only place the correct answer is shown, and for
- * grammar it is a whole sentence — so it gets roughly four times as long.
+ * A right answer needs only long enough to register as right, and the first
+ * pass was too generous — 850ms reads as waiting when you already know you were
+ * correct. A wrong one has to be *read*: it is the only place the correct answer
+ * is shown, and for grammar it is a whole sentence, so it keeps six times the
+ * budget.
  *
  * Both are escapable in both directions: the button advances immediately, and
  * hovering or focusing the verdict holds it open indefinitely. That pause is
  * not a flourish — an auto-advancing screen with no way to stop it fails WCAG
  * 2.2.1, and "read faster" is not an accessibility strategy.
  */
-const CORRECT_MS = 850;
-const WRONG_MS = 3200;
+const CORRECT_MS = 400;
+const WRONG_MS = 2400;
 
 /** How long the end-of-lesson summary sits before it moves on by itself. */
 const NEXT_MS = 4200;
@@ -398,8 +400,14 @@ export function LessonQuiz({
         {hasAudio(question.promptKind) &&
         (!revealsAnswer(question.promptKind) || phase.result !== null) ? (
           <div className="quiz-audio">
+            {/* Both routes read the same `audio/<item id>.wav`, so this is a
+                naming distinction rather than a functional one — but a kana
+                asked for as a vocab would be a lie the next reader has to
+                untangle. */}
             <SpeakButton
-              vocabId={question.itemId}
+              {...(question.promptKind === 'kana'
+                ? { kanaId: question.itemId }
+                : { vocabId: question.itemId })}
               speed={audioSpeed}
               label={revealsAnswer(question.promptKind) ? 'Hear it' : 'Play'}
             />

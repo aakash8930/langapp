@@ -900,7 +900,7 @@
      them and long and short strokes draw at the same visual speed. */
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: stroke-draw 0.4s ease-out forwards;
+  animation: stroke-draw 0.75s ease-out forwards;
 }
 @keyframes stroke-draw {
   to {
