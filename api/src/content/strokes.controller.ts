@@ -45,9 +45,16 @@ export class StrokesController {
       throw new NotFoundException('No stroke data for that character');
     }
 
+    // Zero-pad to five, because that is how the files are named — KanjiVG's
+    // convention, kept rather than renamed so the data stays diffable against
+    // upstream. `あ` is U+3042, and a client that sends the natural four digits
+    // must not miss `03042.json`. Padding here is what makes both forms work,
+    // which is what the contract promises.
+    const key = codepoint.toLowerCase().padStart(5, '0');
+
     let bytes: Buffer;
     try {
-      bytes = await this.storage.get(`strokes/${codepoint.toLowerCase()}.json`);
+      bytes = await this.storage.get(`strokes/${key}.json`);
     } catch {
       // A character with no stroke data is a 404, not a 500 — the client's
       // fallback is to show the character without a diagram, which is the
