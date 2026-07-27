@@ -130,6 +130,27 @@ export function nextLesson(units: UnitGroup[]): LessonWithState | undefined {
   return undefined;
 }
 
+/**
+ * The lesson immediately after `lessonId` in teaching order, or undefined at the
+ * end of the course.
+ *
+ * Grouped units flattened, for the same reason `nextLesson` takes groups: every
+ * unit numbers its lessons from 0, so a flat array sorted by `order` interleaves
+ * units rather than following them.
+ *
+ * Undefined is also the answer for a lesson that is not in the list, which is
+ * honest — if we cannot place it, we cannot say what follows it.
+ */
+export function lessonAfter(
+  units: UnitGroup[],
+  lessonId: string,
+): LessonWithState | undefined {
+  const all = units.flatMap((unit) => unit.lessons);
+  const index = all.findIndex((lesson) => lesson.id === lessonId);
+  if (index === -1) return undefined;
+  return all[index + 1];
+}
+
 export function groupByUnit(lessons: LessonWithState[]): UnitGroup[] {
   const byUnit = new Map<string, LessonWithState[]>();
 

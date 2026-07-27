@@ -11,7 +11,11 @@ import {
   type AnswerResult,
   type CompleteLessonResult,
   type PromptKind,
+  type Question,
 } from '@/api/exercises';
+import { hasAudio, revealsAnswer } from '@/api/audio';
+import { fetchLessons } from '@/api/lessons';
+import { fetchProgress } from '@/api/progress';
 import { Button } from '@/components/Button';
 import { ErrorState } from '@/components/ErrorState';
 import { FormError } from '@/components/FormError';
@@ -19,10 +23,42 @@ import { LessonSkeleton } from '@/components/LessonSkeleton';
 import { QuestionPrompt } from '@/components/QuestionPrompt';
 import { OptionButton, type OptionState } from '@/components/OptionButton';
 import { SessionProgress } from '@/components/SessionProgress';
+import { SpeakButton } from '@/components/SpeakButton';
 import { errorText } from '@/lib/errors';
 import { newAttempt } from '@/lib/exercises';
+import { groupByUnit, lessonAfter, withLockState } from '@/lib/lessons';
 import { answerFeedback, tapFeedback } from '@/lib/haptics';
 import { useTheme } from '@/theme';
+
+/**
+ * How long feedback stays before the screen moves itself along. Matches the
+ * website — same rule, same reasoning: a wrong answer is the only place the
+ * correct one is shown, and for grammar that is a whole sentence.
+ */
+const CORRECT_MS = 850;
+const WRONG_MS = 3200;
+
+/** How long the summary sits before it carries on by itself. */
+const NEXT_MS = 4200;
+
+/**
+ * What happens once this lesson is finished cleanly.
+ *
+ * One rule, and it deliberately does not branch on first-completion vs
+ * practice: look at the next lesson in teaching order and ask whether it has
+ * been learned. Practice chains into more practice; unlearned material sends
+ * the learner home, where the path already points at what to do next — a quiz
+ * on something never taught is a guessing game.
+ *
+ * `unknown` is its own case because an unloaded lesson list looks identical to
+ * a finished course, and telling someone on lesson three that they have
+ * finished would be worse than saying nothing.
+ */
+type NextStep =
+  | { kind: 'practise'; id: string; title: string }
+  | { kind: 'learn'; title: string }
+  | { kind: 'courseComplete' }
+  | { kind: 'unknown' };
 
 /**
  * The exercise flow: one question per screen, answered against the server.
@@ -30,6 +66,13 @@ import { useTheme } from '@/theme';
  * Nothing about a run is persisted until `/complete` at the end — there is no
  * server-side session, so leaving halfway genuinely discards the answers. That
  * is the whole reason for the confirmation on exit.
+ *
+ * **A lesson is pass-or-repeat.** Every question is asked exactly once; a wrong
+ * answer does not stop the run, it fails it. That mirrors the server, whose
+ * completion gate looks for an attempt with everything answered correctly — so
+ * a run with a mistake would be refused by `/complete` anyway, and the screen
+ * reads the same rule off the answers it already holds rather than sending a
+ * request it knows will 409.
  */
 export default function Lesson() {
   const theme = useTheme();
@@ -38,31 +81,35 @@ export default function Lesson() {
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  // Drawn once per entry and held for the run. See newAttempt().
-  const [attempt] = useState(newAttempt);
   /**
-   * Indices into `questions`, front-first, holding only what is **not yet
-   * answered correctly**.
-   *
-   * A queue rather than a walking index because a wrong answer must not let the
-   * learner past it: the question goes to the back and comes round again. So a
-   * finished lesson is a drained queue, which is the same rule the server's
-   * completion gate enforces — you finish having answered everything right.
-   *
-   * Null until the set arrives; `[]` would be indistinguishable from "drained"
-   * and would fire the completion immediately.
+   * Drawn once per run and held. Bumped by "Run it again", which is what makes a
+   * repeat a genuinely new attempt rather than a re-answer of the same one.
    */
-  const [queue, setQueue] = useState<number[] | null>(null);
+  const [run, setRun] = useState(0);
+  const [attempt, setAttempt] = useState(newAttempt);
+  /**
+   * How far through the questions, and what came back for each one behind us.
+   *
+   * A walking index, not a queue. The queue re-asked a wrong question until it
+   * was answered right, which made every finished run clean by construction —
+   * so a lesson could not actually be failed, only delayed. Now one mistake
+   * costs the run: `answered` is what that verdict is read from at the end.
+   */
+  const [index, setIndex] = useState(0);
+  const [answered, setAnswered] = useState<AnswerResult[]>([]);
   const [result, setResult] = useState<AnswerResult | null>(null);
-  const [correctCount, setCorrectCount] = useState(0);
   const [summary, setSummary] = useState<CompleteLessonResult | null>(null);
+  /** Reached the end with at least one wrong. The lesson did not complete. */
+  const [failed, setFailed] = useState(false);
+  /** Auto-advance paused by a tap on the feedback — the timing escape hatch. */
+  const [held, setHeld] = useState(false);
   // The text typed into the wordReading input. Cleared on `advance()` so a
   // new question starts from an empty box; the input also clears itself when
   // disabled-by-result, so this state is the source of truth.
   const [typedText, setTypedText] = useState('');
 
   const exercises = useQuery({
-    queryKey: ['exercises', id, attempt],
+    queryKey: ['exercises', id, attempt, run],
     queryFn: () => fetchExercises(id, attempt),
     // The set is a pure function of (lesson, user, attempt), so it cannot go
     // stale within a run — and refetching mid-lesson would only risk a flicker
@@ -80,8 +127,23 @@ export default function Lesson() {
     onSuccess: (data) => {
       answerFeedback(data.correct);
       setResult(data);
-      if (data.correct) setCorrectCount((count) => count + 1);
     },
+  });
+
+  /**
+   * What comes after this lesson. Read from the same two caches the home screen
+   * uses, so nothing extra is fetched in the common case — both are warm by the
+   * time anyone reaches a lesson from home.
+   */
+  const progressQuery = useQuery({
+    queryKey: ['progress'],
+    queryFn: fetchProgress,
+    staleTime: 5 * 60_000,
+  });
+  const lessonsQuery = useQuery({
+    queryKey: ['lessons'],
+    queryFn: () => fetchLessons(),
+    staleTime: 5 * 60_000,
   });
 
   const complete = useMutation({
@@ -96,28 +158,43 @@ export default function Lesson() {
   const questions = exercises.data?.questions ?? [];
   const total = questions.length;
 
-  // Fill the queue once the set lands. Every question starts unresolved.
-  useEffect(() => {
-    if (queue === null && total > 0) {
-      setQueue(questions.map((_, position) => position));
-    }
-  }, [queue, questions, total]);
+  const question = questions[index];
+  /** Questions behind us, including the one showing feedback right now. */
+  const seen = answered.length + (result ? 1 : 0);
+  const correctCount =
+    answered.filter((each) => each.correct).length + (result?.correct ? 1 : 0);
+  const isLast = total > 0 && index === total - 1;
+  /** Already unwinnable: no sequence of answers from here completes the lesson. */
+  const broken = answered.some((each) => !each.correct) || result?.correct === false;
 
-  const currentIndex = queue?.[0];
-  const question = currentIndex === undefined ? undefined : questions[currentIndex];
-  /** Answered correctly, so gone from the queue. Drives the progress bar. */
-  const mastered = queue === null ? 0 : total - queue.length;
-  /** True when answering *this* one correctly drains the queue. */
-  const isLast = queue !== null && queue.length === 1 && result?.correct === true;
+  const nextStep = ((): NextStep => {
+    const all = lessonsQuery.data;
+    const completedIds = progressQuery.data?.completedLessonIds;
+    if (!all || !completedIds) return { kind: 'unknown' };
+
+    const units = groupByUnit(withLockState(all, completedIds));
+    const next = lessonAfter(units, id);
+    if (!next) return { kind: 'courseComplete' };
+    return next.completed
+      ? { kind: 'practise', id: next.id, title: next.title }
+      : { kind: 'learn', title: next.title };
+  })();
 
   // Answers live only in this component's state, so there is something to lose
   // from the first one until `/complete` has landed.
-  const answersAtRisk = summary === null && (mastered > 0 || result !== null);
+  const answersAtRisk = summary === null && !failed && seen > 0;
 
   const leave = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace('/');
   }, [router]);
+
+  const goToNext = useCallback(() => {
+    // `replace`, not `push`: chaining lessons must not build a back stack of
+    // finished ones for the hardware back button to walk through.
+    if (nextStep.kind === 'practise') router.replace(`/lesson/${nextStep.id}`);
+    else leave();
+  }, [nextStep, router, leave]);
 
   const requestExit = useCallback(() => {
     if (!answersAtRisk) {
@@ -127,13 +204,13 @@ export default function Lesson() {
 
     Alert.alert(
       'Leave this lesson?',
-      `You have ${mastered} of ${total} correct. Leaving discards them — a lesson only counts once you finish it.`,
+      `You have ${correctCount} of ${total} correct. Leaving discards them — a lesson only counts once you finish it.`,
       [
         { text: 'Keep going', style: 'cancel' },
         { text: 'Leave', style: 'destructive', onPress: leave },
       ],
     );
-  }, [answersAtRisk, leave, mastered, total]);
+  }, [answersAtRisk, leave, correctCount, total]);
 
   // Android's hardware back would otherwise walk straight out of the lesson.
   // iOS has no equivalent event; its swipe-back is disabled below instead.
@@ -164,29 +241,64 @@ export default function Lesson() {
     answer.mutate({ exerciseId: question.exerciseId, body: { text } });
   }
 
-  function advance() {
-    if (queue === null || currentIndex === undefined) return;
+  const advance = useCallback(() => {
+    if (!result) return;
 
-    // Right answers leave the queue; wrong ones go to the back to be re-asked.
-    // Answering the last outstanding question wrongly therefore re-asks it
-    // immediately, which is correct — there is nothing else left to interleave,
-    // and the lesson cannot finish while it is unanswered.
-    const rest = queue.slice(1);
-    const next = result?.correct ? rest : [...rest, currentIndex];
+    const settled = [...answered, result];
 
-    if (next.length === 0) {
-      complete.mutate();
+    if (index + 1 < total) {
+      setAnswered(settled);
+      setIndex(index + 1);
+      setResult(null);
+      setHeld(false);
+      // Clear the typed text along with the previous result. A typed answer
+      // that survived across questions would be a stale state leak.
+      setTypedText('');
+      // Clears a failed attempt's error along with the previous result.
+      answer.reset();
       return;
     }
 
-    setQueue(next);
+    // End of the run. One wrong answer means the lesson did not complete, and
+    // `/complete` would refuse it — so we do not ask.
+    setAnswered(settled);
+    if (settled.some((each) => !each.correct)) {
+      setFailed(true);
+      return;
+    }
+    complete.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answered, index, result, total]);
+
+  /** Start the lesson over as a genuinely new attempt. */
+  const runAgain = useCallback(() => {
+    setAttempt(newAttempt());
+    setRun((n) => n + 1);
+    setIndex(0);
+    setAnswered([]);
     setResult(null);
-    // Clear the typed text along with the previous result. A typed answer
-    // that survived across questions would be a stale state leak.
+    setFailed(false);
+    setHeld(false);
     setTypedText('');
-    // Clears a failed attempt's error along with the previous result.
     answer.reset();
-  }
+    complete.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Move on by itself once feedback has been read.
+   *
+   * A right answer needs only long enough to register; a wrong one has to be
+   * *read*, since it is the only place the correct answer appears. Tapping the
+   * feedback holds it open — an auto-advancing screen with no way to stop it
+   * fails WCAG 2.2.1, and a phone has no hover to pause on.
+   */
+  useEffect(() => {
+    if (!result || held || summary || failed) return;
+
+    const timer = setTimeout(advance, result.correct ? CORRECT_MS : WRONG_MS);
+    return () => clearTimeout(timer);
+  }, [result, held, summary, failed, advance]);
 
   function optionState(optionId: string): OptionState {
     if (result) {
@@ -229,7 +341,14 @@ export default function Lesson() {
           />
         </Centered>
       ) : summary ? (
-        <Summary summary={summary} correctCount={correctCount} total={total} onDone={leave} />
+        <Summary summary={summary} total={total} next={nextStep} onNext={goToNext} onDone={leave} />
+      ) : failed ? (
+        <Failed
+          answered={answered}
+          questions={questions}
+          onAgain={runAgain}
+          onLeave={leave}
+        />
       ) : !question ? (
         // The API 422s on a lesson with no kana, so this is close to
         // unreachable — but an empty set must not render a blank screen.
@@ -243,14 +362,29 @@ export default function Lesson() {
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
               <LeaveButton onPress={requestExit} />
             </View>
-            {/* Counts what is *learned*, not what is seen — a re-asked question
-                must not advance the bar, or getting things wrong would look like
-                progress. */}
+            {/* Position through the lesson, not score. Every question is asked
+                exactly once now, so the two are different numbers — the caption
+                carries the score. */}
             <SessionProgress
-              position={mastered}
+              position={seen}
               total={total}
-              caption={`${mastered} / ${total} correct`}
+              caption={`${correctCount} / ${total} correct`}
             />
+
+            {/* Said the moment it is true rather than held to the end. Letting
+                someone answer the rest of a doomed run and only then telling
+                them would be a surprise this screen should never spring. */}
+            {broken ? (
+              <Text
+                style={{
+                  fontFamily: theme.families.ui,
+                  fontSize: theme.fontSize.small,
+                  color: theme.colors.inkSoft,
+                }}
+              >
+                This run can’t complete the lesson — you’ll need a clean one to pass.
+              </Text>
+            ) : null}
           </View>
 
           <ScrollView
@@ -263,6 +397,22 @@ export default function Lesson() {
             }}
           >
             <QuestionPrompt prompt={question.prompt} kind={question.promptKind} />
+
+            {/*
+              Audio, but never where it would answer the question.
+
+              A `vocab` prompt asks what a word means in English — listening
+              reveals nothing, so hearing it while choosing is the point. A
+              `wordReading` prompt asks for the romaji, so the recording *is*
+              the answer spoken, and the doubled consonant in がっこう is
+              audible; it is withheld until the feedback, where it becomes the
+              correction rather than a hint. Same rule as review cards.
+            */}
+            {hasAudio(question.promptKind) &&
+            (!revealsAnswer(question.promptKind) || result !== null) ? (
+              <SpeakButton vocabId={question.itemId} label="Hear it" />
+            ) : null}
+
             <Text
               style={{
                 fontFamily: theme.families.ui,
@@ -300,17 +450,16 @@ export default function Lesson() {
             ) : complete.isError ? (
               <FormError message={errorText(complete.error)} />
             ) : (
-              <Feedback result={result} kind={question.promptKind} />
+              <Feedback
+                result={result}
+                kind={question.promptKind}
+                held={held}
+                onToggleHold={() => setHeld((current) => !current)}
+              />
             )}
 
             <Button
-              label={
-                isLast
-                  ? 'Finish lesson'
-                  : result && !result.correct
-                    ? 'Try this one again later'
-                    : 'Next question'
-              }
+              label={isLast ? 'Finish lesson' : 'Next question'}
               onPress={advance}
               // Always rendered, so answering never shifts the options out from
               // under a thumb that is already moving.
@@ -328,16 +477,34 @@ export default function Lesson() {
  * Holds a constant two lines of space whether or not there is anything to say,
  * so the button below it never moves.
  */
-function Feedback({ result, kind }: { result: AnswerResult | null; kind: PromptKind }) {
+function Feedback({
+  result,
+  kind,
+  held,
+  onToggleHold,
+}: {
+  result: AnswerResult | null;
+  kind: PromptKind;
+  held: boolean;
+  onToggleHold: () => void;
+}) {
   const theme = useTheme();
   const height = theme.lineHeight.body * 2;
 
   if (!result) return <View style={{ height }} />;
 
   return (
-    <View
+    <Pressable
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
+      // The pause. A phone has no hover to hold a countdown open on, so the
+      // feedback itself is the target: tap to stop the auto-advance, tap again
+      // to let it run. Without this the screen would move on regardless of how
+      // long the reader needs, which fails WCAG 2.2.1.
+      accessibilityLabel={
+        held ? 'Auto-advance paused. Tap to resume.' : 'Tap to pause auto-advance.'
+      }
+      onPress={onToggleHold}
       style={{ height, justifyContent: 'center' }}
     >
       <Text
@@ -367,22 +534,144 @@ function Feedback({ result, kind }: { result: AnswerResult | null; kind: PromptK
             : `${result.prompt} is “${result.correctValue}”.`}
         </Text>
       )}
-    </View>
+    </Pressable>
+  );
+}
+
+/**
+ * Reached the end of a run with at least one wrong answer.
+ *
+ * The lesson is not finished and no XP was earned. Listing what was missed makes
+ * the repeat a study aid rather than a punishment — the learner sees the three
+ * they got wrong before re-answering all twelve.
+ */
+function Failed({
+  answered,
+  questions,
+  onAgain,
+  onLeave,
+}: {
+  answered: AnswerResult[];
+  questions: Question[];
+  onAgain: () => void;
+  onLeave: () => void;
+}) {
+  const theme = useTheme();
+  const wrong = answered.filter((each) => !each.correct);
+  const byExerciseId = new Map(questions.map((q) => [q.exerciseId, q]));
+
+  return (
+    <ScrollView
+      contentContainerStyle={{
+        flexGrow: 1,
+        justifyContent: 'center',
+        padding: theme.spacing.xl,
+        gap: theme.spacing.xl,
+      }}
+    >
+      <Text
+        style={{
+          fontFamily: theme.families.ui,
+          fontSize: theme.fontSize.title,
+          color: theme.colors.ink,
+        }}
+      >
+        Not quite finished
+      </Text>
+
+      <Text
+        style={{
+          fontFamily: theme.families.ui,
+          fontSize: theme.fontSize.body,
+          lineHeight: theme.lineHeight.body,
+          color: theme.colors.inkSoft,
+        }}
+      >
+        {wrong.length === 1
+          ? 'One answer was wrong, so this lesson is not complete yet.'
+          : `${wrong.length} answers were wrong, so this lesson is not complete yet.`}{' '}
+        Run it again and get every question right to finish it.
+      </Text>
+
+      <View style={{ gap: theme.spacing.md }}>
+        {wrong.map((each) => {
+          const question = byExerciseId.get(each.exerciseId);
+          const answerText =
+            question?.promptKind === 'grammar'
+              ? each.prompt.replace('＿', each.correctValue)
+              : each.correctValue;
+
+          return (
+            <View
+              key={each.exerciseId}
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'baseline',
+                gap: theme.spacing.lg,
+                paddingBottom: theme.spacing.md,
+                borderBottomWidth: theme.hairlineWidth,
+                borderBottomColor: theme.colors.hairline,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: theme.families.ja,
+                  fontSize: theme.fontSize.bodyLarge,
+                  color: theme.colors.ink,
+                  flexShrink: 1,
+                }}
+              >
+                {each.prompt}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: theme.families.ui,
+                  fontSize: theme.fontSize.body,
+                  color: theme.colors.shu,
+                  textAlign: 'right',
+                  flexShrink: 1,
+                }}
+              >
+                {answerText}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={{ gap: theme.spacing.md }}>
+        <Button label="Run it again" onPress={onAgain} />
+        <Button label="Back to home" variant="secondary" onPress={onLeave} />
+      </View>
+    </ScrollView>
   );
 }
 
 function Summary({
   summary,
-  correctCount,
   total,
+  next,
+  onNext,
   onDone,
 }: {
   summary: CompleteLessonResult;
-  correctCount: number;
   total: number;
+  next: NextStep;
+  onNext: () => void;
   onDone: () => void;
 }) {
   const theme = useTheme();
+  const [held, setHeld] = useState(false);
+
+  // Carries on by itself, like the questions did. Tapping anywhere on the
+  // summary stops it — the same escape hatch the feedback offers, for the same
+  // reason.
+  useEffect(() => {
+    if (held) return;
+    const timer = setTimeout(onNext, NEXT_MS);
+    return () => clearTimeout(timer);
+  }, [held, onNext]);
 
   const cards =
     summary.cardsCreated > 0
@@ -391,6 +680,7 @@ function Summary({
 
   return (
     <ScrollView
+      onTouchStart={() => setHeld(true)}
       contentContainerStyle={{
         flexGrow: 1,
         justifyContent: 'center',
@@ -423,7 +713,11 @@ function Summary({
       </View>
 
       <View>
-        <SummaryRow label="Correct" value={`${correctCount} of ${total}`} />
+        {/* Reaching this screen at all means a clean run — the only route here
+            is every question answered correctly — so the row states that rather
+            than asking the reader to compare two numbers that are always
+            equal. */}
+        <SummaryRow label="Correct" value={`Clean run — ${total} of ${total}`} />
         <SummaryRow label="XP earned" value={`+${summary.xpAwarded}`} emphasis />
         {/* Gems are shown next to XP because they are earned by the same act and
             differ only in what they buy — a heart refill rather than a level. */}
@@ -431,7 +725,48 @@ function Summary({
         <SummaryRow label="Cards" value={cards} />
       </View>
 
-      <Button label="Back to home" onPress={onDone} />
+      <View style={{ gap: theme.spacing.sm }}>
+        {next.kind === 'practise' ? (
+          <Text
+            style={{
+              fontFamily: theme.families.ui,
+              fontSize: theme.fontSize.small,
+              color: theme.colors.inkSoft,
+            }}
+          >
+            Next: {next.title} — you have learned this one, so it starts straight away.
+          </Text>
+        ) : next.kind === 'learn' ? (
+          <Text
+            style={{
+              fontFamily: theme.families.ui,
+              fontSize: theme.fontSize.small,
+              color: theme.colors.inkSoft,
+            }}
+          >
+            Next: {next.title} — you have not learned this one yet. Read it through
+            first.
+          </Text>
+        ) : next.kind === 'courseComplete' ? (
+          <Text
+            style={{
+              fontFamily: theme.families.ui,
+              fontSize: theme.fontSize.small,
+              color: theme.colors.inkSoft,
+            }}
+          >
+            That is the last lesson. Everything from here is review.
+          </Text>
+        ) : null}
+
+        <Button
+          label={next.kind === 'practise' ? 'Start it now' : 'Back to home'}
+          onPress={onNext}
+        />
+        {next.kind === 'practise' ? (
+          <Button label="Back to home" variant="secondary" onPress={onDone} />
+        ) : null}
+      </View>
     </ScrollView>
   );
 }
