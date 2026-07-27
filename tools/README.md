@@ -65,6 +65,46 @@ container, so it needs no database driver of its own. It **skips words whose fil
 already exists**, so re-running after adding a content unit only synthesises the
 new ones. `--force` rebuilds everything.
 
+## Getting the files onto the deployed API
+
+**`api/storage/` is gitignored, so generating in this working copy does not put
+anything in front of users.** The deploy clone at `~/deploy/langapp` has its own
+`api/storage/`, which — like the `.env` files — survives `git reset --hard`
+precisely because git does not track it. `langapp-deploy.sh` resets and never
+runs `git clean`, which is the specific thing that would delete it.
+
+So after a generation run:
+
+```bash
+mkdir -p ~/deploy/langapp/api/storage/audio
+cp -n api/storage/audio/*.wav ~/deploy/langapp/api/storage/audio/
+```
+
+`-n` so an existing file is never overwritten, which makes the copy as
+re-runnable as the generation. Recent coreutils warns that `-n` is non-portable
+and suggests `--update=none`; the warning is harmless and `-n` is kept here
+because it works on older coreutils too.
+
+Then check it actually landed, because the failure is silent:
+
+```bash
+# Every seeded word has a file, and no file is left over from a deleted word.
+docker exec langapp-mongo mongosh langapp --quiet \
+  --eval 'db.vocabItems.find({},{_id:1}).toArray().forEach(d=>print(d._id.toString()))' \
+  | sort > /tmp/db-ids
+ls ~/deploy/langapp/api/storage/audio | sed 's/\.wav$//' | sort > /tmp/file-ids
+comm -3 /tmp/db-ids /tmp/file-ids   # silence means they match
+
+# And one word over the funnel, which is the path the phone actually takes.
+curl -sI https://<funnel-host>/langapp/content/vocab/<id>/audio | head -1
+```
+
+This is a **manual step and a real trap**: nothing fails loudly if you skip it.
+The route simply 404s, the client falls silent, and everything looks like it
+works. If audio ever becomes something users notice missing, this is the first
+thing to check — and the honest fix is to generate on the deploy box or ship the
+files some other way, not to remember harder.
+
 ## Vocabulary only — kanji deliberately get no audio
 
 A kanji has several readings and which one applies depends on the word: 山 is
