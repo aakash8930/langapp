@@ -23,6 +23,25 @@ import { UnitChapter } from '@/components/UnitChapter';
 import { groupByUnit, nextLesson, withLockState, type UnitGroup } from '@/lib/lessons';
 import { useTheme } from '@/theme';
 
+/**
+ * Where tapping a lesson goes.
+ *
+ * Never seen it -> the teach step, which presents every item before any
+ * question. A quiz on material that has not been shown is a guessing game, and
+ * until this existed a learner met あ for the first time as a multiple-choice
+ * option.
+ *
+ * Already finished -> straight to the questions. Practice is the point of
+ * re-opening a completed lesson, and walking the cards again would be in the
+ * way. The teach step is still reachable from inside the quiz's own flow.
+ *
+ * Same rule as the website, so the two surfaces do not disagree about what a
+ * tap means.
+ */
+function routeFor(lesson: { id: string; completed: boolean }): string {
+  return lesson.completed ? `/lesson/${lesson.id}` : `/study/${lesson.id}`;
+}
+
 export default function Home() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -178,7 +197,7 @@ export default function Home() {
               lesson={next}
               unitLabel={nextUnitLabel}
               fresh={nothingDoneYet}
-              onPress={(lesson) => router.push(`/lesson/${lesson.id}`)}
+              onPress={(lesson) => router.push(routeFor(lesson))}
             />
           ) : (
             <CourseComplete />
@@ -195,7 +214,7 @@ export default function Home() {
                 toggled.has(unit.unit) ? unit.status !== 'current' : unit.status === 'current'
               }
               onToggle={toggleUnit}
-              onPressLesson={(lesson) => router.push(`/lesson/${lesson.id}`)}
+              onPressLesson={(lesson) => router.push(routeFor(lesson))}
             />
           ))}
         </>
