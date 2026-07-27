@@ -274,8 +274,17 @@ export function fetchProgress(): Promise<Progress> {
 export type ExerciseOption = { id: string; value: string };
 export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
 
+/**
+ * The content item behind the prompt — the same `id` `GET /lessons/:id` returns.
+ * `exerciseId` is a position in a shuffle and changes between attempts, so this
+ * is the only stable per-item handle. Sent for every `promptKind`; which prompts
+ * can do anything with it is this surface's decision.
+ */
+type ItemId = string;
+
 export type MultipleChoiceQuestion = {
   exerciseId: string;
+  itemId: ItemId;
   type: 'multipleChoice';
   prompt: string;
   promptKind: PromptKind;
@@ -290,6 +299,7 @@ export type MultipleChoiceQuestion = {
  */
 export type WordReadingQuestion = {
   exerciseId: string;
+  itemId: ItemId;
   type: 'wordReading';
   prompt: string;
   promptKind: PromptKind;

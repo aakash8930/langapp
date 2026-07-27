@@ -183,10 +183,35 @@ POST /lessons/:id/complete  -> 200
      -> { lessonId, title, cardsCreated, cardsAlreadyPresent,
           xpAwarded, firstCompletion, totalXp }
 
-Question = { exerciseId, type, prompt, promptKind, question } with two shapes:
+Question = { exerciseId, itemId, type, prompt, promptKind, question } with two shapes:
   multipleChoice { ... type: 'multipleChoice', options: [ { id, value } ] }
   wordReading    { ... type: 'wordReading' }  // no options; learner types romaji
 ```
+
+`itemId` was added 2026-07-27 and is the **content item's own id** — the same
+`id` `GET /lessons/:id` returns on the resolved item. It exists because a
+question is otherwise anonymous: `exerciseId` is `"{attempt}:{index}"`, a
+position in a shuffle, so the only per-item handle a client had was the prompt
+string. Its first use is audio in the quiz — `GET /content/vocab/:id/audio` is
+keyed by the vocabulary item's id — but it is **sent for every prompt kind, not
+just the ones that have a `.wav`**. Which kinds can speak is a display rule, and
+display rules live with the clients, same as romaji.
+
+For `grammar` it resolves to the **grammar point**, not the example sentence. A
+point contributes at most one question (its first example), so the mapping is
+still one-to-one.
+
+`itemId` is always the **asked** item, never a distractor, and it is stable
+across attempts where `exerciseId` is not — which is what makes it usable as a
+key for per-item client state.
+
+It does not widen what an answer-hunting client can reach. `/lessons/:id` is
+unauthenticated and already returns every item with its gloss, romaji, meanings
+and grammar answers, and the prompt *is* the item's own text — so that lookup
+was always available by string match. This makes an existing path exact rather
+than opening a new one. What stays protected is unchanged: which option is
+correct never leaves the service (`toPublicQuestion` is still an allowlist), and
+`/complete` gates on server-recorded answers rather than on client claims.
 
 `promptKind` is `'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji'`
 (widened to include `wordReading` on 2026-07-26 with T1.1, when っ/ー + chōonpu

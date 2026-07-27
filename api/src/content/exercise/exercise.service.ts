@@ -409,6 +409,9 @@ export class ExerciseService {
 
     const questions: GeneratedQuestion[] = order.map((item, index) => ({
       exerciseId: `${attempt}:${index}`,
+      // The vocab item's own id — this branch maps straight off `lesson.items`,
+      // so it is the same id `GET /lessons/:id` returned.
+      itemId: item.id,
       type: 'wordReading',
       prompt: item.prompt,
       promptKind: 'wordReading' as const,
@@ -494,6 +497,10 @@ export class ExerciseService {
 
     return {
       exerciseId: `${attempt}:${index}`,
+      // `Choice.id` is the source item's id for every kind — the same value the
+      // options seed is derived from, which is why a question keeps both its
+      // options and its identity when the surrounding order changes.
+      itemId: correct.id,
       type: 'multipleChoice',
       prompt: correct.prompt,
       promptKind: style.promptKind,

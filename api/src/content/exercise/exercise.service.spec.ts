@@ -1057,3 +1057,135 @@ describe('ExerciseService.answer — hearts (slice 2)', () => {
     expect(result.heartsLeft).toBeNull();
   });
 });
+
+/**
+ * `itemId` — which content item a question is about.
+ *
+ * The client needs it to play a word's audio in the quiz (`GET
+ * /content/vocab/:id/audio` is keyed by the vocabulary item's own id), but the
+ * field is deliberately generic: every prompt kind carries it, and what a
+ * surface does with it is the surface's decision.
+ *
+ * The tests that matter are the ones that would catch it being wired to the
+ * wrong thing — a distractor's id, or an index into the shuffle.
+ */
+describe('ExerciseService.generate — itemId', () => {
+  it('carries the id of the kana item the prompt came from', async () => {
+    const set = await makeService().generate(LESSON_ID, USER_A, 0);
+
+    for (const question of set.questions) {
+      const source = VOWELS.find((v) => v.kana === question.prompt);
+      expect(question.itemId).toBe(source!.id);
+    }
+  });
+
+  it('carries the vocabulary item id, which is what the audio route is keyed by', async () => {
+    const set = await makeService(vocabLesson()).generate(LESSON_ID, USER_A, 0);
+
+    for (const question of set.questions) {
+      const source = WORDS.find((w) => w.lemma === question.prompt);
+      expect(question.itemId).toBe(source!.id);
+    }
+  });
+
+  it('carries the item id on wordReading questions too, which have no options', async () => {
+    const set = await wordReadingService().generate(LESSON_ID, USER_A, 0);
+
+    for (const question of set.questions) {
+      expect(question.type).toBe('wordReading');
+      const source = READING_WORDS.find((w) => w.lemma === question.prompt);
+      expect(question.itemId).toBe(source!.id);
+    }
+  });
+
+  it('carries the kanji entry id', async () => {
+    const set = await kanjiService().generate(LESSON_ID, USER_A, 0);
+
+    for (const question of set.questions) {
+      const source = KANJI.find((k) => k.char === question.prompt);
+      expect(question.itemId).toBe(source!.id);
+    }
+  });
+
+  /**
+   * Grammar resolves to the *point*, not the example sentence — a point
+   * contributes at most one question (its first example), so the mapping stays
+   * one-to-one even though the prompt is a sentence.
+   */
+  it('carries the grammar point id, not an example id', async () => {
+    const set = await grammarService().generate(LESSON_ID, USER_A, 0);
+
+    for (const question of set.questions) {
+      const source = POINTS.find((p) => p.sentence === question.prompt);
+      expect(question.itemId).toBe(source!.id);
+    }
+  });
+
+  /**
+   * The failure this guards against: wiring `itemId` off a distractor rather
+   * than the asked item. The vocabulary unit pool is twice the lesson, so a
+   * distractor-sourced id would show up here as an id the lesson never taught.
+   */
+  it('is always the asked item, never one of the distractors', async () => {
+    const set = await makeService(vocabLesson()).generate(LESSON_ID, USER_A, 0);
+
+    const lessonIds = WORDS.map((w) => w.id);
+    const distractorOnlyIds = VOCAB_UNIT_POOL.map((v) => v.id).filter(
+      (id) => !lessonIds.includes(id),
+    );
+    expect(distractorOnlyIds.length).toBeGreaterThan(0);
+
+    for (const question of set.questions) {
+      expect(lessonIds).toContain(question.itemId);
+      expect(distractorOnlyIds).not.toContain(question.itemId);
+    }
+  });
+
+  /**
+   * `exerciseId` is a position in a shuffle and changes between attempts;
+   * `itemId` is the thing being asked about and must not. This is what makes it
+   * usable as a stable key for per-item client state.
+   */
+  it('survives a reshuffle, unlike exerciseId', async () => {
+    // The kana lesson, not the vocabulary one: five items shuffle 120 ways,
+    // where three shuffle only six — and attempts 0 and 1 of *those* land on the
+    // same order, which would make the premise check below pass vacuously. The
+    // same pair is already asserted to differ by "differs by attempt" above.
+    const first = await makeService().generate(LESSON_ID, USER_A, 0);
+    const second = await makeService().generate(LESSON_ID, USER_A, 1);
+
+    // The premise: these really are two different shuffles, so the per-item
+    // comparison is not quietly comparing a set with itself.
+    expect(orderOf(second)).not.toEqual(orderOf(first));
+
+    const idFor = (set: { questions: { prompt: string; itemId: string }[] }, prompt: string) =>
+      set.questions.find((q) => q.prompt === prompt)!.itemId;
+
+    for (const vowel of VOWELS) {
+      expect(idFor(first, vowel.kana)).toBe(idFor(second, vowel.kana));
+      // And the position genuinely moved for at least the set as a whole, which
+      // is the contrast being drawn: exerciseId is positional, itemId is not.
+      expect(idFor(first, vowel.kana)).toBe(vowel.id);
+    }
+  });
+
+  /**
+   * The id resolves to public lesson content, which already carries glosses and
+   * romaji — so this asserts what `itemId` must *not* have changed: the answer
+   * key still never rides along with it.
+   */
+  it('does not bring the answer key with it', async () => {
+    const set = await makeService(vocabLesson()).generate(LESSON_ID, USER_A, 0);
+    const serialized = JSON.stringify(set);
+
+    expect(serialized).not.toContain('correctOptionId');
+    expect(serialized).not.toContain('correctValue');
+
+    for (const raw of set.questions) {
+      const question = asMultipleChoice(raw);
+      expect(Object.keys(question).sort()).toEqual(
+        ['exerciseId', 'itemId', 'options', 'prompt', 'promptKind', 'question', 'type'].sort(),
+      );
+    }
+  });
+});

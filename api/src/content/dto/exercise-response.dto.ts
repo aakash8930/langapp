@@ -24,8 +24,42 @@ export interface ExerciseOption {
  */
 export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
 
+/**
+ * Which content item a question's prompt came from — the same `id` that
+ * `GET /lessons/:id` returns on the resolved item. Declared once here because
+ * both question shapes carry it and the reasoning is identical.
+ *
+ * It exists because a question is otherwise anonymous: `exerciseId` is
+ * `"{attempt}:{index}"`, a position in a shuffle, and nothing in the payload
+ * says *which word* is being asked about. A client that wants to do anything
+ * per-item — play the word's audio, link to a detail view, count what a learner
+ * struggles with — has only the prompt string to key on, and matching on
+ * display text is a bug waiting for two items to share a prompt.
+ *
+ * **Sent for every kind, not only the ones with audio.** Audio is a
+ * vocabulary-only feature today, so it is tempting to send this only where a
+ * `.wav` exists. That would be the server deciding a display rule, which is
+ * exactly the mistake the `romaji` field avoids: the data stays complete and
+ * each surface decides what to do with it. A client shows a speak button when
+ * `promptKind` says the prompt is a word; that rule belongs with the client.
+ *
+ * For `grammar` this identifies the **grammar point**, not the example
+ * sentence. A point contributes at most one question (its first example), so
+ * the mapping is still one-to-one — but the id resolves to the point.
+ *
+ * **It does not widen what an answer-hunting client can reach.** `/lessons/:id`
+ * is unauthenticated and already returns every item with its gloss, romaji,
+ * meanings and grammar answers, and the prompt *is* the item's own text — so
+ * that lookup was always available by string match. This makes an existing path
+ * exact rather than opening a new one. What stays protected is unchanged: which
+ * option is correct never leaves the service, and `/complete` gates on
+ * server-recorded answers rather than on anything the client asserts.
+ */
+type ItemId = string;
+
 export interface MultipleChoiceQuestion {
   exerciseId: string;
+  itemId: ItemId;
   type: 'multipleChoice';
   /** The character or word being asked about. */
   prompt: string;
@@ -44,6 +78,7 @@ export interface MultipleChoiceQuestion {
  */
 export interface WordReadingQuestion {
   exerciseId: string;
+  itemId: ItemId;
   type: 'wordReading';
   /** The word being asked about, e.g. がっこう. */
   prompt: string;
@@ -110,6 +145,7 @@ export interface AnswerResult {
  */
 export interface GeneratedQuestion {
   exerciseId: string;
+  itemId: ItemId;
   type: 'multipleChoice' | 'wordReading';
   prompt: string;
   promptKind: PromptKind;
@@ -127,6 +163,7 @@ export function toPublicQuestion(question: GeneratedQuestion): Question {
   if (question.type === 'multipleChoice') {
     return {
       exerciseId: question.exerciseId,
+      itemId: question.itemId,
       type: 'multipleChoice',
       prompt: question.prompt,
       promptKind: question.promptKind,
@@ -139,6 +176,7 @@ export function toPublicQuestion(question: GeneratedQuestion): Question {
 
   return {
     exerciseId: question.exerciseId,
+    itemId: question.itemId,
     type: 'wordReading',
     prompt: question.prompt,
     promptKind: question.promptKind,

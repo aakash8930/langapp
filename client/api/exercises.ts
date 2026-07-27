@@ -16,8 +16,23 @@ export type ExerciseOption = {
  */
 export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
 
+/**
+ * The content item behind the prompt — the same `id` `GET /lessons/:id` returns.
+ *
+ * `exerciseId` is a position in a shuffle and changes between attempts, so this
+ * is the only stable per-item handle. For vocabulary it is what
+ * `audioUrlForVocab` needs, which is how a quiz question can speak.
+ *
+ * Sent for every `promptKind`, including the ones with no audio — deciding
+ * *which* prompts can speak is this client's job, not the server's. Check
+ * `promptKind` before offering playback; a kana or kanji id has no `.wav` and
+ * would 404.
+ */
+type ItemId = string;
+
 export type MultipleChoiceQuestion = {
   exerciseId: string;
+  itemId: ItemId;
   type: 'multipleChoice';
   /** The character or word being asked about. */
   prompt: string;
@@ -33,6 +48,7 @@ export type MultipleChoiceQuestion = {
  */
 export type WordReadingQuestion = {
   exerciseId: string;
+  itemId: ItemId;
   type: 'wordReading';
   prompt: string;
   promptKind: PromptKind;
