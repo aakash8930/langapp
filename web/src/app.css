@@ -855,6 +855,51 @@
   }
 }
 
+/* ---- Audio ---- */
+
+/*
+ * The play button. Indigo rather than vermilion: vermilion is the site's accent
+ * for the thing you are meant to do next, and this is an aid beside the thing
+ * you are meant to do — it should be findable, not louder than the question.
+ *
+ * Sized past 44px including padding, because a bare glyph is a ~20px target.
+ */
+.speak {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+  padding: var(--s-sm) var(--s-lg);
+  min-height: 44px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ai);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+.speak:hover:not(:disabled) {
+  border-color: var(--ai);
+}
+.speak:disabled {
+  color: var(--ink-soft);
+  cursor: default;
+}
+/* Held while the clip runs, so a press has an answer even when the phone is
+   muted — the commonest reason a learner presses twice. */
+.speak-playing {
+  border-color: var(--ai);
+}
+
+.quiz-audio {
+  display: flex;
+  justify-content: center;
+}
+
+.card-back .speak {
+  margin-top: var(--s-sm);
+}
+
 /* ---- Failing a lesson ---- */
 
 /*

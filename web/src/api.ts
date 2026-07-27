@@ -14,6 +14,14 @@ import { emitSessionExpired, getTokens, setTokens, type Tokens, type User } from
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '');
 
+/**
+ * The same base, for the one thing that does not go through `authed`: the
+ * unauthenticated audio route, whose URL is handed to an `<audio>` element
+ * rather than fetched here. Empty string when unset, so a misconfigured build
+ * produces a dead play button rather than a `undefined/content/...` request.
+ */
+export const API_BASE = BASE_URL ?? '';
+
 /** Matches the 10s budget the Expo client uses, for the same reason. */
 const TIMEOUT_MS = 10_000;
 

@@ -60,7 +60,10 @@ export default function App() {
         <Header session={session} onSignOut={signOut} />
         <main className="wrap lesson-screen">
           {session.state === 'signedIn' ? (
-            <Review onFinished={() => void refreshProgress()} />
+            <Review
+              onFinished={() => void refreshProgress()}
+              audioSpeed={session.user.settings.audioSpeed}
+            />
           ) : session.state === 'loading' ? (
             <div className="glass panel note" role="status">
               Checking your session…
@@ -93,6 +96,7 @@ export default function App() {
               lessonId={route.id}
               units={load.state === 'ready' ? load.units : []}
               completedLessonIds={session.progress?.completedLessonIds ?? null}
+              audioSpeed={session.user.settings.audioSpeed}
               onFinished={() => void refreshProgress()}
             />
           ) : session.state === 'loading' ? (

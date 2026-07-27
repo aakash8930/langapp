@@ -10,6 +10,7 @@ import {
   type ReviewGrade,
 } from '../api';
 import { showsRomaji } from '../romaji';
+import { SpeakButton } from './SpeakButton';
 import { goBack } from '../useRoute';
 
 /**
@@ -23,7 +24,13 @@ import { goBack } from '../useRoute';
  * the Android app's review screen deliberately — same behaviour, same failure
  * handling, because it is the same session on the same data.
  */
-export function Review({ onFinished }: { onFinished: () => void }) {
+export function Review({
+  onFinished,
+  audioSpeed,
+}: {
+  onFinished: () => void;
+  audioSpeed: number;
+}) {
   const [queue, setQueue] = useState<DueCard[] | null>(null);
   const [totalDue, setTotalDue] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -201,7 +208,7 @@ export function Review({ onFinished }: { onFinished: () => void }) {
         <CardFront item={card.item} />
 
         {revealed ? (
-          <CardBack item={card.item} />
+          <CardBack item={card.item} audioSpeed={audioSpeed} />
         ) : (
           <button className="button" type="button" onClick={() => setRevealed(true)}>
             Show answer
@@ -244,7 +251,7 @@ function CardFront({ item }: { item: ResolvedItem }) {
 }
 
 /** Reading first, meaning second — the order they are recalled in. */
-function CardBack({ item }: { item: ResolvedItem }) {
+function CardBack({ item, audioSpeed }: { item: ResolvedItem; audioSpeed: number }) {
   const lines = backLines(item);
 
   return (
@@ -254,6 +261,13 @@ function CardBack({ item }: { item: ResolvedItem }) {
           {line}
         </p>
       ))}
+
+      {/* Only on the back, and only for vocabulary. Hearing a word before
+          recalling it would answer the card — the whole exercise is retrieval,
+          and a played recording is a hint delivered before the attempt. */}
+      {item.kind === 'vocab' ? (
+        <SpeakButton vocabId={item.id} speed={audioSpeed} label="Hear it" />
+      ) : null}
     </div>
   );
 }

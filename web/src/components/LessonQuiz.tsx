@@ -14,6 +14,8 @@ import {
   type Unit,
   type WordReadingQuestion,
 } from '../api';
+import { hasAudio, revealsAnswer } from '../audio';
+import { SpeakButton } from './SpeakButton';
 import { go, goBack } from '../useRoute';
 
 /**
@@ -107,12 +109,14 @@ export function LessonQuiz({
   lessonId,
   units,
   completedLessonIds,
+  audioSpeed,
   onFinished,
 }: {
   lessonId: string;
   units: Unit[];
   /** Null while progress is still loading, or when signed out. */
   completedLessonIds: string[] | null;
+  audioSpeed: number;
   onFinished: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>({ name: 'loading' });
@@ -345,6 +349,27 @@ export function LessonQuiz({
       <div className="glass panel quiz-card">
         <p className={`quiz-prompt ja quiz-prompt-${question.promptKind}`}>{question.prompt}</p>
         <p className="quiz-question">{question.question}</p>
+
+        {/*
+          Audio, but not where it would answer the question.
+
+          A `vocab` prompt asks what a word *means* in English — listening
+          reveals nothing, so it plays freely and hearing the word while
+          choosing is exactly the point. A `wordReading` prompt asks the learner
+          to type the romaji, so the recording is the answer read aloud; it is
+          withheld until the verdict, where it becomes the correction. Same rule
+          the app applies to review cards.
+        */}
+        {hasAudio(question.promptKind) &&
+        (!revealsAnswer(question.promptKind) || phase.result !== null) ? (
+          <div className="quiz-audio">
+            <SpeakButton
+              vocabId={question.itemId}
+              speed={audioSpeed}
+              label={revealsAnswer(question.promptKind) ? 'Hear it' : 'Play'}
+            />
+          </div>
+        ) : null}
 
         {question.type === 'wordReading' ? (
           <WordReadingInput
