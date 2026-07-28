@@ -3,7 +3,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { ContentModule } from '../content/content.module';
 import { UserModule } from '../user/user.module';
-import { KnowledgeGraphModule } from '../knowledge-graph/knowledge-graph.module';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { LearningController } from './learning.controller';
 import { LearningService } from './learning.service';
@@ -39,7 +38,12 @@ import { SrsCard, SrsCardSchema } from './schemas/srs-card.schema';
     forwardRef(() => ContentModule),
     UserModule,
     AnalyticsModule,
-    KnowledgeGraphModule,
+    // No KnowledgeGraphModule: `LearningEngineService` was injecting
+    // `KnowledgeGraphService` to call `findPrerequisites` and discard the result
+    // (ADR-005). The import goes with the call rather than being kept warm for a
+    // future slice — an unused module edge reads as a real dependency, and this
+    // is a modular monolith where those edges are the architecture. Slice 3 adds
+    // it back at the point something reads concept prerequisites.
   ],
   controllers: [
     LearningController,

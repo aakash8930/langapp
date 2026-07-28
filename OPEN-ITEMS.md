@@ -439,13 +439,29 @@ Slice 1 fixed the *shape* of the graph. The rest of §5.3 is untouched:
 - **`related` and `usesKanji` are declared and never created.** Zero edges of
   either type exist. `usesKanji` is not in §5.3's target edge list at all, so it
   is either an unbuilt idea or a leftover; worth deciding rather than leaving.
-- **Nothing reads the graph.** The one call site is
-  `LearningEngineService.getReadiness`, which calls `findPrerequisites` and
-  **throws the result away** — an extra query per readiness request that changes
-  nothing. Readiness computes mastery from `prerequisiteLessonIds` and per-item
-  `findOne` calls in a nested loop instead, which is also an N+1. Both should be
-  fixed by the slice that makes readiness actually read the graph, not before —
-  removing the dead call alone would leave the graph with no consumer at all.
+- **Nothing reads the graph, and that is now explicit.** The one call site was
+  `LearningEngineService.getReadiness`, which called `findPrerequisites` and threw
+  the result away. Removed on 2026-07-28 rather than wired up, together with the
+  injection and `LearningModule`'s `KnowledgeGraphModule` import, because an
+  unused module edge reads as a real dependency in a modular monolith.
+
+  **Why not simply point readiness at the graph** — it was the plan, and it is
+  wrong today. Reading prerequisites from the graph makes the answer depend on
+  the graph being complete, and a *missing* node yields zero prerequisites, which
+  scores 1.0 and reports `ready` for a lesson whose prerequisites are unmet. An
+  absent-data failure that reads as success is exactly what the age gate refuses
+  to do. And the graph holds no lesson-level dependency that
+  `prerequisiteLessonIds` does not, because it is derived from that field. The
+  graph earns this reader when it carries concept-level prerequisites — not
+  before.
+
+  The N+1 in the same method was fixed at the same time: one `$in` query for
+  every prerequisite card instead of a sequential `findOne` per item inside a
+  nested loop (two 30-item prerequisites meant 60 round trips on a screen-load
+  call). Behaviour is unchanged, verified by running both algorithms against the
+  same seeded database and 499 cards across all 89 lessons that have
+  prerequisites — 80 of them with a partial mastery mix — and comparing every
+  field: identical throughout.
 
 
 

@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ContentService } from '../content/content.service';
-import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.service';
 import { computeMastery, MasteryLevel, SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
 import { ExerciseAttempt, ExerciseAttemptDocument } from './schemas/exercise-attempt.schema';
 
@@ -40,12 +39,27 @@ export class LearningEngineService {
     @InjectModel(SrsCard.name) private readonly srsCardModel: Model<SrsCardDocument>,
     @InjectModel(ExerciseAttempt.name) private readonly attemptModel: Model<ExerciseAttemptDocument>,
     private readonly contentService: ContentService,
-    private readonly knowledgeGraph: KnowledgeGraphService,
   ) {}
 
   /**
    * Calculates the learner's readiness score (0.0 to 1.0) for a given lesson
    * by evaluating how many prerequisite items/lessons have been mastered.
+   *
+   * ## Why this does not read the knowledge graph (ADR-005)
+   *
+   * It used to look up the lesson's graph node and call `findPrerequisites` — and
+   * then **discard the result**, so every request paid two extra queries for
+   * nothing. Removed rather than wired up, deliberately.
+   *
+   * Reading prerequisites from the graph would make this answer depend on the
+   * graph being complete, and a *missing* node yields zero prerequisites, which
+   * scores 1.0 and reports `ready` for a lesson whose prerequisites are unmet.
+   * That is a falsely-optimistic answer produced by absent data — the failure the
+   * age gate avoids by treating unknown age as a refusal. The graph also holds no
+   * lesson-level dependency that `prerequisiteLessonIds` does not, because it is
+   * *derived* from that field; until it carries concept-level prerequisites
+   * (OPEN-ITEMS #9a) reading it here would be indirection with a downside and no
+   * upside.
    */
   async getReadiness(userId: string, lessonId: string): Promise<ReadinessResponse> {
     const lesson = await this.contentService.findLessonById(lessonId);
@@ -54,10 +68,6 @@ export class LearningEngineService {
     }
 
     const prereqLessonIds = lesson.prerequisiteLessonIds || [];
-    const lessonNode = await this.knowledgeGraph.findNodeByRef('lesson', new Types.ObjectId(lessonId));
-    if (lessonNode) {
-      await this.knowledgeGraph.findPrerequisites(lessonNode._id);
-    }
     if (prereqLessonIds.length === 0) {
       return {
         lessonId,
@@ -70,39 +80,52 @@ export class LearningEngineService {
     }
 
     // Check user's SRS cards for items in prerequisite lessons
-    const userObjectId = new Types.ObjectId(userId);
     const prereqLessons = await Promise.all(
       prereqLessonIds.map((id) => this.contentService.findLessonById(id.toString())),
     );
 
+    // Every prerequisite item, flattened, in the order the lessons list them —
+    // which is the order `unmasteredPrerequisites` comes back in, so it stays
+    // stable for a client rendering the list.
+    const prereqItems = prereqLessons.flatMap((prereqLesson) => prereqLesson?.items ?? []);
+
+    /**
+     * One query for every card instead of one per item. A lesson with two
+     * prerequisite lessons of thirty items each was thirty *sequential* round
+     * trips per readiness request, awaited inside a nested loop; the unit already
+     * has lessons that size, and readiness is a screen-load call.
+     */
+    const cards = await this.srsCardModel
+      .find({
+        userId: new Types.ObjectId(userId),
+        'itemRef.id': { $in: prereqItems.map((item) => new Types.ObjectId(item.id)) },
+      })
+      .exec();
+
+    const masteryByItemId = new Map<string, MasteryLevel>(
+      cards.map((card) => [card.itemRef.id.toString(), computeMastery(card)]),
+    );
+
     const unmastered: string[] = [];
     let masteredCount = 0;
-    let totalPrereqs = 0;
+    const totalPrereqs = prereqItems.length;
 
-    for (const prereqLesson of prereqLessons) {
-      if (!prereqLesson) continue;
-      for (const item of prereqLesson.items) {
-        totalPrereqs++;
-        const card = await this.srsCardModel
-          .findOne({
-            userId: userObjectId,
-            'itemRef.id': new Types.ObjectId(item.id),
-          })
-          .exec();
-
-        if (card && (computeMastery(card) === 'familiar' || computeMastery(card) === 'mastered')) {
-          masteredCount++;
-        } else {
-          const itemLabel =
-            'kana' in item
-              ? item.kana
-              : 'lemma' in item
-                ? item.lemma
-                : 'char' in item
-                  ? item.char
-                  : item.title;
-          unmastered.push(itemLabel);
-        }
+    for (const item of prereqItems) {
+      const mastery = masteryByItemId.get(item.id);
+      if (mastery === 'familiar' || mastery === 'mastered') {
+        masteredCount++;
+      } else {
+        // No card at all counts as unmastered, same as before: a learner who has
+        // never seen an item has not retained it.
+        const itemLabel =
+          'kana' in item
+            ? item.kana
+            : 'lemma' in item
+              ? item.lemma
+              : 'char' in item
+                ? item.char
+                : item.title;
+        unmastered.push(itemLabel);
       }
     }
 
