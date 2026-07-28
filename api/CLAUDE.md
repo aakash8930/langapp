@@ -137,6 +137,29 @@ have been reclassified and the rest stand:
   `romaji.spec.ts` gates transliteration; derived data (row concepts, `usesKanji`)
   is not authored at all.
 
+- **The learner model is a collection, not fields on `SrsCard`** — ADR-003 / §5.2,
+  landed 2026-07-28. `learnerItemStates` holds the pedagogical model (evidence,
+  response-time statistics, per-exercise-type tallies, confidence); `SrsCard` keeps
+  exactly FSRS's state. They share a key and are read together only when something
+  needs both — the hottest query in the app is `{userId, due}` and it must keep
+  serving from its compound index alone.
+
+  **The rule that must not be broken:** confidence and mastery may decide *what to
+  show*; they may **never** be written into `stability`, `difficulty`, `state`,
+  `reps` or `lapses`. Those change only in a real graded review. Feeding the
+  scheduler observations that never happened degrades every interval afterwards.
+  The precedent is `scheduleMissedWords`, which moves `due` and nothing else, with
+  a test pinning that its update document has exactly one key.
+
+  Confidence is derived-and-stored, so it can drift from its inputs. Keep the
+  arithmetic in `learner-model/confidence.ts` **pure** — that is what makes a
+  recompute-and-compare check possible, which §5.2 asks for by name.
+
+  Migrations live in `src/migrations/`, one file per migration with an npm script,
+  and follow §5.4: verified backup first, additive and destructive **never in the
+  same commit**, and `ensureIndexes()` before inserting — Mongoose does not await
+  index creation and a short-lived process can exit before it finishes.
+
 The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
 teacher portal, i18n framework, admin panel, AR, second language) remain
 forbidden. None of them are in `PHASE-2-BLUEPRINT.md`.
@@ -298,6 +321,29 @@ have been reclassified and the rest stand:
   pairs) is gated by `concepts.spec.ts` against the seed packs, the same way
   `romaji.spec.ts` gates transliteration; derived data (row concepts, `usesKanji`)
   is not authored at all.
+
+- **The learner model is a collection, not fields on `SrsCard`** — ADR-003 / §5.2,
+  landed 2026-07-28. `learnerItemStates` holds the pedagogical model (evidence,
+  response-time statistics, per-exercise-type tallies, confidence); `SrsCard` keeps
+  exactly FSRS's state. They share a key and are read together only when something
+  needs both — the hottest query in the app is `{userId, due}` and it must keep
+  serving from its compound index alone.
+
+  **The rule that must not be broken:** confidence and mastery may decide *what to
+  show*; they may **never** be written into `stability`, `difficulty`, `state`,
+  `reps` or `lapses`. Those change only in a real graded review. Feeding the
+  scheduler observations that never happened degrades every interval afterwards.
+  The precedent is `scheduleMissedWords`, which moves `due` and nothing else, with
+  a test pinning that its update document has exactly one key.
+
+  Confidence is derived-and-stored, so it can drift from its inputs. Keep the
+  arithmetic in `learner-model/confidence.ts` **pure** — that is what makes a
+  recompute-and-compare check possible, which §5.2 asks for by name.
+
+  Migrations live in `src/migrations/`, one file per migration with an npm script,
+  and follow §5.4: verified backup first, additive and destructive **never in the
+  same commit**, and `ensureIndexes()` before inserting — Mongoose does not await
+  index creation and a short-lived process can exit before it finishes.
 
 The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
 teacher portal, i18n framework, admin panel, AR, second language) remain

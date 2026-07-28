@@ -9,16 +9,37 @@ export type MasteryLevel = 'new' | 'learning' | 'familiar' | 'mastered';
 export const MASTERY_LEVELS: MasteryLevel[] = ['new', 'learning', 'familiar', 'mastered'];
 
 /**
+ * Stability thresholds for the mastery bands, in days.
+ *
+ * FSRS stability *is* a number of days: the interval at which predicted recall
+ * sits at the target retention. So these are not tuning constants, they are a
+ * choice of what to call things, and they were bare numbers in the code until
+ * 2026-07-28 (§6.1 lists that as a defect — they decide what "mastered" means to
+ * a learner).
+ *
+ * **A week** is the point where an item survives a gap in study rather than only
+ * the session it was learned in. **A month** is the point where it survives a
+ * holiday. Both are round numbers chosen for being explainable to a learner, and
+ * neither is claimed to come from the FSRS literature.
+ *
+ * Distinct from the `confidence` bands in `learner-model/confidence.ts`, which
+ * measure demonstrated performance rather than predicted retention. Both are
+ * called mastery and they answer different questions — see ADR-003.
+ */
+export const STABILITY_DAYS_FAMILIAR = 7;
+export const STABILITY_DAYS_MASTERED = 30;
+
+/**
  * Computes the human-understandable mastery level from FSRS card stability and reps.
  */
 export function computeMastery(card: { state: string; stability: number; reps: number }): MasteryLevel {
   if (card.state === 'new' || card.reps === 0) {
     return 'new';
   }
-  if (card.stability < 7) {
+  if (card.stability < STABILITY_DAYS_FAMILIAR) {
     return 'learning';
   }
-  if (card.stability < 30) {
+  if (card.stability < STABILITY_DAYS_MASTERED) {
     return 'familiar';
   }
   return 'mastered';
@@ -86,6 +107,14 @@ export class SrsCard {
 
   @Prop({ type: Number, required: true, default: 0, min: 0 })
   correctReviews: number;
+
+  /**
+   * Written by `timestamps: true`, declared here **without** `@Prop` so it is
+   * typed where it is read — `SchemaFactory` only builds fields from decorators,
+   * so this adds nothing to the schema and cannot double-declare the timestamp.
+   * Read by the learner-model backfill as an item's `firstSeenAt`.
+   */
+  createdAt?: Date;
 }
 
 export type SrsCardDocument = HydratedDocument<SrsCard>;

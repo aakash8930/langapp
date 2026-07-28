@@ -810,6 +810,49 @@ stands: anything computed into a job's name, id or options is unvalidated until
 it runs. The cheapest honest fix if this bites again is a dev-mode
 `throwOnEnqueueFailure` flag so a bad enqueue is loud outside production.
 
+### 38. `LearnerItemState` exists but nothing writes it yet (ADR-003, 2026-07-28)
+
+The §5.2 learner model landed as a collection, the arithmetic, and an additive
+backfill. **Deliberately with no writer and no reader**: §5.4 rule 2 is "additive
+first, destructive later, never in the same commit", and the same logic applies at
+the front — the field lands and is verified before code depends on it.
+
+Backfilled against a copy of the real database: **386 cards → 386 states**, zero
+evidence mismatches when every state is compared to its card, re-running is a
+clean no-op (0 created, 386 skipped), and nothing existing was touched.
+
+**Only 8 of 386 cards carry any review evidence at all.** The other 378 predate
+`totalReviews`/`correctReviews` existing, so they backfill as `new` with confidence
+0 — which is honest rather than a bug, but it means the learner model starts nearly
+empty and the first adaptive session will have very little to go on. ADR-003's
+"do this before the fields carry data worth preserving" turns out to have been
+mostly right: there was barely any data to preserve.
+
+**Three things are needed before the write path (the next slice):**
+
+- **`ExerciseAttempt` records no item id and no exercise type.** It stores
+  `{userId, lessonId, attempt, exerciseId, correct, responseTimeMs}`, and
+  `exerciseId` is `{attempt}:{index}` — a position in a shuffle. So no historical
+  answer can be attributed to an item, which is why `byExerciseType` and every
+  response-time statistic backfill **empty**, and why lesson evidence starts
+  accumulating only when the writer lands. The answer endpoint already has
+  `itemId` to hand (it is in the question payload since 2026-07-27); the attempt
+  row just never stored it.
+- **No per-exercise-type baseline exists**, so the speed term in `confidence` is
+  neutral for every row today. It needs `LearnerProfile` (§5.2, unbuilt) or a
+  cheaper per-user aggregate.
+- **The recency ring is reconstructed, not recorded.** A card knows how many
+  reviews were correct, never in what order. The backfill orders failures first so
+  the most recent outcomes read as correct — deliberately generous, because the
+  alternative punishes every item ever failed once. Backfilled confidence is a
+  starting estimate, not evidence.
+
+**Mongoose does not await index creation**, and a migration process can exit
+first: the first run against real data left `{userId, confidence}` unbuilt while
+the unique index existed. `ensureIndexes()` now runs before any insert, which
+matters because the unique index — not the lookup-before-insert — is what
+guarantees one state per item.
+
 ### 36. Ten routes shipped undocumented, and nothing noticed (2026-07-28)
 
 The root `CLAUDE.md` calls itself the single source of truth for the contract and
@@ -946,11 +989,23 @@ fields are still on disk on 33 accounts and the code no longer reads them.
 
 This is fine today. It bites if a future field is added to `gamification` and
 a partial `$set` somehow interacts with the dead fields, or if a hand-written
-query reaches for `gamification.hearts` thinking it means something. The
-safest moment to clean them up is the same migration that lands
-`LearnerItemState` (Stage 1 §6.1) — that's a schema-wide rewrite anyway, and
-adding `{ $unset: { 'gamification.hearts': 1, 'gamification.heartsUpdatedAt': 1, 'gamification.gems': 1 } }`
-to that script costs nothing.
+query reaches for `gamification.hearts` thinking it means something.
+
+**Still not done, and deliberately not done in the `LearnerItemState`
+migration** (2026-07-28), which is where this note previously said it should
+ride along. §5.4 rule 2 is stricter than that plan: *additive first, destructive
+later, **never in the same commit***. The backfill only inserts into a new
+collection; adding an `$unset` across `users` to the same script would make one
+command both harmless and irreversible, which is the combination the rule exists
+to prevent.
+
+The order is: this backfill ships → the write path ships → something reads the
+model → verified → *then* a separate destructive migration drops
+`gamification.hearts`, `heartsUpdatedAt`, `gems` **and** `SrsCard.totalReviews` /
+`correctReviews`, which ADR-003 also wants moved off the card. Doing those two
+together makes sense — both are "the old home of a signal that now lives in
+`learnerItemStates`" — and neither should happen while the new home is still
+unread. Only 3 of the 33 accounts still carry heart fields at all.
 
 ### P2-3. `relegationCount: 0` is a sentinel, not a feature
 

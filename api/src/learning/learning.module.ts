@@ -4,6 +4,11 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { ContentModule } from '../content/content.module';
 import { UserModule } from '../user/user.module';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
+import { LearnerItemStateService } from './learner-item-state.service';
+import {
+  LearnerItemState,
+  LearnerItemStateSchema,
+} from './schemas/learner-item-state.schema';
 import { LearningController } from './learning.controller';
 import { LearningService } from './learning.service';
 import { LearningEngineController } from './learning-engine.controller';
@@ -34,6 +39,7 @@ import { SrsCard, SrsCardSchema } from './schemas/srs-card.schema';
       { name: SrsCard.name, schema: SrsCardSchema },
       { name: LessonCompletion.name, schema: LessonCompletionSchema },
       { name: ExerciseAttempt.name, schema: ExerciseAttemptSchema },
+      { name: LearnerItemState.name, schema: LearnerItemStateSchema },
     ]),
     forwardRef(() => ContentModule),
     UserModule,
@@ -56,12 +62,16 @@ import { SrsCard, SrsCardSchema } from './schemas/srs-card.schema';
     ReviewService,
     ExerciseAttemptsService,
     LearningEngineService,
+    LearnerItemStateService,
   ],
   exports: [
     LearningService,
     ReviewService,
     ExerciseAttemptsService,
     LearningEngineService,
+    // Exported for the backfill entrypoint (ADR-003). Nothing on a request path
+    // reads it yet — the write path is the next slice.
+    LearnerItemStateService,
   ],
 })
 export class LearningModule {}
