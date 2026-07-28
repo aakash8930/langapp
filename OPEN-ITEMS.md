@@ -569,6 +569,57 @@ imported type needs an explicit `type:`.** All current schemas comply.
 
 ---
 
+## Phase 2 — Stage 0 follow-ups (2026-07-28)
+
+Surfaced during Stage 0 verification. None block Stage 1; all worth a second
+look before the next contract change.
+
+### P2-1. `api/CLAUDE.md` is duplicated
+
+The file has two H1 sections ("# Backend rules (`api/`)" at line 1 and
+"# Project rules" at line 128) that each carry a near-identical copy of the
+API rules. The first has the `StorageService` details ("abstract class … keys
+are untrusted — `resolveKey` is the containment boundary"); the second has the
+shorter version ("`put/get/delete`. Dev implementation writes to `./storage/`").
+Both blocks were updated in commit `a2e36a8` to add a Phase 2 section, which
+is why `grep -n '^## Phase 2' api/CLAUDE.md` returns three matches: two inside
+each H1, one extra that I noticed mid-edit and removed.
+
+Stage 1 housekeeping: collapse the two H1s into one. The drift between them
+will only widen — they were identical in commit `a1a6d68`, then diverged when
+the storage wording changed, and nothing flagged it because Claude Code reads
+both halves equally and uses whichever comes first.
+
+### P2-2. Heart/gem fields are inert on 33 existing accounts
+
+Phase 2 §3.1 deleted the `hearts`, `heartsUpdatedAt`, and `gems` properties
+from the schema but did **not** `$unset` the fields on existing user
+documents. Per the user's instruction, no destructive migration was run; the
+fields are still on disk on 33 accounts and the code no longer reads them.
+
+This is fine today. It bites if a future field is added to `gamification` and
+a partial `$set` somehow interacts with the dead fields, or if a hand-written
+query reaches for `gamification.hearts` thinking it means something. The
+safest moment to clean them up is the same migration that lands
+`LearnerItemState` (Stage 1 §6.1) — that's a schema-wide rewrite anyway, and
+adding `{ $unset: { 'gamification.hearts': 1, 'gamification.heartsUpdatedAt': 1, 'gamification.gems': 1 } }`
+to that script costs nothing.
+
+### P2-3. `relegationCount: 0` is a sentinel, not a feature
+
+`Leaderboard.relegationCount` is typed as the literal `0` in both the server's
+`league.service.ts` and the client's `social.ts`. The field stays on the wire
+because removing it would break a stored client, and re-introducing
+relegation later would not need a contract change. If relegation ever comes
+back, the type widens; if it never does, the field is dead.
+
+This is a deliberate choice, not an oversight — the same shape as `promotionCount`
+on a too-small tier. Documented in the root CLAUDE.md on 2026-07-28. Mention
+here so a future cleanup pass that deletes "always-zero fields" doesn't
+delete the type-safety that makes this contract changeable.
+
+---
+
 ## Not yet built (Phase 0 roadmap, §14)
 
 | Step | Status |
