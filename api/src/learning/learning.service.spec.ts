@@ -3,10 +3,6 @@ import { Types } from 'mongoose';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { ContentService } from '../content/content.service';
 import { LessonDetail } from '../content/dto/lesson-response.dto';
-import {
-  GEMS_PER_LESSON_COMPLETION,
-  GEMS_PER_LESSON_PRACTICE,
-} from '../user/gamification/hearts';
 import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
@@ -59,7 +55,6 @@ interface Harness {
   service: LearningService;
   insertMany: jest.Mock;
   awardXp: jest.Mock;
-  awardGems: jest.Mock;
   record: jest.Mock;
   completionUpdate: jest.Mock;
   countAttempts: jest.Mock;
@@ -127,9 +122,6 @@ function build(
     } as unknown as UserDocument),
   );
   const record = jest.fn(() => Promise.resolve());
-  // Gems ride alongside XP on completion (slice 2). Stubbed here; the arithmetic
-  // and the gem/heart economy live in `hearts.spec.ts`.
-  const awardGems = jest.fn(() => Promise.resolve());
 
   // Gate #2 (at-least-one-answered) is wired here. By default every call
   // returns 1 so the existing tests — which all rely on the gate passing —
@@ -148,7 +140,7 @@ function build(
     {
       findLessonById: () => Promise.resolve(lessonDetail(opts.prerequisiteLessonIds)),
     } as unknown as ContentService,
-    { awardXp, awardGems } as unknown as UserService,
+    { awardXp } as unknown as UserService,
     { record } as unknown as AnalyticsService,
     exerciseAttempts,
     { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
@@ -158,7 +150,6 @@ function build(
     service,
     insertMany,
     awardXp,
-    awardGems,
     record,
     completionUpdate,
     countAttempts,
@@ -702,51 +693,6 @@ describe('LearningService.scheduleMissedWords (T1.5)', () => {
   });
 });
 
-describe('LearningService.completeLesson — gems (slice 2)', () => {
-  it('awards the full gem amount on a first completion', async () => {
-    const { service, awardGems } = build({ timesCompleted: 1 });
-
-    const result = await service.completeLesson(USER_ID, LESSON_ID);
-
-    expect(awardGems).toHaveBeenCalledWith(USER_ID, GEMS_PER_LESSON_COMPLETION);
-    expect(result.gemsAwarded).toBe(GEMS_PER_LESSON_COMPLETION);
-  });
-
-  /**
-   * Gems mirror XP's anti-farming shape (#0): a replayed POST must not pay the
-   * full award again, or the gem economy is free and the heart refill it exists
-   * to gate becomes meaningless.
-   */
-  it('awards only the practice amount on a repeat, so gems cannot be farmed', async () => {
-    const { service, awardGems } = build({ timesCompleted: 4 });
-
-    const result = await service.completeLesson(USER_ID, LESSON_ID);
-
-    expect(awardGems).toHaveBeenCalledWith(USER_ID, GEMS_PER_LESSON_PRACTICE);
-    expect(result.gemsAwarded).toBe(GEMS_PER_LESSON_PRACTICE);
-  });
-
-  it('completes successfully even when the gem credit throws', async () => {
-    const { service, awardGems } = build();
-    awardGems.mockRejectedValueOnce(new Error('mongo is on fire'));
-
-    // The cards and XP are already committed by this point; losing a gem credit
-    // must not turn a successful completion into a 500.
-    const result = await service.completeLesson(USER_ID, LESSON_ID);
-
-    expect(result.cardsCreated).toBe(3);
-    expect(result.xpAwarded).toBe(XP_PER_LESSON_COMPLETION);
-  });
-
-  it('reports gems on the analytics event', async () => {
-    const { service, record } = build({ timesCompleted: 1 });
-
-    await service.completeLesson(USER_ID, LESSON_ID);
-
-    expect(record).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({ gemsAwarded: GEMS_PER_LESSON_COMPLETION }),
-      }),
-    );
-  });
-});
+// The "completeLesson — gems (slice 2)" describe block that lived here was
+// removed when hearts and gems were deleted in Phase 2 Stage 0 (§3.1). The XP
+// path is covered by the completeLesson describe above.

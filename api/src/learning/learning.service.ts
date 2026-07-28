@@ -5,10 +5,6 @@ import { Model, Types } from 'mongoose';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { ContentService } from '../content/content.service';
 import { ResolvedItem } from '../content/dto/lesson-response.dto';
-import {
-  GEMS_PER_LESSON_COMPLETION,
-  GEMS_PER_LESSON_PRACTICE,
-} from '../user/gamification/hearts';
 import { UserService } from '../user/user.service';
 import { CompleteLessonResponse } from './dto/complete-lesson-response.dto';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
@@ -83,18 +79,6 @@ export class LearningService {
 
     const user = await this.userService.awardXp(userId, xpAwarded);
 
-    // Gems track XP's shape — full award once, a smaller one on every repeat —
-    // for the same anti-farming reason (#0). Awarded but not awaited into the
-    // response's correctness: a lost gem credit is a small unfairness, a failed
-    // completion is not.
-    const gemsAwarded = firstCompletion ? GEMS_PER_LESSON_COMPLETION : GEMS_PER_LESSON_PRACTICE;
-    await this.userService.awardGems(userId, gemsAwarded).catch((err: unknown) => {
-      this.logger.warn(
-        `gem award lost for user ${userId}: ` +
-          `${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
-
     // Deliberately last, and guarded here as well as inside AnalyticsService:
     // cards and XP are already committed by this point, so a failure to log
     // must not turn a successful completion into an error response (§7). The
@@ -110,7 +94,6 @@ export class LearningService {
           itemCount: lesson.items.length,
           cardsCreated: created,
           xpAwarded,
-          gemsAwarded,
           firstCompletion,
           timesCompleted: completion.timesCompleted,
         },
@@ -128,7 +111,6 @@ export class LearningService {
       cardsCreated: created,
       cardsAlreadyPresent: lesson.items.length - created,
       xpAwarded,
-      gemsAwarded,
       firstCompletion,
       totalXp: user.gamification.xp,
     };

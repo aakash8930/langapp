@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Patch, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
@@ -27,20 +27,5 @@ export class UserController {
   ): Promise<UserResponse> {
     const user = await this.userService.updateSettings(current.userId, dto);
     return toUserResponse(user);
-  }
-
-  /**
-   * Spend gems to refill hearts to full — the only gem sink, and the only way out
-   * of an empty heart bar besides waiting.
-   *
-   * 409 when already full or short on gems: both are "your state does not allow
-   * this" rather than a malformed request. Returns the two counters so the client
-   * does not need to re-fetch progress to update the header.
-   */
-  @Post('hearts/refill')
-  async refillHearts(
-    @CurrentUser() current: AuthenticatedUser,
-  ): Promise<{ hearts: number; gems: number }> {
-    return this.userService.refillHearts(current.userId);
   }
 }

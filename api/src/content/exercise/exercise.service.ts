@@ -11,7 +11,6 @@ import {
 import { LessonDetail, ResolvedItem } from '../dto/lesson-response.dto';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
 import { LearningService } from '../../learning/learning.service';
-import { UserService } from '../../user/user.service';
 import { mulberry32, seedFrom, shuffle } from './deterministic-random';
 import { ExercisePluginRegistry } from './plugins/exercise-plugin.registry';
 
@@ -141,10 +140,6 @@ export class ExerciseService {
     // reach into another module's collections" rule intact.
     @Inject(forwardRef(() => ExerciseAttemptsService))
     private readonly exerciseAttempts: ExerciseAttemptsService,
-    // Hearts live on the user document, so the deduction goes through the owning
-    // service. No forwardRef needed — `user` knows nothing about `content`, so
-    // this edge runs one way only, unlike the learning pair above.
-    private readonly userService: UserService,
     // SRS scheduling on wrong answers. forwardRef because ContentModule and
     // LearningModule already have a mutual dependency for ExerciseAttemptsService
     // — this is a second edge in the same cycle, not a new cycle.
@@ -212,7 +207,7 @@ export class ExerciseService {
         text: body.text,
       });
 
-      const heartsLeft = await this.settleAnswer(
+      await this.settleAnswer(
         userId,
         lessonId,
         attempt,
@@ -230,7 +225,6 @@ export class ExerciseService {
         correctOptionId: question.correctOptionId ?? '',
         correctValue: gradeResult.correctValue,
         prompt: question.prompt,
-        heartsLeft,
       };
     }
 
@@ -279,7 +273,7 @@ export class ExerciseService {
 
     const correct = selected.id === question.correctOptionId;
 
-    const heartsLeft = await this.settleAnswer(
+    await this.settleAnswer(
       userId,
       lessonId,
       attempt,
@@ -297,30 +291,24 @@ export class ExerciseService {
       correctOptionId: question.correctOptionId,
       correctValue: question.correctValue,
       prompt: question.prompt,
-      heartsLeft,
     };
   }
 
   /**
-   * The two side effects every answer has, in one place so the multipleChoice and
-   * wordReading paths cannot drift: record the attempt, and take a heart if it was
-   * wrong.
+   * The side effect every answer has: record the attempt.
    *
-   * On a wrong answer there is a third side-effect: pull the SRS card for this
-   * item due immediately so the learner will see it in their next review session.
-   * This closes the gap where exercise mistakes were recorded in `exerciseAttempts`
-   * but never fed back into the SRS schedule (OPEN-ITEMS §26 exercise-answer path).
+   * On a wrong answer there is a second side-effect: pull the SRS card for this
+   * item due immediately so the learner will see it in their next review
+   * session. This closes the gap where exercise mistakes were recorded in
+   * `exerciseAttempts` but never fed back into the SRS schedule (OPEN-ITEMS #26
+   * exercise-answer path).
    *
-   * **Neither can fail the answer.** The attempt record's only expected failure is
-   * a duplicate key (the same learner re-answering the same question in the same
-   * attempt) which the service swallows; anything else is logged. The heart write
-   * and the SRS scheduling are the same bargain — losing them is a small
-   * unfairness in the learner's favour, while a 500 in place of their answer is
-   * not recoverable. Same reasoning `AnalyticsService.record` documents.
-   *
-   * Returns the hearts remaining, or `null` when nothing was charged (a correct
-   * answer) or the charge failed, so the client can leave its counter alone rather
-   * than rendering a wrong number.
+   * **Neither can fail the answer.** The attempt record's only expected failure
+   * is a duplicate key (the same learner re-answering the same question in the
+   * same attempt) which the service swallows; anything else is logged. The SRS
+   * scheduling is the same bargain — losing it is a small unfairness in the
+   * learner's favour, while a 500 in place of their answer is not recoverable.
+   * Same reasoning `AnalyticsService.record` documents.
    */
   private async settleAnswer(
     userId: string,
@@ -330,7 +318,7 @@ export class ExerciseService {
     correct: boolean,
     question?: GeneratedQuestion,
     responseTimeMs?: number,
-  ): Promise<number | null> {
+  ): Promise<void> {
     await this.exerciseAttempts
       .recordAttempt(userId, lessonId, attempt, exerciseId, correct, responseTimeMs)
       .catch((err: unknown) => {
@@ -341,7 +329,7 @@ export class ExerciseService {
       });
 
     if (correct) {
-      return null;
+      return;
     }
 
     // Wrong answer: pull this item's SRS card due immediately so it surfaces in
@@ -360,17 +348,6 @@ export class ExerciseService {
           );
         });
     }
-
-    return this.userService
-      .loseHeart(userId)
-      .then((result) => result.hearts)
-      .catch((err: unknown) => {
-        this.logger.warn(
-          `heart deduction lost for user ${userId}: ` +
-            `${err instanceof Error ? err.message : String(err)}`,
-        );
-        return null;
-      });
   }
 
   /**
@@ -398,7 +375,7 @@ export class ExerciseService {
     const normalized = normaliseAnswer(text);
     const correct = normalized === normaliseAnswer(question.correctValue);
 
-    const heartsLeft = await this.settleAnswer(
+    await this.settleAnswer(
       userId,
       lessonId,
       attempt,
@@ -409,7 +386,6 @@ export class ExerciseService {
     );
 
     return {
-      heartsLeft,
       exerciseId: question.exerciseId,
       correct,
       // The body sent a typed answer, not an option selection.

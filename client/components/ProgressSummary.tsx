@@ -1,7 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 import type { Progress } from '@/api/progress';
-import { HeartsBar } from '@/components/HeartsBar';
 import { useTheme } from '@/theme';
 
 /**
@@ -15,11 +14,6 @@ export function ProgressSummary({ progress }: { progress: Progress }) {
 
   return (
     <View style={{ gap: theme.spacing.xl }}>
-      {/* Hearts sit above the streak, not beside it: the streak is the display
-          numeral this screen is built around, and a row of pips next to it would
-          compete for the same glance. */}
-      <HeartsBar progress={progress} />
-
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.md }}>
         <Text
           style={[

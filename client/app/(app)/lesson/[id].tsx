@@ -736,9 +736,6 @@ function Summary({
             equal. */}
         <SummaryRow label="Correct" value={`Clean run — ${total} of ${total}`} />
         <SummaryRow label="XP earned" value={`+${summary.xpAwarded}`} emphasis />
-        {/* Gems are shown next to XP because they are earned by the same act and
-            differ only in what they buy — a heart refill rather than a level. */}
-        <SummaryRow label="Gems earned" value={`+${summary.gemsAwarded}`} emphasis />
         <SummaryRow label="Cards" value={cards} />
       </View>
 

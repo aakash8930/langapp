@@ -263,13 +263,6 @@ export type Progress = {
     reviewsDone: number;
     lessonsDone: number;
   };
-  /**
-   * Hearts and gems (slice 2). Declared to keep this an honest mirror of the
-   * server's ProgressResponse; the site does not render them — hearts are a
-   * lesson-flow mechanic and the app owns that flow.
-   */
-  hearts: { current: number; max: number; nextHeartAt: string | null };
-  gems: number;
   cardsDueNow: number;
   lessonsCompleted: number;
   completedLessonIds: string[];

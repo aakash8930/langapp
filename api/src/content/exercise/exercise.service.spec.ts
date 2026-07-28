@@ -6,7 +6,6 @@ import { KanaItemDocument } from '../schemas/kana-item.schema';
 import { VocabItemDocument } from '../schemas/vocab-item.schema';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
 import { LearningService } from '../../learning/learning.service';
-import { UserService } from '../../user/user.service';
 import { ExerciseService } from './exercise.service';
 
 /**
@@ -144,21 +143,9 @@ function makeServiceWithAttempts(
   const service = new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
-    fakeUserService(),
     fakeLearningService(),
   );
   return { service, recordAttempt };
-}
-
-/**
- * Hearts are charged through UserService on a wrong answer. These tests are about
- * question generation and grading, so the charge is stubbed — `hearts.spec.ts`
- * owns the regeneration arithmetic and `loseHeart` is covered in the hearts
- * describe block below.
- */
-function fakeUserService() {
-  const loseHeart = jest.fn(() => Promise.resolve({ hearts: 4 }));
-  return { loseHeart } as unknown as UserService;
 }
 
 /**
@@ -635,7 +622,6 @@ function grammarServiceWithAttempts(items = POINTS.map(grammarItem)) {
   const service = new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
-    fakeUserService(),
     fakeLearningService(),
   );
   return { service, recordAttempt };
@@ -748,7 +734,6 @@ function kanjiService(items = KANJI.map(kanjiItem)): ExerciseService {
   return new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
-    fakeUserService(),
     fakeLearningService(),
   );
 }
@@ -1014,77 +999,10 @@ describe('ExerciseService.answer — wordReading lessons (T1.1)', () => {
   });
 });
 
-describe('ExerciseService.answer — hearts (slice 2)', () => {
-  /** Rebuilds the harness exposing the heart mock, which `makeService` hides. */
-  function withHearts(heartsLeft = 4) {
-    const contentService = {
-      findLessonById: () => Promise.resolve(lessonDetail()),
-      findUnitKanaPool: () =>
-        Promise.resolve(
-          UNIT_POOL.map(
-            (p) => ({ _id: p.id, kana: p.kana, romaji: p.romaji }) as unknown as KanaItemDocument,
-          ),
-        ),
-    };
-    const loseHeart = jest.fn(() => Promise.resolve({ hearts: heartsLeft }));
-    const service = new ExerciseService(
-      contentService as unknown as ContentService,
-      { recordAttempt: jest.fn(() => Promise.resolve(true)) } as unknown as ExerciseAttemptsService,
-      { loseHeart } as unknown as UserService,
-      fakeLearningService(),
-    );
-    return { service, loseHeart };
-  }
-
-  async function pick(service: ExerciseService, want: 'right' | 'wrong') {
-    const set = await service.generate(LESSON_ID, USER_A, 0);
-    const question = asMultipleChoice(set.questions[0]);
-    const expected = VOWELS.find((v) => v.kana === question.prompt)!.romaji;
-    const option = question.options.find((o) =>
-      want === 'right' ? o.value === expected : o.value !== expected,
-    )!;
-    return { exerciseId: question.exerciseId, optionId: option.id };
-  }
-
-  it('charges a heart for a wrong answer and reports what is left', async () => {
-    const { service, loseHeart } = withHearts(3);
-    const { exerciseId, optionId } = await pick(service, 'wrong');
-
-    const result = await service.answer(LESSON_ID, exerciseId, USER_A, { optionId });
-
-    expect(result.correct).toBe(false);
-    expect(loseHeart).toHaveBeenCalledWith(USER_A);
-    expect(result.heartsLeft).toBe(3);
-  });
-
-  it('charges nothing for a correct answer, and reports null rather than a count', async () => {
-    const { service, loseHeart } = withHearts();
-    const { exerciseId, optionId } = await pick(service, 'right');
-
-    const result = await service.answer(LESSON_ID, exerciseId, USER_A, { optionId });
-
-    expect(result.correct).toBe(true);
-    expect(loseHeart).not.toHaveBeenCalled();
-    // Null, not `maxHearts` — the client must leave its counter alone rather than
-    // be told a number this response did not actually establish.
-    expect(result.heartsLeft).toBeNull();
-  });
-
-  /**
-   * The charge is best-effort by design. Losing a deduction is a small unfairness
-   * in the learner's favour; a 500 in place of their answer is not recoverable.
-   */
-  it('still answers when the heart charge fails, reporting null', async () => {
-    const { service, loseHeart } = withHearts();
-    loseHeart.mockRejectedValueOnce(new Error('mongo is on fire'));
-    const { exerciseId, optionId } = await pick(service, 'wrong');
-
-    const result = await service.answer(LESSON_ID, exerciseId, USER_A, { optionId });
-
-    expect(result.correct).toBe(false);
-    expect(result.heartsLeft).toBeNull();
-  });
-});
+// The "answer — hearts (slice 2)" describe block that lived here was removed
+// when hearts/gems were deleted in Phase 2 Stage 0 (§3.1). Wrong-answer
+// behaviour is covered by the answer describe blocks above; the SRS pull-forward
+// has its own describe block below.
 
 /**
  * `itemId` — which content item a question is about.

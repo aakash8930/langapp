@@ -5,13 +5,6 @@ import { UserService } from './user.service';
 const USER_ID = '607f1f77bcf86cd799439011';
 
 /**
- * UserService reads `HEARTS_REGEN_MINUTES` from config in its constructor.
- * Returning undefined exercises the default, which is the branch production runs
- * with unless the env var is deliberately set.
- */
-const noConfig = { get: () => undefined } as never;
-
-/**
  * Covers `awardXp` — where the streak rules from gamification/streak.ts meet
  * the actual writes. streak.spec.ts proves the arithmetic; this proves the
  * right update reaches Mongo, in particular that `todayXp` is *reset* rather
@@ -71,7 +64,7 @@ function build(stored: Partial<Stored> = {}, opts: { rollLosesRace?: boolean } =
     findByIdAndUpdate,
   };
 
-  return { service: new UserService(userModel as never, noConfig), findOneAndUpdate, findByIdAndUpdate };
+  return { service: new UserService(userModel as never), findOneAndUpdate, findByIdAndUpdate };
 }
 
 /** The `$inc`/`$set` payload handed to Mongo. */
@@ -234,7 +227,7 @@ describe('UserService.awardXp', () => {
 
   it('throws NotFound when the user is gone', async () => {
     const userModel = { findById: () => ({ exec: () => Promise.resolve(null) }) };
-    const service = new UserService(userModel as never, noConfig);
+    const service = new UserService(userModel as never);
 
     await expect(service.awardXp(USER_ID, 10, NOW)).rejects.toThrow(NotFoundException);
   });
@@ -247,7 +240,7 @@ describe('UserService.todayXpFor', () => {
       settings: { tz: 'Asia/Kolkata' },
     }) as unknown as UserDocument;
 
-  const service = new UserService({} as never, noConfig);
+  const service = new UserService({} as never);
   const NOW = new Date('2026-07-19T12:00:00Z');
 
   it('returns the stored counter when it belongs to today', () => {
@@ -315,7 +308,7 @@ describe('UserService.weeklyXpFor', () => {
   const doc = (weeklyXpWeek: string | null, weeklyXp: number): UserDocument =>
     ({ gamification: { weeklyXpWeek, weeklyXp } }) as unknown as UserDocument;
 
-  const service = new UserService({} as never, noConfig);
+  const service = new UserService({} as never);
   // A Wednesday in 2026-W30.
   const NOW = new Date('2026-07-22T12:00:00Z');
 

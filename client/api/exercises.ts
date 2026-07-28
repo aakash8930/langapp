@@ -82,14 +82,6 @@ export type AnswerResult = {
   correctOptionId: string;
   correctValue: string;
   prompt: string;
-  /**
-   * Hearts left after this answer, or null meaning "leave the counter alone".
-   *
-   * Null covers a correct answer (nothing charged) *and* a charge that failed
-   * server-side — both mean this response established no new number, so
-   * rendering one would risk disagreeing with `/me/progress`.
-   */
-  heartsLeft: number | null;
 };
 
 /** Mirrors CompleteLessonResponse in api/src/learning/dto. */
@@ -101,8 +93,6 @@ export type CompleteLessonResult = {
   cardsAlreadyPresent: number;
   /** Full award the first time, a smaller practice award on every repeat. */
   xpAwarded: number;
-  /** Gems, following the same full-then-practice shape as `xpAwarded`. */
-  gemsAwarded: number;
   /** Says which of the two happened — don't infer it from `cardsCreated`. */
   firstCompletion: boolean;
   totalXp: number;
