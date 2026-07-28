@@ -37,6 +37,37 @@ never an ambient cookie a hostile page could ride on. The Expo app is unaffected
 a native fetch is not subject to the same-origin policy, which is why this went
 unnoticed until a browser tried.
 
+### Versioning
+
+**Every route below is served twice: at its bare path and under `/v1`** (ADR-007,
+2026-07-28). `GET /lessons` and `GET /v1/lessons` are the same handler.
+
+The bare path is **pinned to v1, not aliased to the newest version**. That is the
+protection: the contract has already had one breaking change with nothing to
+absorb it — `dateOfBirth` became required on 2026-07-26 and every older build now
+400s on signup — and an installed APK cannot be recalled. A build that knows
+nothing about versions keeps working, and keeps working after a `/v2` exists.
+
+Which produces one rule, and breaking it causes the outage the scheme prevents:
+
+> **A v2 is a new controller or route carrying `version: '2'`. Never add a version
+> to an existing route** — that replaces its version list, the bare and `/v1`
+> paths stop resolving, and every installed client 404s.
+
+Versioning is URI rather than an `Accept-Version` header because the funnel mounts
+this app at `/langapp` and strips that prefix before proxying, so the app cannot
+know its own public base path; a segment the client appends after its configured
+base works regardless, and it is visible in a log, a `curl` and an address bar.
+
+`/health` and the HTML status page at `/` are **unversioned** (`VERSION_NEUTRAL`)
+— they answer bare only, never under `/v1`. A monitor should not care what
+version the contract is on. Note that controller-level versioning goes in the
+`@Controller({ path, version })` options; `@Version()` only works on a method.
+
+**Both clients still call the bare paths.** That is safe indefinitely, and moving
+them to `/v1` is a follow-up that must ship *after* the API does — see
+OPEN-ITEMS #35.
+
 ### Auth
 
 ```

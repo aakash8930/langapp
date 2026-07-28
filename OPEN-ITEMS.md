@@ -574,6 +574,26 @@ stands: anything computed into a job's name, id or options is unvalidated until
 it runs. The cheapest honest fix if this bites again is a dev-mode
 `throwOnEnqueueFailure` flag so a bad enqueue is loud outside production.
 
+### 35. Both clients still call the unversioned paths (ADR-007, 2026-07-28)
+
+The API now serves every route bare *and* under `/v1`, and the bare path is
+pinned to v1 permanently — so `client/` and `web/` calling bare paths is safe
+indefinitely, including after a `/v2` lands. Nothing is broken and nothing is
+urgent.
+
+What is still missing is **explicitness**: a client on a bare path never states
+which contract it wants, so the bare path can never be repurposed or retired.
+Moving both to `/v1` is one constant per project — `client/api/client.ts`,
+`client/api/audio.ts` and `client/api/strokes.ts` each read
+`EXPO_PUBLIC_API_URL` separately (worth collapsing to one export while touching
+them), and `web/src/api.ts` has `BASE_URL` plus the exported `API_BASE`.
+
+**Ordering matters and is the reason this is not done yet.** A client build that
+asks for `/v1` against an API that has not been deployed yet 404s on every
+request, and the Expo app is a separate artifact from the API deploy. The API
+must be pushed and live *first*, then the clients rebuilt. Doing both in one
+commit invites exactly the wrong sequence.
+
 ### 34. One process runs the API and every worker (ADR-006, 2026-07-28)
 
 Workers are in-process, which §11 justifies at this size — one laptop, one

@@ -2,9 +2,15 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { enableApiVersioning } from './common/versioning';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+
+  // Every route answers at both its bare path and under `/v1` (ADR-007). Must
+  // run before `listen`; see `common/versioning.ts` for why the bare path stays
+  // and what a v2 may and may not do.
+  enableApiVersioning(app);
 
   app.useGlobalPipes(
     new ValidationPipe({

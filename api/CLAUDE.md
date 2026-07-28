@@ -96,6 +96,22 @@ have been reclassified and the rest stand:
   Workers run in-process; there is no separate worker deployable, and adding one
   is a §11 decision, not a refactor.
 
+- **API versioning** — ADR-007, **landed 2026-07-28**. URI versioning, set up in
+  `common/versioning.ts` and applied in `main.ts`. Every route answers at both its
+  bare path and under `/v1`, and the bare path is **pinned to v1 rather than
+  aliased to the newest version** — that is what keeps an installed APK working
+  after a `/v2` exists.
+
+  **Never add a version to an existing route.** A version on a route replaces its
+  version list, so the bare and `/v1` paths stop resolving and every old client
+  404s. A v2 is a *new* controller or route: `@Controller({ path: 'x', version:
+  '2' })`. Controller-level versioning lives in those options — `@Version()`
+  writes to `descriptor.value` and throws when used on a class.
+
+  Operational routes (`/`, `/health`) are `VERSION_NEUTRAL` and answer bare only.
+  `common/versioning.spec.ts` pins every case against a real HTTP server without
+  needing Mongo or Redis.
+
 The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
 teacher portal, i18n framework, admin panel, AR, second language) remain
 forbidden. None of them are in `PHASE-2-BLUEPRINT.md`.
@@ -216,6 +232,22 @@ have been reclassified and the rest stand:
 
   Workers run in-process; there is no separate worker deployable, and adding one
   is a §11 decision, not a refactor.
+
+- **API versioning** — ADR-007, **landed 2026-07-28**. URI versioning, set up in
+  `common/versioning.ts` and applied in `main.ts`. Every route answers at both its
+  bare path and under `/v1`, and the bare path is **pinned to v1 rather than
+  aliased to the newest version** — that is what keeps an installed APK working
+  after a `/v2` exists.
+
+  **Never add a version to an existing route.** A version on a route replaces its
+  version list, so the bare and `/v1` paths stop resolving and every old client
+  404s. A v2 is a *new* controller or route: `@Controller({ path: 'x', version:
+  '2' })`. Controller-level versioning lives in those options — `@Version()`
+  writes to `descriptor.value` and throws when used on a class.
+
+  Operational routes (`/`, `/health`) are `VERSION_NEUTRAL` and answer bare only.
+  `common/versioning.spec.ts` pins every case against a real HTTP server without
+  needing Mongo or Redis.
 
 The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
 teacher portal, i18n framework, admin panel, AR, second language) remain

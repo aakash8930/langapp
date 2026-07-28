@@ -172,6 +172,11 @@ api/src/
 
 ## Endpoints
 
+Every path below is also served under **`/v1`** (ADR-007) — `/lessons` and
+`/v1/lessons` are the same handler. The bare path is pinned to v1 rather than
+aliased to the newest version, so a build that predates versioning keeps working
+after a `/v2` exists. `/` and `/health` are unversioned and answer bare only.
+
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | `GET` | `/` | — | HTML status page: live dependency state + this route list |

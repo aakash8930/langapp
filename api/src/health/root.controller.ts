@@ -1,4 +1,4 @@
-import { Controller, Get, Header } from '@nestjs/common';
+import { Controller, Get, Header, VERSION_NEUTRAL } from '@nestjs/common';
 import { HealthService } from './health.service';
 
 /**
@@ -15,8 +15,12 @@ import { HealthService } from './health.service';
  * browser to the funnel root (a different service entirely), and a relative
  * `href="health"` resolves differently depending on whether the visitor typed a
  * trailing slash. Text can't be wrong.
+ *
+ * `VERSION_NEUTRAL` (ADR-007): a status page is not part of the contract, and
+ * `/v1` serving HTML would be nonsense. In the `@Controller` options because
+ * `@Version()` only works on a method.
  */
-@Controller()
+@Controller({ version: VERSION_NEUTRAL })
 export class RootController {
   constructor(private readonly healthService: HealthService) {}
 
@@ -52,6 +56,13 @@ export class RootController {
           </li>`,
         ).join('')}
       </ul>
+
+      <p class="foot">
+        Every path above is also served under <code>/v1</code> (ADR-007). The bare
+        path is pinned to v1 rather than aliased to whatever is newest, so a build
+        that predates versioning keeps working even after a <code>/v2</code>
+        exists. <code>/health</code> and this page are unversioned.
+      </p>
 
       <p class="foot">
         Japanese-only learning API. No web client yet — Phase 0 is the API alone,
