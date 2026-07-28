@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
-import { ContentService } from '../content/content.service';
+import { ContentService, LessonGraphRow } from '../content/content.service';
 import { ItemRef } from '../content/schemas/lesson.schema';
 import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.service';
+import { ContentKind } from '../knowledge-graph/schemas/knowledge-node.schema';
 import { GRAMMAR_GROUPS, GRAMMAR_LESSONS, GRAMMAR_UNIT } from './japanese/grammar';
 import { HIRAGANA_PACK } from './japanese/hiragana';
 import { HIRAGANA_MARKS_PACK } from './japanese/hiragana-marks';
@@ -196,6 +197,12 @@ export class SeedService {
     await this.seedVocabPack(VOCAB_N5_PACK, previousLessonId);
     this.logger.log(`Seeded ${VOCAB_N5_UNIT}: ${countWordsIn(VOCAB_N5_PACK)} words`);
 
+    const graph = await this.syncLessonGraph();
+    this.logger.log(
+      `Graph: ${graph.lessonNodes} lesson nodes, ${graph.containsEdges} contains, ` +
+        `${graph.prerequisiteEdges} prerequisite`,
+    );
+
     const summary: SeedSummary = {
       kanaItems: await this.contentService.countKana(),
       vocabItems: await this.contentService.countVocab(),
@@ -214,6 +221,111 @@ export class SeedService {
     );
 
     return summary;
+  }
+
+  /**
+   * Derives the whole lesson layer of the knowledge graph from the lessons that
+   * exist (ADR-005): one `lesson` node each, `contains` edges to their items, and
+   * `prerequisite` edges read straight off `prerequisiteLessonIds`.
+   *
+   * ## Why one pass at the end rather than per pack
+   *
+   * Because the per-pack version was only ever written once. Kana lessons built
+   * their nodes inline and vocab, grammar and kanji never got the equivalent, so
+   * the graph held **22 lesson nodes for 90 lessons** and `contains` edges for
+   * kana only — measured, not guessed. Deriving from the content means a unit
+   * cannot be forgotten: adding a pack adds lessons, and lessons are what this
+   * reads.
+   *
+   * It also makes `prerequisiteLessonIds` the single source of dependency truth.
+   * The old code re-derived the chain from its own loop variable, so the graph and
+   * the lesson documents could disagree and nothing would notice.
+   *
+   * ## Why `setEdges*` and not `upsertEdge`
+   *
+   * So the pass can *remove*. An upsert-only rebuild leaves the edges of a lesson
+   * that lost an item behind for ever, and a graph that asserts stale
+   * containment is the failure ADR-005 is about — arriving from the other
+   * direction. These two edge types are wholly derived, so declaring the complete
+   * set is both correct and safe.
+   *
+   * Idempotent: same content in, same graph out, which the CI seed step checks by
+   * running twice and comparing counts.
+   */
+  private async syncLessonGraph(): Promise<{
+    lessonNodes: number;
+    containsEdges: number;
+    prerequisiteEdges: number;
+  }> {
+    const lessons = await this.contentService.findLessonsForGraph();
+
+    // Pass 1: a node per lesson. Every lesson needs one to exist before any edge
+    // can reference it, including prerequisites pointing backwards.
+    const lessonNodeIdByLessonId = new Map<string, Types.ObjectId>();
+    for (const lesson of lessons) {
+      const node = await this.knowledgeGraph.upsertNode({
+        kind: 'lesson',
+        refId: lesson.id,
+        label: lesson.title,
+      });
+      lessonNodeIdByLessonId.set(lesson.id.toString(), node._id);
+    }
+
+    // Item node lookups batched by kind: one query per kind for the whole
+    // course, rather than one per item as the kana-only code did.
+    const itemNodeIdByRef = await this.mapItemNodesByRef(lessons);
+
+    let containsEdges = 0;
+    let prerequisiteEdges = 0;
+
+    for (const lesson of lessons) {
+      const lessonNodeId = lessonNodeIdByLessonId.get(lesson.id.toString());
+      if (!lessonNodeId) continue;
+
+      const itemNodeIds = lesson.itemRefs
+        .map((ref) => itemNodeIdByRef.get(`${ref.kind}:${ref.id.toString()}`))
+        .filter((id): id is Types.ObjectId => id !== undefined);
+
+      await this.knowledgeGraph.setEdgesFrom(lessonNodeId, 'contains', itemNodeIds);
+      containsEdges += itemNodeIds.length;
+
+      const prerequisiteNodeIds = lesson.prerequisiteLessonIds
+        .map((id) => lessonNodeIdByLessonId.get(id.toString()))
+        .filter((id): id is Types.ObjectId => id !== undefined);
+
+      await this.knowledgeGraph.setEdgesTo(lessonNodeId, 'prerequisite', prerequisiteNodeIds);
+      prerequisiteEdges += prerequisiteNodeIds.length;
+    }
+
+    return { lessonNodes: lessons.length, containsEdges, prerequisiteEdges };
+  }
+
+  /**
+   * `"{kind}:{refId}" -> node id` for every item any lesson references.
+   *
+   * Keyed by kind *and* id because `ItemRef` is polymorphic and the graph's own
+   * uniqueness is `{kind, refId}` — two collections could in principle hand out
+   * the same ObjectId, and a bare id key would silently collapse them.
+   */
+  private async mapItemNodesByRef(
+    lessons: LessonGraphRow[],
+  ): Promise<Map<string, Types.ObjectId>> {
+    const refIdsByKind = new Map<ContentKind, Types.ObjectId[]>();
+    for (const lesson of lessons) {
+      for (const ref of lesson.itemRefs) {
+        refIdsByKind.set(ref.kind, [...(refIdsByKind.get(ref.kind) ?? []), ref.id]);
+      }
+    }
+
+    const nodeIdByRef = new Map<string, Types.ObjectId>();
+    for (const [kind, refIds] of refIdsByKind) {
+      const nodes = await this.knowledgeGraph.findNodesByRefs(kind, refIds);
+      for (const node of nodes) {
+        nodeIdByRef.set(`${kind}:${node.refId.toString()}`, node._id);
+      }
+    }
+
+    return nodeIdByRef;
   }
 
   /** Each character gets a content doc and a graph node, linked both ways. */
@@ -253,13 +365,14 @@ export class SeedService {
   }
 
   /**
-   * Chains a kana pack's lessons: each one lists the previous as a prerequisite,
-   * and the same dependency is mirrored as `prerequisite` edges between the kana
-   * nodes so the graph answers "what must I know first" too.
+   * Chains a kana pack's lessons: each one lists the previous as a prerequisite.
    *
    * `carriedLessonId` is the last lesson of the *previous* pack, which is how
    * the gate between units is expressed. Returns this pack's last lesson id so
    * the next pack can hang off it.
+   *
+   * The graph is no longer written here — `syncLessonGraph` derives it from
+   * `prerequisiteLessonIds` after every pack has been seeded.
    */
   private async seedKanaLessons(
     pack: KanaPack,
@@ -267,12 +380,6 @@ export class SeedService {
     carriedLessonId: Types.ObjectId | null,
   ): Promise<Types.ObjectId | null> {
     let previousLessonId = carriedLessonId;
-    let previousLessonNodeId: Types.ObjectId | null = null;
-
-    if (carriedLessonId) {
-      const prevNode = await this.knowledgeGraph.findNodeByRef('lesson', carriedLessonId);
-      if (prevNode) previousLessonNodeId = prevNode._id;
-    }
 
     for (const seed of pack.lessons) {
       const kanaIds = seed.rows.flatMap((row) => kanaIdsByRow.get(row) ?? []);
@@ -287,27 +394,11 @@ export class SeedService {
         prerequisiteLessonIds: previousLessonId ? [previousLessonId] : [],
       });
 
-      // OPEN-ITEMS #9 fix: create a lesson node in the knowledge graph, link it to items via 'contains',
-      // and link consecutive lesson nodes via 'prerequisite'.
-      const lessonNode = await this.knowledgeGraph.upsertNode({
-        kind: 'lesson',
-        refId: lesson._id,
-        label: lesson.title,
-      });
-
-      if (previousLessonNodeId) {
-        await this.knowledgeGraph.upsertEdge(previousLessonNodeId, lessonNode._id, 'prerequisite');
-      }
-
-      for (const kanaId of kanaIds) {
-        const itemNode = await this.knowledgeGraph.findNodeByRef('kana', kanaId);
-        if (itemNode) {
-          await this.knowledgeGraph.upsertEdge(lessonNode._id, itemNode._id, 'contains');
-        }
-      }
-
+      // No graph writes here any more (ADR-005). `syncLessonGraph` derives the
+      // whole lesson layer from the lessons themselves once everything is
+      // seeded, which is why kana used to be the only unit with a lesson node:
+      // this block existed and the vocab, grammar and kanji equivalents did not.
       previousLessonId = lesson._id;
-      previousLessonNodeId = lessonNode._id;
     }
 
     return previousLessonId;

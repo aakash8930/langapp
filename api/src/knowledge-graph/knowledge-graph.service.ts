@@ -57,6 +57,78 @@ export class KnowledgeGraphService {
     return this.nodeModel.findOne({ kind, refId }).exec();
   }
 
+  /**
+   * The batched form of `findNodeByRef` — one query per kind instead of one per
+   * item. The graph rebuild needs a node id for every item in every lesson,
+   * which is roughly 1100 lookups done singly.
+   */
+  async findNodesByRefs(
+    kind: ContentKind,
+    refIds: Types.ObjectId[],
+  ): Promise<KnowledgeNodeDocument[]> {
+    if (refIds.length === 0) return [];
+    return this.nodeModel.find({ kind, refId: { $in: refIds } }).exec();
+  }
+
+  /**
+   * Make `to` the **complete** set of outbound edges of this type from `from`:
+   * missing ones are added, ones not listed are deleted.
+   *
+   * Upserting alone is not enough for a derived graph. If a lesson loses an item,
+   * an upsert-only rebuild leaves the old `contains` edge behind and the graph
+   * goes on asserting a containment that no longer exists — which is the same
+   * class of untruth ADR-005 exists to remove, arriving by a different route.
+   * Being able to say "these are now exactly the edges" is what makes the graph
+   * a function of the content rather than of every content edit ever made.
+   */
+  async setEdgesFrom(
+    from: Types.ObjectId,
+    type: EdgeType,
+    to: Types.ObjectId[],
+  ): Promise<void> {
+    await this.edgeModel.deleteMany({ from, type, to: { $nin: to } }).exec();
+    if (to.length === 0) return;
+
+    await this.edgeModel.bulkWrite(
+      to.map((target) => ({
+        updateOne: {
+          filter: { from, to: target, type },
+          update: { $setOnInsert: { from, to: target, type } },
+          upsert: true,
+        },
+      })),
+    );
+  }
+
+  /**
+   * The inbound mirror of `setEdgesFrom`: make `from` the complete set of edges
+   * of this type *pointing at* `to`.
+   *
+   * Both directions exist because `prerequisite` runs prerequisite → dependent,
+   * so "this lesson's prerequisites are exactly these" is a statement about
+   * inbound edges, while "this lesson contains exactly these items" is outbound.
+   * Collapsing them into one method with a direction flag would read worse at
+   * both call sites.
+   */
+  async setEdgesTo(
+    to: Types.ObjectId,
+    type: EdgeType,
+    from: Types.ObjectId[],
+  ): Promise<void> {
+    await this.edgeModel.deleteMany({ to, type, from: { $nin: from } }).exec();
+    if (from.length === 0) return;
+
+    await this.edgeModel.bulkWrite(
+      from.map((source) => ({
+        updateOne: {
+          filter: { from: source, to, type },
+          update: { $setOnInsert: { from: source, to, type } },
+          upsert: true,
+        },
+      })),
+    );
+  }
+
   async findNodesByIds(ids: Types.ObjectId[]): Promise<KnowledgeNodeDocument[]> {
     return this.nodeModel.find({ _id: { $in: ids } }).exec();
   }

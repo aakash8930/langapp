@@ -22,6 +22,17 @@ import { ContentReport, ContentReportDocument } from './schemas/content-report.s
 import { ReportMistakeDto } from './dto/report-mistake.dto';
 
 /**
+ * One lesson as the knowledge graph needs to see it (ADR-005): ids, not
+ * resolved content. Returned by `findLessonsForGraph`.
+ */
+export interface LessonGraphRow {
+  id: Types.ObjectId;
+  title: string;
+  itemRefs: ItemRef[];
+  prerequisiteLessonIds: Types.ObjectId[];
+}
+
+/**
  * Owns the content collections: kana, vocab, grammar, kanji, lessons and contentReports.
  * Other modules (learning, later the AI orchestrator) come through here.
  */
@@ -394,6 +405,33 @@ export class ContentService {
 
   async countLessons(): Promise<number> {
     return this.lessonModel.countDocuments().exec();
+  }
+
+  /**
+   * Every lesson, in the raw shape the knowledge graph is derived from
+   * (ADR-005). Seed support — not a request path.
+   *
+   * Deliberately not `findLessons()`: that returns `LessonSummary`, which carries
+   * `itemCount` rather than `itemRefs` and stringified prerequisite ids, and the
+   * graph needs the ObjectIds themselves. Deliberately not `findLessonById` in a
+   * loop either: that resolves every item document, which is 90 lessons' worth of
+   * content fetched to read ids that are already on the lesson.
+   *
+   * Ordered by unit then order so a rebuilt graph is written in a stable
+   * sequence, which keeps seed logs diffable between runs.
+   */
+  async findLessonsForGraph(): Promise<LessonGraphRow[]> {
+    const lessons = await this.lessonModel
+      .find({ lang: 'ja' })
+      .sort({ unit: 1, order: 1 })
+      .exec();
+
+    return lessons.map((lesson) => ({
+      id: lesson._id,
+      title: lesson.title,
+      itemRefs: lesson.itemRefs,
+      prerequisiteLessonIds: lesson.prerequisiteLessonIds,
+    }));
   }
 
   /**

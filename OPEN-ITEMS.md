@@ -387,7 +387,67 @@ Also unchecked: whether either client actually calls this route.
 
 ## Technical debt / judgement calls
 
-### 9. The prerequisite graph is character-to-character, so edges grow quadratically
+### 9. RESOLVED (ADR-005 slice 1, 2026-07-28) — the prerequisite graph was character-to-character
+
+The quadratic character-to-character edges are gone, and the lesson layer is now
+**derived from the content** rather than written by hand per pack. Measured on a
+freshly seeded database:
+
+| | before | after |
+|---|---|---|
+| lesson nodes | 22 of 90 | **90 of 90** |
+| `contains` edges | 208 (kana only) | 1126 (every lesson's items) |
+| `prerequisite` edges | 20 (kana chain only) | 89 (every lesson) |
+| prerequisite mismatches vs `prerequisiteLessonIds` | not comparable | **0 of 90** |
+
+Two findings from doing it, neither of which was in the original note:
+
+**The half-fix was worse than the count.** Lesson nodes had been added for kana
+only — the inline code lived in `seedKanaLessons` and the vocab, grammar and kanji
+equivalents were never written — so the graph covered a quarter of the course while
+looking finished. `syncLessonGraph` derives the layer from whatever lessons exist,
+so a unit cannot be forgotten: adding a pack adds lessons, and lessons are what it
+reads.
+
+**Upserting is not enough for derived data.** The old code could only add edges, so
+a lesson that lost an item kept its `contains` edge for ever — the same "graph
+asserting things that are not so" that ADR-005 is about, arriving from the other
+direction. `setEdgesFrom` / `setEdgesTo` declare a *complete* set, so a rebuild
+removes as well as adds. Verified by injecting a false `contains` edge and a false
+`prerequisite` edge into a seeded database and re-running: both were pruned, counts
+back to 1126/89.
+
+`prerequisiteLessonIds` on the lesson document is now the single source of
+dependency truth. The old code re-derived the chain from its own loop variable, so
+the graph and the lessons could disagree with nothing to notice.
+
+The original note follows.
+
+### 9a. What ADR-005 still owes (2026-07-28)
+
+Slice 1 fixed the *shape* of the graph. The rest of §5.3 is untouched:
+
+- **No `concept` nodes.** §5.3's core addition — a node that is an idea rather
+  than a content document ("the あ row", "な-adjectives", "the が/は
+  distinction"). Blocked on a schema decision: `KnowledgeNode.refId` is required
+  with a unique index on `{kind, refId}`, and a concept has no document to point
+  at.
+- **No `contrasts-with` edges.** §5.3 calls these pedagogically load-bearing —
+  シ/ツ, は-as-particle vs は-as-syllable, が vs は — and the exercise generator
+  currently gets that discrimination by accident, from unit-pool distractors.
+  Needs a list of pairs, which is content authoring rather than code.
+- **`related` and `usesKanji` are declared and never created.** Zero edges of
+  either type exist. `usesKanji` is not in §5.3's target edge list at all, so it
+  is either an unbuilt idea or a leftover; worth deciding rather than leaving.
+- **Nothing reads the graph.** The one call site is
+  `LearningEngineService.getReadiness`, which calls `findPrerequisites` and
+  **throws the result away** — an extra query per readiness request that changes
+  nothing. Readiness computes mastery from `prerequisiteLessonIds` and per-item
+  `findOne` calls in a nested loop instead, which is also an N+1. Both should be
+  fixed by the slice that makes readiness actually read the graph, not before —
+  removing the dead call alone would leave the graph with no consumer at all.
+
+
 
 `SeedService.linkPrerequisiteNodes` links every character in lesson N to every
 character in lesson N+1. The count has tracked every content milestone: 150 edges
