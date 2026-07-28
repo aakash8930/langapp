@@ -22,8 +22,10 @@ decisions.
 One NestJS app. Modules map to future services but deploy as one unit.
 **Do not** create microservices, message brokers, or separate deployables.
 
-Modules: `auth`, `user`, `content`, `learning`, `knowledge-graph`, `analytics`
-plus `ai-orchestrator` and `chat` (landed 2026-07-21 — Gemini behind `AiOrchestratorService`).
+Modules: `auth`, `user`, `content`, `learning`, `knowledge-graph`, `analytics`,
+`ai-orchestrator` and `chat` (2026-07-21 — Gemini behind `AiOrchestratorService`),
+`social` (2026-07-26 — friends, DMs, leagues) and `jobs` (2026-07-28 — BullMQ,
+ADR-006).
 
 ### The one rule that matters
 
@@ -68,10 +70,31 @@ have been reclassified and the rest stand:
   voice conversation is *premium-metered*, not forbidden. Building it needs the
   §6.8 design and the root CLAUDE.md §3.3 reconciliation read together; do not
   start without both.
-- **No event bus** — superseded by ADR-006 (background jobs). BullMQ or an
-  equivalent lands in Stage 1 (§7). It is a Redis-backed job runner, not a
-  general event bus — the original prohibition was about message brokers and
-  pub/sub, which are still out.
+- **No event bus** — superseded by ADR-006 (background jobs), which **landed
+  2026-07-28**: BullMQ over the existing Redis, in `src/jobs/`. It is a
+  Redis-backed job runner, not a general event bus — the original prohibition was
+  about message brokers and pub/sub, which are still out.
+
+  Three rules hold it together, and the first two are not style preferences:
+
+  1. **One queue per concern.** A BullMQ worker consumes *every* job on its
+     queue, whatever the job is named — names do not route. Two `@Processor`
+     classes on one queue means two workers each pulling the other's jobs, on a
+     race. `jobs/queues.ts` is the registry and `jobs/queue-topology.spec.ts`
+     fails if two ever share a queue.
+  2. **The processor lives in the module that owns the data it writes** —
+     `AnalyticsProcessor` in `analytics/`, `LeagueSettleProcessor` in `social/`.
+     `jobs/` holds the connection, the registrations and the producer, and
+     touches nobody's collections. This is the one rule that matters, applied to
+     workers.
+  3. **`JobsService.enqueue` never throws.** A queue failure must not fail the
+     user's action. The cost is that an enqueue bug is *silent* — an invalid
+     `jobId` looked exactly like a working system until it was checked live — so
+     anything computed into a job's options wants a unit test (see
+     `settleJobId`).
+
+  Workers run in-process; there is no separate worker deployable, and adding one
+  is a §11 decision, not a refactor.
 
 The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
 teacher portal, i18n framework, admin panel, AR, second language) remain
@@ -123,8 +146,10 @@ Full spec lives in `PHASE-0-BLUEPRINT.md`. Read it before making architectural d
 One NestJS app. Modules map to future services but deploy as one unit.
 **Do not** create microservices, message brokers, or separate deployables.
 
-Modules: `auth`, `user`, `content`, `learning`, `knowledge-graph`, `analytics`
-plus `ai-orchestrator` and `chat` (landed 2026-07-21 — Gemini behind `AiOrchestratorService`).
+Modules: `auth`, `user`, `content`, `learning`, `knowledge-graph`, `analytics`,
+`ai-orchestrator` and `chat` (2026-07-21 — Gemini behind `AiOrchestratorService`),
+`social` (2026-07-26 — friends, DMs, leagues) and `jobs` (2026-07-28 — BullMQ,
+ADR-006).
 
 ### The one rule that matters
 
@@ -166,10 +191,31 @@ have been reclassified and the rest stand:
   voice conversation is *premium-metered*, not forbidden. Building it needs the
   §6.8 design and the root CLAUDE.md §3.3 reconciliation read together; do not
   start without both.
-- **No event bus** — superseded by ADR-006 (background jobs). BullMQ or an
-  equivalent lands in Stage 1 (§7). It is a Redis-backed job runner, not a
-  general event bus — the original prohibition was about message brokers and
-  pub/sub, which are still out.
+- **No event bus** — superseded by ADR-006 (background jobs), which **landed
+  2026-07-28**: BullMQ over the existing Redis, in `src/jobs/`. It is a
+  Redis-backed job runner, not a general event bus — the original prohibition was
+  about message brokers and pub/sub, which are still out.
+
+  Three rules hold it together, and the first two are not style preferences:
+
+  1. **One queue per concern.** A BullMQ worker consumes *every* job on its
+     queue, whatever the job is named — names do not route. Two `@Processor`
+     classes on one queue means two workers each pulling the other's jobs, on a
+     race. `jobs/queues.ts` is the registry and `jobs/queue-topology.spec.ts`
+     fails if two ever share a queue.
+  2. **The processor lives in the module that owns the data it writes** —
+     `AnalyticsProcessor` in `analytics/`, `LeagueSettleProcessor` in `social/`.
+     `jobs/` holds the connection, the registrations and the producer, and
+     touches nobody's collections. This is the one rule that matters, applied to
+     workers.
+  3. **`JobsService.enqueue` never throws.** A queue failure must not fail the
+     user's action. The cost is that an enqueue bug is *silent* — an invalid
+     `jobId` looked exactly like a working system until it was checked live — so
+     anything computed into a job's options wants a unit test (see
+     `settleJobId`).
+
+  Workers run in-process; there is no separate worker deployable, and adding one
+  is a §11 decision, not a refactor.
 
 The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
 teacher portal, i18n framework, admin panel, AR, second language) remain

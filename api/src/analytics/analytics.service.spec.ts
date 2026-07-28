@@ -18,7 +18,12 @@ function makeService(rows: { type: string; ts: Date }[]) {
   );
   const eventModel = { find, create: jest.fn(), countDocuments: jest.fn() };
 
-  return { service: new AnalyticsService(eventModel as never), find };
+  // As of M1 (ADR-006) `record` enqueues onto BullMQ rather than writing
+  // inline. The read path under test never calls `record`, so the queue is
+  // a stub.
+  const jobs = { enqueue: jest.fn(() => Promise.resolve()) } as never;
+
+  return { service: new AnalyticsService(eventModel as never, jobs), find };
 }
 
 describe('AnalyticsService.countTodayByType (T1.8)', () => {

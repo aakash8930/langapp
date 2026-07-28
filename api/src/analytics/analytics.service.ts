@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { JobsService } from '../jobs/jobs.service';
+import { JOB_ANALYTICS_RECORD } from '../jobs/queues';
 import { localDateString } from '../user/gamification/streak';
 import { Event, EventDocument } from './schemas/event.schema';
 
@@ -11,37 +13,41 @@ export interface RecordEventInput {
 }
 
 /**
- * Owns the `events` collection. Write path only in Phase 0 (§4).
+ * Owns the `events` collection. Write path only in Phase 0 (§4); reads are
+ * the T1.8 daily counts and the `countForUser` test helper.
  */
 @Injectable()
 export class AnalyticsService {
-  private readonly logger = new Logger(AnalyticsService.name);
-
-  constructor(@InjectModel(Event.name) private readonly eventModel: Model<EventDocument>) {}
+  constructor(
+    @InjectModel(Event.name) private readonly eventModel: Model<EventDocument>,
+    private readonly jobs: JobsService,
+  ) {}
 
   /**
    * Never throws.
    *
    * §7 puts analytics off the request path precisely so a failure here can't
    * affect the user's action — losing an analytics row is always preferable to
-   * failing the lesson completion that produced it. Until BullMQ exists this is
-   * a synchronous write that swallows its own errors; the queue is the [Later]
-   * version of the same guarantee.
+   * failing the lesson completion that produced it. As of ADR-006 the write is
+   * enqueued and the Mongo insert happens on the worker; the call site keeps
+   * the same `void`-returning, never-throws shape.
+   *
+   * **The row is not there when this resolves.** That is new, and it reaches one
+   * caller: `countTodayByType` counts `events`, so `daily.reviewsDone` and
+   * `daily.lessonsDone` on `GET /me/progress` are eventually consistent with the
+   * grade or completion that produced them. The window is a worker hop on the
+   * same box — shorter than the client's next HTTP round trip, so in practice a
+   * screen refresh sees the increment — but it is a window, and a test that
+   * records and immediately counts must wait for the worker rather than assume.
+   * `xpToday` is unaffected: it reads a counter on the user document, written
+   * synchronously.
    */
   async record(input: RecordEventInput): Promise<void> {
-    try {
-      await this.eventModel.create({
-        userId: new Types.ObjectId(input.userId),
-        type: input.type,
-        payload: input.payload ?? {},
-        ts: new Date(),
-      });
-    } catch (err) {
-      this.logger.warn(
-        `Dropped '${input.type}' event for user ${input.userId}: ` +
-          `${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
+    await this.jobs.enqueue(JOB_ANALYTICS_RECORD, {
+      userId: input.userId,
+      type: input.type,
+      payload: input.payload,
+    });
   }
 
   /** Read side is [Later] — this exists so tests and the seed can assert. */

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from '../user/user.module';
+import { LeagueSettleProcessor } from './league-settle.processor';
+import { LeagueSettleScheduler } from './league-settle.scheduler';
 import { Block, BlockSchema } from './schemas/block.schema';
 import { DirectMessage, DirectMessageSchema } from './schemas/direct-message.schema';
 import { Friendship, FriendshipSchema } from './schemas/friendship.schema';
@@ -16,6 +18,11 @@ import { SocialService } from './social.service';
  * Reads users through `UserService` only — never the `users` collection — which
  * is why `toPublicProfile` lives on that service rather than here. One-way edge:
  * `user` knows nothing about `social`, so no forwardRef.
+ *
+ * `LeagueSettleProcessor` and `LeagueSettleScheduler` live here (ADR-006): the
+ * worker that settles `leagueStandings` belongs to the module owning that
+ * collection, and the schedule that triggers it belongs next to the worker.
+ * Queue registration itself is central, in `JobsModule`.
  */
 @Module({
   imports: [
@@ -29,7 +36,7 @@ import { SocialService } from './social.service';
     UserModule,
   ],
   controllers: [SocialController],
-  providers: [SocialService, LeagueService],
+  providers: [SocialService, LeagueService, LeagueSettleProcessor, LeagueSettleScheduler],
   exports: [SocialService, LeagueService],
 })
 export class SocialModule {}

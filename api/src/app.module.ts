@@ -8,6 +8,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { ContentModule } from './content/content.module';
+import { JobsModule } from './jobs/jobs.module';
 import { LearningModule } from './learning/learning.module';
 import { KnowledgeGraphModule } from './knowledge-graph/knowledge-graph.module';
 import { StorageModule } from './common/storage/storage.module';
@@ -38,6 +39,7 @@ import { UserModule } from './user/user.module';
       }),
     }),
     RedisModule,
+    JobsModule,
     StorageModule,
     // Global so the guard in common/ can verify tokens without importing
     // AuthModule — which imports UserModule, which would close the cycle.

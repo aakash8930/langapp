@@ -122,6 +122,15 @@ Counting is a 48-hour window filtered by local date string rather than a Mongo
 range on local midnight, deliberately — deriving a UTC offset for an IANA zone is
 the DST-boundary bug class of OPEN-ITEMS #18.
 
+**Both counts are eventually consistent as of ADR-006 (2026-07-28)**, because the
+events they count are now written by a queue worker instead of inline. Measured
+at 1–19 ms from enqueue to processed on the Stage A box, which is shorter than
+the client's next round trip — so a screen that grades a card and then refreshes
+progress sees the increment. It is still a window, and a test that records an
+event then immediately counts it must wait for the worker rather than assume.
+`xpToday` is unaffected: it reads a counter on the user document, written
+synchronously.
+
 **`xpToday` and these two counts can disagree after the learner changes
 timezone**, and it is worth knowing which to trust. `xpToday` compares the
 *stored* `lastStudyDate` — a string written under whatever zone was in effect at
@@ -477,12 +486,29 @@ instant so the client never re-derives the boundary.
 `weeklyXp` is a counter-plus-period like `todayXp`, corrected on read — reading
 the stored value directly is a bug on the first request after a Monday.
 
-**Settlement is lazy and promotion-only** since Phase 2 §3.2 (2026-07-28): the
-first `/social/leaderboard` request after a week closes promotes the top
-`PROMOTION_COUNT`, and that is all it does. A unique index on
+**Settlement is promotion-only** since Phase 2 §3.2 (2026-07-28): closing a week
+promotes the top `PROMOTION_COUNT` and does nothing else. A unique index on
 `leagueStandings {week, tier}` makes that exactly-once under concurrency. Only
 the immediately preceding week is settled — older gaps cannot be settled
 honestly because the totals they need have already been reset.
+
+**It runs as a background job, not on the request** (ADR-006, 2026-07-28). Two
+triggers, both idempotent against that index:
+
+1. a repeating job at **Monday 00:05 UTC** (`league-settle-weekly`), which is
+   what normally settles the week before anyone looks; and
+2. a `league.settle` job enqueued by `GET /social/leaderboard`, deduplicated on
+   the week so a Monday's readers coalesce onto one job.
+
+(2) exists because BullMQ **skips a missed occurrence rather than firing it
+late**, and Stage A is a laptop that is regularly asleep at 00:05 UTC.
+
+**A client-visible consequence:** when (2) is the trigger, the response is
+computed before the job runs, so the request that discovers a closed week gets
+the *pre-promotion* board and the next read shows the move. It is at most one
+read stale, never wrong, and the schedule keeps it off the common path. What used
+to happen instead — settle inline, then re-read the viewer — is what put a
+multi-tier Mongo write on a GET.
 
 `promotionCount: 0` means the tier has too few players to settle (below 8) — a
 client should say so rather than draw cut-off lines that will not be honoured.

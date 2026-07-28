@@ -1,12 +1,15 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { JobsService } from '../jobs/jobs.service';
+import { JOB_LEAGUE_SETTLE } from '../jobs/queues';
 import { UserService } from '../user/user.service';
 import { isoWeek, weekEndsAt } from '../user/gamification/week';
 import {
   LEAGUE_TIERS,
   MIN_TIER_SIZE_TO_SETTLE,
   PROMOTION_COUNT,
+  settleJobId,
   settleTier,
   tierName,
 } from './leagues';
@@ -67,6 +70,7 @@ export class LeagueService {
     @InjectModel(LeagueStanding.name)
     private readonly standingModel: Model<LeagueStandingDocument>,
     private readonly userService: UserService,
+    private readonly jobs: JobsService,
   ) {}
 
   async leaderboard(viewerId: string, now: Date = new Date()): Promise<Leaderboard> {
@@ -75,14 +79,29 @@ export class LeagueService {
       throw new NotFoundException('User not found');
     }
 
-    // Settle anything outstanding first, or the viewer would be ranked in the
-    // tier they were in last week rather than the one they just earned.
-    await this.settleClosedWeeks(now);
+    // Settlement is off the request path (ADR-006). This enqueues rather than
+    // settles, so the response below reads the viewer's tier as it stands right
+    // now: if this request is the one that discovered the week had closed, the
+    // board it returns is the pre-promotion one and the next read shows the
+    // move. `LeagueSettleScheduler` is what keeps that from being the normal
+    // case — it settles at 00:05 UTC Monday, before anyone looks — and this
+    // path is the safety net for a Stage A laptop that was asleep then.
+    //
+    // `jobId` is the dedup: every leaderboard read reaches this line, and
+    // without it a busy Monday would queue one settlement per viewer. Keyed on
+    // the week being settled, so concurrent readers coalesce onto one job. See
+    // `settleJobId` for why the id is built by a helper. Enqueued regardless of
+    // the viewer's opt-in — promotion has to run for the whole tier, and the
+    // viewer here is only whoever happened to ask.
+    const closingWeek = isoWeek(new Date(now.getTime() - 7 * 86_400_000));
+    await this.jobs.enqueue(
+      JOB_LEAGUE_SETTLE,
+      { now: now.toISOString() },
+      { jobId: settleJobId(closingWeek) },
+    );
 
-    // Re-read: settling may have moved them.
-    const settled = (await this.userService.findById(viewerId)) ?? viewer;
-    const tier = settled.gamification.leagueTier;
-    const viewerOptedIn = settled.settings.leaderboardOptIn;
+    const tier = viewer.gamification.leagueTier;
+    const viewerOptedIn = viewer.settings.leaderboardOptIn;
 
     const members = await this.userService.findByLeagueTier(tier);
 
@@ -132,7 +151,6 @@ export class LeagueService {
   /**
    * Close out any week that has ended and not yet been settled.
    *
-   * Lazy because there is no scheduler (§7 wants BullMQ; it does not exist).
    * Idempotent because the unique index on `{week, tier}` means exactly one
    * concurrent caller can insert the snapshot — the loser catches the duplicate
    * key and does nothing, rather than settling a second time and promoting
@@ -143,8 +161,13 @@ export class LeagueService {
    * destroyed; settling those from current numbers would promote anyone who
    * happened to be quietly earning through the gap. Skipping them is the honest
    * outcome — see the note in OPEN-ITEMS.
+   *
+   * Called from `LeagueSettleProcessor`; the public surface is intentional
+   * (ADR-006, M1) so the worker can drive it. The unit tests pin the
+   * promotion-only and dedup behaviour, so changing the body is fine; changing
+   * the contract requires a test change too.
    */
-  private async settleClosedWeeks(now: Date): Promise<void> {
+  async settleClosedWeeks(now: Date): Promise<void> {
     const previous = isoWeek(new Date(now.getTime() - 7 * 86_400_000));
     const current = isoWeek(now);
     if (previous === current) {

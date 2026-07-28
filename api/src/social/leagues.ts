@@ -39,6 +39,23 @@ export function tierName(index: number): LeagueTier {
 }
 
 /**
+ * The BullMQ dedup id for settling one week, so that every leaderboard read on a
+ * Monday coalesces onto a single settlement job instead of queueing one per
+ * viewer.
+ *
+ * **A custom BullMQ job id may not contain `:`** — it throws
+ * `Custom Id cannot contain :`, because the colon is its own key separator. The
+ * obvious `settle:2026-W30` is therefore rejected at `add`, and
+ * `JobsService.enqueue` deliberately swallows enqueue failures, so getting this
+ * wrong is *silent*: settlement simply never happens on the lazy path. A helper
+ * with a test rather than an inline template string, because nothing else would
+ * catch it.
+ */
+export function settleJobId(week: string): string {
+  return `settle-${week}`;
+}
+
+/**
  * Where a learner ends up after a week closes.
  *
  * Pure, so the rules are testable without a database — the same reasoning behind

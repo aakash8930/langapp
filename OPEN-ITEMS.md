@@ -4,7 +4,7 @@ Decisions I made on your behalf, trade-offs I took, and things deliberately
 deferred. Nothing here is broken; it's the list of places where a reasonable
 person could choose differently, plus the bills that come due later.
 
-Ordered by when they'll bite you. Last updated after T1.6.
+Ordered by when they'll bite you. Last updated after ADR-006 (background jobs).
 
 ---
 
@@ -529,13 +529,70 @@ usual answer and needs deciding rather than defaulting.
 DPDP applies now, and this was already the item that "gets harder with every
 milestone". It just got harder.
 
-### 17. Analytics writes are synchronous
+### 17. RESOLVED (ADR-006, 2026-07-28) — analytics writes are synchronous
 
-`AnalyticsService.record()` writes to Mongo inline, adding a round trip to every
-completion. §7 wants this on a Redis/BullMQ queue and off the request path. The
-failure semantics are already correct (a failed write can't fail the completion,
-guarded in both learning and analytics), so moving it to a queue later is a
-swap, not a redesign.
+`AnalyticsService.record()` now enqueues onto BullMQ and `AnalyticsProcessor`
+does the Mongo insert on the worker. The predicted "swap, not a redesign" held
+for the write itself; three things around it did not, and they are worth keeping.
+
+**Two defects existed in the first cut and neither was visible to the test
+suite.** The app did not boot at all — `JobsService` injected a queue token no
+module registered — and both processors claimed one queue named `app`, which
+misroutes: a BullMQ worker consumes *every* job on its queue regardless of job
+name, so two workers each received the other's jobs and threw `Unknown job
+name`. Measured at 12 of 12 jobs misrouted in a two-worker reproduction. Every
+processor unit test passed throughout, because each constructs the class and
+hands it a job of the kind it handles — the one case that cannot fail.
+`jobs/queue-topology.spec.ts` now asserts the invariant by reflection, which is
+the most CI can check without Redis.
+
+**Read-your-writes is gone for two fields.** `daily.reviewsDone` and
+`daily.lessonsDone` count the event log, so they now trail the action that
+produced them by a worker hop — 1–19 ms measured on this box, cold and warm,
+which is shorter than the client's next request. Documented at the endpoint in
+`CLAUDE.md`. `xpToday` reads a user-document counter and is unaffected.
+
+**Analytics now depends on Redis being up, where before it depended on Mongo.**
+An outage loses events rather than failing requests, which is the trade §7 asked
+for, but it is a different failure surface than the one the original note
+assumed.
+
+### 33. `JobsService.enqueue` swallows programming errors, not just outages (ADR-006, 2026-07-28)
+
+`enqueue` never throws, on purpose: a queue in a bad state must not turn a
+lesson completion into a 500. The cost is that it cannot tell an outage from a
+bug, and it logs both at `warn`.
+
+This was not hypothetical. The leaderboard's dedup id was `settle:<week>`, and
+**BullMQ rejects a custom job id containing `:`** — so `add` threw, `enqueue`
+logged, the request succeeded, and settlement silently never happened. Nothing
+failed. It was found by watching a real enqueue, not by reading the code, and
+it is exactly the class of bug this design makes quiet.
+
+Mitigated for that one case by `settleJobId` plus a test. The general problem
+stands: anything computed into a job's name, id or options is unvalidated until
+it runs. The cheapest honest fix if this bites again is a dev-mode
+`throwOnEnqueueFailure` flag so a bad enqueue is loud outside production.
+
+### 34. One process runs the API and every worker (ADR-006, 2026-07-28)
+
+Workers are in-process, which §11 justifies at this size — one laptop, one
+Redis, one deployable. It has consequences to know before load arrives:
+
+- A slow or hot job competes with request handling for the same event loop.
+  Nothing queued today is heavy; **AI lesson generation and speech scoring
+  are**, and they are next (§6.14).
+- Restarting to deploy stops the workers. In-flight jobs are recovered by
+  BullMQ's stalled-job check, but a job that is not idempotent would be at risk;
+  both current jobs are idempotent, and the next ones must be checked rather
+  than assumed.
+- The weekly settle schedule **skips a missed occurrence** rather than firing
+  late, so a laptop asleep at 00:05 UTC Monday settles nothing. That is why the
+  lazy enqueue on `GET /social/leaderboard` was kept as a second trigger, and
+  why deleting it as "now redundant" would be wrong.
+
+The queues are the seam when this stops being tolerable: a worker-only
+entrypoint imports the owning modules and skips the HTTP layer.
 
 ### 11. `strictPropertyInitialization` is off
 

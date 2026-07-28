@@ -1,7 +1,9 @@
+import { isoWeek } from '../user/gamification/week';
 import {
   LEAGUE_TIERS,
   MIN_TIER_SIZE_TO_SETTLE,
   PROMOTION_COUNT,
+  settleJobId,
   settleTier,
   tierName,
 } from './leagues';
@@ -68,5 +70,23 @@ describe('settleTier', () => {
     // the function is a pure map from (tier, rank) to tier.
     const once = settleTier({ tier: 1, rank: 1, size: BIG, weeklyXp: 500 });
     expect(settleTier({ tier: 1, rank: 1, size: BIG, weeklyXp: 500 })).toBe(once);
+  });
+});
+
+/**
+ * Pins a BullMQ constraint that is otherwise invisible: a custom job id may not
+ * contain `:`, and `JobsService.enqueue` swallows enqueue failures by design —
+ * so an id with a colon means settlement silently never runs on the lazy path.
+ * Found live, by watching the enqueue fail. Regression guard, not a style test.
+ */
+describe('settleJobId', () => {
+  it('never contains a colon, which BullMQ rejects as a custom job id', () => {
+    expect(settleJobId('2026-W30')).not.toContain(':');
+    expect(settleJobId(isoWeek(new Date('2026-12-31T23:59:59Z')))).not.toContain(':');
+  });
+
+  it('is one id per week, so two readers of the same week coalesce', () => {
+    expect(settleJobId('2026-W30')).toBe(settleJobId('2026-W30'));
+    expect(settleJobId('2026-W30')).not.toBe(settleJobId('2026-W31'));
   });
 });
