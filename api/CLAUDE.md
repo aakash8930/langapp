@@ -59,6 +59,28 @@ No microservices, no Kubernetes, no GraphQL, no event bus, no marketplace, no te
 portal, no i18n framework, no admin panel, no voice/STT/TTS, no AR, no second language.
 If a task seems to need one of these, stop and ask.
 
+## Phase 2
+
+`PHASE-2-BLUEPRINT.md` landed 2026-07-27. Two items on the Phase 0 list above
+have been reclassified and the rest stand:
+
+- **No voice/STT/TTS** — Phase 2 keeps this restriction with a §3.3 carve-out:
+  voice conversation is *premium-metered*, not forbidden. Building it needs the
+  §6.8 design and the root CLAUDE.md §3.3 reconciliation read together; do not
+  start without both.
+- **No event bus** — superseded by ADR-006 (background jobs). BullMQ or an
+  equivalent lands in Stage 1 (§7). It is a Redis-backed job runner, not a
+  general event bus — the original prohibition was about message brokers and
+  pub/sub, which are still out.
+
+The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
+teacher portal, i18n framework, admin panel, AR, second language) remain
+forbidden. None of them are in `PHASE-2-BLUEPRINT.md`.
+
+Hearts and gems are gone (Phase 2 §3.1). Leagues are promotion-only and
+opt-in (§3.2). Both are committed on `phase-2-foundations`; do not reintroduce
+either.
+
 ## Commands
 
 All run from `api/`:
@@ -78,7 +100,8 @@ before touching it.
 - Work one milestone at a time. Stop and report after each; don't chain ahead.
 - Don't add npm dependencies without asking first.
 - Prefer boring, obvious code over clever abstractions. This is a solo-maintained repo.
-- When something in `../PHASE-0-BLUEPRINT.md` is ambiguous, ask rather than assume.
+- When something in `../PHASE-0-BLUEPRINT.md` or `../PHASE-2-BLUEPRINT.md` is
+  ambiguous, ask rather than assume.
 
 # Project rules
 
@@ -133,6 +156,28 @@ This is what makes future extraction cheap. Enforce it in every review.
 No microservices, no Kubernetes, no GraphQL, no event bus, no marketplace, no teacher
 portal, no i18n framework, no admin panel, no voice/STT/TTS, no AR, no second language.
 If a task seems to need one of these, stop and ask.
+
+## Phase 2
+
+`PHASE-2-BLUEPRINT.md` landed 2026-07-27. Two items on the Phase 0 list above
+have been reclassified and the rest stand:
+
+- **No voice/STT/TTS** — Phase 2 keeps this restriction with a §3.3 carve-out:
+  voice conversation is *premium-metered*, not forbidden. Building it needs the
+  §6.8 design and the root CLAUDE.md §3.3 reconciliation read together; do not
+  start without both.
+- **No event bus** — superseded by ADR-006 (background jobs). BullMQ or an
+  equivalent lands in Stage 1 (§7). It is a Redis-backed job runner, not a
+  general event bus — the original prohibition was about message brokers and
+  pub/sub, which are still out.
+
+The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
+teacher portal, i18n framework, admin panel, AR, second language) remain
+forbidden. None of them are in `PHASE-2-BLUEPRINT.md`.
+
+Hearts and gems are gone (Phase 2 §3.1). Leagues are promotion-only and
+opt-in (§3.2). Both are committed on `phase-2-foundations`; do not reintroduce
+either.
 
 ## Commands
 

@@ -149,8 +149,38 @@ is what makes `useColorScheme()` follow the system and update live.
 
 ## What NOT to build
 
-No voice/audio recording, no AR/camera, no offline lesson caching, no social features,
-no second language, no in-app purchases. If a task seems to need one, stop and ask.
+No AR/camera, no second language, no in-app purchases. (The remaining Phase 0
+items — voice/audio *recording*, offline lesson caching, social features — are
+addressed by `PHASE-2-BLUEPRINT.md`; see "Phase 2" below.) If a task appears
+to need one of these, stop and ask.
+
+## Phase 2
+
+`PHASE-2-BLUEPRINT.md` landed 2026-07-27. Three things in this Phase 0 list
+have been reclassified — they are in scope now, in the form the blueprint
+spells out, not in the form the Phase 0 boundary forbade:
+
+- **Social features** — already shipped 2026-07-26 (chat, friends, DMs,
+  blocking, reporting, weekly leaderboard). The Phase 0 entry above is stale;
+  treat social as a built surface.
+- **Offline lesson caching** — §6.3, Stage 1+. Not started yet; the surface is
+  in scope, the implementation is not. Stop and ask if a task seems to need
+  offline lessons *before* Stage 1 lands.
+- **Voice / audio** — the recording side (microphone, STT, pronunciation
+  scoring) is gated by §3.3: it is *premium-metered*, not free. Playback
+  (TTS, the audio route already shipped for kana and vocab) is not gated.
+  Building the gated half needs the §6.8 design and the §3.3 reconciliation
+  in the root CLAUDE.md read together; do not start without both.
+
+Three things that *are* still forbidden: AR/camera, a second language, and
+in-app purchases. AR remains out — there is no roadmap for it. The second
+language is gated on the first one being finished, and that is not yet true.
+In-app purchases would require Razorpay wiring and a store listing, neither of
+which exists.
+
+Hearts and gems are gone (Phase 2 §3.1). Leagues are promotion-only and
+opt-in (§3.2). Both are committed on `phase-2-foundations`; do not reintroduce
+either.
 
 ## Working style
 

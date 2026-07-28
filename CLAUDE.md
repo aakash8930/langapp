@@ -541,7 +541,7 @@ the contract, not a property the code could quietly lose. Resolved 2026-07-26
 - Don't add dependencies without asking.
 - One milestone at a time; stop and report before chaining ahead.
 - Boring, obvious code — this is solo-maintained.
-- When `PHASE-0-BLUEPRINT.md` is ambiguous, ask rather than assume.
+- When `PHASE-0-BLUEPRINT.md` or `PHASE-2-BLUEPRINT.md` is ambiguous, ask rather than assume.
 
 ## Phase 0 scope boundary
 
@@ -549,6 +549,35 @@ Not building yet: voice/STT/TTS, AR, a second language, teacher portal, marketpl
 social features, offline lesson caching, in-app purchases.
 
 If a task appears to require one of these, stop and ask.
+
+## Phase 2 supersedes the above
+
+`PHASE-2-BLUEPRINT.md` landed 2026-07-27 and §3.4 demands this section be written
+*before* any further work, otherwise every future session will correctly refuse it
+on the Phase 0 boundary above. The three §3 contradictions have been resolved in
+writing and the code changes are committed on `phase-2-foundations`:
+
+- **§3.1 — hearts and gems (removed 2026-07-28, commit 9d70f0b).** The "where a
+  learner errs" signal they collected is being rebuilt inside `LearnerItemState`
+  in §6.1 / Stage 1. Until that migration lands, the only per-attempt signal
+  that survives is the exercise answer record itself.
+- **§3.2 — leagues promotion-only + opt-in (2026-07-28, commit c170268).** No
+  one goes down for finishing last any more, and a learner has to opt in to
+  appear on the board at all. The mechanic and the schema are settled.
+- **§3.3 — premium boundary (resolved 2026-07-28).** The paywall sits on
+  *marginal per-user cost*, never on learning. Content, scheduling, analytics,
+  offline access and text tutoring are free forever — their marginal cost is
+  near zero, and putting them behind a paywall contradicts "no premium-only
+  learning restrictions". Voice conversation, unlimited AI lesson generation
+  and anything that bills per request is metered, because each use costs real
+  money and an unmetered free tier of it ends in the product being switched off.
+  Nothing that *teaches* is gated.
+
+The Phase 0 "What NOT to build" lists in `client/CLAUDE.md` and `api/CLAUDE.md`
+are stale in the items Phase 2 deliberately builds on — chat (already shipped
+2026-07-21), social features (already shipped 2026-07-26), offline caching
+(§6.3, Stage 1+), voice conversation (§6.8, gated by §3.3). Each of those
+files now carries a Phase 2 section that supersedes the Phase 0 list.
 
 ## Environment
 
