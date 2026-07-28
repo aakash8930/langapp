@@ -130,6 +130,36 @@ describe('KnowledgeGraphService edge sets (ADR-005)', () => {
     });
   });
 
+  /**
+   * The primitive that catches what per-node declaration cannot: edges written by
+   * an earlier scheme, between nodes no current pass mentions. The graph once held
+   * 1614 kana→kana `prerequisite` edges, and rebuilding the lesson layer removes
+   * none of them because no lesson node appears at either end.
+   */
+  describe('clearEdgesOfTypes', () => {
+    it('deletes every edge of the given types in one operation', async () => {
+      const { service, deleteMany } = makeService();
+
+      await service.clearEdgesOfTypes(['prerequisite', 'contains']);
+
+      expect(deleteMany).toHaveBeenCalledTimes(1);
+      expect(deleteMany.mock.calls[0][0]).toEqual({
+        type: { $in: ['prerequisite', 'contains'] },
+      });
+    });
+
+    it('does not touch types it was not given', async () => {
+      const { service, deleteMany } = makeService();
+
+      await service.clearEdgesOfTypes(['usesKanji']);
+
+      const filter = deleteMany.mock.calls[0][0] as { type: { $in: string[] } };
+      // `related` is never created by the seed, so anything found there was put
+      // there by hand and must survive a rebuild.
+      expect(filter.type.$in).not.toContain('related');
+    });
+  });
+
   describe('findNodesByRefs', () => {
     it('queries once for the whole batch, scoped to the kind', async () => {
       const { service, find } = makeService();

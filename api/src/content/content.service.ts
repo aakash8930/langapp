@@ -408,6 +408,35 @@ export class ContentService {
   }
 
   /**
+   * The four lookups the concept layer of the graph is derived from (ADR-005).
+   * Seed support — none of these are request paths, and each returns ids plus the
+   * one field the graph keys on, never whole documents.
+   *
+   * They exist because the concept pass runs *after* all content is seeded, so it
+   * cannot reuse the ids the seeding functions held: a contrast names a character
+   * (`シ`) or a grammar point by title, and something has to turn that into an id.
+   */
+  async findKanaForGraph(): Promise<{ id: Types.ObjectId; kana: string; script: string }[]> {
+    const items = await this.kanaModel.find({}, { kana: 1, script: 1 }).exec();
+    return items.map((item) => ({ id: item._id, kana: item.kana, script: item.script }));
+  }
+
+  async findGrammarForGraph(): Promise<{ id: Types.ObjectId; title: string }[]> {
+    const points = await this.grammarModel.find({}, { title: 1 }).exec();
+    return points.map((point) => ({ id: point._id, title: point.title }));
+  }
+
+  async findVocabForGraph(): Promise<{ id: Types.ObjectId; lemma: string }[]> {
+    const words = await this.vocabModel.find({}, { lemma: 1 }).exec();
+    return words.map((word) => ({ id: word._id, lemma: word.lemma }));
+  }
+
+  async findKanjiForGraph(): Promise<{ id: Types.ObjectId; char: string }[]> {
+    const entries = await this.kanjiModel.find({}, { char: 1 }).exec();
+    return entries.map((entry) => ({ id: entry._id, char: entry.char }));
+  }
+
+  /**
    * Every lesson, in the raw shape the knowledge graph is derived from
    * (ADR-005). Seed support — not a request path.
    *

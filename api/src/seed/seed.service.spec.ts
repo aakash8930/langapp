@@ -7,6 +7,10 @@ const LESSON_ONE = new Types.ObjectId('60000000000000000000ce01');
 const LESSON_TWO = new Types.ObjectId('60000000000000000000ce02');
 const ITEM_ONE = new Types.ObjectId('60000000000000000000da01');
 const ITEM_TWO = new Types.ObjectId('60000000000000000000da02');
+const KANA_HA = new Types.ObjectId('60000000000000000000fa01');
+const GRAMMAR_HA = new Types.ObjectId('60000000000000000000fb01');
+const VOCAB_YAMA = new Types.ObjectId('60000000000000000000fc01');
+const KANJI_YAMA = new Types.ObjectId('60000000000000000000fd01');
 
 describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
   let seedService: SeedService;
@@ -26,14 +30,21 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
     countKanji: jest.Mock;
     countLessons: jest.Mock;
     findLessonsForGraph: jest.Mock;
+    findKanaForGraph: jest.Mock;
+    findGrammarForGraph: jest.Mock;
+    findVocabForGraph: jest.Mock;
+    findKanjiForGraph: jest.Mock;
   };
   let knowledgeGraph: {
     upsertNode: jest.Mock;
+    upsertConcept: jest.Mock;
     upsertEdge: jest.Mock;
     findNodeByRef: jest.Mock;
     findNodesByRefs: jest.Mock;
     setEdgesFrom: jest.Mock;
     setEdgesTo: jest.Mock;
+    clearEdgesOfTypes: jest.Mock;
+    syncIndexes: jest.Mock;
     countNodes: jest.Mock;
     countEdges: jest.Mock;
   };
@@ -76,11 +87,37 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
           },
         ]),
       ),
+      // The concept pass resolves characters and grammar titles to ids after all
+      // content is seeded, so these are the lookups it uses. One kana that a
+      // contrast pair actually names (は), and the grammar point it contrasts with,
+      // so the glyph-vs-role pair resolves in the test too.
+      findKanaForGraph: jest
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve([{ id: KANA_HA, kana: 'は', script: 'hiragana' }]),
+        ),
+      findGrammarForGraph: jest
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve([{ id: GRAMMAR_HA, title: 'は — topic marker' }]),
+        ),
+      // A **kana** lemma, because that is how this course stores vocabulary: the
+      // kanji unit re-reads words already known, so 山's association with やま
+      // comes from the authored `writes` field, not from scanning the lemma.
+      findVocabForGraph: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve([{ id: VOCAB_YAMA, lemma: 'やま' }])),
+      findKanjiForGraph: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve([{ id: KANJI_YAMA, char: '山' }])),
     };
 
     knowledgeGraph = {
       upsertNode: jest.fn().mockImplementation(() => Promise.resolve({ _id: generateOid() })),
+      upsertConcept: jest.fn().mockImplementation(() => Promise.resolve({ _id: generateOid() })),
       upsertEdge: jest.fn().mockResolvedValue(undefined),
+      syncIndexes: jest.fn().mockResolvedValue(undefined),
+      clearEdgesOfTypes: jest.fn().mockResolvedValue(0),
       findNodeByRef: jest.fn().mockImplementation(() => Promise.resolve({ _id: generateOid() })),
       // Echoes a node back per requested ref, so the sync can map ref -> node.
       findNodesByRefs: jest
@@ -119,6 +156,26 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
    * The sync derives the layer from whatever lessons exist, so the assertion that
    * matters is **every** lesson gets a node — not "at least one".
    */
+  /**
+   * The node ids the lesson pass created, paired from `upsertNode`'s calls and
+   * their resolved values — needed because the concept pass writes `contains`
+   * edges too, so a bare call count no longer identifies the lesson layer.
+   */
+  async function lessonNodeIds(): Promise<string[]> {
+    const ids: string[] = [];
+    const calls = knowledgeGraph.upsertNode.mock.calls as [{ kind: string }][];
+
+    for (const [index, call] of calls.entries()) {
+      if (call[0].kind !== 'lesson') continue;
+      const node = (await knowledgeGraph.upsertNode.mock.results[index].value) as {
+        _id: Types.ObjectId;
+      };
+      ids.push(node._id.toString());
+    }
+
+    return ids;
+  }
+
   describe('lesson graph sync (ADR-005)', () => {
     it('creates a lesson node for every lesson the content has, not just kana', async () => {
       await seedService.run();
@@ -133,11 +190,18 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
     it('declares the complete containment of each lesson, so a dropped item is removed', async () => {
       await seedService.run();
 
+      // Filtered to the lesson nodes: the concept pass also declares `contains`
+      // edges, from concept nodes to their member kana.
+      const lessonNodes = await lessonNodeIds();
+      const lessonContains = knowledgeGraph.setEdgesFrom.mock.calls.filter(
+        (call: [Types.ObjectId, string, Types.ObjectId[]]) =>
+          call[1] === 'contains' && lessonNodes.includes(call[0].toString()),
+      );
+
       // setEdgesFrom, not upsertEdge: the sync must be able to remove an edge
       // for an item a lesson no longer has.
-      expect(knowledgeGraph.setEdgesFrom).toHaveBeenCalledTimes(2);
-      for (const call of knowledgeGraph.setEdgesFrom.mock.calls) {
-        expect(call[1]).toBe('contains');
+      expect(lessonContains).toHaveLength(2);
+      for (const call of lessonContains) {
         expect(call[2]).toHaveLength(1);
       }
       expect(knowledgeGraph.upsertEdge).not.toHaveBeenCalled();
@@ -163,14 +227,101 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
       expect(secondLesson[2][0].toString()).toBe(firstLesson[0].toString());
     });
 
-    it('batches item node lookups by kind instead of one query per item', async () => {
+    it('batches item node lookups instead of querying once per item', async () => {
       await seedService.run();
 
-      // Two kinds across the two lessons: one call each, never one per item.
-      const kinds = knowledgeGraph.findNodesByRefs.mock.calls.map(
-        (call: [string, Types.ObjectId[]]) => call[0],
+      const calls = knowledgeGraph.findNodesByRefs.mock.calls as [string, Types.ObjectId[]][];
+      const callsContaining = (id: Types.ObjectId) =>
+        calls.filter(([, refIds]) => refIds.some((refId) => refId.equals(id))).length;
+
+      // Each item is resolved exactly once, in a batch — never re-queried.
+      expect(callsContaining(ITEM_ONE)).toBe(1);
+      expect(callsContaining(ITEM_TWO)).toBe(1);
+
+      // And the call count is bounded by the number of kinds and passes (lesson
+      // items, concepts, usesKanji), not by how many items exist.
+      expect(calls.length).toBeLessThanOrEqual(6);
+      for (const [, refIds] of calls) {
+        expect(Array.isArray(refIds)).toBe(true);
+      }
+    });
+  });
+
+  /**
+   * The §5.3 layer: concepts that are ideas rather than documents, and the
+   * authored contrast pairs. `concepts.spec.ts` gates the data; these pin how the
+   * seed writes it.
+   */
+  describe('concept graph sync (ADR-005)', () => {
+    it('syncs indexes before writing concepts, since the old unique index rejects the second one', async () => {
+      await seedService.run();
+
+      expect(knowledgeGraph.syncIndexes).toHaveBeenCalledTimes(1);
+      const syncOrder = knowledgeGraph.syncIndexes.mock.invocationCallOrder[0];
+      const firstConcept = knowledgeGraph.upsertConcept.mock.invocationCallOrder[0];
+      expect(syncOrder).toBeLessThan(firstConcept);
+    });
+
+    it('creates a concept per kana row, keyed by slug rather than a content id', async () => {
+      await seedService.run();
+
+      const slugs = knowledgeGraph.upsertConcept.mock.calls.map(
+        (call: [{ slug: string }]) => call[0].slug,
       );
-      expect(kinds.sort()).toEqual(['kana', 'vocab']);
+
+      // Derived from the packs, so this grows with the content rather than being
+      // a fixed list — what matters is the shape and that they are unique.
+      expect(slugs.length).toBeGreaterThan(20);
+      expect(new Set(slugs).size).toBe(slugs.length);
+      expect(slugs).toContain('row-hiragana-a');
+      expect(slugs).toContain('row-katakana-a');
+      // A concept never claims a refId — the partial unique index depends on it
+      // staying absent.
+      for (const call of knowledgeGraph.upsertConcept.mock.calls as [
+        Record<string, unknown>,
+      ][]) {
+        expect(call[0].refId).toBeUndefined();
+      }
+    });
+
+    /**
+     * Symmetric relation, directed storage. The pair authored as は ~ は-topic-marker
+     * must be readable from either end with one indexed lookup, which means two
+     * edges.
+     */
+    it('writes contrasts in both directions', async () => {
+      await seedService.run();
+
+      const contrastCalls = knowledgeGraph.setEdgesFrom.mock.calls.filter(
+        (call: [Types.ObjectId, string, Types.ObjectId[]]) => call[1] === 'contrasts-with',
+      );
+
+      // The stubbed content resolves exactly one pair (は kana ~ は topic marker),
+      // so both of its endpoints declare an edge.
+      expect(contrastCalls).toHaveLength(2);
+      const [first, second] = contrastCalls as [
+        [Types.ObjectId, string, Types.ObjectId[]],
+        [Types.ObjectId, string, Types.ObjectId[]],
+      ];
+      expect(first[2][0].toString()).toBe(second[0].toString());
+      expect(second[2][0].toString()).toBe(first[0].toString());
+    });
+
+    /**
+     * Derived from `KanjiSeed.writes` in the real kanji pack, not from the lemma.
+     * Scanning lemmas for kanji characters finds nothing in this course — tried
+     * it, zero edges across 802 words — because vocabulary is stored in kana.
+     */
+    it('links a word to the kanji that writes it', async () => {
+      await seedService.run();
+
+      const usesKanji = knowledgeGraph.setEdgesFrom.mock.calls.filter(
+        (call: [Types.ObjectId, string, Types.ObjectId[]]) => call[1] === 'usesKanji',
+      );
+
+      // 山 declares `writes: ['やま']`, which is the stubbed vocabulary lemma.
+      expect(usesKanji).toHaveLength(1);
+      expect(usesKanji[0][2]).toHaveLength(1);
     });
   });
 

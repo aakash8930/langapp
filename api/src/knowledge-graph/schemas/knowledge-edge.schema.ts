@@ -1,8 +1,29 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
-export type EdgeType = 'prerequisite' | 'contains' | 'related' | 'usesKanji';
-export const EDGE_TYPES: EdgeType[] = ['prerequisite', 'contains', 'related', 'usesKanji'];
+/**
+ * `contrasts-with` was added by ADR-005 / §5.3, and it is the pedagogically
+ * load-bearing one: シ/ツ, は-as-particle vs は-as-syllable, ます/ました. These are
+ * the pairs learners actually confuse, and the exercise generator already
+ * benefits from them by accident — a distractor drawn from the unit pool
+ * sometimes puts ツ beside シ. Recording them makes that deliberate.
+ *
+ * It is **symmetric**, and edges here are directed, so both directions are
+ * written (see `SeedService.syncConceptGraph`). That keeps "what contrasts with
+ * this" a single indexed lookup on `from` instead of a query per direction.
+ *
+ * `related` and `usesKanji` predate this and were declared but never created;
+ * `usesKanji` is populated as of ADR-005 slice 3 — a word points at the kanji it
+ * is written with. `related` is still unused.
+ */
+export type EdgeType = 'prerequisite' | 'contains' | 'related' | 'usesKanji' | 'contrasts-with';
+export const EDGE_TYPES: EdgeType[] = [
+  'prerequisite',
+  'contains',
+  'related',
+  'usesKanji',
+  'contrasts-with',
+];
 
 /**
  * §5: the graph is an adjacency list in Mongo — nodes plus edges, no graph

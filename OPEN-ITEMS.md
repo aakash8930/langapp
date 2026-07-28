@@ -423,9 +423,83 @@ the graph and the lessons could disagree with nothing to notice.
 
 The original note follows.
 
-### 9a. What ADR-005 still owes (2026-07-28)
+### 9b. The live graph is two schemes old, and re-seeding is part of deploying (2026-07-28)
 
-Slice 1 fixed the *shape* of the graph. The rest of §5.3 is untouched:
+**Read this before deploying ADR-005.** The production database still holds the
+*first* graph scheme: 1126 nodes with **no lesson nodes at all** and **1614
+kana→kana `prerequisite` edges** — the quadratic ones asserting ぴょ requires りょ.
+It has never been re-seeded since 9baaa3b.
+
+`npm run seed` is what migrates it, and it does three things that matter here:
+`syncIndexes()` replaces the unique `{kind, refId}` index with the partial pair
+concepts need, the derived edge types are cleared and rebuilt, and the lesson and
+concept layers are written. Expected after: **1270 nodes, 1613 edges**.
+
+**The edge clearing exists because of a bug this nearly shipped with.**
+`setEdgesFrom`/`setEdgesTo` declare the complete set of edges *for the nodes they
+are called about*, so they cannot remove an edge written by an earlier scheme —
+the 1614 kana→kana edges sit between nodes no current pass mentions, and every
+one of them would have survived a re-seed. Every scratch database was seeded
+fresh, which is exactly why the tests were green: the bug is only reachable from a
+database with history. Found by planting 400 kana→kana edges plus 208 orphans into
+a seeded database and re-running; all 2221 derived edges were cleared and rebuilt
+to 1613, with zero survivors and zero orphans.
+
+Two smaller things worth knowing:
+
+- **Nodes are never pruned.** Only edges are. A node for content that has been
+  deleted persists, and edges to it are cleared but the node stays. Harmless
+  today — content is only ever added — and it is what keeps `conceptId` on content
+  documents stable across seeds, which is the reason not to just rebuild the
+  collection.
+- **Mongo's `{refId: null}` matches an absent field**, so it cannot be used to
+  check the invariant that concepts carry no `refId`. `{refId: {$exists: true}}`
+  is the check that means what it says; my first verification query read as 54
+  violations when the real answer was 0.
+
+### 9a. What ADR-005 still owes (2026-07-28, updated after slice 3)
+
+Slice 1 fixed the *shape* of the graph, slice 3 added the concept layer. What
+remains:
+
+- **`related` is still declared and never created.** The one edge type with no
+  producer. It is deliberately excluded from the seed's edge clearing, so anything
+  found there was put there by hand.
+- **Nothing reads the concept layer yet.** The edges exist and are correct; no
+  service queries them. The first intended consumer is the exercise generator
+  using `contrasts-with` to choose distractors on purpose rather than by accident
+  of the unit pool — that is a change to question generation and belongs in its own
+  slice, with the seeded shuffle's determinism preserved.
+- **Concept prerequisites do not exist.** Only `contains` (concept → its kana) and
+  `contrasts-with` are written. Grammar dependencies — the thing ADR-005 said the
+  concept graph unblocks — need concepts that stand for grammatical ideas rather
+  than kana rows, and those are not derivable from the packs.
+
+Resolved by slice 3 (2026-07-28), for the record:
+
+- `concept` nodes exist — 54 of them, one per kana row across both scripts and
+  both marks packs, derived from the packs so a new row cannot be forgotten.
+  Identity is `{lang, slug}` via partial unique index; `refId` stays absent.
+- `contrasts-with` exists — 30 authored pairs, 60 directed edges (the relation is
+  symmetric and edges are directed, so both directions are written).
+- `usesKanji` is populated — 130 edges across 118 words.
+
+**§5.3's own example could not be authored.** It names "が vs は" as a target
+contrast; the course teaches は as a topic marker and never teaches が as a subject
+marker, so the pair would assert a distinction no lesson draws.
+`concepts.spec.ts` rejects it, which is the gate doing its job on the blueprint
+rather than on me.
+
+**`usesKanji` is not derivable from lemmas**, which is worth recording because the
+obvious approach looks right and silently produces nothing. Vocabulary is stored
+in kana by design — the kanji unit is a *re-reading* of known words — so scanning
+802 lemmas for taught kanji characters yields **zero** matches. The relation lives
+on `KanjiSeed.writes`, whose own comment says it is "not persisted" because §5's
+`KanjiEntry` has nowhere to put it. The graph is that home: a relation between two
+content documents is what it is for, so authored scaffolding became queryable with
+no schema departure.
+
+
 
 - **No `concept` nodes.** §5.3's core addition — a node that is an idea rather
   than a content document ("the あ row", "な-adjectives", "the が/は

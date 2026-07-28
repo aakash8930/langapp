@@ -4,6 +4,7 @@ import { ContentService, LessonGraphRow } from '../content/content.service';
 import { ItemRef } from '../content/schemas/lesson.schema';
 import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.service';
 import { ContentKind } from '../knowledge-graph/schemas/knowledge-node.schema';
+import { CONTRASTS, ContrastRef, rowConcepts } from './japanese/concepts';
 import { GRAMMAR_GROUPS, GRAMMAR_LESSONS, GRAMMAR_UNIT } from './japanese/grammar';
 import { HIRAGANA_PACK } from './japanese/hiragana';
 import { HIRAGANA_MARKS_PACK } from './japanese/hiragana-marks';
@@ -197,10 +198,40 @@ export class SeedService {
     await this.seedVocabPack(VOCAB_N5_PACK, previousLessonId);
     this.logger.log(`Seeded ${VOCAB_N5_UNIT}: ${countWordsIn(VOCAB_N5_PACK)} words`);
 
+    // Indexes first: ADR-005 replaced a unique index with a partial one, and the
+    // concept pass below cannot write a second concept until the old index is
+    // gone. See `KnowledgeGraphService.syncIndexes` for why this is safe here.
+    await this.knowledgeGraph.syncIndexes();
+
+    // Then clear the derived edge types and rebuild them below. Per-node
+    // declaration cannot remove an edge written by an *earlier* scheme — the
+    // 1614 kana→kana `prerequisite` edges the graph used to hold sit between
+    // nodes no current pass mentions, so they would survive for ever. Found by
+    // simulating a live database rather than a fresh one; see
+    // `clearEdgesOfTypes`.
+    const cleared = await this.knowledgeGraph.clearEdgesOfTypes([
+      'prerequisite',
+      'contains',
+      'contrasts-with',
+      'usesKanji',
+    ]);
+    this.logger.log(`Graph: cleared ${cleared} derived edges before rebuilding`);
+
     const graph = await this.syncLessonGraph();
     this.logger.log(
       `Graph: ${graph.lessonNodes} lesson nodes, ${graph.containsEdges} contains, ` +
         `${graph.prerequisiteEdges} prerequisite`,
+    );
+
+    const concepts = await this.syncConceptGraph();
+    this.logger.log(
+      `Concepts: ${concepts.conceptNodes} rows, ${concepts.memberEdges} contains, ` +
+        `${concepts.contrastEdges} contrasts-with (${concepts.unresolvedContrasts} unresolved)`,
+    );
+
+    const kanjiUse = await this.syncUsesKanji();
+    this.logger.log(
+      `Kanji use: ${kanjiUse.edges} usesKanji edges across ${kanjiUse.words} words`,
     );
 
     const summary: SeedSummary = {
@@ -301,6 +332,207 @@ export class SeedService {
   }
 
   /**
+   * The concept layer (ADR-005 / §5.3): a `concept` node per kana row, `contains`
+   * edges to its characters, and `contrasts-with` edges for every authored pair.
+   *
+   * Row concepts are **derived** from the packs, so a row added to a pack becomes
+   * a concept with nobody remembering to. Contrasts are **authored** in
+   * `concepts.ts` and gated by `concepts.spec.ts`, because no table encodes that
+   * シ and ツ look alike.
+   *
+   * `contrasts-with` is symmetric and edges are directed, so both directions are
+   * written. That keeps "what does this contrast with" one indexed lookup on
+   * `from`, and it is why the edges are grouped by node before being declared —
+   * `setEdgesFrom` states a node's *complete* set, so a pair removed from the list
+   * disappears on the next seed.
+   *
+   * An unresolved reference is counted and skipped rather than throwing. The spec
+   * already refuses pairs the packs do not teach, so reaching this means the
+   * content is seeded inconsistently with itself; failing the whole seed over one
+   * edge would be a worse trade than a logged count.
+   */
+  private async syncConceptGraph(): Promise<{
+    conceptNodes: number;
+    memberEdges: number;
+    contrastEdges: number;
+    unresolvedContrasts: number;
+  }> {
+    const kana = await this.contentService.findKanaForGraph();
+    const kanaIdByKey = new Map(kana.map((item) => [`${item.script}:${item.kana}`, item.id]));
+    const kanaNodeIdByRefId = await this.nodeIdsByRefId(
+      'kana',
+      kana.map((item) => item.id),
+    );
+
+    // 1. One concept per row, containing that row's characters.
+    let memberEdges = 0;
+    const concepts = rowConcepts([...BASE_PACKS, ...MARKS_PACKS]);
+
+    for (const concept of concepts) {
+      const node = await this.knowledgeGraph.upsertConcept({
+        slug: concept.slug,
+        label: concept.label,
+      });
+
+      const memberNodeIds = concept.kana
+        .map((character) => kanaIdByKey.get(`${concept.script}:${character}`))
+        .map((refId) => (refId ? kanaNodeIdByRefId.get(refId.toString()) : undefined))
+        .filter((id): id is Types.ObjectId => id !== undefined);
+
+      await this.knowledgeGraph.setEdgesFrom(node._id, 'contains', memberNodeIds);
+      memberEdges += memberNodeIds.length;
+    }
+
+    // 2. Contrast pairs, resolved to node ids and grouped by node.
+    const grammar = await this.contentService.findGrammarForGraph();
+    const grammarIdByTitle = new Map(grammar.map((point) => [point.title, point.id]));
+    const grammarNodeIdByRefId = await this.nodeIdsByRefId(
+      'grammar',
+      grammar.map((point) => point.id),
+    );
+
+    const resolve = (ref: ContrastRef): Types.ObjectId | undefined => {
+      if (ref.kind === 'kana') {
+        const refId = kanaIdByKey.get(`${ref.script}:${ref.kana}`);
+        return refId ? kanaNodeIdByRefId.get(refId.toString()) : undefined;
+      }
+      const refId = grammarIdByTitle.get(ref.title);
+      return refId ? grammarNodeIdByRefId.get(refId.toString()) : undefined;
+    };
+
+    const contrastsByNode = new Map<string, Map<string, Types.ObjectId>>();
+    const add = (from: Types.ObjectId, to: Types.ObjectId) => {
+      const key = from.toString();
+      const existing = contrastsByNode.get(key) ?? new Map<string, Types.ObjectId>();
+      existing.set(to.toString(), to);
+      contrastsByNode.set(key, existing);
+    };
+
+    let unresolvedContrasts = 0;
+    for (const contrast of CONTRASTS) {
+      const a = resolve(contrast.a);
+      const b = resolve(contrast.b);
+      if (!a || !b) {
+        unresolvedContrasts++;
+        continue;
+      }
+      add(a, b);
+      add(b, a);
+    }
+
+    let contrastEdges = 0;
+    for (const [nodeId, targets] of contrastsByNode) {
+      await this.knowledgeGraph.setEdgesFrom(
+        new Types.ObjectId(nodeId),
+        'contrasts-with',
+        [...targets.values()],
+      );
+      contrastEdges += targets.size;
+    }
+
+    return {
+      conceptNodes: concepts.length,
+      memberEdges,
+      contrastEdges,
+      unresolvedContrasts,
+    };
+  }
+
+  /**
+   * `usesKanji`: a word points at each kanji that writes it (ADR-005).
+   *
+   * ## Where the relation comes from, and why not the lemma
+   *
+   * The obvious derivation — scan a lemma for kanji characters — finds **nothing**
+   * here, and that is by design rather than by accident: this course teaches
+   * vocabulary in kana and the kanji unit is a *re-reading* of words already
+   * known, so やま is stored as やま and 山 arrives later as the way it is really
+   * written. Tried it first; it produced zero edges across 802 words.
+   *
+   * The relation is instead authored, on `KanjiSeed.writes` — the kana words each
+   * character writes some part of — and `kanji.spec.ts` already checks every entry
+   * against the actual vocabulary. Its own doc comment notes it is "not persisted"
+   * because §5's `KanjiEntry` has nowhere to put it and inventing a field would be
+   * a third documented departure from §5.
+   *
+   * **This is that home.** A relation between two content documents is what the
+   * graph is for, so `writes` stops being seed-only authoring scaffolding and
+   * becomes queryable — without any schema departure.
+   *
+   * Edges run word → kanji, matching the name: the word is what uses the kanji.
+   */
+  private async syncUsesKanji(): Promise<{ edges: number; words: number }> {
+    const [vocab, kanji] = await Promise.all([
+      this.contentService.findVocabForGraph(),
+      this.contentService.findKanjiForGraph(),
+    ]);
+
+    const vocabIdByLemma = new Map(vocab.map((word) => [word.lemma, word.id]));
+    const kanjiIdByChar = new Map(kanji.map((entry) => [entry.char, entry.id]));
+    const kanjiNodeIdByRefId = await this.nodeIdsByRefId(
+      'kanji',
+      kanji.map((entry) => entry.id),
+    );
+    const vocabNodeIdByRefId = await this.nodeIdsByRefId(
+      'vocab',
+      vocab.map((word) => word.id),
+    );
+
+    // Grouped by word, because `setEdgesFrom` declares a node's complete set and
+    // one word can be written by several characters (かざん by 火 and 山).
+    const kanjiNodesByVocabNode = new Map<string, Map<string, Types.ObjectId>>();
+
+    for (const group of Object.values(KANJI_GROUPS)) {
+      for (const entry of group) {
+        const kanjiRefId = kanjiIdByChar.get(entry.char);
+        const kanjiNodeId = kanjiRefId
+          ? kanjiNodeIdByRefId.get(kanjiRefId.toString())
+          : undefined;
+        if (!kanjiNodeId) continue;
+
+        for (const lemma of entry.writes) {
+          const vocabRefId = vocabIdByLemma.get(lemma);
+          const vocabNodeId = vocabRefId
+            ? vocabNodeIdByRefId.get(vocabRefId.toString())
+            : undefined;
+          if (!vocabNodeId) continue;
+
+          const key = vocabNodeId.toString();
+          const targets = kanjiNodesByVocabNode.get(key) ?? new Map<string, Types.ObjectId>();
+          targets.set(kanjiNodeId.toString(), kanjiNodeId);
+          kanjiNodesByVocabNode.set(key, targets);
+        }
+      }
+    }
+
+    let edges = 0;
+    for (const [vocabNodeId, targets] of kanjiNodesByVocabNode) {
+      await this.knowledgeGraph.setEdgesFrom(new Types.ObjectId(vocabNodeId), 'usesKanji', [
+        ...targets.values(),
+      ]);
+      edges += targets.size;
+    }
+
+    return { edges, words: kanjiNodesByVocabNode.size };
+  }
+
+  /** `refId -> node id` for one kind, in one query. */
+  private async nodeIdsByRefId(
+    kind: ContentKind,
+    refIds: Types.ObjectId[],
+  ): Promise<Map<string, Types.ObjectId>> {
+    const nodes = await this.knowledgeGraph.findNodesByRefs(kind, refIds);
+    const byRefId = new Map<string, Types.ObjectId>();
+    for (const node of nodes) {
+      // `refId` is optional on the schema now that concepts exist, and these are
+      // content-backed nodes, so it is always present here — narrowed rather than
+      // asserted.
+      if (node.refId) byRefId.set(node.refId.toString(), node._id);
+    }
+    return byRefId;
+  }
+
+  /**
    * `"{kind}:{refId}" -> node id` for every item any lesson references.
    *
    * Keyed by kind *and* id because `ItemRef` is polymorphic and the graph's own
@@ -321,7 +553,9 @@ export class SeedService {
     for (const [kind, refIds] of refIdsByKind) {
       const nodes = await this.knowledgeGraph.findNodesByRefs(kind, refIds);
       for (const node of nodes) {
-        nodeIdByRef.set(`${kind}:${node.refId.toString()}`, node._id);
+        // Optional on the schema since concepts exist; always set on the
+        // content-backed nodes this queries for.
+        if (node.refId) nodeIdByRef.set(`${kind}:${node.refId.toString()}`, node._id);
       }
     }
 

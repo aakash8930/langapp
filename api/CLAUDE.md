@@ -112,6 +112,31 @@ have been reclassified and the rest stand:
   `common/versioning.spec.ts` pins every case against a real HTTP server without
   needing Mongo or Redis.
 
+- **The knowledge graph is derived, and the seed owns it** — ADR-005, slices
+  landed 2026-07-28. `knowledgeNodes` and `knowledgeEdges` are a function of the
+  content, rebuilt by `npm run seed`; nothing else writes them.
+
+  Three rules follow, and the third cost a near-miss:
+
+  1. **Never hand-write a layer per pack.** The lesson layer used to be built
+     inline in `seedKanaLessons`, so 68 of 90 lessons had no node — it looked
+     finished. `syncLessonGraph` reads whatever lessons exist instead.
+  2. **Declare complete sets, don't upsert.** `setEdgesFrom` / `setEdgesTo`
+     remove as well as add, so a lesson that loses an item loses the edge.
+  3. **A rebuild must also clear the derived edge types**
+     (`clearEdgesOfTypes`). Per-node declaration cannot touch edges from an
+     *earlier scheme*, because no current node appears at either end — the 1614
+     old kana→kana `prerequisite` edges would have survived every re-seed. Only
+     reachable on a database with history, which is why fresh scratch databases
+     were green.
+
+  Concepts (`kind: 'concept'`) are identified by `{lang, slug}` and carry **no
+  `refId`** — both unique indexes are partial, so an explicit `refId: null` would
+  re-break what the partial index fixes. Authored graph data (`contrasts-with`
+  pairs) is gated by `concepts.spec.ts` against the seed packs, the same way
+  `romaji.spec.ts` gates transliteration; derived data (row concepts, `usesKanji`)
+  is not authored at all.
+
 The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
 teacher portal, i18n framework, admin panel, AR, second language) remain
 forbidden. None of them are in `PHASE-2-BLUEPRINT.md`.
@@ -248,6 +273,31 @@ have been reclassified and the rest stand:
   Operational routes (`/`, `/health`) are `VERSION_NEUTRAL` and answer bare only.
   `common/versioning.spec.ts` pins every case against a real HTTP server without
   needing Mongo or Redis.
+
+- **The knowledge graph is derived, and the seed owns it** — ADR-005, slices
+  landed 2026-07-28. `knowledgeNodes` and `knowledgeEdges` are a function of the
+  content, rebuilt by `npm run seed`; nothing else writes them.
+
+  Three rules follow, and the third cost a near-miss:
+
+  1. **Never hand-write a layer per pack.** The lesson layer used to be built
+     inline in `seedKanaLessons`, so 68 of 90 lessons had no node — it looked
+     finished. `syncLessonGraph` reads whatever lessons exist instead.
+  2. **Declare complete sets, don't upsert.** `setEdgesFrom` / `setEdgesTo`
+     remove as well as add, so a lesson that loses an item loses the edge.
+  3. **A rebuild must also clear the derived edge types**
+     (`clearEdgesOfTypes`). Per-node declaration cannot touch edges from an
+     *earlier scheme*, because no current node appears at either end — the 1614
+     old kana→kana `prerequisite` edges would have survived every re-seed. Only
+     reachable on a database with history, which is why fresh scratch databases
+     were green.
+
+  Concepts (`kind: 'concept'`) are identified by `{lang, slug}` and carry **no
+  `refId`** — both unique indexes are partial, so an explicit `refId: null` would
+  re-break what the partial index fixes. Authored graph data (`contrasts-with`
+  pairs) is gated by `concepts.spec.ts` against the seed packs, the same way
+  `romaji.spec.ts` gates transliteration; derived data (row concepts, `usesKanji`)
+  is not authored at all.
 
 The items not addressed above (microservices, Kubernetes, GraphQL, marketplace,
 teacher portal, i18n framework, admin panel, AR, second language) remain
