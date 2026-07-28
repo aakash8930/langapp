@@ -208,14 +208,22 @@ inventing a learning-module schema a milestone early.
 
 ## Deferred by design (blueprint says [Later], noted so they aren't forgotten)
 
-### 5. No `DELETE /me`
+### 5. RESOLVED — `DELETE /me` exists
 
-§10 is explicit that you should build true erasure *before* you need it — DPDP
-(India, applies to you now) and GDPR (the moment you have an EU user) both
-require it. `revokeAll` covers the Redis side; the Mongo side needs a real
-cascade once SrsCards, chat messages and events exist. **It gets harder with
-every milestone.** Cheapest moment to write it is right after the collection
-that would need cascading gets created.
+`AccountDeletionService` cascades across `users`, `srsCards`,
+`lessonCompletions`, `exerciseAttempts`, `chatSessions`, `chatMessages`,
+`events`, `friendships`, `blocks` and `directMessages`; `reports` and
+`leagueStandings` are kept, for the reasons documented at the endpoint in
+`CLAUDE.md`. Cross-module deletes run in parallel and the user document goes
+last, so a crash mid-cascade leaves consistent data rather than orphans.
+
+This item, and #32 below, both still said it did not exist — the endpoint
+shipped without either being updated. Corrected 2026-07-28 with the
+documentation pass; see #36.
+
+**Still open from the original concern:** the §10 requirement is erasure the
+*learner* can trigger, and this is an API route. Whether either client surfaces
+a delete-account action has not been checked here.
 
 ### 6. MOSTLY RESOLVED (2026-07-22) — backups exist, but on the same disk
 
@@ -322,23 +330,58 @@ Busuu and HelloTalk make the same trade. If minor↔adult contact ever needs
 restricting outright, `MIN_AGE_FOR_MESSAGING` is the seam, and the schema
 already stores what such a check would read.
 
-**Still missing: the privacy policy and the ToS**, and they are now worse
-than before. The app collects a date of birth, stores messages between
-learners, and retains reports about people — all of which a privacy policy is
-supposed to disclose. §13 item 5 is unfinished.
+**Both documents exist since 2026-07-27** — `legal.controller.ts`, served as
+markdown at `/privacy` and `/terms` and as JSON at `/legal/privacy` and
+`/legal/terms`. This paragraph said they did not until 2026-07-28; see #36 for
+how a whole route group went unrecorded.
+
+Reviewing them for accuracy on 2026-07-28 turned up three problems, since the
+text is hand-written prose that nothing typechecks:
+
+- It listed **"gem counts"** among the data collected. Gems were deleted in §3.1.
+  Fixed, and `legal.controller.spec.ts` now fails if a removed mechanic
+  reappears in the legal text.
+- It said an account could be deleted "within account settings". **Neither client
+  has such a control** — grepping `client/` and `web/` finds nothing calling
+  `DELETE /me`. Reworded to name the API and admit the in-app control is not
+  there yet.
+- It promised deletion of "all associated data" without mentioning that
+  **safety reports are retained**. Now disclosed, along with the fact that
+  deleting direct messages removes them from the other participant's history
+  too.
+
+**Two gaps remain and neither is mine to close.** The contact address is
+`support@langapp.example.com`, a placeholder that does not receive mail — a
+privacy policy whose data-request channel does not exist is not a working
+policy. And erasure is API-only: DPDP expects a mechanism a non-technical
+learner can actually use, which means a settings screen, not a `curl`. The
+policy is at least honest about that now.
 
 The original report follows.
 
 §13 item 5. Language apps pull in minors whether or not you target them. Tiny
 now, painful to retrofit after launch.
 
-### 8. No "report a mistake" affordance
+### 8. PARTLY RESOLVED — the report route exists; nobody reads the reports
 
-§13 item 2 calls confidently teaching *wrong* Japanese the existential risk of an
-AI-content language app. The content pipeline is currently seed-file-only and
-hand-checked, so the risk is near zero **today** — it becomes real the moment
-any content is AI-generated. Add the report action before that milestone, not
-after.
+`POST /content/report` takes `{ itemKind, itemId, issueType, description? }` and
+files a `contentReports` row. So the affordance §13 item 2 asked for is on the
+wire, ahead of any AI-generated content — which was the deadline that mattered.
+
+**But it is write-only, exactly like social reports (#31).** `status` is `'open'`
+and nothing in the codebase moves a row to `'reviewed'` or `'resolved'`; the enum
+has those values and no route or job uses them. A learner who reports a typo has
+no way to learn that anything happened, and the operator has no way to find out
+without querying Mongo by hand.
+
+That is tolerable while content is seed-file-only and hand-checked. It stops being
+tolerable at the same moment the original note names: **the first AI-generated
+content**, because then the report queue is the only thing standing between a
+generation bug and a learner being taught something false. Whatever answers #31
+should answer this at the same time — one review surface for both report kinds,
+not two.
+
+Also unchecked: whether either client actually calls this route.
 
 ---
 
@@ -512,7 +555,15 @@ remembering to look.
 can be requested by many accounts), and no way to see *who* blocked you
 (deliberate — see the note on the opaque error message).
 
-### 32. `DELETE /me` is now overdue, not merely late (slice 5, 2026-07-26)
+### 32. RESOLVED — `DELETE /me` is now overdue, not merely late (slice 5, 2026-07-26)
+
+**Built since this was written** (see #5). The hard question it raised — what
+happens to messages the deleted account wrote — was answered by keeping `reports`
+(evidence for moderation) and deleting `directMessages`. That means the *other*
+participant's copy of a conversation goes too, which is the opposite of the
+tombstoning this note expected; it is defensible as the privacy-favouring reading
+of erasure, but it was decided by implementation rather than in writing, and it is
+worth confirming that is what you want. The original note follows.
 
 Item 5 has said since Phase 0 that erasure gets harder every milestone. Slice
 5 made it materially harder **and** materially more necessary in one commit:
@@ -573,6 +624,40 @@ Mitigated for that one case by `settleJobId` plus a test. The general problem
 stands: anything computed into a job's name, id or options is unvalidated until
 it runs. The cheapest honest fix if this bites again is a dev-mode
 `throwOnEnqueueFailure` flag so a bad enqueue is loud outside production.
+
+### 36. Ten routes shipped undocumented, and nothing noticed (2026-07-28)
+
+The root `CLAUDE.md` calls itself the single source of truth for the contract and
+requires a response-shape change to update it *in the same commit*. It drifted
+anyway. Found while dumping the real Express route table during ADR-007, not by
+reading code:
+
+- `POST /auth/logout`
+- `DELETE /me` — with `OPEN-ITEMS` #5 and #32 still saying it did not exist
+- `GET /learning/readiness/:lessonId`, `/learning/memory-model`,
+  `/learning/analytics`
+- `POST /content/report` — with #8 still saying the affordance was missing
+- `GET /privacy`, `/terms`, `/legal/privacy`, `/legal/terms`
+
+All ten are documented now. The interesting part is the failure mode: **the doc
+rule only fires when someone remembers it**, and three of these came with an
+`OPEN-ITEMS` entry that was left contradicting the code. A reader trusting either
+file would have been wrong about what the API does — and for `DELETE /me` that is
+a compliance-relevant wrongness, since the privacy policy names an endpoint the
+notes claimed was unbuilt.
+
+Documenting them also turned up two things that only surface when you write the
+shape down: `unmasteredPrerequisites` returns display *labels* rather than ids, so
+it cannot be used for lookup, and `readiness` mixes fractions (`readinessScore`,
+`accuracyRateToday`) with percentages (`overallRetentionRate`,
+`forgettingCurve[].retentionRate`) across neighbouring fields.
+
+**Cheapest guard**, and worth doing before Phase 2 adds routes at speed: a spec
+that scans the `@Controller`/`@Get`/`@Post`/… decorators in `src/` into a route
+list and compares it against a checked-in inventory, failing when a route is added
+without the inventory being updated. Static parsing rather than booting the app, so
+it runs in CI without Mongo or Redis. Not built — it is a real piece of work, and
+this pass fixed the symptom rather than the cause.
 
 ### 35. Both clients still call the unversioned paths (ADR-007, 2026-07-28)
 

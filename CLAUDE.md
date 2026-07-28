@@ -77,7 +77,20 @@ POST /auth/login     { email, password }                                     -> 
 
 POST /auth/refresh   { refreshToken }  -> 200
      -> { accessToken, refreshToken, expiresIn }        // flat, NOT nested under `tokens`
+
+POST /auth/logout    { refreshToken }  -> 204 No Content, empty body
 ```
+
+`/auth/logout` consumes the presented refresh token — the same consumption
+rotation already does — so that token cannot be redeemed again. It is
+**idempotent and never fails on a bad token**: an expired, malformed or
+already-consumed token still answers 204, because a client logging out has
+nothing useful to do with an error and a 4xx would only tempt it to keep a
+session it is trying to discard. It takes the *refresh* token, not the access
+token, and does not need a bearer.
+
+It only revokes the one token presented. Revoking every session for a user
+exists as `AuthService.logoutAll` but **is not on the wire** — no route calls it.
 
 `displayName` is required, 1–60 chars. `password` is 8–128, `email` ≤254.
 
@@ -105,9 +118,10 @@ which field was wrong, because the API does not know and neither do you.
 ### Me
 
 ```
-GET   /me            bearer -> <UserResponse>
-PATCH /me/settings   bearer  { audioSpeed?, theme?, tz?, dailyGoalXp?, leaderboardOptIn? }  -> <UserResponse>
-GET   /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
+GET    /me            bearer -> <UserResponse>
+PATCH  /me/settings   bearer  { audioSpeed?, theme?, tz?, dailyGoalXp?, leaderboardOptIn? }  -> <UserResponse>
+DELETE /me            bearer -> 204 No Content, empty body
+GET    /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
                                  streakDays, lastStudyDate,
                                  daily: { xpToday, goalXp, percentOfGoal, goalMet,
                                           reviewsDone, lessonsDone },
@@ -118,6 +132,30 @@ UserResponse = { id, email, createdAt,
                  gamification: { xp, streakDays, lastStudyDate, dailyGoalXp },
                  settings:     { audioSpeed, theme, tz, leaderboardOptIn } }
 ```
+
+**`DELETE /me` is a real cascade, and it is irreversible.** It erases `users`,
+`srsCards`, `lessonCompletions`, `exerciseAttempts`, `chatSessions`,
+`chatMessages`, `events`, `friendships`, `blocks` and `directMessages`. The
+cross-module deletes run in parallel *first* and the user document goes **last**,
+deliberately: crashing mid-cascade then leaves consistent data rather than orphan
+rows with no owning user, and re-running is safe because `deleteMany` on an empty
+set is a no-op.
+
+Two things survive on purpose. `reports` (safety reports filed by or about the
+account) are kept for moderation integrity — a report is evidence for review, not
+a profile, and deleting the accused's account should not destroy it.
+`leagueStandings` are kept because they are ephemeral weekly snapshots that expire
+on their own.
+
+A missing user is **404**, not a silent 204 — the token can be valid for an
+account that is already gone. After a successful delete the client must discard
+its tokens; the access token stays cryptographically valid until it expires but
+every route that loads the user now 404s.
+
+Orchestration lives in `AccountDeletionService`, not `UserService`, because the
+cascade has to call into `learning`, `chat`, `analytics` and `social`, and
+`UserService` calling them would close a dependency cycle — every one of those
+modules imports `UserModule`.
 
 `PATCH /me/settings` returns the **whole user**, not just the settings block.
 `audioSpeed` is 0.5–2.0, `theme` is `light`/`dark`/`system`, `tz` an IANA zone name,
@@ -425,6 +463,84 @@ Also an object wrapping the array, not a bare array. `totalDue` is the true coun
 `count` the capped batch, so a client can show "20 of 47".
 
 XP is due-gated: grading a card that was not actually due awards nothing.
+
+### Learner model — bearer
+
+```
+GET /learning/readiness/:lessonId  -> { lessonId, readinessScore, status,
+                                        masteredPrerequisites, totalPrerequisites,
+                                        unmasteredPrerequisites: [ <item label> ] }
+GET /learning/memory-model         -> { totalCards, overallRetentionRate,
+                                        masteryBreakdown: { new, learning,
+                                                            familiar, mastered },
+                                        forgettingCurve: [ { day, retentionRate } ] }
+GET /learning/analytics            -> { totalReviewsToday, accuracyRateToday,
+                                        averageResponseTimeMs, masteredCount }
+```
+
+Landed with the adaptive learner model (commit 9baaa3b) and **undocumented here
+until 2026-07-28** — see OPEN-ITEMS #36 on how that happened.
+
+**`readiness` counts items, not lessons.** `totalPrerequisites` is every item in
+every lesson listed in `prerequisiteLessonIds`, and `masteredPrerequisites` is how
+many of those the learner holds a card for at `familiar` or `mastered`.
+`unmasteredPrerequisites` is **display labels, not ids** — the kana character, the
+vocab lemma, the kanji glyph, or the grammar point's title — so it can be shown to
+a learner directly but cannot be used to look anything up.
+
+`readinessScore` is `mastered / total` rounded to 2dp, and `status` is a band over
+it: **≥ 0.8 `ready`, ≥ 0.5 `needs_review`, below that `locked`**. A lesson with no
+prerequisites is `1.0` and `ready`. An unknown `:lessonId` is **404**.
+
+This is **not** the lesson lock rule. Locking is still derived client-side from
+`prerequisiteLessonIds` against `completedLessonIds`, and `status` here is a
+*mastery* judgement about retention. The two can and should disagree — an unlocked
+lesson can read `needs_review`, which is the point of the endpoint. Nothing on the
+server treats `status: 'locked'` as an access control.
+
+Note the unit mismatch, which is real and easy to get wrong: `readinessScore` and
+`accuracyRateToday` are **fractions** (0.0–1.0), while `overallRetentionRate` and
+`forgettingCurve[].retentionRate` are **percentages** (0–100). `masteryBreakdown`
+keys are the four `MasteryLevel` values and always all four, zeros included.
+
+These derive from `srsCards` and `exerciseAttempts` per request, with no rollup —
+which is what ADR-006 and §6.12 want moved to a scheduled job before they get
+asked for often.
+
+### Content reports — bearer
+
+```
+POST /content/report  { itemKind, itemId, issueType, description? }  -> 201 { id, status }
+```
+
+The OPEN-ITEMS #8 "report a mistake" affordance, and it exists — the note there
+saying it does not is stale as of 2026-07-28.
+
+`itemKind` is `'kana' | 'vocab' | 'grammar' | 'kanji' | 'lesson'`, `itemId` a
+Mongo id, and `issueType` one of `'typo' | 'audio_mismatch' |
+'wrong_translation' | 'bad_distractor' | 'other'`. `description` is optional, up
+to 1000 chars. Anything else is a 400.
+
+`status` comes back `'open'` and **stays that way**: like social reports, content
+reports are write-only in this build — the schema has `'reviewed'` and
+`'resolved'` and nothing moves a row into them. Same caveat as OPEN-ITEMS #31.
+
+### Legal — no bearer
+
+```
+GET /privacy        -> text/markdown
+GET /terms          -> text/markdown
+GET /legal/privacy  -> { title, effectiveDate, content }   // content is the same markdown
+GET /legal/terms    -> { title, effectiveDate, content }
+```
+
+Two representations of two documents: the bare paths serve raw markdown for a
+browser or a `curl`, and the `/legal/*` pair wraps the same text in JSON with an
+`effectiveDate` so a client can show "updated on" and detect a change. The text
+is a constant in `legal.controller.ts` — no database, no CMS.
+
+Unauthenticated on purpose: a privacy policy that requires an account to read is
+not a privacy policy.
 
 ### Chat — bearer
 
