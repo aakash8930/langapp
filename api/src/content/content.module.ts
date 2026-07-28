@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { UserModule } from '../user/user.module';
 import { LearningModule } from '../learning/learning.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { AudioController } from './audio.controller';
@@ -43,8 +42,11 @@ import { FlashcardPlugin } from './exercise/plugins/flashcard.plugin';
       { name: ContentReport.name, schema: ContentReportSchema },
     ]),
     forwardRef(() => LearningModule),
-    // Hearts are user state; ExerciseService charges one for a wrong answer.
-    UserModule,
+    // No UserModule: it was here so ExerciseService could charge a heart for a
+    // wrong answer, and hearts were removed in Phase 2 §3.1. `UserModule`
+    // exports only `UserService`, which nothing under `content/` references any
+    // more — a dependency edge that outlives its reason is worse than no comment,
+    // because the next reader assumes content legitimately needs user state.
     // Audio bytes live behind StorageService, never `fs` directly.
     StorageModule,
   ],

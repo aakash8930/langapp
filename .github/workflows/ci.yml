@@ -11,6 +11,37 @@ jobs:
     name: API (NestJS Monolith)
     runs-on: ubuntu-latest
 
+    # Mongo and Redis exist here for the two steps below that boot a real module
+    # graph. The unit suite still needs neither — it must keep running without
+    # them, so nothing here is a dependency of `npm test`.
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      MONGO_URI: mongodb://127.0.0.1:27017/langapp_ci
+      REDIS_URL: redis://127.0.0.1:6379
+      # Throwaway values that satisfy env.validation's 32-char floor and its
+      # "the two secrets must differ" rule. Nothing signs a real token here.
+      JWT_ACCESS_SECRET: ci-only-access-secret-not-a-real-key-0001
+      JWT_REFRESH_SECRET: ci-only-refresh-secret-not-a-real-key-0002
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,6 +68,39 @@ jobs:
       - name: Run API Tests
         working-directory: api
         run: npm test -- --maxWorkers=2
+
+      # Every unit test constructs its classes directly, so nothing above proves
+      # the app can be *assembled*. Two real bugs shipped past a green suite this
+      # way (ADR-006: an unregistered queue token meant the app did not boot at
+      # all). This is the cheapest possible check for that class.
+      - name: Boot the application module
+        working-directory: api
+        run: |
+          npx ts-node -e "
+            import { NestFactory } from '@nestjs/core';
+            import { AppModule } from './src/app.module';
+            NestFactory.createApplicationContext(AppModule, { logger: ['error'] })
+              .then(async (app) => { await app.close(); console.log('boot ok'); process.exit(0); })
+              .catch((err) => { console.error(err); process.exit(1); });
+          "
+
+      # The seed has its own cut-down module graph, and it has now broken twice
+      # from a dependency added elsewhere (OPEN-ITEMS #20 for JwtService, ADR-006
+      # for JobsService). Running it twice also settles the idempotency question
+      # OPEN-ITEMS #10 left open: identical summaries or the step fails.
+      - name: Seed content pack, twice (boot + idempotency)
+        working-directory: api
+        run: |
+          set -eo pipefail
+          first=$(npm run seed --silent | grep -o 'Done: {.*}' | tail -1)
+          second=$(npm run seed --silent | grep -o 'Done: {.*}' | tail -1)
+          echo "first run:  $first"
+          echo "second run: $second"
+          if [ -z "$first" ]; then echo "::error::seed printed no summary"; exit 1; fi
+          if [ "$first" != "$second" ]; then
+            echo "::error::seed is not idempotent — a second run changed the counts"
+            exit 1
+          fi
 
   web:
     name: Web Companion (React + Vite)

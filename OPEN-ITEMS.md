@@ -408,7 +408,42 @@ X" query wants character granularity, and premature graph abstraction is harder
 to undo than to add — but the marks units are the point where that trade starts
 looking wrong.
 
-### 10. `npm run seed` is destructive-safe but not idempotency-tested in CI
+### 37. ADR-006 broke `npm run seed`, and nothing noticed for three commits (2026-07-28)
+
+Moving analytics onto a queue gave `AnalyticsService` a `JobsService` dependency.
+`SeedRootModule` is a cut-down graph — Mongo and the content modules, no Redis —
+and it reaches `AnalyticsModule` transitively (`SeedModule -> ContentModule ->
+forwardRef(LearningModule) -> AnalyticsModule`), so the seed died at boot with
+`Nest can't resolve dependencies of the AnalyticsService`.
+
+**This is OPEN-ITEMS #20 happening a second time**, same shape: a module in the
+seed's graph gains a dependency only `AppModule` registers. The first was
+`JwtService`.
+
+What is uncomfortable is what did *not* catch it. Typecheck, `nest build`, 2943
+unit tests, an application-context boot and a live end-to-end job round trip all
+passed on the commit that broke it — because the seed has its own module graph and
+nothing exercised it. It was found by running the seed to measure something else
+entirely.
+
+Fixed with a `@Global()` stub module providing `JobsService` in `seed.ts`
+(root-module providers are not visible to imported modules — the first attempt
+failed identically). CI now boots `AppModule` and runs the seed twice against
+real Mongo and Redis services, which covers both this and #20's class.
+
+**The underlying problem is not fixed:** `SeedRootModule` still duplicates
+`AppModule`'s wiring by hand, and will drift again. The alternatives are worse in
+different ways — importing `AppModule` would pull Redis and the HTTP layer into a
+content script — so the guard is the CI step rather than the design.
+
+### 10. RESOLVED (2026-07-28) — `npm run seed` is destructive-safe but not idempotency-tested in CI
+
+CI runs the seed **twice** and fails the build unless both runs print an identical
+summary. Verified locally on a fresh database: two runs, byte-identical counts
+(208 kana, 802 words, 12 grammar points, 104 kanji, 1148 nodes, 228 edges, 90
+lessons). The original note follows.
+
+
 
 Every write is an upsert on a natural key, and I verified re-running preserves
 `_id`s (this matters — SrsCards will reference them from Milestone 3 onward). But
