@@ -51,15 +51,60 @@ export default function LeaderboardScreen() {
         <Text style={muted(theme)}>Loading…</Text>
       ) : board.isError ? (
         <ErrorState error={board.error} onRetry={() => void board.refetch()} />
-      ) : (
+      ) : board.data.optedIn ? (
         <>
           <Header board={board.data} />
           <Table rows={board.data.rows} board={board.data} />
         </>
+      ) : (
+        <OptedOut />
       )}
 
       <Button label="Back to home" variant="secondary" onPress={() => router.back()} />
     </ScrollView>
+  );
+}
+
+/**
+ * Phase 2 §3.2: the leaderboard is opt-in, and a learner who has switched it
+ * off receives an empty table from the server — which is what this screen is
+ * for. Tells them why the screen is empty and where the toggle lives, without
+ * nagging. Saying "open Settings to join" would put the screen in charge of a
+ * navigation they might prefer not to take, so the wording stops short of that.
+ */
+function OptedOut() {
+  const theme = useTheme();
+  const router = useRouter();
+
+  return (
+    <View style={{ gap: theme.spacing.md }}>
+      <Text
+        style={{
+          fontFamily: theme.families.ui,
+          fontSize: theme.fontSize.heading,
+          lineHeight: theme.lineHeight.heading,
+          color: theme.colors.ink,
+        }}
+      >
+        Leaderboard is off
+      </Text>
+      <Text
+        style={{
+          fontFamily: theme.families.ui,
+          fontSize: theme.fontSize.body,
+          lineHeight: theme.lineHeight.body,
+          color: theme.colors.inkSoft,
+        }}
+      >
+        Your weekly XP is still counted, it just is not shown here. Turn the
+        leaderboard on in Settings to see this week’s standings.
+      </Text>
+      <Button
+        label="Open Settings"
+        variant="secondary"
+        onPress={() => router.push('/settings')}
+      />
+    </View>
   );
 }
 
@@ -83,8 +128,8 @@ function Header({ board }: { board: Leaderboard }) {
       </Text>
       <Text style={muted(theme)}>
         {board.promotionCount === 0
-          ? 'Too few players this week for anyone to move up or down.'
-          : `Top ${board.promotionCount} move up, bottom ${board.relegationCount} move down when the week closes.`}
+          ? 'Too few players this week for anyone to move up.'
+          : `Top ${board.promotionCount} move up when the week closes. No one goes down.`}
       </Text>
     </View>
   );
@@ -98,12 +143,12 @@ function Table({ rows, board }: { rows: LeaderboardRow[]; board: Leaderboard }) 
   }
 
   /**
-   * The promotion and relegation cut-offs, drawn as hairlines between rows. A
-   * league table without them tells you your rank but not whether it is good
-   * enough, which is the only question a learner is actually asking.
+   * The promotion cut-off, drawn as a hairline between rows. A league table
+   * without it tells you your rank but not whether it is good enough, which
+   * is the only question a learner is actually asking. There is no relegation
+   * line because the mechanic that used to need one is gone (§3.2).
    */
   const promoteBelow = board.promotionCount;
-  const relegateAbove = board.relegationCount > 0 ? rows.length - board.relegationCount : -1;
 
   return (
     <View>
@@ -118,7 +163,7 @@ function Table({ rows, board }: { rows: LeaderboardRow[]; board: Leaderboard }) 
               paddingHorizontal: theme.spacing.md,
               borderRadius: theme.radius.md,
               // The learner's own row is tinted rather than bordered, so the
-              // cut-off hairlines stay the only rules on the screen.
+              // cut-off hairline stays the only rule on the screen.
               backgroundColor: row.isYou ? theme.colors.surface : 'transparent',
             }}
           >
@@ -163,9 +208,6 @@ function Table({ rows, board }: { rows: LeaderboardRow[]; board: Leaderboard }) 
 
           {index + 1 === promoteBelow && index + 1 < rows.length ? (
             <CutOff label="Promotion" colour={theme.colors.shu} />
-          ) : null}
-          {index + 1 === relegateAbove && index + 1 < rows.length ? (
-            <CutOff label="Relegation" colour={theme.colors.danger} />
           ) : null}
         </View>
       ))}

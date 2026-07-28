@@ -302,6 +302,21 @@ describe('UserService.updateSettings', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(findByIdAndUpdate).not.toHaveBeenCalled();
   });
+
+  /**
+   * Phase 2 §3.2 — the leaderboard opt-in lives on `settings`, and the patch
+   * path is the way a client flips it. Worth pinning so a refactor that moves
+   * the field cannot silently drop it from the surface.
+   */
+  it('writes the leaderboard opt-in to settings.leaderboardOptIn', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await service.updateSettings(USER_ID, { leaderboardOptIn: true });
+
+    expect(updateArg(findByIdAndUpdate).$set).toEqual({
+      'settings.leaderboardOptIn': true,
+    });
+  });
 });
 
 describe('UserService.weeklyXpFor', () => {

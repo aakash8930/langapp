@@ -34,6 +34,18 @@ const GOAL_OPTIONS: readonly Segment<number>[] = [
   { value: 200, label: '200' },
 ];
 
+/**
+ * Off by default. Phase 2 §3.2 makes the weekly leaderboard opt-in, so a
+ * learner who does not want a competitive surface does not see one. The
+ * explicit "Off" label — rather than hiding the toggle until someone hunts for
+ * it — is the difference between "I can switch this off" and "I never knew this
+ * existed"; the second is why opt-in settings routinely end up not opted in.
+ */
+const LEADERBOARD_OPTIONS: readonly Segment<boolean>[] = [
+  { value: false, label: 'Off' },
+  { value: true, label: 'On' },
+];
+
 export default function Settings() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -212,6 +224,19 @@ export default function Settings() {
         )}
       </Section>
 
+      <Section
+        title="Weekly leaderboard"
+        hint="When on, your weekly XP appears in the leaderboard and you can see other opted-in learners. Off by default — turning it on is opt-in, not the other way round."
+      >
+        <SegmentedControl
+          label="Weekly leaderboard"
+          options={LEADERBOARD_OPTIONS}
+          value={user.settings.leaderboardOptIn}
+          onChange={(next) => void save({ leaderboardOptIn: next })}
+          disabled={saving}
+        />
+      </Section>
+
       <Section title="Blocked people">
         <BlockedList />
       </Section>
@@ -322,6 +347,9 @@ function withPatch(user: User, patch: SettingsPatch): User {
       ...(patch.theme === undefined ? {} : { theme: patch.theme }),
       ...(patch.tz === undefined ? {} : { tz: patch.tz }),
       ...(patch.audioSpeed === undefined ? {} : { audioSpeed: patch.audioSpeed }),
+      ...(patch.leaderboardOptIn === undefined
+        ? {}
+        : { leaderboardOptIn: patch.leaderboardOptIn }),
     },
   };
 }

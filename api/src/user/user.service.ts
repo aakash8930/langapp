@@ -298,6 +298,9 @@ export class UserService {
     if (dto.audioSpeed !== undefined) patch['settings.audioSpeed'] = dto.audioSpeed;
     if (dto.theme !== undefined) patch['settings.theme'] = dto.theme;
     if (dto.tz !== undefined) patch['settings.tz'] = dto.tz;
+    if (dto.leaderboardOptIn !== undefined) {
+      patch['settings.leaderboardOptIn'] = dto.leaderboardOptIn;
+    }
     // The one field on this DTO that does not live under `settings` — the daily
     // goal is what /me/progress measures the day against, so it sits with the
     // rest of the gamification state it is compared to.

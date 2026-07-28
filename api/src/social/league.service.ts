@@ -7,7 +7,6 @@ import {
   LEAGUE_TIERS,
   MIN_TIER_SIZE_TO_SETTLE,
   PROMOTION_COUNT,
-  RELEGATION_COUNT,
   settleTier,
   tierName,
 } from './leagues';
@@ -33,9 +32,24 @@ export interface Leaderboard {
   rows: LeaderboardRow[];
   /** The asking learner's own rank, even if their row is off the end. */
   yourRank: number | null;
-  /** How many go up and down when the week closes; zero in a tier too small. */
+  /**
+   * How many go up when the week closes; zero in a tier too small. Promotion-
+   * only since Phase 2 §3.2 — nobody goes down for finishing last any more.
+   */
   promotionCount: number;
-  relegationCount: number;
+  /**
+   * Always zero — kept on the response so the client can branch on "is
+   * relegation a thing here" without a schema change later if it ever comes
+   * back. Costs nothing; protects the contract.
+   */
+  relegationCount: 0;
+  /**
+   * Whether the viewer themselves has the weekly leaderboard switched on.
+   * An opted-out viewer sees an empty `rows` and the client renders an opt-in
+   * card. A viewer who is opted in still does not see opted-out peers —
+   * `rows` is filtered either way.
+   */
+  optedIn: boolean;
 }
 
 /**
@@ -68,10 +82,19 @@ export class LeagueService {
     // Re-read: settling may have moved them.
     const settled = (await this.userService.findById(viewerId)) ?? viewer;
     const tier = settled.gamification.leagueTier;
+    const viewerOptedIn = settled.settings.leaderboardOptIn;
 
     const members = await this.userService.findByLeagueTier(tier);
 
-    const rows = members
+    // Opt-in (§3.2): the table only contains opted-in learners, and an opted-
+    // out viewer sees an empty `rows` rather than a board with their own row
+    // missing. The viewer being themselves in the tier is irrelevant — they
+    // never appear when opted out.
+    const visibleMembers = viewerOptedIn
+      ? members.filter((member) => member.settings.leaderboardOptIn)
+      : [];
+
+    const rows = visibleMembers
       .map((member) => ({
         userId: member._id.toString(),
         displayName: member.profile.displayName,
@@ -101,7 +124,8 @@ export class LeagueService {
       // client can say "too few players to promote this week" instead of
       // promising movement that will not happen.
       promotionCount: settleable ? PROMOTION_COUNT : 0,
-      relegationCount: settleable ? RELEGATION_COUNT : 0,
+      relegationCount: 0,
+      optedIn: viewerOptedIn,
     };
   }
 
@@ -116,9 +140,9 @@ export class LeagueService {
    *
    * Only the **immediately preceding** week is settled. A gap of several
    * unsettled weeks would need last week's totals, which the reset has already
-   * destroyed; settling those from current numbers would relegate everyone who
-   * happened to be quiet. Skipping them is the honest outcome — see the note in
-   * OPEN-ITEMS.
+   * destroyed; settling those from current numbers would promote anyone who
+   * happened to be quietly earning through the gap. Skipping them is the honest
+   * outcome — see the note in OPEN-ITEMS.
    */
   private async settleClosedWeeks(now: Date): Promise<void> {
     const previous = isoWeek(new Date(now.getTime() - 7 * 86_400_000));
@@ -188,8 +212,7 @@ export class LeagueService {
 
     this.logger.log(
       `Settled ${tierName(tier)} for ${week}: ${ranked.length} players, ` +
-        `${ranked.filter((r) => r.movedTo > tier).length} up, ` +
-        `${ranked.filter((r) => r.movedTo < tier).length} down`,
+        `${ranked.filter((r) => r.movedTo > tier).length} promoted`,
     );
   }
 }

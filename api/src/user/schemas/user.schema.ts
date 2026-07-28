@@ -126,6 +126,16 @@ export class Settings {
 
   @Prop({ required: true, default: 'Asia/Kolkata' })
   tz: string;
+
+  /**
+   * Off by default. The weekly leaderboard is opt-in since Phase 2 §3.2 — a
+   * learner who does not want a competitive surface does not have to see one.
+   * Reads of `/social/leaderboard` filter opted-out learners out of the table
+   * entirely, and a viewer who is themselves opted out is excluded from their
+   * own tier's rows rather than shown a table with their name missing.
+   */
+  @Prop({ required: true, default: false })
+  leaderboardOptIn: boolean;
 }
 export const SettingsSchema = SchemaFactory.createForClass(Settings);
 

@@ -32,14 +32,15 @@ describe('settleTier', () => {
     expect(settleTier({ tier: 1, rank: PROMOTION_COUNT + 1, size: BIG, weeklyXp: 500 })).toBe(1);
   });
 
-  it('relegates the bottom few', () => {
-    expect(settleTier({ tier: 2, rank: BIG, size: BIG, weeklyXp: 10 })).toBe(1);
+  it('never relegates — promotion-only since Phase 2 §3.2', () => {
+    // Last in the tier stays in the tier, however low they ranked.
+    expect(settleTier({ tier: 2, rank: BIG, size: BIG, weeklyXp: 10 })).toBe(2);
   });
 
-  it('cannot promote out of the top tier or relegate out of the bottom', () => {
+  it('cannot promote out of the top tier', () => {
     const top = LEAGUE_TIERS.length - 1;
     expect(settleTier({ tier: top, rank: 1, size: BIG, weeklyXp: 900 })).toBe(top);
-    expect(settleTier({ tier: 0, rank: BIG, size: BIG, weeklyXp: 0 })).toBe(0);
+    expect(settleTier({ tier: 0, rank: 1, size: BIG, weeklyXp: 0 })).toBe(0);
   });
 
   /**

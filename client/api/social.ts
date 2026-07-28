@@ -128,7 +128,17 @@ export type Leaderboard = {
    * than promising promotions that will not happen.
    */
   promotionCount: number;
-  relegationCount: number;
+  /**
+   * Always zero since Phase 2 §3.2 — promotion-only, no one goes down. The
+   * field stays on the response so a future change does not break a stored
+   * client.
+   */
+  relegationCount: 0;
+  /**
+   * Whether the viewer has the leaderboard switched on. An opted-out viewer
+   * receives an empty `rows` and the client renders an opt-in card.
+   */
+  optedIn: boolean;
 };
 
 export function fetchLeaderboard(): Promise<Leaderboard> {

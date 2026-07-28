@@ -31,6 +31,12 @@ export type User = {
     /** 'system' means follow the OS. The server stores it; the client resolves it. */
     theme: ThemePreference;
     tz: string;
+    /**
+     * Off by default. Phase 2 §3.2 makes the weekly leaderboard opt-in — a
+     * learner who does not want a competitive surface does not see one, and
+     * opted-out peers are filtered out of the table for everyone else.
+     */
+    leaderboardOptIn: boolean;
   };
 };
 

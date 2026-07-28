@@ -15,7 +15,7 @@ export type Segment<T> = {
  * Vermilion belongs to the grade scale and to active learning state, and
  * spending it on a settings toggle would cheapen both.
  */
-export function SegmentedControl<T extends string | number>({
+export function SegmentedControl<T extends string | number | boolean>({
   options,
   value,
   onChange,

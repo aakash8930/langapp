@@ -9,8 +9,8 @@ import { HydratedDocument, Types } from 'mongoose';
  * Weekly XP is a counter that gets **reset** when the week turns, so the moment
  * a week closes its standings are gone. Without a snapshot there is no way to
  * tell a learner how they finished, and no way to make settlement idempotent —
- * a second settle pass would read the new week's (empty) totals and relegate
- * everybody.
+ * a second settle pass would read the new week's (empty) totals and either
+ * promote or fail to move everybody depending on the mechanic.
  *
  * ## Why settlement is lazy rather than scheduled
  *

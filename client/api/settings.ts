@@ -11,6 +11,12 @@ export type SettingsPatch = {
   tz?: string;
   /** Integer, 10–1000. Stored on `gamification`, patched through here. */
   dailyGoalXp?: number;
+  /**
+   * Off by default. Toggling on makes the learner appear in the weekly
+   * leaderboard from the next read; toggling off hides them from then on.
+   * Already-settled weeks still contain them, by design.
+   */
+  leaderboardOptIn?: boolean;
 };
 
 /** The server's accepted range, mirrored so the client can't send a rejectable value. */

@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 import { THEMES, Theme } from '../schemas/user.schema';
 
 /**
@@ -38,4 +38,14 @@ export class UpdateSettingsDto {
   @Min(MIN_DAILY_GOAL_XP)
   @Max(MAX_DAILY_GOAL_XP)
   dailyGoalXp?: number;
+
+  /**
+   * Off by default. Toggling this on makes the learner appear in the weekly
+   * leaderboard from the next read; toggling off hides them from then on.
+   * Already-settled weeks still contain them, by design — the snapshot
+   * reflects what happened, not what someone prefers now.
+   */
+  @IsOptional()
+  @IsBoolean()
+  leaderboardOptIn?: boolean;
 }

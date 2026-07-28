@@ -75,7 +75,7 @@ which field was wrong, because the API does not know and neither do you.
 
 ```
 GET   /me            bearer -> <UserResponse>
-PATCH /me/settings   bearer  { audioSpeed?, theme?, tz?, dailyGoalXp? }  -> <UserResponse>
+PATCH /me/settings   bearer  { audioSpeed?, theme?, tz?, dailyGoalXp?, leaderboardOptIn? }  -> <UserResponse>
 GET   /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
                                  streakDays, lastStudyDate,
                                  daily: { xpToday, goalXp, percentOfGoal, goalMet,
@@ -85,12 +85,13 @@ GET   /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
 UserResponse = { id, email, createdAt,
                  profile:      { displayName, nativeLanguage, activeTrack: 'ja' },
                  gamification: { xp, streakDays, lastStudyDate, dailyGoalXp },
-                 settings:     { audioSpeed, theme, tz } }
+                 settings:     { audioSpeed, theme, tz, leaderboardOptIn } }
 ```
 
 `PATCH /me/settings` returns the **whole user**, not just the settings block.
 `audioSpeed` is 0.5–2.0, `theme` is `light`/`dark`/`system`, `tz` an IANA zone name,
-`dailyGoalXp` an integer 10–1000.
+`dailyGoalXp` an integer 10–1000, `leaderboardOptIn` a boolean defaulting to
+`false` (Phase 2 §3.2 — the weekly leaderboard is opt-in).
 
 `dailyGoalXp` is patched through `/me/settings` but **stored on `gamification`, not
 `settings`** — it is the target `/me/progress` measures the day against, so it lives
@@ -461,7 +462,7 @@ GET    /social/leaderboard                   -> <Leaderboard>
 PublicProfile = { id, displayName, level, xp, streakDays }
 Leaderboard   = { week, endsAt, tier, tierName, tierCount,
                   rows: [ { rank, userId, displayName, weeklyXp, isYou } ],
-                  yourRank, promotionCount, relegationCount }
+                  yourRank, promotionCount, relegationCount, optedIn }
 ```
 
 **The leaderboard runs on a UTC week, and that is a deliberate departure** from
@@ -476,15 +477,25 @@ instant so the client never re-derives the boundary.
 `weeklyXp` is a counter-plus-period like `todayXp`, corrected on read — reading
 the stored value directly is a bug on the first request after a Monday.
 
-**Settlement is lazy**: the first `/social/leaderboard` request after a week
-closes promotes and relegates, because there is no job runner. A unique index on
-`leagueStandings {week, tier}` makes that exactly-once under concurrency. Only the
-immediately preceding week is settled — older gaps cannot be settled honestly
-because the totals they need have already been reset.
+**Settlement is lazy and promotion-only** since Phase 2 §3.2 (2026-07-28): the
+first `/social/leaderboard` request after a week closes promotes the top
+`PROMOTION_COUNT`, and that is all it does. A unique index on
+`leagueStandings {week, tier}` makes that exactly-once under concurrency. Only
+the immediately preceding week is settled — older gaps cannot be settled
+honestly because the totals they need have already been reset.
 
 `promotionCount: 0` means the tier has too few players to settle (below 8) — a
 client should say so rather than draw cut-off lines that will not be honoured.
-Nobody on zero XP is ever promoted, whatever their rank.
+Nobody on zero XP is ever promoted, whatever their rank. `relegationCount` is
+always 0 — the field stays on the wire so a future return does not break a
+stored client, but no one goes down for finishing last any more.
+
+**The leaderboard is opt-in (also §3.2, 2026-07-28).** `settings.leaderboardOptIn`
+defaults to `false`, surfaces on `UserResponse`, and is patched through
+`PATCH /me/settings`. The route filters opted-out learners out of `rows` for
+every viewer — and an opted-out viewer receives an empty table plus
+`optedIn: false` in the response, so the client can render an opt-in card rather
+than a board with their name missing.
 
 Added 2026-07-26. `PublicProfile` is a **much shorter allowlist than
 `UserResponse`** because it is shown to strangers: no email, no settings, no date

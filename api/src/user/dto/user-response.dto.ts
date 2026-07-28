@@ -24,6 +24,13 @@ export interface UserResponse {
     audioSpeed: number;
     theme: Theme;
     tz: string;
+    /**
+     * Off by default. Phase 2 §3.2 makes the weekly leaderboard opt-in, so a
+     * learner who does not want the surface can switch it off — and the field
+     * being here means Settings can both read and write it through the same
+     * DTO.
+     */
+    leaderboardOptIn: boolean;
   };
 }
 
@@ -47,6 +54,7 @@ export function toUserResponse(user: UserDocument): UserResponse {
       audioSpeed: user.settings.audioSpeed,
       theme: user.settings.theme,
       tz: user.settings.tz,
+      leaderboardOptIn: user.settings.leaderboardOptIn,
     },
   };
 }
