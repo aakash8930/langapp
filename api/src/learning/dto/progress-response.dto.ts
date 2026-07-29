@@ -53,4 +53,24 @@ export interface ProgressResponse {
    * nothing else on the API exposes it.
    */
   completedLessonIds: string[];
+  /**
+   * Which units the learner has passed a checkpoint on — sorted, deduplicated,
+   * and **unit slugs** (`'hiragana-basics'`), not Mongo ids.
+   *
+   * That is the trap worth naming: this sits beside `completedLessonIds`, which
+   * holds ids, so the two look interchangeable and are not. These match
+   * `Lesson.unit` and the `?unit=` query, which is what a client needs to tick a
+   * row in its unit list.
+   *
+   * **It is not access control, and nothing on the server treats it as any.**
+   * Passing a checkpoint is not required to progress (§3.1 reasoning — failing
+   * costs missed items coming back sooner, not a closed door), so a client that
+   * draws a tick from this is decorating a unit list, not gating one. A unit
+   * that never appears here is a unit whose test has not been passed, which is
+   * not the same as one the learner cannot reach.
+   *
+   * Only *passed* attempts count. An open or failed attempt is absent, so this
+   * never says "tested" about a test that was failed or abandoned.
+   */
+  passedUnits: string[];
 }

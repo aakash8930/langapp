@@ -958,13 +958,29 @@ Absent means "no sample", which is what the clamp relies on. The lesson and
 review screens still send nothing, so their evidence still has an empty speed
 term; nothing is wrong with the server side.
 
+**`passedUnits` is now on `GET /me/progress` (2026-07-29).** It was the loose
+end here — `CheckpointAttemptsService.passedUnits` existed from the day
+checkpoints shipped and was called by nothing, so no surface could say which
+tests had been passed. It went to `/me/progress` as predicted; the hesitation
+recorded here was that a new field affects both clients, and adding one is
+additive, so nothing breaks by ignoring it.
+
+Two things worth not re-deriving:
+
+- **It carries unit slugs, next to a field of Mongo ids.** `completedLessonIds`
+  is ids and `passedUnits` is slugs, and a client that crosses them ticks
+  nothing and raises no error. Named in the DTO comment and the contract for
+  that reason.
+- **`passedUnits` reached a route untested** — it shipped with the checkpoint
+  and nothing called it, so nothing covered it. `progress.controller.spec.ts`
+  now covers both it and the controller wiring; `ProgressController` had no
+  spec at all before.
+
 Still open:
 
-- **Nothing surfaces which units a learner has passed.**
-  `CheckpointAttemptsService.passedUnits` exists and is called by nothing. The
-  unit list wants it for a "tested" tick, and `GET /me/progress` is the obvious
-  home, but adding a field there affects both clients so it was left rather
-  than guessed at.
+- **Neither client draws the tick yet.** The data is on the wire and unread.
+  That is the remaining half of this item: `web/`'s `Curriculum` and `client/`'s
+  `UnitChapter` are where it goes.
 **Discoverability was the weakness of the first three milestones and is now
 fixed.** The checkpoint sits at the foot of a *finished* unit in the curriculum,
 which on `client/` means expanding a chapter that collapses the moment the next

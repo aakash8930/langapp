@@ -4,6 +4,7 @@ import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { levelFromXp } from '../user/gamification/level';
 import { UserService } from '../user/user.service';
+import { CheckpointAttemptsService } from './checkpoint-attempts.service';
 import { ProgressResponse } from './dto/progress-response.dto';
 import { LearningService } from './learning.service';
 import { ReviewService } from './review.service';
@@ -28,6 +29,9 @@ export class ProgressController {
     // Read side of `events`, for the daily summary (T1.8). Learning already
     // depends on analytics for the write side, so this adds no new module edge.
     private readonly analyticsService: AnalyticsService,
+    // Same module, so this adds no edge to the graph the class comment above is
+    // careful about — `unitCheckpointAttempts` is learning's own collection.
+    private readonly checkpointAttempts: CheckpointAttemptsService,
   ) {}
 
   @Get()
@@ -42,7 +46,7 @@ export class ProgressController {
     // must agree, and two calls to new Date() can straddle a midnight boundary.
     const now = new Date();
 
-    const [cardsDueNow, completedLessonIds, todayCounts] = await Promise.all([
+    const [cardsDueNow, completedLessonIds, todayCounts, passedUnits] = await Promise.all([
       this.reviewService.countDue(current.userId, now),
       this.learningService.findCompletedLessonIds(current.userId),
       // Counted on the user's own local day, the same `now` and the same tz rule
@@ -54,6 +58,9 @@ export class ProgressController {
         user.settings.tz,
         now,
       ),
+      // Not time-sensitive like the three above — a pass is permanent, so this
+      // needs no `now` and cannot disagree with the daily block about midnight.
+      this.checkpointAttempts.passedUnits(current.userId),
     ]);
 
     const { xp, streakDays, lastStudyDate, dailyGoalXp } = user.gamification;
@@ -85,6 +92,7 @@ export class ProgressController {
       cardsDueNow,
       lessonsCompleted: completedLessonIds.length,
       completedLessonIds,
+      passedUnits,
     };
   }
 }

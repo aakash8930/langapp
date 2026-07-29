@@ -159,7 +159,8 @@ GET    /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
                                  streakDays, lastStudyDate,
                                  daily: { xpToday, goalXp, percentOfGoal, goalMet,
                                           reviewsDone, lessonsDone },
-                                 cardsDueNow, lessonsCompleted, completedLessonIds }
+                                 cardsDueNow, lessonsCompleted, completedLessonIds,
+                                 passedUnits }
 
 UserResponse = { id, email, isAdmin, createdAt,
                  profile:      { displayName, nativeLanguage, activeTrack: 'ja' },
@@ -255,6 +256,30 @@ three agree.
 `completedLessonIds` exists so the client can compute lesson lock state; it was added
 2026-07-19, since a bare `lessonsCompleted` count cannot answer which prerequisites are
 satisfied. `lessonsCompleted` is now derived from its length, so the two cannot drift.
+
+`passedUnits` (added 2026-07-29) is every unit the learner has **passed a
+checkpoint on** — sorted, deduplicated, and `[]` for a learner who has passed
+none. It closes the loose end in OPEN-ITEMS #39: `passedUnits` existed on
+`CheckpointAttemptsService` from the day checkpoints shipped and was called by
+nothing, so no surface could say which tests had been passed.
+
+**It holds unit *slugs* (`'hiragana-basics'`), not Mongo ids** — the same
+strings `Lesson.unit` and `GET /lessons?unit=` use. That is worth stating
+because it sits directly beside `completedLessonIds`, which holds ids, and the
+two are not interchangeable: a client that crosses them ticks nothing and
+reports no error.
+
+Only a **passed** attempt counts. An open attempt, and a failed one, are both
+absent — so this never claims "tested" about a test that was failed or walked
+away from. A unit retaken and passed again appears once.
+
+**It is not access control, and nothing on the server reads it as any.**
+Passing a checkpoint is still not required to progress (the §3.1 reasoning:
+failing costs missed items coming back sooner, not a closed door), so this is
+for drawing a "tested" tick on a unit list. A unit missing from `passedUnits` is
+one whose test has not been passed — *not* one the learner cannot reach. Same
+distinction as `readinessScore`'s `status: 'locked'`, which is also a judgement
+rather than a gate.
 
 ### Lessons — no bearer
 
