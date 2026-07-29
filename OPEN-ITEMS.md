@@ -926,21 +926,34 @@ Still open:
   unit list wants it for a "tested" tick, and `GET /me/progress` is the obvious
   home, but adding a field there affects both clients so it was left rather
   than guessed at.
-- **Discoverability, which is a real weakness of what shipped.** The checkpoint
-  sits at the foot of a *finished* unit — on `client/` that means expanding a
-  completed chapter, which collapses by default the moment the next unit
-  becomes current. So the most likely outcome for a learner who finishes a unit
-  is that they never see the test at all. Offering it from the lesson summary
-  when the completed lesson is the last of its unit is the obvious fix: both
-  clients already compute a "next step" there, and that is the moment the test
-  belongs to. It was not done in the checkpoint milestones because it changes
-  the lesson-completion flow on both surfaces, which is its own piece of work.
+**Discoverability was the weakness of the first three milestones and is now
+fixed.** The checkpoint sits at the foot of a *finished* unit in the curriculum,
+which on `client/` means expanding a chapter that collapses the moment the next
+unit becomes current — so the learner who had just earned the test was the one
+least likely to see it. Both lesson summaries now offer it directly when the
+completion finished a whole unit.
 
-And a judgement call rather than a defect: **a checkpoint is not required to
-progress.** Nothing gates the next unit on passing one, following the §3.1
+Three decisions in that hand-off worth not undoing:
+
+1. **"Every lesson in the unit is complete", not "this was the last lesson."**
+   Practising lesson 3 of 5 must not offer the test, and finishing a unit out
+   of order still should.
+2. **`completedLessonIds` predates the completion** — `/me/progress` has not
+   been refetched when the summary renders — so the lesson just finished is
+   unioned in. Without that the last lesson of a unit never qualifies, which is
+   exactly the case the feature exists for.
+3. **Gated on `firstCompletion`, and the summary's auto-advance is disabled
+   while the offer is up.** Auto-advance moves into more of the same; a
+   checkpoint is scored, one shot per question, and opens an attempt that stays
+   open — sliding someone into that for reading slowly would be the screen
+   deciding for them. The `firstCompletion` gate is what stops practice repeats
+   of an old unit re-offering the test *and* silently losing auto-advance.
+
+And a judgement call rather than a defect: **a checkpoint is still not required
+to progress.** Nothing gates the next unit on passing one, following the §3.1
 reasoning that the consequence of failing is missed items coming back sooner
-rather than a door closing. Combined with the discoverability gap above, a
-learner can complete the whole course without ever taking one.
+rather than a door closing. A learner can still decline every test; they can no
+longer fail to notice one.
 
 ### 36. Ten routes shipped undocumented, and nothing noticed (2026-07-28)
 

@@ -97,6 +97,14 @@ type Phase =
       summary: CompleteResult;
       answered: AnswerResult[];
       next: NextStep;
+      /**
+       * Set when this completion finished a whole unit, so the summary can
+       * offer its checkpoint. Kept beside `next` rather than folded into it:
+       * the test is not what comes *next* in the course — the learner can skip
+       * it and carry straight on — it is an offer made at the one moment it
+       * makes sense.
+       */
+      finishedUnit: Unit | null;
     };
 
 /**
@@ -266,6 +274,13 @@ export function LessonQuiz({
           summary,
           answered,
           next: stepAfter(units, completedLessonIds, lessonId),
+          // Only on a genuine first completion. Without this, practising any
+          // lesson in a long-finished unit re-offers its test every time — and
+          // silently disables the summary's auto-advance along with it, which
+          // is a behaviour change to repeat practice nobody asked for.
+          finishedUnit: summary.firstCompletion
+            ? unitFinishedBy(units, completedLessonIds, lessonId)
+            : null,
         });
         onFinished();
       } catch (error) {
@@ -291,8 +306,14 @@ export function LessonQuiz({
   }, [phase, held, advance]);
 
   // Auto-advance off the summary into whatever comes next.
+  //
+  // **Not when a checkpoint is on offer.** Everything else this timer moves
+  // into is more of the same — the next lesson, or the curriculum. A test is
+  // not: it is scored, one shot per question, and the attempt it opens stays
+  // open. Sliding someone into that because they read the summary too slowly
+  // would be the screen making the decision for them.
   useEffect(() => {
-    if (phase.name !== 'done' || held) return;
+    if (phase.name !== 'done' || held || phase.finishedUnit) return;
 
     const step = phase.next;
     const timer = window.setTimeout(() => goToStep(step), NEXT_MS);
@@ -399,6 +420,7 @@ export function LessonQuiz({
         summary={phase.summary}
         total={phase.set.questionCount}
         next={phase.next}
+        finishedUnit={phase.finishedUnit}
         held={held}
         onHold={setHeld}
       />
@@ -759,6 +781,43 @@ function WordReadingInput({
 }
 
 /** Where a clean run goes next, and why. */
+/**
+ * The unit this lesson just *finished*, if it finished one.
+ *
+ * The checkpoint's whole discoverability problem is that it lives at the foot
+ * of a completed unit in the curriculum, and a completed unit collapses — so
+ * the learner who has just earned the test is the one least likely to see it.
+ * This is the moment it belongs to.
+ *
+ * The test is "every lesson in this unit is now complete", not "this was the
+ * last lesson in the unit". Practising lesson 3 of 5 must not offer the test,
+ * and a learner who finished the unit out of order still deserves it.
+ *
+ * `completedLessonIds` is the set from *before* this completion — `/me/progress`
+ * has not been refetched yet — so the lesson just finished is unioned in.
+ * Without that the last lesson of a unit never qualifies, which is precisely
+ * the case this exists for.
+ *
+ * Returns null when progress is unknown: with no completed set we cannot tell a
+ * finished unit from an untouched one, and offering a test on a guess is worse
+ * than not offering it.
+ */
+function unitFinishedBy(
+  units: Unit[],
+  completedLessonIds: string[] | null,
+  lessonId: string,
+): Unit | null {
+  if (completedLessonIds === null) return null;
+
+  const unit = units.find((candidate) =>
+    candidate.lessons.some((lesson) => lesson.id === lessonId),
+  );
+  if (!unit) return null;
+
+  const done = new Set([...completedLessonIds, lessonId]);
+  return unit.lessons.every((lesson) => done.has(lesson.id)) ? unit : null;
+}
+
 function stepAfter(
   units: Unit[],
   completedLessonIds: string[] | null,
@@ -786,12 +845,15 @@ function Summary({
   summary,
   total,
   next,
+  finishedUnit,
   held,
   onHold,
 }: {
   summary: CompleteResult;
   total: number;
   next: NextStep;
+  /** Set when this completion finished a whole unit — see the `done` phase. */
+  finishedUnit: Unit | null;
   held: boolean;
   onHold: (held: boolean) => void;
 }) {
@@ -860,6 +922,27 @@ function Summary({
           : 'You had already finished this one, so the XP is the smaller practice award.'}
       </p>
 
+      {/*
+        The unit's test, offered at the one moment it is earned.
+
+        Above the "next lesson" block and styled as the primary action, because
+        finishing a unit is the event and moving on is the default that happens
+        anyway. The link is a plain anchor rather than `goToStep`: `useRoute`'s
+        `go()` is a compatibility shim its own comment says not to extend, and
+        the curriculum already links to checkpoints this way.
+      */}
+      {finishedUnit ? (
+        <div className="unit-cleared">
+          <p className="up-next-line">
+            <strong>You’ve finished {finishedUnit.label}.</strong> Test yourself on the whole
+            unit — 20 questions, one answer each, and nothing is locked by the result.
+          </p>
+          <a className="btn btn-primary" href={`#/checkpoint/${finishedUnit.slug}`}>
+            Take the test
+          </a>
+        </div>
+      ) : null}
+
       <div className="up-next">
         {next.kind === 'unknown' ? null : next.kind === 'courseComplete' ? (
           <p className="up-next-line">
@@ -878,7 +961,13 @@ function Summary({
         )}
 
         <div className="summary-actions">
-          <button className="btn btn-primary" type="button" onClick={() => goToStep(next)}>
+          <button
+            // Steps down to secondary when a test is on offer above it, so the
+            // two primaries do not compete for the same tap.
+            className={finishedUnit ? 'btn btn-secondary' : 'btn btn-primary'}
+            type="button"
+            onClick={() => goToStep(next)}
+          >
             {next.kind === 'practise'
               ? 'Start it now'
               : next.kind === 'learn'
@@ -892,7 +981,12 @@ function Summary({
           )}
         </div>
 
-        <Tick ms={NEXT_MS} held={held} label="Continuing automatically" />
+        {/* Only when something is actually counting down. The auto-advance is
+            off while a checkpoint is offered, and a bar that fills and then does
+            nothing is worse than no bar. */}
+        {finishedUnit ? null : (
+          <Tick ms={NEXT_MS} held={held} label="Continuing automatically" />
+        )}
       </div>
     </div>
   );

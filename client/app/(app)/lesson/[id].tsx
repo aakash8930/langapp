@@ -26,7 +26,7 @@ import { SessionProgress } from '@/components/SessionProgress';
 import { SpeakButton } from '@/components/SpeakButton';
 import { errorText } from '@/lib/errors';
 import { newAttempt } from '@/lib/exercises';
-import { groupByUnit, lessonAfter, withLockState } from '@/lib/lessons';
+import { groupByUnit, lessonAfter, unitLabel, withLockState } from '@/lib/lessons';
 import { answerFeedback, tapFeedback } from '@/lib/haptics';
 import { useTheme } from '@/theme';
 
@@ -179,6 +179,43 @@ export default function Lesson() {
     return next.completed
       ? { kind: 'practise', id: next.id, title: next.title }
       : { kind: 'learn', title: next.title };
+  })();
+
+  /**
+   * The unit this lesson just finished, if it finished one — so the summary can
+   * offer its checkpoint.
+   *
+   * The checkpoint otherwise lives at the foot of a completed unit's path,
+   * which collapses as soon as the next unit becomes current. So the learner
+   * who has just earned the test is the one least likely to find it. This is
+   * the moment it belongs to.
+   *
+   * "Every lesson in the unit is complete", not "this was the last one":
+   * practising lesson 3 of 5 must not offer the test, and finishing out of
+   * order still should. `completedLessonIds` predates this completion —
+   * `/me/progress` has not been refetched — so `id` is unioned in, without
+   * which the last lesson of a unit would never qualify.
+   */
+  const finishedUnit = ((): { unit: string; label: string } | null => {
+    const all = lessonsQuery.data;
+    const completedIds = progressQuery.data?.completedLessonIds;
+    if (!all || !completedIds) return null;
+
+    // Only on a genuine first completion. Without this, practising any lesson
+    // in a long-finished unit re-offers its test every time — and disables the
+    // summary's auto-advance along with it, which is a behaviour change to
+    // repeat practice nobody asked for.
+    if (summary !== null && !summary.firstCompletion) return null;
+
+    const unit = all.find((lesson) => lesson.id === id)?.unit;
+    if (!unit) return null;
+
+    const done = new Set([...completedIds, id]);
+    const finished = all
+      .filter((lesson) => lesson.unit === unit)
+      .every((lesson) => done.has(lesson.id));
+
+    return finished ? { unit, label: unitLabel(unit) } : null;
   })();
 
   // Answers live only in this component's state, so there is something to lose
@@ -342,7 +379,17 @@ export default function Lesson() {
           />
         </Centered>
       ) : summary ? (
-        <Summary summary={summary} total={total} next={nextStep} onNext={goToNext} onDone={leave} />
+        <Summary
+          summary={summary}
+          total={total}
+          next={nextStep}
+          finishedUnit={finishedUnit}
+          onNext={goToNext}
+          onDone={leave}
+          onTakeCheckpoint={
+            finishedUnit ? () => router.replace(`/checkpoint/${finishedUnit.unit}`) : undefined
+          }
+        />
       ) : failed ? (
         <Failed
           answered={answered}
@@ -669,14 +716,19 @@ function Summary({
   summary,
   total,
   next,
+  finishedUnit,
   onNext,
   onDone,
+  onTakeCheckpoint,
 }: {
   summary: CompleteLessonResult;
   total: number;
   next: NextStep;
+  /** Set when this completion finished a whole unit, so its test can be offered. */
+  finishedUnit: { unit: string; label: string } | null;
   onNext: () => void;
   onDone: () => void;
+  onTakeCheckpoint?: () => void;
 }) {
   const theme = useTheme();
   const [held, setHeld] = useState(false);
@@ -684,11 +736,16 @@ function Summary({
   // Carries on by itself, like the questions did. Tapping anywhere on the
   // summary stops it — the same escape hatch the feedback offers, for the same
   // reason.
+  //
+  // **Not when a test is on offer.** Everything else this timer moves into is
+  // more of the same. A checkpoint is scored, one shot per question, and the
+  // attempt it opens stays open — sliding someone into that because they read
+  // the summary slowly would be the screen deciding for them.
   useEffect(() => {
-    if (held) return;
+    if (held || finishedUnit) return;
     const timer = setTimeout(onNext, NEXT_MS);
     return () => clearTimeout(timer);
-  }, [held, onNext]);
+  }, [held, onNext, finishedUnit]);
 
   const cards =
     summary.cardsCreated > 0
@@ -739,6 +796,49 @@ function Summary({
         <SummaryRow label="Cards" value={cards} />
       </View>
 
+      {/*
+        The unit's test, at the one moment it is earned.
+
+        Above the next-lesson block and carrying the primary button, because
+        finishing a unit is the event while moving on is the default that
+        happens anyway. Framed so it reads as an offer rather than the next
+        step — the learner can ignore it and carry on.
+      */}
+      {finishedUnit && onTakeCheckpoint ? (
+        <View
+          style={{
+            gap: theme.spacing.md,
+            padding: theme.spacing.lg,
+            borderWidth: theme.hairlineWidth,
+            borderColor: theme.colors.shu,
+            borderRadius: theme.radius.md,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: theme.families.ui,
+              fontSize: theme.fontSize.body,
+              lineHeight: theme.lineHeight.body,
+              color: theme.colors.ink,
+            }}
+          >
+            You’ve finished {finishedUnit.label}.
+          </Text>
+          <Text
+            style={{
+              fontFamily: theme.families.ui,
+              fontSize: theme.fontSize.small,
+              lineHeight: theme.lineHeight.small,
+              color: theme.colors.inkSoft,
+            }}
+          >
+            Test yourself on the whole unit — 20 questions, one answer each, and nothing is
+            locked by the result.
+          </Text>
+          <Button label="Take the test" onPress={onTakeCheckpoint} />
+        </View>
+      ) : null}
+
       <View style={{ gap: theme.spacing.sm }}>
         {next.kind === 'practise' ? (
           <Text
@@ -776,6 +876,9 @@ function Summary({
         <Button
           label={next.kind === 'practise' ? 'Start it now' : 'Back to home'}
           onPress={onNext}
+          // Secondary while a test is on offer above, so the two do not compete
+          // for the same thumb.
+          variant={finishedUnit ? 'secondary' : 'primary'}
         />
         {next.kind === 'practise' ? (
           <Button label="Back to home" variant="secondary" onPress={onDone} />

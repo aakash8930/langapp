@@ -1715,3 +1715,21 @@
   gap: var(--s-md);
   align-items: center;
 }
+
+/*
+ * The unit's test, offered on the lesson summary that finished the unit.
+ *
+ * Framed rather than plain, because it is an aside from the main flow — the
+ * learner can ignore it and carry straight on to the next lesson, and the frame
+ * says "this is a thing that has just become available" rather than "this is
+ * the next step".
+ */
+.unit-cleared {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  padding: var(--s-lg);
+  border: 1px solid var(--brand-primary);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
