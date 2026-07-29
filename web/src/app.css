@@ -2094,10 +2094,24 @@
 
 /* ---- Checkpoint leftovers ---- */
 
-/* The checkpoint's progress bar reuses .quiz-progress; this only removes the
-   side margins that rule carries for sitting between a head and a count. */
+/*
+ * The checkpoint's progress bar reuses `.quiz-progress`, which needs undoing
+ * in two ways because that rule is written for a different container.
+ *
+ * `.quiz-progress` lives inside `.quiz-head`, a **row**, where `flex: 1 1 0%`
+ * makes it fill the space between the leave button and the counter and
+ * `height: 6px` applies to the cross axis. Here it is a direct child of
+ * `.quiz`, a **column** — so the `0%` basis applies to the *height*, overrides
+ * `height: 6px`, and the bar renders 0px tall. Measured that way in a headless
+ * browser: 614×0.
+ *
+ * Restoring the height alone is not enough; the basis has to go too, or it
+ * wins again.
+ */
 .checkpoint-progress {
   margin: 0;
+  flex: 0 0 auto;
+  height: 6px;
 }
 
 .checkpoint-summary {
