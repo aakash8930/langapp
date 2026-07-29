@@ -64,12 +64,9 @@ export function Curriculum({
     <section className="section">
       <div className="wrap">
         <div className="section-head">
-          <span className="section-kanji ja" aria-hidden="true">
-            道
-          </span>
           <div>
-            <p className="section-idx">The course</p>
-            <h2>Six units, in the order they unlock</h2>
+            <p className="section-idx">The Course</p>
+            <h2>Your Learning Path</h2>
             <p className="section-sub">
               Each unit is gated on the one before it. Open a lesson to see what it teaches, or
               start it to be quizzed on every item.

@@ -15,6 +15,7 @@ import { LearnerItemStateService } from '../../learning/learner-item-state.servi
 import { LearningService } from '../../learning/learning.service';
 import { mulberry32, seedFrom, shuffle } from './deterministic-random';
 import { ExercisePluginRegistry } from './plugins/exercise-plugin.registry';
+import { ContentKind } from '../../knowledge-graph/schemas/knowledge-node.schema';
 
 const OPTION_BASED_TYPES = ['multipleChoice'];
 const TYPING_TYPES = ['wordReading'];
@@ -369,7 +370,7 @@ export class ExerciseService {
         })
         .catch((err: unknown) => {
           this.logger.warn(
-            `LearnerItemState record lost for user ${userId} ${item.itemKind} ${item.itemId.toString()}: ${
+            `LearnerItemState record lost for user ${userId} ${item.itemKind} ${item.itemId?.toString()}: ${
               err instanceof Error ? err.message : String(err)
             }`,
           );
@@ -784,7 +785,7 @@ function parseExerciseId(exerciseId: string): { attempt: number; index: number }
  * display-level concept — the underlying item is always a vocabulary word, so
  * the card kind is `'vocab'`.
  */
-function promptKindToSrsKind(promptKind: PromptKind): string {
+function promptKindToSrsKind(promptKind: PromptKind): ContentKind {
   if (promptKind === 'wordReading') return 'vocab';
-  return promptKind; // 'kana' | 'vocab' | 'grammar' | 'kanji' map to themselves
+  return promptKind as ContentKind; // 'kana' | 'vocab' | 'grammar' | 'kanji' map to themselves
 }

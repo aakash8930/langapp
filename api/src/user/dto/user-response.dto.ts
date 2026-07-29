@@ -8,6 +8,7 @@ import { Theme, UserDocument } from '../schemas/user.schema';
 export interface UserResponse {
   id: string;
   email: string;
+  isAdmin: boolean;
   createdAt: Date;
   profile: {
     displayName: string;
@@ -38,6 +39,7 @@ export function toUserResponse(user: UserDocument): UserResponse {
   return {
     id: user._id.toString(),
     email: user.email,
+    isAdmin: !!user.isAdmin,
     createdAt: user.get('createdAt') as Date,
     profile: {
       displayName: user.profile.displayName,

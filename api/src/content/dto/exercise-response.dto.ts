@@ -92,7 +92,8 @@ export type ExerciseType =
   | 'listening'
   | 'sentenceBuilding'
   | 'fillInTheBlank'
-  | 'flashcard';
+  | 'flashcard'
+  | 'speech';
 
 export interface GenericExerciseQuestion {
   exerciseId: string;

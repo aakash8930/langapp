@@ -137,6 +137,13 @@ function HomePage() {
             Lessons, reviews and progress are the same here as in the Android app — one
             account, one database. The AI tutor is in the app for now.
           </p>
+          {session.state === 'signedIn' && session.user?.isAdmin && (
+            <p style={{ marginTop: '16px' }}>
+              <Link to="/creator" style={{ color: 'var(--brand-primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                Go to Creator Dashboard →
+              </Link>
+            </p>
+          )}
         </div>
       </footer>
     </>

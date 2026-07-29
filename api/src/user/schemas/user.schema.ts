@@ -159,6 +159,9 @@ export class User {
 
   @Prop({ type: SettingsSchema, required: true, default: () => ({}) })
   settings: Settings;
+
+  @Prop({ type: Boolean, required: true, default: false })
+  isAdmin: boolean;
 }
 
 export type UserDocument = HydratedDocument<User>;

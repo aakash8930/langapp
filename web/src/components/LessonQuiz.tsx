@@ -14,11 +14,13 @@ import {
   type MultipleChoiceQuestion,
   type Unit,
   type WordReadingQuestion,
+  type SpeechQuestion,
 } from '../api';
 import { hasAudio, revealsAnswer } from '../audio';
 import { countUpNow } from '../motion';
 import { queryKeys } from '../queryKeys';
 import { SpeakButton } from './SpeakButton';
+import { SpeechQuiz } from './SpeechQuiz';
 import { go, goBack } from '../useRoute';
 
 /**
@@ -295,6 +297,23 @@ export function LessonQuiz({
     }
   }
 
+  async function submitSpeech(question: SpeechQuestion, text: string) {
+    if (phase.name !== 'asking' || phase.result || busy) return;
+
+    setBusy(true);
+    try {
+      const result = await answerExercise(lessonId, question.exerciseId, { text });
+      setPhase({ ...phase, result });
+    } catch (error) {
+      setPhase({
+        name: 'error',
+        message: error instanceof Error ? error.message : 'Could not check that answer.',
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (phase.name === 'loading') {
     return (
       <div className="glass panel note" role="status">
@@ -444,7 +463,13 @@ export function LessonQuiz({
           </div>
         ) : null}
 
-        {question.type === 'wordReading' ? (
+        {question.type === 'speech' ? (
+          <SpeechQuiz
+            key={question.exerciseId}
+            disabled={phase.result !== null || busy}
+            onSubmit={(text) => void submitSpeech(question, text)}
+          />
+        ) : question.type === 'wordReading' ? (
           <WordReadingInput
             key={question.exerciseId}
             disabled={phase.result !== null || busy}

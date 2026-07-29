@@ -215,20 +215,27 @@ export function Review({
         </p>
       ) : null}
 
-      <div className="glass panel quiz-card">
-        <CardFront item={card.item} />
+      <div className="glass panel quiz-card" style={{ overflow: 'visible' }}>
+        <div className="flip-container">
+          <div className={`flip-card ${revealed ? 'revealed' : ''}`}>
+            <div className="flip-front">
+              <CardFront item={card.item} />
+            </div>
+            <div className="flip-back">
+              <CardBack item={card.item} audioSpeed={audioSpeed} />
+            </div>
+          </div>
+        </div>
 
-        {revealed ? (
-          <CardBack item={card.item} audioSpeed={audioSpeed} />
-        ) : (
-          <button className="button" type="button" onClick={() => setRevealed(true)}>
+        {!revealed && (
+          <button className="btn btn-primary" type="button" onClick={() => setRevealed(true)} style={{ position: 'absolute', bottom: '-24px' }}>
             Show answer
           </button>
         )}
 
         {/* Always mounted, disabled until the answer is out — swapping controls
             in would move the targets as the pointer travels toward them. */}
-        <div className="grades" aria-label="How well did you know it?">
+        <div className="grades" aria-label="How well did you know it?" style={{ opacity: revealed ? 1 : 0, transition: 'opacity 0.3s ease', pointerEvents: revealed ? 'auto' : 'none', marginTop: '16px' }}>
           {REVIEW_GRADES.map((grade) => (
             <button
               key={grade}

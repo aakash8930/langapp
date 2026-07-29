@@ -307,7 +307,16 @@ export type WordReadingQuestion = {
   question: string;
 };
 
-export type Question = MultipleChoiceQuestion | WordReadingQuestion;
+export type SpeechQuestion = {
+  exerciseId: string;
+  itemId: ItemId;
+  type: 'speech';
+  prompt: string;
+  promptKind: PromptKind;
+  question: string;
+};
+
+export type Question = MultipleChoiceQuestion | WordReadingQuestion | SpeechQuestion;
 
 /** An object wrapping the array, not a bare array. */
 export type ExerciseSet = {
@@ -594,4 +603,173 @@ export function nextUnlearnedLesson(
 ): LessonSummary | null {
   const done = new Set(completedLessonIds);
   return inTeachingOrder(units).find((lesson) => !done.has(lesson.id)) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Social / Gamification
+// ---------------------------------------------------------------------------
+
+export type LeaderboardRow = {
+  rank: number;
+  userId: string;
+  displayName: string;
+  weeklyXp: number;
+  isYou: boolean;
+};
+
+export type Leaderboard = {
+  week: string;
+  endsAt: string;
+  tier: number;
+  tierName: string;
+  tierCount: number;
+  rows: LeaderboardRow[];
+  yourRank: number | null;
+  promotionCount: number;
+  relegationCount: number;
+  optedIn: boolean;
+};
+
+export function fetchLeaderboard(): Promise<Leaderboard> {
+  return authed<Leaderboard>('/social/leaderboard');
+}
+
+export type PublicProfile = {
+  id: string;
+  displayName: string;
+  level: number;
+  xp: number;
+  streakDays: number;
+};
+
+export type FriendRequest = {
+  requestId: string;
+  from: PublicProfile;
+};
+
+export type DirectMessage = {
+  id: string;
+  text: string;
+  mine: boolean;
+  createdAt: string;
+};
+
+export function searchUsers(q: string): Promise<PublicProfile[]> {
+  return authed<PublicProfile[]>(`/social/users?q=${encodeURIComponent(q)}`);
+}
+
+export function fetchFriends(): Promise<PublicProfile[]> {
+  return authed<PublicProfile[]>('/social/friends');
+}
+
+export function fetchFriendRequests(): Promise<FriendRequest[]> {
+  return authed<FriendRequest[]>('/social/friends/requests');
+}
+
+export function sendFriendRequest(userId: string): Promise<{ status: string }> {
+  return authed<{ status: string }>(`/social/friends/requests/${encodeURIComponent(userId)}`, { method: 'POST' });
+}
+
+export function acceptRequest(requestId: string): Promise<{ status: string }> {
+  return authed<{ status: string }>(`/social/friends/requests/${encodeURIComponent(requestId)}/accept`, { method: 'POST' });
+}
+
+export function declineRequest(requestId: string): Promise<{ status: string }> {
+  return authed<{ status: string }>(`/social/friends/requests/${encodeURIComponent(requestId)}/decline`, { method: 'POST' });
+}
+
+export function removeFriend(userId: string): Promise<{ removed: boolean }> {
+  return authed<{ removed: boolean }>(`/social/friends/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+}
+
+export function fetchMessages(userId: string): Promise<DirectMessage[]> {
+  return authed<DirectMessage[]>(`/social/messages/${encodeURIComponent(userId)}`);
+}
+
+export function sendMessage(userId: string, text: string): Promise<{ id: string; text: string; createdAt: string }> {
+  return authed<{ id: string; text: string; createdAt: string }>(`/social/messages/${encodeURIComponent(userId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+}
+
+// --- AI Chat ---
+
+export interface Correction {
+  span: string;
+  fix: string;
+  note: string;
+}
+
+export interface ChatMessageResponse {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  corrections: Correction[];
+  createdAt: string;
+}
+
+export interface ChatSessionResponse {
+  id: string;
+  scenario: string;
+  title: string;
+  titleJa: string;
+  startedAt: string;
+  messages: ChatMessageResponse[];
+}
+
+export interface ChatTurnResponse {
+  sessionId: string;
+  corrections: Correction[];
+  reply: ChatMessageResponse;
+}
+
+export async function createChatSession(scenario?: string): Promise<ChatSessionResponse> {
+  const body = scenario ? { scenario } : {};
+  return authed<ChatSessionResponse>('/chat/sessions', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function sendChatMessage(sessionId: string, text: string): Promise<ChatTurnResponse> {
+  return authed<ChatTurnResponse>(`/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+}
+
+// --- Creator ---
+
+export interface CreateLessonPayload {
+  unit: string;
+  order: number;
+  title: string;
+  itemRefs: { kind: 'vocab' | 'grammar' | 'kanji' | 'kana' | 'lesson'; id: string }[];
+  exerciseTypes: string[];
+  prerequisiteLessonIds: string[];
+}
+
+export interface CreateVocabPayload {
+  lemma: string;
+  reading: string;
+  romaji: string;
+  gloss: string;
+  pos: string;
+  jlpt?: 'N5' | 'N4' | 'N3' | 'N2' | 'N1';
+  tags: string[];
+}
+
+export async function createLesson(payload: CreateLessonPayload): Promise<{ id: string; status: string }> {
+  return authed<{ id: string; status: string }>('/creator/lessons', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createVocab(payload: CreateVocabPayload): Promise<{ id: string; status: string }> {
+  return authed<{ id: string; status: string }>('/creator/vocab', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }

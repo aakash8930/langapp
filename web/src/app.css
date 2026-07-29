@@ -22,174 +22,133 @@
 .hero {
   position: relative;
   padding: var(--s-4xl) 0 var(--s-3xl);
-  overflow: hidden;
-}
-
-/*
- * A single wide, very soft vermilion wash behind the hero — the one thing on
- * the page that gives the glass something to refract. Deliberately low-contrast
- * and behind everything: it must never sit under body text.
- */
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: -30% 20% 40% -20%;
-  background: radial-gradient(closest-side, rgba(188, 62, 40, 0.18), transparent 70%);
-  pointer-events: none;
-  z-index: -1;
-}
-@media (prefers-color-scheme: dark) {
-  .hero::before {
-    background: radial-gradient(closest-side, rgba(208, 97, 74, 0.16), transparent 70%);
-  }
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .hero-inner {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--s-xl);
+  z-index: 2;
+  position: relative;
 }
 
 .eyebrow {
   margin: 0;
-  font-size: var(--text-caption);
-  letter-spacing: 0.24em;
+  font-size: var(--text-small);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--shu);
-  font-weight: 700;
-}
-
-.hero-cells {
-  display: flex;
-  gap: 0;
-}
-
-/* The genkouyoushi cell, straight from the app. */
-.cell {
-  display: grid;
-  place-items: center;
-  width: 92px;
-  height: 92px;
-  margin-left: -1px;
-  border: 1px solid var(--shu);
+  color: var(--brand-primary);
+  font-weight: 800;
   background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  padding: var(--s-xs) var(--s-md);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(var(--glass-blur));
-  font-size: 56px;
-  line-height: 1;
-  color: var(--ink);
-  position: relative;
-}
-.cell:first-child {
-  margin-left: 0;
-}
-/* Centre registration marks, the way composition paper is ruled. */
-.cell::before,
-.cell::after {
-  content: '';
-  position: absolute;
-  background: var(--shu);
-  opacity: 0.3;
-}
-.cell::before {
-  width: 9px;
-  height: 1px;
-}
-.cell::after {
-  width: 1px;
-  height: 9px;
-}
-
-.cell-sm {
-  width: 46px;
-  height: 46px;
-  font-size: 26px;
 }
 
 .hero-title {
   margin: 0;
-  max-width: 18ch;
+  max-width: 20ch;
   font-size: var(--text-display);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 800;
 }
 .hero-title em {
-  font-style: italic;
-  color: var(--shu);
+  font-style: normal;
+  color: transparent;
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+  background-clip: text;
+  -webkit-background-clip: text;
 }
 
 .hero-lede {
   margin: 0;
-  max-width: 58ch;
+  max-width: 50ch;
   font-size: var(--text-large);
   color: var(--ink-soft);
+  line-height: 1.6;
 }
 
 .hero-stats {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: var(--s-xl);
-  padding: var(--s-xl);
+  padding: var(--s-lg) var(--s-2xl);
   width: fit-content;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 30px var(--glass-edge);
 }
 
 .stat {
   display: flex;
   flex-direction: column;
-  min-width: 116px;
+  align-items: center;
+  min-width: 100px;
 }
 .stat-value {
   font-size: var(--text-heading);
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.1;
-  color: var(--shu-glass);
+  color: var(--brand-primary);
 }
 .stat-label {
   font-size: var(--text-small);
   color: var(--ink-soft);
+  font-weight: 500;
 }
 .stat-ja {
   font-size: var(--text-caption);
   color: var(--ink-soft);
-  opacity: 0.8;
+  opacity: 0.6;
 }
 
 /* ---- Sections ---- */
 
 .section {
-  padding: var(--s-4xl) 0;
+  padding: var(--s-3xl) 0;
+  position: relative;
+  z-index: 1;
 }
 
 .section-head {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: var(--s-xl);
+  gap: var(--s-xs);
   margin-bottom: var(--s-2xl);
 }
 .section-kanji {
-  font-size: var(--text-display);
-  line-height: 0.9;
-  color: var(--shu);
-  flex: none;
+  display: none; /* Removed kanji background text for cleaner look */
 }
 .section-idx {
   margin: 0;
   font-size: var(--text-caption);
-  letter-spacing: 0.24em;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--brand-secondary);
   font-weight: 700;
 }
 .section-head h2 {
-  margin: var(--s-xs) 0 var(--s-sm);
+  margin: 0;
   font-size: var(--text-heading);
   line-height: 1.15;
 }
 .section-sub {
-  margin: 0;
+  margin: var(--s-sm) 0 0;
   max-width: 60ch;
   color: var(--ink-soft);
+  font-size: var(--text-large);
 }
 
 .panel {
@@ -210,7 +169,7 @@
 
 .units {
   display: grid;
-  gap: var(--s-lg);
+  gap: var(--s-2xl);
 }
 
 .unit-head {
@@ -218,12 +177,15 @@
   align-items: baseline;
   gap: var(--s-lg);
   padding-bottom: var(--s-lg);
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 2px solid var(--hairline);
 }
 .unit-index {
-  font-size: var(--text-small);
+  font-size: var(--text-body);
   font-weight: 700;
-  color: var(--shu-glass);
+  color: var(--brand-primary);
+  background: rgba(124, 58, 237, 0.1);
+  padding: var(--s-xs) var(--s-md);
+  border-radius: var(--radius-full);
   flex: none;
 }
 .unit-titles {
@@ -243,7 +205,7 @@
 }
 .unit-titles p {
   margin: var(--s-xs) 0 0;
-  font-size: var(--text-small);
+  font-size: var(--text-body);
   color: var(--ink-soft);
 }
 .unit-count {
@@ -251,49 +213,75 @@
   flex-direction: column;
   align-items: flex-end;
   font-size: var(--text-title);
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1;
+  color: var(--brand-secondary);
   flex: none;
 }
 .unit-count-label {
   font-size: var(--text-caption);
-  font-weight: 400;
+  font-weight: 500;
   color: var(--ink-soft);
+  margin-top: 4px;
 }
 
 /* ---- Lessons ---- */
 
 .lessons {
   list-style: none;
-  margin: 0;
+  margin: var(--s-md) 0 0;
   padding: 0;
+  display: grid;
+  gap: var(--s-md);
+}
+
+.lesson {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all var(--t-fast) var(--spring-bounce);
+  box-shadow: 0 4px 12px var(--glass-edge);
+}
+
+.lesson:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--glass-edge);
+  border-color: rgba(124, 58, 237, 0.3);
 }
 
 .lesson summary {
   display: flex;
   align-items: center;
   gap: var(--s-md);
-  padding: var(--s-md) 0;
+  padding: var(--s-lg);
   cursor: pointer;
-  border-bottom: 1px solid var(--hairline);
   list-style: none;
+  font-weight: 600;
+  font-size: var(--text-large);
 }
 .lesson summary::-webkit-details-marker {
   display: none;
 }
 .lesson summary::before {
-  content: '＋';
-  color: var(--shu-glass);
-  font-size: var(--text-small);
+  content: '↓';
+  color: var(--brand-primary);
+  font-size: var(--text-body);
   flex: none;
-  transition: transform var(--t-fast) ease;
+  transition: transform var(--t-base) var(--spring-bounce);
+  background: rgba(124, 58, 237, 0.1);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
 }
 .lesson[open] summary::before {
-  content: '−';
+  transform: rotate(180deg);
 }
-.lesson summary:hover .lesson-title {
-  color: var(--shu-glass);
-}
+
 .lesson-title {
   flex: 1;
   min-width: 0;
@@ -303,10 +291,14 @@
   font-size: var(--text-small);
   color: var(--ink-soft);
   flex: none;
+  font-weight: 500;
 }
 
 .lesson-body {
-  padding: var(--s-lg) 0 var(--s-xl);
+  padding: 0 var(--s-lg) var(--s-lg);
+  border-top: 1px solid var(--hairline);
+  margin-top: var(--s-xs);
+  padding-top: var(--s-md);
 }
 
 .muted {
@@ -325,26 +317,30 @@
   gap: var(--s-md);
 }
 
-/* Kana are small and uniform, so they tile; words and grammar need the width. */
-.items-kana {
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-}
-.items-kanji {
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-}
-.items-vocab {
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-}
+.items-kana { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+.items-kanji { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.items-vocab { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 
 .item {
   display: flex;
   flex-direction: column;
   gap: var(--s-xs);
+  background: var(--surface);
+  padding: var(--s-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--hairline);
+  transition: all var(--t-fast) ease;
 }
+.item:hover {
+  border-color: var(--brand-tertiary);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
 .items-kana .item,
 .items-kanji .item {
   align-items: center;
   text-align: center;
+  justify-content: center;
 }
 
 .kana-cells {
@@ -353,92 +349,78 @@
 }
 
 .item-answer {
-  font-size: var(--text-small);
+  font-size: var(--text-caption);
   color: var(--ink-soft);
+  font-weight: 600;
+  text-transform: uppercase;
 }
 .item-word {
-  font-size: var(--text-large);
+  font-size: var(--text-title);
   color: var(--ink);
+  font-weight: 700;
 }
 .item-reading {
   font-size: var(--text-small);
-  color: var(--ink-soft);
+  color: var(--brand-primary);
+  font-weight: 500;
 }
 
-/*
- * Romaji is a reading aid, not content: same size as the secondary text but
- * italic and slightly recessed, so the eye reaches for the kana first and only
- * falls back to latin when it needs to. That is the point of removing it after
- * N4 — it should already feel like the thing you skip.
- */
 .item-romaji {
-  font-size: var(--text-small);
-  font-style: italic;
+  font-size: var(--text-caption);
   color: var(--ink-soft);
-  letter-spacing: 0.01em;
+  opacity: 0.8;
 }
 
 .items-grammar .item {
   gap: var(--s-sm);
-  padding-bottom: var(--s-md);
-  border-bottom: 1px solid var(--hairline);
-}
-.items-grammar .item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
 }
 .item-example {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   padding-left: var(--s-md);
-  border-left: 2px solid var(--shu-glass);
+  border-left: 3px solid var(--brand-secondary);
+  background: rgba(236, 72, 153, 0.05);
+  padding: var(--s-sm) var(--s-md);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 .item-example .ja {
   font-size: var(--text-body);
+  font-weight: 500;
 }
 .item-gloss,
 .item-explanation {
-  font-size: var(--text-small);
+  font-size: var(--text-body);
   color: var(--ink-soft);
 }
 
 /* ---- Footer ---- */
 
 .footer {
-  padding: var(--s-2xl) 0 var(--s-4xl);
+  padding: var(--s-3xl) 0 var(--s-4xl);
+  margin-top: var(--s-4xl);
+  background: var(--surface);
   border-top: 1px solid var(--hairline);
 }
 .footer-inner {
   display: flex;
-  align-items: baseline;
-  gap: var(--s-xl);
-  flex-wrap: wrap;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--s-lg);
 }
 .footer-mark {
-  font-size: var(--text-title);
-  color: var(--shu);
-  flex: none;
+  font-size: var(--text-heading);
+  font-weight: 800;
+  color: transparent;
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-tertiary));
+  background-clip: text;
+  -webkit-background-clip: text;
 }
 .footer p {
   margin: 0;
-  max-width: 54ch;
+  max-width: 50ch;
   font-size: var(--text-small);
   color: var(--ink-soft);
-}
-
-@media (max-width: 640px) {
-  .cell {
-    width: 68px;
-    height: 68px;
-    font-size: 40px;
-  }
-  .section-head {
-    gap: var(--s-md);
-  }
-  .unit-head {
-    flex-wrap: wrap;
-  }
 }
 
 /* ---- Header ---- */
@@ -446,58 +428,63 @@
 .header {
   position: sticky;
   top: 0;
-  z-index: 5;
-  padding: var(--s-sm) 0;
+  z-index: 50;
+  padding: var(--s-md) 0;
+  background: transparent;
 }
 .header-inner {
   display: flex;
   align-items: center;
   gap: var(--s-lg);
-  padding: var(--s-sm) var(--s-lg);
-  border-radius: var(--radius-lg);
+  padding: var(--s-sm) var(--s-xl);
+  border-radius: var(--radius-full);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 20px var(--glass-edge);
 }
 .header-mark {
-  font-size: var(--text-body);
-  color: var(--shu-glass);
+  font-size: var(--text-title);
+  font-weight: 800;
+  color: var(--brand-primary);
   text-decoration: none;
-  flex: none;
 }
 .header-stats {
   display: flex;
-  gap: var(--s-lg);
+  gap: var(--s-xl);
   margin-left: auto;
 }
 .metric {
   display: flex;
-  flex-direction: column;
-  line-height: 1.2;
+  align-items: center;
+  gap: var(--s-xs);
+  line-height: 1;
 }
 .metric-label {
   font-size: var(--text-caption);
   color: var(--ink-soft);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
 }
 .metric-value {
-  font-size: var(--text-small);
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 800;
+  color: var(--ink);
 }
 .metric-done {
-  color: var(--shu-glass);
+  color: var(--brand-success);
 }
 .header-name {
   font-size: var(--text-small);
-  color: var(--ink-soft);
-  max-width: 14ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(124, 58, 237, 0.1);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
 }
-.header-inner > .link-button:last-child,
-.header-inner > .link-button:only-of-type {
-  margin-left: auto;
-}
-.header-stats ~ .header-name,
-.header-stats ~ .link-button {
-  margin-left: 0;
+.header-inner > .link-button:last-child {
+  margin-left: var(--s-md);
 }
 
 /* ---- Buttons and forms ---- */
@@ -506,114 +493,134 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 var(--s-xl);
   border: none;
-  border-radius: var(--radius-md);
-  background: var(--ink);
-  color: var(--paper);
-  font: inherit;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-tertiary));
+  color: white;
+  font-family: var(--font-ui);
+  font-weight: 600;
   font-size: var(--text-body);
   text-decoration: none;
   cursor: pointer;
-  transition: opacity var(--t-fast) ease;
+  transition: all var(--t-fast) var(--spring-bounce);
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
 }
-.button:hover {
-  opacity: 0.85;
+.button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+}
+.button:active:not(:disabled) {
+  transform: scale(0.95);
 }
 .button:disabled {
-  opacity: 0.5;
-  cursor: default;
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .link-button {
-  padding: var(--s-sm) 0;
+  padding: var(--s-sm) var(--s-md);
   border: none;
-  background: none;
-  color: var(--ai);
-  font: inherit;
+  background: transparent;
+  color: var(--brand-primary);
+  font-family: var(--font-ui);
+  font-weight: 600;
   font-size: var(--text-small);
   text-decoration: none;
   cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: background var(--t-fast) ease;
 }
 .link-button:hover {
-  text-decoration: underline;
+  background: rgba(124, 58, 237, 0.1);
 }
 
 .section-tight {
-  padding: 0 0 var(--s-2xl);
+  padding: 0 0 var(--s-3xl);
 }
 
 .signin {
   display: flex;
   flex-direction: column;
-  gap: var(--s-lg);
+  gap: var(--s-xl);
   max-width: 420px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  padding: var(--s-2xl);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 40px var(--glass-edge);
 }
 .signin-head h3 {
   margin: 0 0 var(--s-xs);
-  font-size: var(--text-title);
+  font-size: var(--text-heading);
 }
 .signin-head p {
   margin: 0;
-  font-size: var(--text-small);
+  font-size: var(--text-body);
   color: var(--ink-soft);
 }
 .field {
   display: flex;
   flex-direction: column;
-  gap: var(--s-xs);
+  gap: 8px;
 }
 .field span {
   font-size: var(--text-small);
-  color: var(--ink-soft);
+  color: var(--ink);
+  font-weight: 600;
 }
 .field input {
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 var(--s-md);
-  border: 1px solid var(--hairline);
+  border: 2px solid var(--hairline);
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink);
-  font: inherit;
+  font-family: var(--font-ui);
   font-size: var(--text-body);
+  transition: border-color var(--t-fast) ease, box-shadow var(--t-fast) ease;
 }
-.field input:focus-visible {
-  outline: 2px solid var(--shu);
-  outline-offset: 1px;
+.field input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 .form-error {
   margin: 0;
-  padding-left: var(--s-md);
-  border-left: 2px solid var(--danger);
+  padding: var(--s-sm) var(--s-md);
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
   color: var(--danger);
   font-size: var(--text-small);
-}
-
-/* ---- Lesson rows ---- */
-
-.lesson-badge {
-  color: var(--shu-glass);
-  font-size: var(--text-small);
-  flex: none;
-}
-.lesson-actions {
-  padding-top: var(--s-lg);
+  font-weight: 500;
 }
 
 /* ---- Quiz ---- */
 
 .lesson-screen {
-  padding-top: var(--s-xl);
+  padding-top: var(--s-2xl);
   padding-bottom: var(--s-4xl);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .quiz {
   display: flex;
   flex-direction: column;
-  gap: var(--s-md);
-  max-width: 640px;
+  gap: var(--s-xl);
+  max-width: 680px;
+  width: 100%;
   margin: 0 auto;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  padding: var(--s-2xl);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 40px var(--glass-edge);
 }
 .quiz-head {
   display: flex;
@@ -623,131 +630,128 @@
 .quiz-count {
   font-size: var(--text-small);
   color: var(--ink-soft);
+  font-weight: 600;
 }
 .quiz-progress {
-  height: 3px;
-  border-radius: var(--radius-pill, 999px);
+  height: 6px;
+  border-radius: var(--radius-full);
   background: var(--hairline);
   overflow: hidden;
+  flex: 1;
+  margin: 0 var(--s-lg);
 }
 .quiz-progress span {
   display: block;
   height: 100%;
-  background: var(--shu);
-  transition: width var(--t-base) ease;
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-tertiary));
+  border-radius: var(--radius-full);
+  transition: width var(--t-base) var(--spring-bounce);
 }
 
 .quiz-card {
   display: flex;
   flex-direction: column;
-  gap: var(--s-lg);
+  gap: var(--s-xl);
   align-items: center;
   text-align: center;
+  padding: var(--s-2xl) 0;
 }
 .quiz-prompt {
   margin: 0;
   color: var(--ink);
   line-height: 1.2;
+  font-weight: 800;
 }
-/* One glyph can be enormous; a word is read, not inspected; a sentence wraps. */
-.quiz-prompt-kana {
-  font-size: 88px;
-}
-.quiz-prompt-vocab {
-  font-size: var(--text-heading);
-}
-.quiz-prompt-grammar {
-  font-size: var(--text-title);
-}
-/* A typed-reading prompt is a word, so it sizes like one. Without this rule the
-   class simply does not match and the prompt falls back to body size — which is
-   what T1.1 shipped, and it looked like a caption rather than the question. */
-.quiz-prompt-wordReading {
-  font-size: var(--text-heading);
-}
-/* A kanji is one glyph like a kana, but a much denser one: 顔 has 18 strokes
-   where the busiest kana has 4. At the kana size the strokes merge, so it steps
-   down rather than matching. */
-.quiz-prompt-kanji {
-  font-size: 64px;
-}
+.quiz-prompt-kana { font-size: 100px; }
+.quiz-prompt-vocab { font-size: 3rem; }
+.quiz-prompt-grammar { font-size: 2rem; }
+.quiz-prompt-wordReading { font-size: 3rem; }
+.quiz-prompt-kanji { font-size: 80px; }
+
 .quiz-question {
   margin: 0;
-  font-size: var(--text-small);
+  font-size: var(--text-large);
   color: var(--ink-soft);
+  font-weight: 500;
 }
 
 .options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--s-md);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-lg);
   width: 100%;
 }
 .option {
-  min-height: 56px;
+  min-height: 64px;
   padding: 0 var(--s-md);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
+  border: 2px solid var(--hairline);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink);
-  font: inherit;
-  font-size: var(--text-body);
+  font-family: var(--font-ui);
+  font-size: var(--text-large);
+  font-weight: 600;
   cursor: pointer;
-  transition:
-    border-color var(--t-fast) ease,
-    opacity var(--t-fast) ease;
+  transition: all var(--t-fast) var(--spring-bounce);
+  box-shadow: 0 2px 8px var(--glass-edge);
 }
 .option:hover:not(:disabled) {
-  border-color: var(--shu);
+  border-color: var(--brand-tertiary);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.2);
 }
-/*
- * Both marked states are red — the palette has no green, and inventing one for
- * a single screen would break the identity. Safe only because colour is never
- * the sole channel: ○ and × carry the same information, the way a marked-up
- * Japanese worksheet does.
- */
-.option-answer {
-  border-color: var(--shu);
-  color: var(--shu-glass);
-  font-weight: 700;
-}
-.option-wrong {
-  border-color: var(--danger);
-  color: var(--danger);
-  text-decoration: line-through;
-}
-.option-muted {
-  opacity: 0.45;
+.option:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
-/*
- * The typing input. Sized to match the option grid so the lesson card does not
- * shift shape between question kinds — the same panel switches from four
- * buttons to a single text input, and the spacing around it stays the same.
- */
+.option-answer {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--brand-success);
+  color: var(--brand-success);
+}
+.option-wrong {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--danger);
+  color: var(--danger);
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+.option-muted {
+  opacity: 0.3;
+}
+
 .typing {
   display: flex;
   flex-direction: column;
   gap: var(--s-md);
   width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
 }
 .typing-input {
-  min-height: 56px;
-  padding: 0 var(--s-md);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
+  min-height: 64px;
+  padding: 0 var(--s-lg);
+  border: 2px solid var(--hairline);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink);
-  font: inherit;
-  font-size: var(--text-body);
-  /* The romanised text is the learner's, not the lesson's — they may type
-   * lowercase, uppercase, or anything in between. Letting the browser
-   * autocapitalise would silently mis-grade the answer. */
+  font-family: var(--font-ui);
+  font-size: var(--text-large);
+  font-weight: 600;
   text-transform: none;
+  text-align: center;
+  transition: all var(--t-fast) ease;
 }
-.typing-input:focus-visible {
-  outline: 2px solid var(--shu);
-  outline-offset: 2px;
+.typing-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
 }
 
 .verdict {
@@ -756,613 +760,288 @@
   gap: var(--s-sm);
   align-items: center;
   width: 100%;
+  padding: var(--s-lg);
+  border-radius: var(--radius-md);
+  animation: slide-up var(--t-base) var(--spring-bounce);
 }
-.verdict p {
-  margin: 0;
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+
 .verdict-right {
-  color: var(--shu-glass);
-  font-weight: 700;
+  color: var(--brand-success);
+  font-weight: 800;
+  font-size: var(--text-large);
+  background: rgba(16, 185, 129, 0.1);
+  padding: var(--s-sm) var(--s-xl);
+  border-radius: var(--radius-full);
 }
 .verdict-wrong {
   color: var(--danger);
-  font-weight: 700;
+  font-weight: 800;
+  font-size: var(--text-large);
+  background: rgba(239, 68, 68, 0.1);
+  padding: var(--s-sm) var(--s-xl);
+  border-radius: var(--radius-full);
 }
 .verdict-detail {
-  font-size: var(--text-small);
+  font-size: var(--text-body);
   color: var(--ink-soft);
+  font-weight: 500;
+  margin-top: 8px;
 }
 
 .quiz-summary {
   display: flex;
   flex-direction: column;
-  gap: var(--s-lg);
-  max-width: 480px;
+  gap: var(--s-xl);
+  max-width: 500px;
   margin: 0 auto;
+  text-align: center;
 }
 .quiz-summary h2 {
   margin: 0;
-  font-size: var(--text-heading);
+  font-size: var(--text-display);
+  color: var(--brand-primary);
 }
 .summary-rows {
   margin: 0;
   display: flex;
   flex-direction: column;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
 }
 .summary-rows > div {
   display: flex;
   justify-content: space-between;
-  gap: var(--s-lg);
-  padding: var(--s-md) 0;
+  align-items: center;
+  padding: var(--s-lg) var(--s-xl);
   border-bottom: 1px solid var(--hairline);
+}
+.summary-rows > div:last-child {
+  border-bottom: none;
 }
 .summary-rows dt {
   color: var(--ink-soft);
-  font-size: var(--text-small);
+  font-weight: 600;
 }
 .summary-rows dd {
   margin: 0;
-  font-weight: 700;
-}
-.summary-rows .accent {
-  color: var(--shu-glass);
-}
-.summary-note {
-  margin: 0;
-  font-size: var(--text-small);
-  color: var(--ink-soft);
-}
-
-/* ---- Auto-advance ---- */
-
-/*
- * The countdown that runs while a verdict is on screen.
- *
- * Decorative and `aria-hidden`: the timer it mirrors lives in an effect, so
- * under `prefers-reduced-motion` — where the global rule collapses every
- * animation to 0.01ms — the bar simply fills at once while the timer runs its
- * full length regardless. The advance is never faster than it looks; it is only
- * ever less animated.
- *
- * A hairline, not a bar: this is a hint about what is about to happen, and it
- * sits under a verdict that is the actual message.
- */
-.tick {
-  display: block;
-  width: 100%;
-  max-width: 240px;
-  height: 2px;
-  background: var(--hairline);
-  border-radius: 1px;
-  overflow: hidden;
-}
-.tick-fill {
-  display: block;
-  height: 100%;
-  width: 100%;
-  background: var(--ink-soft);
-  transform-origin: left center;
-  animation-name: tick-drain;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-}
-@keyframes tick-drain {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
-}
-
-/* ---- Stroke order ---- */
-
-.strokes-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--s-xl);
-}
-.strokes-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-sm);
-}
-.strokes {
-  display: block;
-}
-.strokes-loading {
-  border-radius: 4px;
-  background: var(--hairline);
-  opacity: 0.4;
-}
-
-/*
- * Both layers use the same geometry; only the paint differs. Round caps and
- * joins because a brush stroke has no square corners, and this is meant to read
- * as handwriting rather than as engineering.
- */
-.stroke-ghost,
-.stroke-draw {
-  fill: none;
-  stroke-width: 5.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-.stroke-ghost {
-  stroke: var(--hairline);
-}
-.stroke-draw {
-  stroke: var(--shu);
-  /* pathLength="1" normalises every stroke, so one dash length fits all of
-     them and long and short strokes draw at the same visual speed. */
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: stroke-draw 0.75s ease-out forwards;
-}
-@keyframes stroke-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/*
- * Reduced motion: show the finished character rather than a faster animation,
- * and never leave it part-drawn. The global rule collapses the duration to
- * 0.01ms; this makes sure what lands is the *complete* glyph by removing the
- * dash entirely, since a collapsed animation with `forwards` would otherwise
- * depend on the fill mode landing correctly.
- */
-@media (prefers-reduced-motion: reduce) {
-  .stroke-draw {
-    stroke-dasharray: none;
-    stroke-dashoffset: 0;
-    animation: none;
-  }
-}
-
-.strokes-foot {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-lg);
-}
-.strokes-count {
-  font-size: var(--text-small);
-  color: var(--ink-soft);
-}
-.strokes-credit {
-  margin: 0;
-  font-size: var(--text-caption);
-  color: var(--ink-soft);
-}
-.strokes-credit a {
-  color: var(--ink-soft);
-}
-
-/* ---- The teach step ---- */
-
-/*
- * One item, large. The list on the home page is the right shape for browsing a
- * syllabus; this is the right shape for actually looking at a character, and
- * the size difference is most of what separates them.
- */
-.study-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-lg);
-  text-align: center;
-  min-height: 340px;
-  justify-content: center;
-}
-.study-kicker {
-  margin: 0;
-  font-size: var(--text-caption);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-
-/* The shared `Item` renders inline spans; stack and centre them here rather
-   than in the component, so the curriculum list is untouched. */
-.study-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-sm);
-}
-.study-item .item-word {
-  font-size: var(--text-display);
-  line-height: 1.1;
-}
-.study-item .cell {
-  width: 132px;
-  height: 132px;
-  font-size: 5rem;
-}
-.study-item .item-answer {
-  font-size: var(--text-title);
+  font-weight: 800;
   color: var(--ink);
-}
-.study-item .item-romaji {
   font-size: var(--text-large);
-  color: var(--ink-soft);
-}
-/* A sentence cannot take display size and still fit — grammar keeps prose
-   proportions and only gains the centring. */
-.study-item-grammar .item-word {
-  font-size: var(--text-heading);
-}
-.study-item-grammar .item-example .ja {
-  font-size: var(--text-title);
 }
 
-.study-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-xl);
+/* ---- Flashcard Flip Mechanics ---- */
+
+.flip-container {
+  perspective: 1000px;
   width: 100%;
-  max-width: 360px;
-}
-.study-skip {
-  font-size: var(--text-small);
+  min-height: 240px;
+  margin-bottom: var(--s-lg);
 }
 
-/* ---- Where you are ---- */
-
-/*
- * The "pick up here" row. Quieter than the due-cards callout by construction —
- * it only ever renders when that one is absent, so the two never compete, but
- * it is also a glass panel rather than a solid vermilion field so that if the
- * rule ever changed the hierarchy would still read correctly.
- */
-.continue {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-xl);
-  flex-wrap: wrap;
-}
-.continue-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-xs);
-  min-width: 0;
-}
-.continue-label {
-  margin: 0;
-  font-size: var(--text-caption);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-.continue-title {
-  margin: 0;
-  font-size: var(--text-large);
-  color: var(--ink);
-}
-
-/* A hairline under the unit head, the same weight as the pips. */
-.unit-progress {
-  height: 3px;
-  border-radius: 2px;
-  background: var(--hairline);
-  overflow: hidden;
-  margin-top: var(--s-md);
-}
-.unit-progress > span {
-  display: block;
+.flip-card {
+  position: relative;
+  width: 100%;
   height: 100%;
-  background: var(--shu);
-}
-
-/* ---- Run state ---- */
-
-/*
- * One pip per question. A bar answered "how far through am I", which was the
- * only useful question while a wrong answer merely came round again; now that a
- * single mistake decides the lesson, "is this run still clean" matters more, and
- * that needs per-question state.
- *
- * Pips flex, so a twenty-item lesson gets slivers rather than an overflow. The
- * wrong state is the only one that uses `danger`, which keeps it the loudest
- * thing in the row.
- */
-.quiz-pips {
-  display: flex;
-  gap: 3px;
-  width: 100%;
-}
-.pip {
-  flex: 1 1 0;
-  height: 4px;
-  min-width: 2px;
-  border-radius: 2px;
-  background: var(--hairline);
-  transition: background-color 180ms ease;
-}
-.pip-right {
-  background: var(--shu);
-}
-.pip-wrong {
-  background: var(--danger);
-}
-/* The one being asked: dark rather than coloured, since it has no outcome. */
-.pip-now {
-  background: var(--ink-soft);
-}
-/* Restates the base so the class list reads as a complete set of states rather
-   than three states and an absence. */
-.pip-todo {
-  background: var(--hairline);
-}
-
-.run-broken {
-  margin: 0;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s-lg);
-  flex-wrap: wrap;
-  font-size: var(--text-small);
-  color: var(--ink-soft);
-}
-
-.clean-run {
-  margin: 0;
-  font-size: var(--text-small);
-  color: var(--shu-glass);
-  font-weight: 700;
-}
-
-/* ---- Audio ---- */
-
-/*
- * The play button. Indigo rather than vermilion: vermilion is the site's accent
- * for the thing you are meant to do next, and this is an aid beside the thing
- * you are meant to do — it should be findable, not louder than the question.
- *
- * Sized past 44px including padding, because a bare glyph is a ~20px target.
- */
-.speak {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-sm);
-  padding: var(--s-sm) var(--s-lg);
-  min-height: 44px;
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ai);
-  font: inherit;
-  font-size: var(--text-small);
-  cursor: pointer;
-}
-.speak:hover:not(:disabled) {
-  border-color: var(--ai);
-}
-.speak:disabled {
-  color: var(--ink-soft);
-  cursor: default;
-}
-/* Held while the clip runs, so a press has an answer even when the phone is
-   muted — the commonest reason a learner presses twice. */
-.speak-playing {
-  border-color: var(--ai);
-}
-
-.quiz-audio {
+  transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+  transform-style: preserve-3d;
   display: flex;
   justify-content: center;
-}
-
-.card-back .speak {
-  margin-top: var(--s-sm);
-}
-
-/* ---- Failing a lesson ---- */
-
-/*
- * The list of what was missed, shown when a run ends with a wrong answer.
- *
- * The point is to make the repeat a study aid: the learner reads the four they
- * got wrong before re-answering all twelve. Vermilion on the answer because it
- * is the thing to memorise before running it again.
- */
-.missed {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-}
-.missed li {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s-lg);
-  padding: var(--s-md) 0;
-  border-bottom: 1px solid var(--hairline);
-}
-.missed-prompt {
-  font-size: var(--text-large);
-}
-.missed-answer {
-  color: var(--shu-glass);
-  font-weight: 700;
-  text-align: right;
-}
-
-.summary-actions {
-  display: flex;
   align-items: center;
-  gap: var(--s-lg);
-  flex-wrap: wrap;
 }
 
-/* ---- What comes next ---- */
+.flip-card.revealed {
+  transform: rotateY(180deg);
+}
 
-.up-next {
+.flip-front,
+.flip-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: center;
   gap: var(--s-md);
-  padding-top: var(--s-lg);
-  border-top: 1px solid var(--hairline);
-}
-.up-next-line {
-  margin: 0;
-  font-size: var(--text-small);
-  color: var(--ink-soft);
-}
-.up-next-line strong {
-  color: var(--ink);
-}
-
-/*
- * The row the learner was sent to the curriculum to read.
- *
- * A left rule rather than a fill: the lesson body underneath is the content
- * that matters, and a tinted panel behind Japanese text is a contrast problem
- * for no gain. The marker sits outside the text entirely.
- */
-.lesson-highlight {
-  border-left: 2px solid var(--shu);
-  padding-left: var(--s-md);
-  margin-left: calc(var(--s-md) * -1 - 2px);
-}
-.learn-first {
-  margin: 0 0 var(--s-lg);
-  font-size: var(--text-small);
-  color: var(--ink-soft);
-}
-.learn-first strong {
-  color: var(--shu-glass);
-}
-
-/* ---- Reviews ---- */
-
-/*
- * The one solid vermilion surface on the site. That weight is the point: SRS
- * only works if due cards get cleared before new material is added, so this
- * has to out-shout a list of tempting new lessons.
- *
- * `paper` on `shu` clears AA in both themes at full strength — it is not
- * dimmed, because the same pairing at 0.85 opacity composites to 3.9:1 and
- * fails. The size step does the work the opacity would have.
- */
-.due-callout {
-  display: flex;
-  align-items: center;
-  gap: var(--s-lg);
   padding: var(--s-xl);
-  border-radius: var(--radius-xl);
-  background: var(--shu);
-  color: var(--paper);
-  text-decoration: none;
-  transition: opacity var(--t-fast) ease;
-}
-.due-callout:hover {
-  opacity: 0.92;
-}
-.due-count {
-  font-size: var(--text-heading);
-  font-weight: 700;
-  line-height: 1;
-  flex: none;
-}
-.due-callout strong {
-  display: block;
-  font-size: var(--text-large);
-  font-weight: 700;
-}
-.due-callout span span {
-  font-size: var(--text-small);
 }
 
-.card-back {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-xs);
-  align-items: center;
-  text-align: center;
-}
-.card-back p {
-  margin: 0;
-}
-.card-back-answer {
-  font-size: var(--text-title);
-  color: var(--ink);
-}
-.card-back-detail {
-  font-size: var(--text-body);
-  color: var(--ink-soft);
+.flip-back {
+  transform: rotateY(180deg);
 }
 
-/*
- * The four grades as one ramp of ink density rather than four hues: visual
- * weight maps to how hard the card was. This is the one place the design is
- * allowed to be bold, and the tokens are lifted from the app's grade scale so
- * both surfaces grade against the same colours.
- */
 .grades {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--s-sm);
   width: 100%;
 }
+
 .grade {
-  min-height: 56px;
-  border: none;
-  border-radius: var(--radius-md);
-  font: inherit;
-  font-size: var(--text-small);
-  text-transform: capitalize;
+  padding: var(--s-md);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
   cursor: pointer;
-  transition: opacity var(--t-fast) ease;
+  transition: all var(--t-fast) ease;
 }
+
+.grade:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--glass-edge);
+}
+
 .grade:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: default;
 }
-.grade:not(:disabled):hover {
-  opacity: 0.85;
+
+.grade-again { border-color: var(--danger); color: var(--danger); }
+.grade-again:hover:not(:disabled) { background: rgba(239, 68, 68, 0.1); }
+
+.grade-hard { border-color: var(--brand-secondary); color: var(--brand-secondary); }
+.grade-hard:hover:not(:disabled) { background: rgba(236, 72, 153, 0.1); }
+
+.grade-good { border-color: var(--brand-tertiary); color: var(--brand-tertiary); }
+.grade-good:hover:not(:disabled) { background: rgba(59, 130, 246, 0.1); }
+
+.grade-easy { border-color: var(--brand-success); color: var(--brand-success); }
+.grade-easy:hover:not(:disabled) { background: rgba(16, 185, 129, 0.1); }
+
+/* ---- Continue & Due Callout ---- */
+
+.continue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-lg);
+  padding: var(--s-xl);
+  background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.4));
+  border-left: 4px solid var(--brand-primary);
 }
-.grade-again {
-  background: #7b2114;
-  color: #f7efea;
+
+.continue-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
 }
-.grade-hard {
-  background: #b03b25;
-  color: #f7efea;
+
+.continue-label {
+  margin: 0;
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--brand-primary);
+  font-weight: 800;
 }
-.grade-good {
-  background: #dd9384;
-  color: #3a1009;
+
+.continue-title {
+  margin: 0;
+  font-size: var(--text-large);
+  font-weight: 700;
+  color: var(--ink);
 }
-.grade-easy {
-  background: #f0d2ca;
-  color: #3a1009;
+
+.due-callout {
+  display: flex;
+  align-items: center;
+  gap: var(--s-xl);
+  padding: var(--s-xl);
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: var(--ink);
+  transition: all var(--t-fast) ease;
 }
-@media (prefers-color-scheme: dark) {
-  /* On an ink ground the ramp runs the other way: `again` is brightest and
-     `easy` recedes almost to the surface. Density still maps to effort. */
-  .grade-again {
-    background: #c0442b;
-    color: #f7efea;
-  }
-  .grade-hard {
-    background: #8e3623;
-    color: #f7efea;
-  }
-  .grade-good {
-    background: #5a2519;
-    color: #e8c4b8;
-  }
-  .grade-easy {
-    background: #38201a;
-    color: #e8c4b8;
-  }
+
+.due-callout:hover {
+  background: rgba(239, 68, 68, 0.1);
+  transform: translateY(-2px);
+}
+
+.due-count {
+  font-size: var(--text-display);
+  font-weight: 800;
+  color: var(--danger);
+  line-height: 1;
+}
+
+.due-callout span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.due-callout strong {
+  font-size: var(--text-large);
+  color: var(--danger);
+}
+
+.due-callout span span {
+  font-size: var(--text-body);
+  color: var(--ink-soft);
+}
+
+/* ---- Quiz Pips & Study UI ---- */
+
+.quiz-pips {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  margin-top: var(--s-md);
+  margin-bottom: var(--s-xl);
+}
+
+.pip {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--hairline);
+  transition: all var(--t-fast) ease;
+}
+
+.pip-right { background: var(--brand-success); }
+.pip-wrong { background: var(--danger); }
+.pip-now { background: var(--brand-primary); }
+.pip-todo { background: var(--hairline); opacity: 0.5; }
+
+.study-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+  align-items: center;
+  text-align: center;
+  padding: var(--s-3xl) var(--s-xl);
+}
+
+.study-kicker {
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--brand-primary);
+  margin: 0;
+  font-weight: 800;
+}
+
+.study-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: var(--s-xl);
+}
+
+.study-skip {
+  margin-top: var(--s-md);
 }

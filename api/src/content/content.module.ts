@@ -22,6 +22,9 @@ import { ListeningPlugin } from './exercise/plugins/listening.plugin';
 import { SentenceBuildingPlugin } from './exercise/plugins/sentence-building.plugin';
 import { FillInTheBlankPlugin } from './exercise/plugins/fill-in-the-blank.plugin';
 import { FlashcardPlugin } from './exercise/plugins/flashcard.plugin';
+import { SpeechPlugin } from './exercise/plugins/speech.plugin';
+
+import { CreatorController } from './creator.controller';
 
 /**
  * `LearningModule` is wrapped in `forwardRef` because `ExerciseService` (in
@@ -56,6 +59,7 @@ import { FlashcardPlugin } from './exercise/plugins/flashcard.plugin';
     AudioController,
     StrokesController,
     ContentReportController,
+    CreatorController,
   ],
   providers: [
     ContentService,
@@ -67,6 +71,7 @@ import { FlashcardPlugin } from './exercise/plugins/flashcard.plugin';
     SentenceBuildingPlugin,
     FillInTheBlankPlugin,
     FlashcardPlugin,
+    SpeechPlugin,
   ],
   exports: [ContentService, ExerciseService, ExercisePluginRegistry],
 })

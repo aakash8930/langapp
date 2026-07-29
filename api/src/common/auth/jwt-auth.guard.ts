@@ -6,12 +6,14 @@ import { Request } from 'express';
 export interface AccessTokenPayload {
   sub: string;
   email: string;
+  isAdmin: boolean;
 }
 
 /** What the guard attaches to the request once a token checks out. */
 export interface AuthenticatedUser {
   userId: string;
   email: string;
+  isAdmin: boolean;
 }
 
 export interface RequestWithUser extends Request {
@@ -43,7 +45,7 @@ export class JwtAuthGuard implements CanActivate {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
         secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
       });
-      request.user = { userId: payload.sub, email: payload.email };
+      request.user = { userId: payload.sub, email: payload.email, isAdmin: !!payload.isAdmin };
       return true;
     } catch {
       // Covers expired, malformed, and wrong-secret alike — the client learns

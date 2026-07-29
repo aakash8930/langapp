@@ -160,7 +160,7 @@ export class AuthService {
     const jti = randomUUID();
 
     const accessToken = await this.jwtService.signAsync(
-      { sub: userId, email: user.email },
+      { sub: userId, email: user.email, isAdmin: user.isAdmin },
       {
         secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: ttl(this.config.getOrThrow<string>('JWT_ACCESS_TTL')),

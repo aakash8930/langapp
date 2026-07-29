@@ -1,0 +1,155 @@
+.leaderboard-container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: var(--s-2xl);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 40px var(--glass-edge);
+}
+
+.leaderboard-header {
+  text-align: center;
+  margin-bottom: var(--s-2xl);
+  padding-bottom: var(--s-xl);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.tier-badge {
+  font-size: var(--text-display);
+  font-weight: 800;
+  margin-bottom: var(--s-sm);
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-tertiary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.tier-progress {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  margin-bottom: var(--s-md);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.time-remaining {
+  display: inline-block;
+  padding: var(--s-sm) var(--s-lg);
+  background: rgba(124, 58, 237, 0.1);
+  border-radius: var(--radius-full);
+  font-size: var(--text-small);
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  padding: var(--s-md) var(--s-lg);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 2px solid var(--hairline);
+  transition: all var(--t-fast) var(--spring-bounce);
+  box-shadow: 0 2px 8px var(--glass-edge);
+}
+
+.leaderboard-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  border-color: var(--brand-tertiary);
+}
+
+.leaderboard-row.is-you {
+  background: linear-gradient(to right, rgba(124, 58, 237, 0.1), rgba(59, 130, 246, 0.1));
+  border-color: var(--brand-primary);
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.2);
+}
+
+.leaderboard-row.promotion-zone {
+  border-left: 4px solid var(--brand-success);
+}
+
+.row-rank {
+  font-size: var(--text-title);
+  font-weight: 800;
+  color: var(--ink-soft);
+  width: 48px;
+  text-align: center;
+}
+
+/* Metallic Gradients for Top 3 */
+.leaderboard-row:nth-child(1) .row-rank {
+  color: transparent;
+  background: linear-gradient(135deg, #FFD700, #FDB931);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+}
+
+.leaderboard-row:nth-child(2) .row-rank {
+  color: transparent;
+  background: linear-gradient(135deg, #C0C0C0, #E5E4E2);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.leaderboard-row:nth-child(3) .row-rank {
+  color: transparent;
+  background: linear-gradient(135deg, #cd7f32, #b87333);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.row-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-secondary), var(--brand-primary));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: var(--text-large);
+  margin: 0 var(--s-lg);
+  box-shadow: 0 4px 10px rgba(236, 72, 153, 0.3);
+}
+
+.row-name {
+  flex: 1;
+  font-size: var(--text-large);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.row-xp {
+  font-weight: 800;
+  color: var(--brand-primary);
+  font-size: var(--text-large);
+}
+
+.leaderboard-opt-in {
+  text-align: center;
+  padding: var(--s-4xl) var(--s-2xl);
+}
+
+.leaderboard-opt-in h2 {
+  font-size: var(--text-heading);
+  margin-bottom: var(--s-md);
+  color: var(--ink);
+}
+
+.leaderboard-opt-in p {
+  color: var(--ink-soft);
+  margin-bottom: var(--s-2xl);
+  font-size: var(--text-large);
+}

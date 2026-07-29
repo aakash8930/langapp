@@ -30,6 +30,7 @@ export type Tokens = { accessToken: string; refreshToken: string };
 export type User = {
   id: string;
   email: string;
+  isAdmin?: boolean;
   profile: { displayName: string; nativeLanguage: string; activeTrack: string };
   gamification: { xp: number; streakDays: number; lastStudyDate: string | null; dailyGoalXp: number };
   settings: { audioSpeed: number; theme: string; tz: string };

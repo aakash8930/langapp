@@ -6,6 +6,7 @@ import { ListeningPlugin } from './listening.plugin';
 import { SentenceBuildingPlugin } from './sentence-building.plugin';
 import { FillInTheBlankPlugin } from './fill-in-the-blank.plugin';
 import { FlashcardPlugin } from './flashcard.plugin';
+import { SpeechPlugin } from './speech.plugin';
 
 /**
  * ExercisePluginRegistry maintains the map of supported exercise strategy plugins (Phase 2 architecture).
@@ -22,6 +23,7 @@ export class ExercisePluginRegistry {
     sentenceBuilding: SentenceBuildingPlugin,
     fillInTheBlank: FillInTheBlankPlugin,
     flashcard: FlashcardPlugin,
+    speech: SpeechPlugin,
   ) {
     this.register(multipleChoice);
     this.register(wordReading);
@@ -29,6 +31,7 @@ export class ExercisePluginRegistry {
     this.register(sentenceBuilding);
     this.register(fillInTheBlank);
     this.register(flashcard);
+    this.register(speech);
   }
 
   register(plugin: ExercisePlugin): void {

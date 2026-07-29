@@ -15,6 +15,12 @@ export function Header({ session, onSignOut }: { session: Session; onSignOut: ()
         <a className="header-mark ja" href="#/">
           日本語
         </a>
+        <a className="link-button" href="#/leagues" style={{ marginLeft: '16px' }}>
+          Leagues
+        </a>
+        <a className="link-button" href="#/social" style={{ marginLeft: '16px' }}>
+          Social
+        </a>
 
         {session.state === 'signedIn' ? (
           <>

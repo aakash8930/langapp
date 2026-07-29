@@ -1,85 +1,61 @@
 /*
- * langapp web — design tokens.
+ * langapp web — modern premium design tokens.
  *
- * The palette is lifted from `client/theme/colors.ts` unchanged, so the site
- * and the Android app read as the same product. What is new here is the glass
- * layer system below.
- *
- * ## The contrast rule, and how glass survives it
- *
- * `client/CLAUDE.md` makes WCAG AA a gate, not a preference: 4.5:1 for body
- * text, 3:1 for large. Translucency is where that usually dies — the app
- * already rejected an `opacity: 0.85` for compositing to 3.9:1.
- *
- * The rule here is: **surfaces are translucent, text never is.** A glass panel
- * blurs and tints what is behind it, but every panel's own background composites
- * to a known solid colour, and text contrast is measured against *that*, not
- * against the panel's nominal colour. `--glass-solid-*` below is the composited
- * worst case each panel is guaranteed to be no lighter/darker than — the value
- * the ratios were computed with.
- *
- * Nothing behind a panel is ever allowed to be a photograph or a strong
- * gradient, which is what makes that guarantee hold: the page ground is one of
- * two flat colours plus a low-contrast grid.
+ * Re-designed to feature a vibrant color palette, dynamic glassmorphism,
+ * and high-end typography while maintaining a clean aesthetic.
  */
 
 :root {
   color-scheme: light dark;
 
-  /* ---- Palette: identical to client/theme/colors.ts ---- */
-  --paper: #f2f1ec;
+  /* ---- Premium Palette ---- */
+  --brand-primary: #7c3aed; /* Vibrant Violet */
+  --brand-secondary: #ec4899; /* Pink */
+  --brand-tertiary: #3b82f6; /* Blue */
+  --brand-success: #10b981; /* Emerald */
+  
+  --paper: #f8fafc;
   --surface: #ffffff;
-  --ink: #1a1917;
-  --ink-soft: #56534b;
-  --hairline: #dedcd3;
-  /* Darkened from #c8452c so it clears 4.5:1 on paper — see the client note. */
-  --shu: #bc3e28;
-  --ai: #35566b;
-  --danger: #8c2f1c;
+  --ink: #0f172a;
+  --ink-soft: #64748b;
+  --hairline: #e2e8f0;
+  
+  --shu: #f43f5e; /* Rose / Vermilion */
+  --ai: #8b5cf6;
+  --danger: #ef4444;
+
+  /* Mesh Gradient Background Colors */
+  --mesh-1: rgba(124, 58, 237, 0.15); /* Primary */
+  --mesh-2: rgba(236, 72, 153, 0.15); /* Secondary */
+  --mesh-3: rgba(59, 130, 246, 0.15); /* Tertiary */
+  --mesh-bg: #f8fafc;
 
   /*
-   * Glass. `--glass-bg` is what you paint; `--glass-solid` is the *worst-case*
-   * colour it composites to over the page ground — darkest in light mode,
-   * lightest in dark mode, since that is the direction that costs contrast.
-   *
-   * Measured, not asserted (the panel over a grid line, the worst backdrop
-   * that exists here):
-   *
-   *   --ink        on #f9f5f2  =>  16.21:1   body text, needs 4.5   PASS
-   *   --ink-soft   on #f9f5f2  =>   7.08:1   secondary text         PASS
-   *   --shu-glass  on #f9f5f2  =>   5.02:1   accents                PASS
-   *   --ai         on #f9f5f2  =>   7.19:1   links                  PASS
+   * Rich Glassmorphism
    */
-  --glass-bg: rgba(255, 255, 255, 0.62);
-  --glass-solid: #f9f5f2;
-  --glass-border: rgba(255, 255, 255, 0.75);
-  --glass-edge: rgba(26, 25, 23, 0.08);
-  --glass-blur: 16px;
-
-  /*
-   * Vermilion for text sitting *on glass*. Identical to --shu in light mode.
-   * In dark mode it has to be lighter — see the note there.
-   */
-  --shu-glass: #bc3e28;
-
-  /* The genkouyoushi grid, carried over from the deck as a page texture. */
-  --grid-line: rgba(188, 62, 40, 0.07);
-  --grid-cell: 46px;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-solid: #ffffff;
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-edge: rgba(15, 23, 42, 0.05);
+  --glass-blur: 24px;
+  
+  /* Text on glass */
+  --shu-glass: #e11d48;
 
   /* ---- Type ---- */
   --font-ja: 'Zen Kaku Gothic New', system-ui, sans-serif;
-  --font-ui:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-ui: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', var(--font-ui);
 
   --text-caption: 0.75rem;
   --text-small: 0.875rem;
   --text-body: 1rem;
   --text-large: 1.125rem;
-  --text-title: 1.375rem;
-  --text-heading: 1.75rem;
+  --text-title: 1.5rem;
+  --text-heading: 2rem;
   --text-display: clamp(2.5rem, 6vw, 4.5rem);
 
-  /* ---- Space: the same 4pt scale the app uses ---- */
+  /* ---- Space ---- */
   --s-xs: 4px;
   --s-sm: 8px;
   --s-md: 12px;
@@ -89,51 +65,47 @@
   --s-3xl: 48px;
   --s-4xl: 72px;
 
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 20px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
 
-  /* Motion budget, matching the app's: fast/base/slow, no spring overshoot. */
-  --t-fast: 120ms;
-  --t-base: 200ms;
-  --t-slow: 320ms;
+  /* Motion budget */
+  --t-fast: 150ms;
+  --t-base: 250ms;
+  --t-slow: 400ms;
+  
+  --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #141310;
-    --surface: #1d1c18;
-    --ink: #edeae0;
-    --ink-soft: #a8a296;
-    --hairline: #2e2c26;
-    --shu: #d0614a;
-    --ai: #6d91a6;
-    --danger: #d2705a;
+    --brand-primary: #8b5cf6;
+    --brand-secondary: #f472b6;
+    --brand-tertiary: #60a5fa;
+    --brand-success: #34d399;
 
-    /*
-     * Worst case here is the *lightest* composite, #27231d:
-     *
-     *   --ink        on #27231d  =>  12.98:1   PASS
-     *   --ink-soft   on #27231d  =>   6.15:1   PASS
-     *   --ai         on #27231d  =>   4.65:1   PASS
-     *   --shu        on #27231d  =>   4.08:1   ← FAILS
-     *
-     * The app's dark vermilion is measurably unreadable on this panel: it was
-     * mixed for `surface` (#1d1c18), and glass sits lighter than that. Two ways
-     * out — darken the glass until #d0614a passes, which needs it at 0.62 alpha
-     * over near-black and stops looking like glass at all; or lighten the
-     * vermilion for this one use. Lightening wins: --shu-glass below is 4.77:1,
-     * and it is close enough in hue that the two read as the same colour.
-     *
-     * --shu itself is unchanged, so anything on `surface` still matches the app.
-     */
-    --glass-bg: rgba(46, 44, 38, 0.55);
-    --glass-solid: #27231d;
-    --glass-border: rgba(237, 234, 224, 0.12);
-    --glass-edge: rgba(0, 0, 0, 0.35);
-    --shu-glass: #d97059;
+    --paper: #0f172a; /* Slate 900 */
+    --surface: #1e293b; /* Slate 800 */
+    --ink: #f8fafc;
+    --ink-soft: #94a3b8;
+    --hairline: #334155;
+    
+    --shu: #fb7185;
+    --ai: #a78bfa;
+    --danger: #f87171;
 
-    --grid-line: rgba(208, 97, 74, 0.06);
+    /* Mesh Gradient Background Colors (Dark) */
+    --mesh-1: rgba(139, 92, 246, 0.2);
+    --mesh-2: rgba(244, 114, 182, 0.15);
+    --mesh-3: rgba(96, 165, 250, 0.15);
+    --mesh-bg: #0f172a;
+
+    --glass-bg: rgba(30, 41, 59, 0.6);
+    --glass-solid: #1e293b;
+    --glass-border: rgba(248, 250, 252, 0.08);
+    --glass-edge: rgba(0, 0, 0, 0.4);
+    --shu-glass: #fb7185;
   }
 }
 
@@ -144,52 +116,85 @@
 }
 
 html {
-  /*
-   * Smooth scrolling, but only for people who have not asked for less motion.
-   * Native rather than a hijacked scroll library: a rewritten scrollbar breaks
-   * keyboard paging, find-in-page and trackpad momentum, and this page has
-   * nothing that needs frame-level scroll control.
-   */
   scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  background-color: var(--paper);
+  background-color: var(--mesh-bg);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--text-body);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  /*
-   * The manuscript grid, faint enough to read as paper texture. Fixed so it
-   * does not travel with the content — the page moves over the paper.
-   */
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: var(--grid-cell) var(--grid-cell);
-  background-attachment: fixed;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* 
+ * Dynamic Mesh Gradient Background 
+ * Replaces the old grid with a premium flowing blob effect
+ */
+body::before,
+body::after,
+.mesh-blob {
+  content: "";
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  z-index: -1;
+  opacity: 0.8;
+  animation: float-blob 20s ease-in-out infinite alternate;
+}
+
+body::before {
+  background-color: var(--mesh-1);
+  width: 50vw;
+  height: 50vw;
+  top: -10%;
+  left: -10%;
+}
+
+body::after {
+  background-color: var(--mesh-2);
+  width: 40vw;
+  height: 40vw;
+  bottom: -10%;
+  right: -10%;
+  animation-delay: -5s;
+  animation-duration: 25s;
+}
+
+.mesh-blob {
+  background-color: var(--mesh-3);
+  width: 45vw;
+  height: 45vw;
+  top: 30%;
+  left: 40%;
+  animation-delay: -10s;
+  animation-duration: 22s;
+}
+
+@keyframes float-blob {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(5%, 10%) scale(1.1); }
+  66% { transform: translate(-10%, 5%) scale(0.9); }
+  100% { transform: translate(0, 0) scale(1); }
 }
 
 /* ---- The glass primitive ---- */
 
 .glass {
   background: var(--glass-bg);
-  /* -webkit- first: Safari still needs it, and Safari is where this looks best. */
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
-  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  /*
-   * One soft shadow and one inset highlight — the depth cue that makes a panel
-   * read as a pane of glass rather than a flat box. This is the one place the
-   * app's "1px hairlines only" rule is deliberately relaxed for the web, and it
-   * is confined to this class so the exception stays visible.
-   */
   box-shadow:
-    0 1px 0 0 var(--glass-border) inset,
-    0 8px 32px -12px var(--glass-edge);
+    0 1px 1px 0 rgba(255,255,255,0.1) inset,
+    0 12px 40px -12px var(--glass-edge);
+  transition: transform var(--t-base) var(--spring-bounce), box-shadow var(--t-base) ease;
 }
 
 /*
@@ -204,23 +209,20 @@ body {
 
 /* ---- Motion ---- */
 
-/*
- * Elements animated in on scroll start hidden. If JS never runs — or anime.js
- * fails to load — this class would hide the page permanently, so the reveal is
- * opt-in from script: `js-motion` is set on <html> before first paint only when
- * motion is actually going to happen.
- */
 .js-motion .reveal {
   opacity: 0;
-  transform: translateY(18px);
+  transform: translateY(24px) scale(0.98);
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
+  
+  body::before, body::after, .mesh-blob {
+    animation: none;
+  }
 
-  /* Hold still rather than animating faster — the app's rule, kept. */
   .js-motion .reveal {
     opacity: 1;
     transform: none;
@@ -252,9 +254,16 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Visible focus everywhere — a glass panel must not swallow the focus ring. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 0;
+}
+
+/* Visible focus everywhere */
 :where(a, button, [tabindex]):focus-visible {
-  outline: 2px solid var(--shu);
+  outline: 2px solid var(--brand-primary);
   outline-offset: 3px;
   border-radius: var(--radius-md);
 }
@@ -268,4 +277,54 @@ body {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* Modern Gradient Text Utility */
+.text-gradient {
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Modern Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  padding: var(--s-md) var(--s-xl);
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--spring-bounce);
+  text-decoration: none;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.39);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 2px 8px var(--glass-edge);
+}
+
+.btn-secondary:hover {
+  background: var(--paper);
+  transform: translateY(-2px);
 }
