@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { ContentKind } from '../knowledge-graph/schemas/knowledge-node.schema';
 import {
   ExerciseAttempt,
   ExerciseAttemptDocument,
@@ -8,6 +9,22 @@ import {
 
 /** Mongo duplicate-key error. Same value used in `learning.service.ts`. */
 const DUPLICATE_KEY = 11000;
+
+/**
+ * The content-item identification a question was about. Bag rather than three
+ * positionals so the call site does not have to keep three optional values
+ * aligned with `recordAttempt`'s positional signature.
+ *
+ * Every field may be `null`: historic rows predate the slice, and tests that
+ * don't care about the learner model can pass nulls. The values are stored as-is
+ * — `wordReading` is mapped to `'vocab'` at the call site, not here, because
+ * the mapping belongs with the answer endpoint that knows the prompt kind.
+ */
+export interface AttemptItem {
+  itemId: Types.ObjectId | null;
+  itemKind: ContentKind | null;
+  exerciseType: string | null;
+}
 
 /**
  * Owns the `exerciseAttempts` collection. Exposes only the two operations
@@ -59,6 +76,7 @@ export class ExerciseAttemptsService {
     exerciseId: string,
     correct: boolean,
     responseTimeMs?: number,
+    item: AttemptItem = { itemId: null, itemKind: null, exerciseType: null },
   ): Promise<boolean> {
     const key = {
       userId: new Types.ObjectId(userId),
@@ -72,6 +90,9 @@ export class ExerciseAttemptsService {
         ...key,
         correct,
         responseTimeMs: responseTimeMs ?? null,
+        itemId: item.itemId,
+        itemKind: item.itemKind,
+        exerciseType: item.exerciseType,
       });
       return true;
     } catch (err) {
@@ -81,6 +102,14 @@ export class ExerciseAttemptsService {
 
       // The row exists. Promote it to correct if this answer was right; a wrong
       // re-answer matches nothing because of the `correct: false` clause.
+      //
+      // The item fields carry forward too: the row's `itemId` reflects the
+      // first answer that had it, which is fine because both answers target
+      // the same shuffled position (`exerciseId` is unique per attempt). A
+      // first write with `null` followed by a second write with values leaves
+      // the row with `null` — that is the chosen order: the schema is
+      // optional, the completion gate doesn't read it, and a future backfill
+      // can repair the historic `null`s without these writes fighting it.
       if (correct) {
         await this.attemptModel
           .updateOne(
@@ -89,6 +118,9 @@ export class ExerciseAttemptsService {
               $set: {
                 correct: true,
                 ...(responseTimeMs !== undefined ? { responseTimeMs } : {}),
+                ...(item.itemId !== null ? { itemId: item.itemId } : {}),
+                ...(item.itemKind !== null ? { itemKind: item.itemKind } : {}),
+                ...(item.exerciseType !== null ? { exerciseType: item.exerciseType } : {}),
               },
             },
           )

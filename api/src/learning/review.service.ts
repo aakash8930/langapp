@@ -13,6 +13,7 @@ import {
   GradeReviewResponse,
 } from './dto/review.dto';
 import { fromFsrsCard, gradeToRating, ReviewGrade, toFsrsCard } from './fsrs-card.mapper';
+import { LearnerItemStateService } from './learner-item-state.service';
 import { computeMastery, SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
 
 /** §6: cap a session so it's bounded. */
@@ -39,6 +40,11 @@ export class ReviewService {
     private readonly contentService: ContentService,
     private readonly userService: UserService,
     private readonly analyticsService: AnalyticsService,
+    // §5.2 / ADR-003: the learner-model write path. Same module as the SRS
+    // card, no extra wiring. Every grade emits one `record()` call; the
+    // service handles its own failure semantics (never throws) and we still
+    // guard here so a contract change cannot undo a saved grade.
+    private readonly learnerItemStateService: LearnerItemStateService,
   ) {
     // Default parameters: learning steps 1m -> 10m, relearning 10m.
     this.scheduler = fsrs(generatorParameters());
@@ -151,6 +157,27 @@ export class ReviewService {
     await card.save();
 
     const xpAwarded = wasDue ? XP_PER_REVIEW : 0;
+
+    // §5.2 / ADR-003: every grade — even a not-due re-grade — is evidence.
+    // `wasDue` gates XP and the streak, not confidence. Re-grading an
+    // already-graded card still tells us something about how the learner
+    // handles this word; suppressing the record would lose that signal.
+    // `correct` mirrors the same predicate `card.correctReviews` uses, so
+    // the two stay in lockstep.
+    this.learnerItemStateService
+      .record({
+        userId: new Types.ObjectId(userId),
+        itemRef: { kind: card.itemRef.kind, id: card.itemRef.id },
+        outcome: { correct: grade === 'good' || grade === 'easy', responseTimeMs },
+        exerciseType: null,
+        sourceContext: 'review',
+      })
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `LearnerItemState record lost for card ${cardId}: ` +
+            `${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
 
     // Deliberately not `awardXp(userId, 0)` on the not-due path. awardXp is also
     // where the streak advances, so calling it would let a learner hold a streak

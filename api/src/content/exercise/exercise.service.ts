@@ -1,4 +1,5 @@
 import { BadRequestException, Inject, Injectable, Logger, UnprocessableEntityException, forwardRef } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { ContentService } from '../content.service';
 import {
   AnswerResult,
@@ -10,6 +11,7 @@ import {
 } from '../dto/exercise-response.dto';
 import { LessonDetail, ResolvedItem } from '../dto/lesson-response.dto';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
+import { LearnerItemStateService } from '../../learning/learner-item-state.service';
 import { LearningService } from '../../learning/learning.service';
 import { mulberry32, seedFrom, shuffle } from './deterministic-random';
 import { ExercisePluginRegistry } from './plugins/exercise-plugin.registry';
@@ -145,6 +147,10 @@ export class ExerciseService {
     // — this is a second edge in the same cycle, not a new cycle.
     @Inject(forwardRef(() => LearningService))
     private readonly learningService: LearningService,
+    // §5.2 / ADR-003: the learner-model write path. Same forwardRef cycle —
+    // another edge to `LearningModule`, already exported.
+    @Inject(forwardRef(() => LearnerItemStateService))
+    private readonly learnerItemStateService: LearnerItemStateService,
     // Phase 2 Exercise Strategy Plugin Registry
     private readonly pluginRegistry?: ExercisePluginRegistry,
   ) {}
@@ -319,14 +325,56 @@ export class ExerciseService {
     question?: GeneratedQuestion,
     responseTimeMs?: number,
   ): Promise<void> {
+    // The `(itemId, itemKind, exerciseType)` tuple the persistence layer
+    // needs. `question.itemId` is a string on the DTO and an ObjectId on the
+    // schema; conversion goes here so the two services never see mismatched
+    // shapes. The `isValid` check guards against an ever-malformed string at
+    // runtime — in production the value is always an ObjectId-shaped string
+    // from `GET /lessons/:id`, but a future client could send anything and
+    // `settleAnswer` must not fail the answer over a stale or hostile id.
+    // `wordReading` maps to `'vocab'` for the SRS (and now for the learner
+    // model) — the same `promptKindToSrsKind` helper below carries both edges.
+    const item = question
+      ? {
+          itemId:
+            question.itemId && Types.ObjectId.isValid(question.itemId)
+              ? new Types.ObjectId(question.itemId)
+              : null,
+          itemKind: question.promptKind ? promptKindToSrsKind(question.promptKind) : null,
+          exerciseType: question.type,
+        }
+      : { itemId: null, itemKind: null, exerciseType: null };
+
     await this.exerciseAttempts
-      .recordAttempt(userId, lessonId, attempt, exerciseId, correct, responseTimeMs)
+      .recordAttempt(userId, lessonId, attempt, exerciseId, correct, responseTimeMs, item)
       .catch((err: unknown) => {
         this.logger.warn(
           `exerciseAttempt record lost for user ${userId} lesson ${lessonId}: ` +
             `${err instanceof Error ? err.message : String(err)}`,
         );
       });
+
+    // §5.2 / ADR-003: every lesson answer is evidence for the learner model.
+    // Fire-and-forget — `record()` itself never throws, but the caller still
+    // gets a `.catch` here so a future change in `record()`'s contract cannot
+    // fail the answer response.
+    if (item.itemId && item.itemKind) {
+      this.learnerItemStateService
+        .record({
+          userId: new Types.ObjectId(userId),
+          itemRef: { kind: item.itemKind, id: item.itemId },
+          outcome: { correct, responseTimeMs },
+          exerciseType: item.exerciseType,
+          sourceContext: 'lesson',
+        })
+        .catch((err: unknown) => {
+          this.logger.warn(
+            `LearnerItemState record lost for user ${userId} ${item.itemKind} ${item.itemId.toString()}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        });
+    }
 
     if (correct) {
       return;

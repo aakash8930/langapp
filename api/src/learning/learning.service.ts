@@ -9,6 +9,7 @@ import { UserService } from '../user/user.service';
 import { CompleteLessonResponse } from './dto/complete-lesson-response.dto';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { newCardFields } from './fsrs-card.mapper';
+import { LearnerItemStateService } from './learner-item-state.service';
 import { LessonCompletion, LessonCompletionDocument } from './schemas/lesson-completion.schema';
 import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
 
@@ -42,6 +43,13 @@ export class LearningService {
     private readonly userService: UserService,
     private readonly analyticsService: AnalyticsService,
     private readonly exerciseAttempts: ExerciseAttemptsService,
+    // §5.2 / ADR-003: the pedagogical model for each `(user, item)` pair.
+    // Used here only as the consumer of `scheduleMissedWords` — every other
+    // write path lives in `ExerciseService` / `ReviewService` and goes through
+    // their constructors. Adding the dependency here, rather than reaching
+    // across into `learning/` from `chat/`, keeps the §4 "modules touch each
+    // other's collections through services only" rule.
+    private readonly learnerItemStateService: LearnerItemStateService,
     config: ConfigService,
   ) {
     this.xpPerPractice =
@@ -383,6 +391,37 @@ export class LearningService {
           .updateMany({ _id: { $in: notYetDue } }, { $set: { due: now } })
           .exec();
         cardsAdvanced = result.modifiedCount;
+      }
+
+      // §5.2 / ADR-003: a correction is also evidence. Every matched vocab
+      // gets one exposure with `correct: false` — the learner *was* corrected,
+      // and that is the only honest signal the schema can carry.
+      //
+      // Fire-and-forget (`record` never throws internally; we attach an extra
+      // `.catch` here so an interface contract change cannot turn a lost
+      // evidence row into a lost chat turn). Uses `sourceContext: 'chat'`,
+      // which lets a future weakness report distinguish "weak in conversation"
+      // from "weak in a quiz".
+      //
+      // `correct: false` is deliberate: §5.2 names a chat correction as the
+      // signal hearts used to collect, and a tutor correction is *evidence of
+      // an error*, not evidence of mastery. Counter-intuitive on its face,
+      // right on the second look.
+      for (const doc of matched) {
+        this.learnerItemStateService
+          .record({
+            userId: userObjectId,
+            itemRef: { kind: 'vocab', id: doc._id },
+            outcome: { correct: false },
+            exerciseType: null,
+            sourceContext: 'chat',
+          })
+          .catch((err: unknown) => {
+            this.logger.warn(
+              `LearnerItemState chat record lost for vocab ${doc._id.toString()}: ` +
+                `${err instanceof Error ? err.message : String(err)}`,
+            );
+          });
       }
 
       return { cardsCreated, cardsAdvanced };

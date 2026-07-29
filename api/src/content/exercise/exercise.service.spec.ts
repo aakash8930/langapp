@@ -1,10 +1,12 @@
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { ContentService } from '../content.service';
 import { LessonDetail } from '../dto/lesson-response.dto';
 import { MultipleChoiceQuestion, Question } from '../dto/exercise-response.dto';
 import { KanaItemDocument } from '../schemas/kana-item.schema';
 import { VocabItemDocument } from '../schemas/vocab-item.schema';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
+import { LearnerItemStateService } from '../../learning/learner-item-state.service';
 import { LearningService } from '../../learning/learning.service';
 import { ExerciseService } from './exercise.service';
 
@@ -124,7 +126,8 @@ function makeServiceWithAttempts(
   pool = UNIT_POOL,
   vocabPool = VOCAB_UNIT_POOL,
   recordAttempt: jest.Mock = jest.fn(() => Promise.resolve(true)),
-): { service: ExerciseService; recordAttempt: jest.Mock } {
+  recordLearnerItem: jest.Mock = jest.fn(() => Promise.resolve()),
+): { service: ExerciseService; recordAttempt: jest.Mock; recordLearnerItem: jest.Mock } {
   const contentService = {
     findLessonById: () => Promise.resolve(lesson),
     findUnitKanaPool: () =>
@@ -139,13 +142,15 @@ function makeServiceWithAttempts(
       ),
   };
   const exerciseAttempts = { recordAttempt } as unknown as ExerciseAttemptsService;
+  const learnerItemStateService = { record: recordLearnerItem } as unknown as LearnerItemStateService;
 
   const service = new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
     fakeLearningService(),
+    learnerItemStateService,
   );
-  return { service, recordAttempt };
+  return { service, recordAttempt, recordLearnerItem };
 }
 
 /**
@@ -421,6 +426,11 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
     });
 
     expect(recordAttempt).toHaveBeenCalledTimes(1);
+    // VOWELS uses short string ids ('k1'..'k5') so `isValid` rejects the
+    // `itemId` and it stays null — but `itemKind` and `exerciseType` are
+    // sourced from the question, not the id, so they are still populated.
+    // The all-NULL assumption the original test made stopped being true the
+    // moment the write-path slice started reading those off the question.
     expect(recordAttempt).toHaveBeenCalledWith(
       USER_A,
       LESSON_ID,
@@ -428,6 +438,7 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
       question.exerciseId,
       true,
       undefined,
+      { itemId: null, itemKind: 'kana', exerciseType: 'multipleChoice' },
     );
   });
 
@@ -449,6 +460,7 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
       question.exerciseId,
       false,
       undefined,
+      { itemId: null, itemKind: 'kana', exerciseType: 'multipleChoice' },
     );
   });
 
@@ -487,7 +499,155 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
       question.exerciseId,
       true,
       undefined,
+      { itemId: null, itemKind: 'grammar', exerciseType: 'multipleChoice' },
     );
+  });
+});
+
+/**
+ * §5.2 / ADR-003: the learner-model write path. Every answer emits one
+ * `LearnerItemStateService.record()` call carrying the item the question was
+ * about. The shape matters because `LearnerItemState` and `SrsCard` share the
+ * `(kind, id)` key — `wordReading` would otherwise create a row no card could
+ * match against.
+ */
+describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', () => {
+  // The shared `VOWELS` / `WORDS` / `READING_WORDS` fixtures use short string
+  // ids ('k1', 'v1', 'w1'). Production data carries ObjectId-shaped strings, so
+  // these two tests need their own fixtures — the test is asserting that the
+  // real `Types.ObjectId(...)` conversion flows through, not that production
+  // could ever send a malformed id (an `isValid` guard in the service handles
+  // that anyway).
+  const LEARNER_VOWELS = [
+    { id: '507f1f77bcf86cd799439101', kana: 'あ', romaji: 'a' },
+    { id: '507f1f77bcf86cd799439102', kana: 'い', romaji: 'i' },
+    { id: '507f1f77bcf86cd799439103', kana: 'う', romaji: 'u' },
+    { id: '507f1f77bcf86cd799439104', kana: 'え', romaji: 'e' },
+    { id: '507f1f77bcf86cd799439105', kana: 'お', romaji: 'o' },
+  ];
+  const LEARNER_VOWEL_POOL = LEARNER_VOWELS;
+  const LEARNER_VOWEL_LESSON = lessonDetail({
+    itemCount: LEARNER_VOWELS.length,
+    items: LEARNER_VOWELS.map((v) => ({
+      kind: 'kana' as const,
+      id: v.id,
+      kana: v.kana,
+      romaji: v.romaji,
+      script: 'hiragana',
+      row: 'a',
+      order: 0,
+    })),
+  });
+
+  // Word-reading lesson built inline so this block doesn't depend on the
+  // `READING_WORDS` / `wordReadingLesson` constants declared further down
+  // the file (their `const` bindings aren't hoisted, and the test block
+  // sits above their declaration by file position).
+  const LEARNER_READING_WORDS = [
+    { id: '507f1f77bcf86cd799439201', lemma: 'がっこう', romans: 'gakkou' },
+  ];
+  const LEARNER_READING_POOL = [
+    { id: 'v4', lemma: 'うみ', gloss: 'sea' },
+    { id: 'v5', lemma: 'そら', gloss: 'sky' },
+    { id: 'v6', lemma: 'はな', gloss: 'flower' },
+    LEARNER_READING_WORDS[0],
+  ];
+  const LEARNER_READING_LESSON: LessonDetail = lessonDetail({
+    unit: 'marks-words',
+    title: 'Hiragana words: っ and ー',
+    exerciseTypes: ['wordReading'],
+    itemCount: LEARNER_READING_WORDS.length,
+    items: LEARNER_READING_WORDS.map((w) => ({
+      kind: 'vocab' as const,
+      id: w.id,
+      lemma: w.lemma,
+      reading: w.lemma,
+      gloss: 'school',
+      pos: 'noun',
+      jlpt: 'N5',
+      // The wordReading build path filters vocabulary items by `romaji`,
+      // throwing 422 if none match. The lesson's own items must carry it.
+      romaji: w.romans,
+    })),
+  });
+
+  it('records one exposure per answer, sourced from the question the learner saw', async () => {
+    const { service, recordLearnerItem } = makeServiceWithAttempts(
+      LEARNER_VOWEL_LESSON,
+      LEARNER_VOWEL_POOL,
+    );
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = asMultipleChoice(set.questions[0]);
+    const expected = LEARNER_VOWELS.find((v) => v.kana === question.prompt)!.romaji;
+    const correctOption = question.options.find((o) => o.value === expected)!;
+
+    await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: correctOption.id,
+    });
+
+    expect(recordLearnerItem).toHaveBeenCalledTimes(1);
+    expect(recordLearnerItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: expect.any(Types.ObjectId),
+        itemRef: {
+          kind: 'kana',
+          id: new Types.ObjectId(question.itemId),
+        },
+        outcome: { correct: true, responseTimeMs: undefined },
+        exerciseType: 'multipleChoice',
+        sourceContext: 'lesson',
+      }),
+    );
+  });
+
+  it('maps wordReading prompts to the vocab kind the SRS card uses', async () => {
+    const { service, recordLearnerItem } = makeServiceWithAttempts(
+      LEARNER_READING_LESSON,
+      LEARNER_VOWEL_POOL,        // kana distractor pool
+      LEARNER_READING_POOL,      // vocab pool — what the wordReading question draws from
+    );
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = set.questions[0];
+
+    await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      text: LEARNER_READING_WORDS[0].romans,
+    });
+
+    // `promptKindToSrsKind` already maps `'wordReading' → 'vocab'` for the SRS
+    // pull-forward path; the learner-model write uses the same helper, so the
+    // two collections cannot drift apart on `(kind, id)`.
+    expect(recordLearnerItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemRef: {
+          kind: 'vocab',
+          id: new Types.ObjectId(question.itemId),
+        },
+        exerciseType: 'wordReading',
+        sourceContext: 'lesson',
+      }),
+    );
+  });
+
+  it('does not fail the answer when the learner-model write throws', async () => {
+    // Mirror of the existing recordAttempt swallow test: the same rule
+    // ("losing a side-effect row must not cost the learner their answer")
+    // applies to the pedagogical-model row.
+    const recordLearnerItem = jest.fn(() => Promise.reject(new Error('mongo down')));
+    const { service } = makeServiceWithAttempts(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      recordLearnerItem,
+    );
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = asMultipleChoice(set.questions[0]);
+
+    await expect(
+      service.answer(LESSON_ID, question.exerciseId, USER_A, {
+        optionId: question.options[0].id,
+      }),
+    ).resolves.toEqual(expect.objectContaining({ exerciseId: question.exerciseId }));
   });
 });
 
@@ -617,12 +777,15 @@ function grammarServiceWithAttempts(items = POINTS.map(grammarItem)) {
       ),
   };
   const recordAttempt = jest.fn(() => Promise.resolve(true));
+  const recordLearnerItem = jest.fn(() => Promise.resolve());
   const exerciseAttempts = { recordAttempt } as unknown as ExerciseAttemptsService;
+  const learnerItemStateService = { record: recordLearnerItem } as unknown as LearnerItemStateService;
 
   const service = new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
     fakeLearningService(),
+    learnerItemStateService,
   );
   return { service, recordAttempt };
 }
@@ -730,11 +893,15 @@ function kanjiService(items = KANJI.map(kanjiItem)): ExerciseService {
   const exerciseAttempts = {
     recordAttempt: jest.fn(() => Promise.resolve(true)),
   } as unknown as ExerciseAttemptsService;
+  const learnerItemStateService = {
+    record: jest.fn(() => Promise.resolve()),
+  } as unknown as LearnerItemStateService;
 
   return new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
     fakeLearningService(),
+    learnerItemStateService,
   );
 }
 
@@ -980,6 +1147,11 @@ describe('ExerciseService.answer — wordReading lessons (T1.1)', () => {
     });
 
     expect(result.correct).toBe(true);
+    // The bag is no longer all-null for wordReading: `promptKind → itemKind`
+    // is set (to 'vocab') and `exerciseType` is set (to 'wordReading').
+    // `itemId` stays null because the READING_WORDS fixture uses short
+    // string ids; that's intentional for the gate-completion test, which
+    // cares about the row landing, not its item key.
     expect(recordAttempt).toHaveBeenCalledWith(
       USER_A,
       LESSON_ID,
@@ -987,6 +1159,7 @@ describe('ExerciseService.answer — wordReading lessons (T1.1)', () => {
       question.exerciseId,
       true,
       undefined,
+      { itemId: null, itemKind: 'vocab', exerciseType: 'wordReading' },
     );
   });
 

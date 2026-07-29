@@ -1,16 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
+import { ContentKind } from '../knowledge-graph/schemas/knowledge-node.schema';
 import {
   computeConfidence,
   computeItemMastery,
   EMPTY_STATS,
   pushOutcome,
   RECENT_OUTCOMES,
+  updateStats,
 } from './learner-model/confidence';
 import {
   LearnerItemState,
   LearnerItemStateDocument,
+  SourceContext,
 } from './schemas/learner-item-state.schema';
 import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
 
@@ -22,12 +25,32 @@ export interface BackfillReport {
 }
 
 /**
+ * One call to `record()`. Carries the minimum the service needs to mutate the
+ * right row and recompute the derived fields. `exerciseType` is the value the
+ * `LearnerItemState.byExerciseType` map should be keyed on — `null` on review
+ * and chat contexts, by decision (2) of the slice.
+ */
+export interface RecordInput {
+  userId: Types.ObjectId;
+  itemRef: { kind: ContentKind; id: Types.ObjectId };
+  outcome: { correct: boolean; responseTimeMs?: number };
+  exerciseType: string | null;
+  sourceContext: SourceContext;
+}
+
+/** Mongo duplicate-key error. Same value used in `exercise-attempts.service.ts`. */
+const DUPLICATE_KEY = 11000;
+
+/**
  * Owns `learnerItemStates` (§5.2, ADR-003).
  *
- * At this slice it does one thing: **backfill from the evidence that already
- * exists**. Nothing reads the collection yet and nothing writes it on the request
- * path — that is deliberate sequencing, per §5.4's "additive first": the field
- * lands and is verified before any code depends on it.
+ * The write path landed 2026-07-28: `record()` mutates an existing row or
+ * creates a new one for every lesson answer, review grade and chat correction.
+ * Derived fields (`confidence`, `masteryLevel`) are recomputed on every write
+ * from the evidence above them — `confidence.ts` is pure, which is what makes
+ * a drift check possible (§5.2).
+ *
+ * Reads still live elsewhere — the first consumer is the next slice.
  */
 @Injectable()
 export class LearnerItemStateService {
@@ -164,10 +187,236 @@ export class LearnerItemStateService {
     await this.stateModel.syncIndexes();
   }
 
+  /**
+   * Record one exposure of one item by one user.
+   *
+   * Reads the existing row, mutates it in memory with the pure functions in
+   * `confidence.ts`, and writes the whole document back. The
+   * read-then-mutate-then-write is racy under concurrency, so a duplicate-key
+   * path on the unique index finishes the job atomically — same structural
+   * guarantee that makes the backfill idempotent.
+   *
+   * ## Never throws
+   *
+   * Every caller is on a side-effect path: an answer endpoint, a review grade,
+   * a chat turn. Losing the pedagogical-model write must not undo the user's
+   * actual action — same failure semantics as `LearningService.scheduleMissedWords`
+   * and `AnalyticsService.record`. A swallowed error is logged at warn.
+   *
+   * ## `byExerciseType` is only touched on exercises
+   *
+   * Per decision (2) of the slice: the map stays a recognition-vs-recall metric
+   * for exercises. A review grade or a chat correction carries
+   * `exerciseType: null`, and this method leaves the map unchanged in that
+   * case. The totals (`exposures`, `correct`, `incorrect`), the recency ring,
+   * the response-time stats and the provenance still accumulate.
+   *
+   * ## Derived fields are recomputed
+   *
+   * `confidence` and `masteryLevel` are recomputed on every call from the
+   * mutated evidence. Storing them rather than computing on read makes session
+   * composition cheap; the cost is that they can drift, which is why
+   * `confidence.ts` is pure — `confidence.spec.ts` recomputes and compares.
+   */
+  async record(input: RecordInput): Promise<void> {
+    try {
+      await this.recordOnce(input);
+    } catch (err) {
+      this.logger.warn(
+        `LearnerItemState record lost for user ${input.userId.toString()} ` +
+          `${input.itemRef.kind} ${input.itemRef.id.toString()}: ${
+            err instanceof Error ? err.message : 'unknown error'
+          }`,
+      );
+    }
+  }
+
+  private async recordOnce(input: RecordInput): Promise<void> {
+    const { userId, itemRef, outcome, exerciseType, sourceContext } = input;
+    const now = new Date();
+
+    const existing = await this.stateModel
+      .findOne({
+        userId,
+        'itemRef.kind': itemRef.kind,
+        'itemRef.id': itemRef.id,
+      })
+      .exec();
+
+    if (!existing) {
+      await this.createFromScratch(userId, itemRef, outcome, exerciseType, sourceContext, now);
+      return;
+    }
+
+    await this.mutateAndWrite(existing, outcome, exerciseType, sourceContext, now);
+  }
+
+  /**
+   * Build a fresh state for a first-seen item. Confidence and mastery are
+   * recomputed from the (single-sample) evidence so the row is consistent on
+   * creation rather than after the first read.
+   *
+   * The unique index on `{userId, itemRef}` rejects a racing duplicate; the
+   * caller treats that as a lost write and lets the winner own the row.
+   */
+  private async createFromScratch(
+    userId: Types.ObjectId,
+    itemRef: { kind: ContentKind; id: Types.ObjectId },
+    outcome: { correct: boolean; responseTimeMs?: number },
+    exerciseType: string | null,
+    sourceContext: SourceContext,
+    now: Date,
+  ): Promise<void> {
+    const responseTimeMs =
+      outcome.responseTimeMs !== undefined ? updateStats(EMPTY_STATS, outcome.responseTimeMs) : { ...EMPTY_STATS };
+    const lastNOutcomes = pushOutcome([], outcome.correct);
+    const byExerciseType = new Map<string, { seen: number; correct: number }>();
+    if (exerciseType !== null) {
+      byExerciseType.set(exerciseType, { seen: 1, correct: outcome.correct ? 1 : 0 });
+    }
+    const exposures = 1;
+    const correct = outcome.correct ? 1 : 0;
+    const incorrect = outcome.correct ? 0 : 1;
+    const confidence = computeConfidence({
+      exposures,
+      lastNOutcomes,
+      responseTimeMs,
+      baselineMs: null,
+    });
+
+    try {
+      await this.stateModel.create({
+        userId,
+        itemRef,
+        exposures,
+        correct,
+        incorrect,
+        responseTimeMs,
+        lastNOutcomes,
+        byExerciseType,
+        confidence,
+        masteryLevel: computeItemMastery(confidence, exposures),
+        firstSeenAt: now,
+        lastSeenAt: now,
+        sourceContexts: [sourceContext],
+      });
+    } catch (err) {
+      if (isDuplicateKeyError(err)) {
+        // A concurrent record() won the race for this row. The winner now
+        // owns it; the loser mutates on its own next call rather than
+        // overwriting. Falling through would double-count this exposure, so
+        // the unique index is doing its job by stopping us here.
+        return;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Update the existing row: bump counters, push onto the ring, refresh
+   * provenance and derived fields, write the whole document. The ring is
+   * capped at RECENT_OUTCOMES so the row never grows without bound.
+   *
+   * `findOneAndUpdate` rather than a `save()`: `save()` would race with other
+   * writers under the read-modify-write cycle, and the unique index is what
+   * guarantees the in-memory state is the right one to write.
+   */
+  private async mutateAndWrite(
+    existing: LearnerItemStateDocument,
+    outcome: { correct: boolean; responseTimeMs?: number },
+    exerciseType: string | null,
+    sourceContext: SourceContext,
+    now: Date,
+  ): Promise<void> {
+    const exposures = existing.exposures + 1;
+    const correct = existing.correct + (outcome.correct ? 1 : 0);
+    const incorrect = existing.incorrect + (outcome.correct ? 0 : 1);
+    const lastNOutcomes = pushOutcome(existing.lastNOutcomes ?? [], outcome.correct);
+    const responseTimeMs =
+      outcome.responseTimeMs !== undefined
+        ? updateStats(existing.responseTimeMs ?? { ...EMPTY_STATS }, outcome.responseTimeMs)
+        : (existing.responseTimeMs ?? { ...EMPTY_STATS });
+
+    // Decision (2): only exercise contexts touch the per-type map. The
+    // map's `byExerciseType.set(...)` mutation is fine on a Mongoose Map
+    // because we are writing the whole map back below.
+    let byExerciseType: Map<string, { seen: number; correct: number }>;
+    if (exerciseType !== null) {
+      byExerciseType = new Map(existing.byExerciseType ?? new Map());
+      const prior = byExerciseType.get(exerciseType) ?? { seen: 0, correct: 0 };
+      byExerciseType.set(exerciseType, {
+        seen: prior.seen + 1,
+        correct: prior.correct + (outcome.correct ? 1 : 0),
+      });
+    } else {
+      byExerciseType = new Map(existing.byExerciseType ?? new Map());
+    }
+
+    const sourceContexts = dedupeSourceContexts([...(existing.sourceContexts ?? []), sourceContext]);
+
+    const confidence = computeConfidence({
+      exposures,
+      lastNOutcomes,
+      responseTimeMs,
+      // `LearnerProfile` is §5.2 [Later] — no per-type baseline exists, so the
+      // speed term is neutral for every call. Recording this here rather than
+      // somewhere the next reader has to rediscover it.
+      baselineMs: null,
+    });
+
+    await this.stateModel
+      .updateOne(
+        { _id: existing._id },
+        {
+          $set: {
+            exposures,
+            correct,
+            incorrect,
+            lastNOutcomes,
+            responseTimeMs,
+            byExerciseType,
+            sourceContexts,
+            confidence,
+            masteryLevel: computeItemMastery(confidence, exposures),
+            // Provenance: sticky firstSeenAt, refreshed lastSeenAt.
+            firstSeenAt: existing.firstSeenAt ?? now,
+            lastSeenAt: now,
+          },
+        },
+      )
+      .exec();
+  }
+
   /** How many states exist — for migration verification. */
   async count(): Promise<number> {
     return this.stateModel.countDocuments().exec();
   }
+}
+
+function isDuplicateKeyError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const code = (err as { code?: number }).code;
+  // insertMany with ordered:false reports a BulkWriteError wrapping per-doc codes;
+  // a single insert surfaces a plain error with code 11000.
+  const writeErrors = (err as { writeErrors?: { err?: { code?: number } }[] }).writeErrors;
+  return code === DUPLICATE_KEY || !!writeErrors?.some((e) => e.err?.code === DUPLICATE_KEY);
+}
+
+/**
+ * Order-stable dedupe: `sourceContexts` is appended-to, so the order carries
+ * information ("learner met this first in chat, then again in review"). The
+ * membership test just drops a duplicate if it ever appears twice — a
+ * re-recorded lesson does not push a second `'lesson'` entry.
+ */
+function dedupeSourceContexts(values: SourceContext[]): SourceContext[] {
+  const seen = new Set<SourceContext>();
+  const out: SourceContext[] = [];
+  for (const value of values) {
+    if (seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
 }
 
 /**

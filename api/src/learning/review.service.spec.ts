@@ -66,6 +66,7 @@ function build(opts: { card?: SrsCardDocument; dueCards?: SrsCardDocument[]; tot
     Promise.resolve({ gamification: { xp: 100 } } as unknown as UserDocument),
   );
   const record = jest.fn(() => Promise.resolve());
+  const recordLearnerItem = jest.fn(() => Promise.resolve());
 
   const service = new ReviewService(
     srsCardModel as never,
@@ -75,9 +76,10 @@ function build(opts: { card?: SrsCardDocument; dueCards?: SrsCardDocument[]; tot
     } as unknown as ContentService,
     { awardXp, findById } as unknown as UserService,
     { record } as unknown as AnalyticsService,
+    { record: recordLearnerItem } as unknown as { record: (input: unknown) => Promise<void> },
   );
 
-  return { service, card, awardXp, findById, record };
+  return { service, card, awardXp, findById, record, recordLearnerItem };
 }
 
 /** A card scheduled into the future — i.e. one the learner has already done. */
@@ -387,6 +389,66 @@ describe('ReviewService — Mastery & Weakness Model', () => {
         payload: expect.objectContaining({ responseTimeMs: 1450 }),
       }),
     );
+  });
+});
+
+/**
+ * §5.2 / ADR-003: the learner-model write path. Every grade emits one
+ * `LearnerItemStateService.record()` call carrying the card's `itemRef` and
+ * `sourceContext: 'review'`. `correct` mirrors the predicate
+ * `card.correctReviews` uses so the two stay in lockstep.
+ */
+describe('ReviewService.grade — writes learner-model evidence (ADR-003)', () => {
+  it('records an exposure with sourceContext review and correct=true on good', async () => {
+    const { service, recordLearnerItem } = build();
+
+    await service.grade(USER_ID, CARD_ID, 'good', 1500);
+
+    expect(recordLearnerItem).toHaveBeenCalledTimes(1);
+    expect(recordLearnerItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: expect.anything(),
+        itemRef: { kind: 'kana', id: new Types.ObjectId(ITEM_ID) },
+        outcome: { correct: true, responseTimeMs: 1500 },
+        exerciseType: null,
+        sourceContext: 'review',
+      }),
+    );
+  });
+
+  it('records correct=false on hard — not every "passed" grade is a correct one for the learner model', async () => {
+    // 'good' and 'easy' count as correct; 'hard' and 'again' do not. The SRS
+    // scheduler still reschedules on 'hard', but the learner model reads
+    // "they didn't get this one cleanly", so `correct: false`.
+    const { service, recordLearnerItem } = build();
+
+    await service.grade(USER_ID, CARD_ID, 'hard');
+
+    expect(recordLearnerItem).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: { correct: false, responseTimeMs: undefined } }),
+    );
+  });
+
+  it('records on every grade, not only when wasDue is true', async () => {
+    // Evidence is independent of the XP gate — a not-due re-grade is still a
+    // graded exposure that says something about how the learner handles the
+    // word. Suppressing it on the not-due path would lose that signal.
+    const { service, recordLearnerItem } = build({ card: notDueCard() });
+
+    await service.grade(USER_ID, CARD_ID, 'good');
+
+    expect(recordLearnerItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fail the grade when the learner-model write throws', async () => {
+    // Same fire-and-forget contract as the analytics event: the card is
+    // already saved; losing the pedagogical-model row must not undo the grade.
+    const { service, recordLearnerItem } = build();
+    recordLearnerItem.mockRejectedValueOnce(new Error('mongo down'));
+
+    await expect(service.grade(USER_ID, CARD_ID, 'good')).resolves.toMatchObject({
+      grade: 'good',
+    });
   });
 });
 

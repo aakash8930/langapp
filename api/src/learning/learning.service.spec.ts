@@ -143,6 +143,7 @@ function build(
     { awardXp } as unknown as UserService,
     { record } as unknown as AnalyticsService,
     exerciseAttempts,
+    { record: jest.fn(() => Promise.resolve()) } as unknown as { record: (input: unknown) => Promise<void> },
     { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
   );
 
@@ -537,6 +538,7 @@ function buildScheduler(
   };
 
   const findVocabInTexts = jest.fn(() => Promise.resolve(matched));
+  const recordLearnerItem = jest.fn(() => Promise.resolve());
 
   const service = new LearningService(
     srsCardModel as never,
@@ -545,10 +547,11 @@ function buildScheduler(
     {} as unknown as UserService,
     { record: jest.fn() } as unknown as AnalyticsService,
     {} as unknown as ExerciseAttemptsService,
+    { record: recordLearnerItem } as unknown as { record: (input: unknown) => Promise<void> },
     { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
   );
 
-  return { service, insertMany, updateMany, findVocabInTexts };
+  return { service, insertMany, updateMany, findVocabInTexts, recordLearnerItem };
 }
 
 const WORD_A = '707f1f77bcf86cd799439001';
@@ -690,6 +693,70 @@ describe('LearningService.scheduleMissedWords (T1.5)', () => {
     const result = await service.scheduleMissedWords(USER_ID, ['がっこう せんせい']);
 
     expect(result.cardsCreated).toBe(1);
+  });
+
+  /**
+   * §5.2 / ADR-003: every matched vocab also gets a learner-model row with
+   * `correct: false` and `sourceContext: 'chat'`. The card-creation and the
+   * row creation are independent — the prior tests pin the cards, these pin
+   * the evidence.
+   */
+  it('records a chat correction as an exposure with correct=false and sourceContext chat', async () => {
+    const { service, recordLearnerItem } = buildScheduler({
+      matched: [{ id: WORD_A, lemma: 'がっこう' }],
+    });
+
+    await service.scheduleMissedWords(USER_ID, ['がっこ', 'がっこう']);
+
+    expect(recordLearnerItem).toHaveBeenCalledTimes(1);
+    expect(recordLearnerItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: expect.anything(),
+        itemRef: { kind: 'vocab', id: new Types.ObjectId(WORD_A) },
+        outcome: { correct: false },
+        exerciseType: null,
+        sourceContext: 'chat',
+      }),
+    );
+  });
+
+  it('records one exposure per matched vocab (one chat turn, multiple words)', async () => {
+    // A single tutor turn can correct several words. Each is independent
+    // evidence; dedup / merge belongs later if a future schema needs it.
+    const { service, recordLearnerItem } = buildScheduler({
+      matched: [
+        { id: WORD_A, lemma: 'がっこう' },
+        { id: WORD_B, lemma: 'せんせい' },
+      ],
+    });
+
+    await service.scheduleMissedWords(USER_ID, ['がっこう せんせい']);
+
+    expect(recordLearnerItem).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not record anything when no vocab matches (no false evidence)', async () => {
+    const { service, recordLearnerItem } = buildScheduler({ matched: [] });
+
+    await service.scheduleMissedWords(USER_ID, ['zzz unmatched']);
+
+    expect(recordLearnerItem).not.toHaveBeenCalled();
+  });
+
+  it('preserves the {cardsCreated, cardsAdvanced} return even if the learner-model write throws', async () => {
+    // Same never-throws contract: the SRS writes already happened, the chat
+    // turn is already persisted, and the contract for the chat turn is the
+    // shape on the right of the `return`. Losing the evidence row must not
+    // surface as an error to the caller.
+    const { service, recordLearnerItem } = buildScheduler({
+      matched: [{ id: WORD_A, lemma: 'がっこう' }],
+    });
+    recordLearnerItem.mockRejectedValueOnce(new Error('mongo down'));
+
+    await expect(service.scheduleMissedWords(USER_ID, ['がっこう'])).resolves.toEqual({
+      cardsCreated: 1,
+      cardsAdvanced: 0,
+    });
   });
 });
 
