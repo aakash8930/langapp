@@ -904,38 +904,43 @@ the unique index existed. `ensureIndexes()` now runs before any insert, which
 matters because the unique index — not the lookup-before-insert — is what
 guarantees one state per item.
 
-### 39. The unit checkpoint has no client (2026-07-29)
+### 39. The unit checkpoint: shipped on all three surfaces, two loose ends (2026-07-29)
 
-The end-of-unit test landed API-side: `POST /units/:unit/checkpoint`, its
-answer and submit routes, `unitCheckpointAttempts`, and weighted sampling off
-the learner model. Documented in the contract, 22 tests, verified live on both
-the passing and failing paths.
+The end-of-unit test landed API-side (`POST /units/:unit/checkpoint` plus its
+answer and submit routes, `unitCheckpointAttempts`, weighted sampling off the
+learner model, 22 tests), then on `web/` and `client/`. A learner can reach it
+on both surfaces.
 
-**No surface calls it.** Neither `web/` nor `client/` has a checkpoint screen,
-so the feature is unreachable by a learner — it exists exactly as far as `curl`.
-That is the milestone boundary and not an oversight, but it is the state, and a
-feature only the operator can reach is not shipped.
+**`responseTimeMs` is now sent, which closes the other half of #38.** Both
+checkpoint screens send it and clamp it at five minutes — the server keeps a
+cumulative running mean per item, so one sample from a backgrounded phone or a
+tab left open overnight would sit in that item's average for a very long time.
+Absent means "no sample", which is what the clamp relies on. The lesson and
+review screens still send nothing, so their evidence still has an empty speed
+term; nothing is wrong with the server side.
 
-Two smaller things ride along with the client work:
+Still open:
 
-- **`responseTimeMs` still arrives `null` from real traffic.** The server side
-  is correct end to end as of #38, and the checkpoint is the natural first
-  sender — it is a timed test, and the speed term is a quarter of
-  `computeConfidence`. Until some client sends it, `responseTimeMs.count` stays
-  0 on every state written by a lesson or a checkpoint.
 - **Nothing surfaces which units a learner has passed.**
-  `CheckpointAttemptsService.passedUnits` exists and is unused — the unit list
-  needs it to show a "tested" tick, and `GET /me/progress` is the obvious home.
-  It was left off rather than guessed at, since adding a field to that response
-  affects both clients.
+  `CheckpointAttemptsService.passedUnits` exists and is called by nothing. The
+  unit list wants it for a "tested" tick, and `GET /me/progress` is the obvious
+  home, but adding a field there affects both clients so it was left rather
+  than guessed at.
+- **Discoverability, which is a real weakness of what shipped.** The checkpoint
+  sits at the foot of a *finished* unit — on `client/` that means expanding a
+  completed chapter, which collapses by default the moment the next unit
+  becomes current. So the most likely outcome for a learner who finishes a unit
+  is that they never see the test at all. Offering it from the lesson summary
+  when the completed lesson is the last of its unit is the obvious fix: both
+  clients already compute a "next step" there, and that is the moment the test
+  belongs to. It was not done in the checkpoint milestones because it changes
+  the lesson-completion flow on both surfaces, which is its own piece of work.
 
-Also unresolved, and a judgement call rather than a defect: **a checkpoint is
-not required to progress.** Nothing gates the next unit on passing one. That
-follows the §3.1 reasoning — the consequence of failing is that missed items
-come back sooner, not that a door closes — but it does mean a learner can
-ignore checkpoints entirely and never notice they exist. Whether the unit list
-should *push* one after a unit's last lesson is a product decision the client
-milestone has to make.
+And a judgement call rather than a defect: **a checkpoint is not required to
+progress.** Nothing gates the next unit on passing one, following the §3.1
+reasoning that the consequence of failing is missed items coming back sooner
+rather than a door closing. Combined with the discoverability gap above, a
+learner can complete the whole course without ever taking one.
 
 ### 36. Ten routes shipped undocumented, and nothing noticed (2026-07-28)
 

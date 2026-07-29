@@ -215,6 +215,7 @@ export default function Home() {
               }
               onToggle={toggleUnit}
               onPressLesson={(lesson) => router.push(routeFor(lesson))}
+              onPressCheckpoint={() => router.push(`/checkpoint/${unit.unit}`)}
             />
           ))}
         </>

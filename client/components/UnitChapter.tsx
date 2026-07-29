@@ -35,12 +35,14 @@ export function UnitChapter({
   expanded,
   onToggle,
   onPressLesson,
+  onPressCheckpoint,
 }: {
   group: UnitGroup;
   nextLessonId: string | undefined;
   expanded: boolean;
   onToggle: (unit: string) => void;
   onPressLesson: (lesson: LessonWithState) => void;
+  onPressCheckpoint: () => void;
 }) {
   const theme = useTheme();
   const total = group.lessons.length;
@@ -76,9 +78,75 @@ export function UnitChapter({
               {index < total - 1 ? <Connector /> : null}
             </View>
           ))}
+
+          {/*
+            The end-of-unit test, at the end of the path — which is where it
+            belongs both visually and pedagogically. Offered only on a finished
+            unit: the API will run a checkpoint on a barely-started one, which
+            is right for a placement probe later and reads as a trick now.
+
+            Nothing downstream is gated on the result. Passing awards XP;
+            failing pulls the missed items into reviews and locks nothing.
+          */}
+          {group.status === 'done' ? (
+            <View style={{ alignItems: 'center', gap: theme.spacing.md }}>
+              <Connector />
+              <CheckpointNode label={group.label} onPress={onPressCheckpoint} />
+            </View>
+          ) : null}
         </View>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * The checkpoint at the foot of a finished unit's path.
+ *
+ * Deliberately not a `LessonNode`: it is not a lesson, it does not carry a
+ * position number, and it should not read as a 59th step on the trail. A framed
+ * row with the vermilion reserved for finished things is enough to say "this
+ * belongs to the unit you just completed".
+ */
+function CheckpointNode({ label, onPress }: { label: string; onPress: () => void }) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Take the test for ${label}. 20 questions, one answer each.`}
+      style={({ pressed }) => ({
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        minHeight: theme.controlHeight,
+        paddingHorizontal: theme.spacing.xl,
+        paddingVertical: theme.spacing.md,
+        borderRadius: theme.radius.md,
+        borderWidth: theme.hairlineWidth,
+        borderColor: theme.colors.shu,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Text
+        style={{
+          fontFamily: theme.families.ui,
+          fontSize: theme.fontSize.body,
+          color: theme.colors.shu,
+        }}
+      >
+        Test yourself
+      </Text>
+      <Text
+        style={{
+          fontFamily: theme.families.ui,
+          fontSize: theme.fontSize.caption,
+          color: theme.colors.inkSoft,
+        }}
+      >
+        20 questions, one answer each
+      </Text>
+    </Pressable>
   );
 }
 

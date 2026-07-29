@@ -51,6 +51,17 @@ export function withLockState(
  * cost is that a new unit needs an edit here — and the fallback below means
  * forgetting is untidy, not broken.
  */
+/**
+ * The display name for a unit slug, for screens that hold a slug and no
+ * `UnitGroup` — the checkpoint route is keyed on the slug alone.
+ *
+ * Falls back to the slug rather than throwing: a unit the API grows before this
+ * table knows about it should read as `vocab-n4`, not crash the screen.
+ */
+export function unitLabel(unit: string): string {
+  return UNIT_LABELS[unit] ?? unit;
+}
+
 const UNIT_LABELS: Record<string, string> = {
   'hiragana-basics': 'Hiragana basics',
   'katakana-basics': 'Katakana basics',
