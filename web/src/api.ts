@@ -238,6 +238,30 @@ export function login(body: { email: string; password: string }): Promise<AuthRe
   return send<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) });
 }
 
+/**
+ * Answers the same way for a registered address and an unknown one, so the
+ * message it returns must be shown verbatim — it is deliberately non-committal
+ * and rewriting it into "check your email" would state something untrue.
+ */
+export function forgotPassword(email: string): Promise<{ message: string }> {
+  return send<{ message: string }>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+/** `code` is the six digits `/auth/forgot-password` wrote to the API's log. */
+export function resetPassword(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<{ message: string }> {
+  return send<{ message: string }>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, newPassword }),
+  });
+}
+
 export function fetchMe(): Promise<User> {
   return authed<User>('/me');
 }

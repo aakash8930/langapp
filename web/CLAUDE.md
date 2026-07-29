@@ -104,6 +104,64 @@ renders fully visible. Never write a bare `opacity: 0` starting state.
   does not declare `stability` or `difficulty`, so they cannot be rendered.
   The leak rule says FSRS internals must not reach a client; the API enforces
   it server-side.
+- **One button system: `.btn` + a `.btn-*` modifier, in `theme.css`.** There
+  used to be a second, `.button` in `app.css`, near-identical and quietly
+  different in the parts that matter — it had `:disabled` styling and a 48px
+  minimum height where `.btn` had neither, and the quiz used both. Don't add a
+  third.
+
+## The reward layer (2026-07-29)
+
+Gamification is a *display* of what the server already knows. Three rules, and
+the first is the one that will be tempting to break:
+
+- **Never render an XP number the server did not send.** Only
+  `POST /lessons/:id/complete` and `POST /reviews/:cardId/grade` carry
+  `xpAwarded`. The exercise *answer* endpoint carries none — so a correct answer
+  gets `CorrectFlash` (a tick, no figure) rather than an invented "+10 XP",
+  which would also be wrong on a practice repeat where the award is smaller.
+- **Achievements derive from `/me/progress` alone**, on render, stored nowhere.
+  `gamification.ts` names the three badges that were dropped rather than faked
+  (night owl, perfect run, lifetime review count) and what each would need from
+  the API first. A badge that lights up on a guess costs more trust than the row
+  is worth.
+- **Level comes from `progress.level`, never recomputed.** The server's curve is
+  a flat 100 XP per level and is free to change; a second formula here would
+  disagree with every other surface the moment it did. `levelTier` bands *over*
+  that number, which is fine — it reads the server's answer rather than
+  replacing it.
+
+Confetti is `burstConfetti` in `motion.ts`, hand-rolled — forty absolutely
+positioned divs, no dependency. It renders into a fixed layer on `<body>`,
+because a burst inside a rounded, overflow-clipped panel is a burst nobody sees.
+Silent under reduced motion, and nothing depends on it having run.
+
+## Mnemonics and tracing
+
+`mnemonics.ts` is authored content on the client, for the same reason as
+`romaji.ts`: it is display, and the server stays the source of truth for what a
+character *is* rather than for how to remember it. Base hiragana and katakana
+only — dakuten and yōon fall back to the base character's hook, because the mark
+is a rule to learn, not a new shape.
+
+`TraceCanvas` is the **one graded thing on the study screen**, which otherwise
+grades nothing. Handwriting has no other feedback channel: reading is checked by
+the quiz, writing is checked by nobody, and an unchecked tracing box is
+colouring-in. It is entirely local — no XP, no SRS, no request.
+
+`strokeMatch.ts` holds the geometry, pure and DOM-free so the tolerances can be
+reasoned about. It works in KanjiVG's `0 0 109 109` space, so the numbers mean
+the same thing at any rendered size. Two things worth not breaking:
+
+- **Direction is checked before shape is rejected.** A backwards stroke is the
+  commonest real mistake, and "wrong way round" is far more useful than "that
+  was off". Direction is half of what stroke order means.
+- **The expected geometry is sampled off the rendered `<path>` elements**
+  (`getPointAtLength`), not from parsed path data — so what is judged and what
+  is drawn cannot drift apart.
+
+`useStrokes` in `strokes.ts` is the single cached fetch per character; the
+diagram and the canvas appear together and must not request twice.
 
 ## Commands
 

@@ -46,7 +46,7 @@ export function Continue({
             There is nothing left to unlock — reviews are what keep it now.
           </p>
         </div>
-        <a className="button" href="#/review">
+        <a className="btn btn-primary" href="#/review">
           Review
         </a>
       </div>
@@ -62,7 +62,7 @@ export function Continue({
         </p>
         <p className="continue-title">{next.title}</p>
       </div>
-      <a className="button" href={`#/learn/${next.id}`}>
+      <a className="btn btn-primary" href={`#/learn/${next.id}`}>
         {progress.completedLessonIds.length === 0 ? 'Begin' : 'Continue'}
       </a>
     </div>

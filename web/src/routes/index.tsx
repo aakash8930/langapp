@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
 import { fetchLessons, groupByUnit, type Unit } from '../api';
+import { Achievements } from '../components/Achievements';
 import { Continue } from '../components/Continue';
 import { Curriculum, type Load } from '../components/Curriculum';
 import { Hero } from '../components/Hero';
@@ -120,6 +121,32 @@ function HomePage() {
         </section>
       ) : null}
 
+      {/* Below Continue, above the catalog: what you have done sits between
+          what to do next and the whole course. Needs progress — there is
+          nothing to derive a badge from until it loads. */}
+      {session.state === 'signedIn' && session.progress ? (
+        <section className="section section-tight">
+          <div className="wrap">
+            <Achievements progress={session.progress} />
+          </div>
+        </section>
+      ) : null}
+
+      {session.state === 'signedIn' && session.user?.isAdmin && (
+        <section className="section section-tight">
+          <div className="wrap">
+            <Link className="admin-banner glass" to="/creator">
+              <span className="admin-banner-icon">⚙</span>
+              <span className="admin-banner-body">
+                <strong>Creator Dashboard</strong>
+                <span>Add vocabulary, lessons, and manage content.</span>
+              </span>
+              <span className="admin-banner-arrow">→</span>
+            </Link>
+          </div>
+        </section>
+      )}
+
       <main id="curriculum">
         <Curriculum
           load={data}
@@ -134,16 +161,8 @@ function HomePage() {
         <div className="wrap footer-inner">
           <span className="ja footer-mark">日本語</span>
           <p>
-            Lessons, reviews and progress are the same here as in the Android app — one
-            account, one database. The AI tutor is in the app for now.
+            Learn Japanese with spaced repetition, AI-powered practice, and gamified progress tracking.
           </p>
-          {session.state === 'signedIn' && session.user?.isAdmin && (
-            <p style={{ marginTop: '16px' }}>
-              <Link to="/creator" style={{ color: 'var(--brand-primary)', textDecoration: 'none', fontWeight: 'bold' }}>
-                Go to Creator Dashboard →
-              </Link>
-            </p>
-          )}
         </div>
       </footer>
     </>

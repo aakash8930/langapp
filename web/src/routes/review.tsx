@@ -37,7 +37,7 @@ function ReviewRoute() {
     <main className="wrap lesson-screen">
       <div className="glass panel note">
         <strong>Sign in to review.</strong>
-        <a className="button" href="#/">
+        <a className="btn btn-primary" href="#/">
           Back to the course
         </a>
       </div>

@@ -1,17 +1,18 @@
 import { useState } from 'react';
 
-import { ApiError } from '../api';
+import { ApiError, forgotPassword, resetPassword } from '../api';
 
-type Mode = 'signIn' | 'signUp';
+type Mode = 'signIn' | 'signUp' | 'forgotPassword' | 'resetPassword';
 
 /**
- * Sign in or create an account.
+ * Sign in, create an account, or reset a forgotten password.
  *
- * The API answers **401 "Invalid credentials" for both an unknown email and a
- * wrong password**, deliberately, and burns a dummy argon2 verify when no user
- * exists so the timing matches. So the copy here must not claim which field was
- * wrong — the server does not know, and guessing would undo the anti-enumeration
- * on purpose.
+ * The forgot-password flow is two steps:
+ *   1. Enter email → the server writes a six-digit code to its own log
+ *   2. Enter that code + a new password → the server resets it
+ *
+ * There is no mail service on Stage A, so the code is read off the API log by
+ * whoever is running it. `api/src/auth/auth.service.ts` documents that trade.
  */
 export function SignIn({
   onSignIn,
@@ -29,18 +30,54 @@ export function SignIn({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  /** ISO 'YYYY-MM-DD' straight from <input type="date">, which is what the API wants. */
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setSuccess(null);
 
-    // Mirrors the server's own rules, so an obvious mistake does not cost a
-    // round trip — and, on sign-up, does not burn one of the 10-per-minute
-    // attempts the auth routes allow.
+    if (mode === 'forgotPassword') {
+      if (!email.includes('@')) return setError('That doesn’t look like an email address.');
+      setBusy(true);
+      try {
+        const result = await forgotPassword(email.trim());
+        setSuccess(result.message);
+        setMode('resetPassword');
+      } catch (caught) {
+        setError(messageFor(caught, mode));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (mode === 'resetPassword') {
+      if (!email.includes('@')) return setError('Enter the email you requested the reset for.');
+      if (resetCode.trim().length === 0) return setError('Enter the six-digit code from the API server log.');
+      if (newPassword.length < 8) return setError('New password must be at least 8 characters.');
+      setBusy(true);
+      try {
+        const result = await resetPassword(email.trim(), resetCode.trim(), newPassword);
+        setSuccess(result.message);
+        setMode('signIn');
+        setPassword('');
+        setResetCode('');
+        setNewPassword('');
+      } catch (caught) {
+        setError(messageFor(caught, mode));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // Normal sign in / sign up
     if (!email.includes('@')) return setError('That doesn’t look like an email address.');
     if (password.length < 8) return setError('Passwords are at least 8 characters.');
     if (mode === 'signUp' && displayName.trim().length === 0) {
@@ -48,9 +85,6 @@ export function SignIn({
     }
     if (mode === 'signUp') {
       if (!dateOfBirth) return setError('Enter your date of birth.');
-      // Checked here as well as on the server so someone under 13 is told
-      // plainly rather than being handed a 400 — and so the attempt does not
-      // burn one of the 10-per-minute the auth routes allow.
       if (ageFrom(dateOfBirth) < MIN_AGE) {
         return setError(`You need to be at least ${MIN_AGE} to create an account.`);
       }
@@ -70,11 +104,17 @@ export function SignIn({
   return (
     <form className="glass panel signin" onSubmit={submit}>
       <div className="signin-head">
-        <h3>{mode === 'signIn' ? 'Sign in to start learning' : 'Create an account'}</h3>
+        <h3>
+          {mode === 'signIn' && 'Sign in to start learning'}
+          {mode === 'signUp' && 'Create an account'}
+          {mode === 'forgotPassword' && 'Forgot your password?'}
+          {mode === 'resetPassword' && 'Reset your password'}
+        </h3>
         <p>
-          {mode === 'signIn'
-            ? 'Your progress is the same here as in the app.'
-            : 'One account, shared between this site and the Android app.'}
+          {mode === 'signIn' && 'Your progress is the same here as in the app.'}
+          {mode === 'signUp' && 'One account, shared between this site and the Android app.'}
+          {mode === 'forgotPassword' && 'Enter your email and we’ll generate a reset code.'}
+          {mode === 'resetPassword' && 'Enter the six-digit code and your new password.'}
         </p>
       </div>
 
@@ -109,6 +149,7 @@ export function SignIn({
         </label>
       ) : null}
 
+      {/* Email — shown in all modes */}
       <label className="field">
         <span>Email</span>
         <input
@@ -121,20 +162,62 @@ export function SignIn({
         />
       </label>
 
-      <label className="field">
-        <span>Password</span>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          // Tells a password manager to offer a new one rather than autofill
-          // the old — the single most useful attribute on this form.
-          autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-          minLength={8}
-          maxLength={128}
-          required
-        />
-      </label>
+      {/* Password — only in sign-in and sign-up modes */}
+      {(mode === 'signIn' || mode === 'signUp') && (
+        <label className="field">
+          <span>Password</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
+            minLength={8}
+            maxLength={128}
+            required
+          />
+        </label>
+      )}
+
+      {/* Forgot password link — only on sign-in */}
+      {mode === 'signIn' && (
+        <button
+          className="link-button forgot-link"
+          type="button"
+          onClick={() => { setMode('forgotPassword'); setError(null); setSuccess(null); }}
+        >
+          Forgot password?
+        </button>
+      )}
+
+      {/* Reset code + new password — only in resetPassword mode */}
+      {mode === 'resetPassword' && (
+        <>
+          <label className="field">
+            <span>Reset code</span>
+            <input
+              type="text"
+              value={resetCode}
+              onChange={(e) => setResetCode(e.target.value)}
+              placeholder="6-digit code"
+              autoComplete="one-time-code"
+              maxLength={6}
+              required
+            />
+          </label>
+          <label className="field">
+            <span>New password</span>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
+              required
+            />
+          </label>
+        </>
+      )}
 
       {error ? (
         <p className="form-error" role="alert">
@@ -142,20 +225,41 @@ export function SignIn({
         </p>
       ) : null}
 
-      <button className="button" type="submit" disabled={busy}>
-        {busy ? 'Working…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
+      {success ? (
+        <p className="form-success" role="status">
+          {success}
+        </p>
+      ) : null}
+
+      <button className="btn btn-primary" type="submit" disabled={busy} style={{ width: '100%' }}>
+        {busy ? 'Working…'
+          : mode === 'signIn' ? 'Sign in'
+          : mode === 'signUp' ? 'Create account'
+          : mode === 'forgotPassword' ? 'Send reset code'
+          : 'Reset password'}
       </button>
 
-      <button
-        className="link-button"
-        type="button"
-        onClick={() => {
-          setMode(mode === 'signIn' ? 'signUp' : 'signIn');
-          setError(null);
-        }}
-      >
-        {mode === 'signIn' ? 'No account yet? Create one' : 'Already have an account? Sign in'}
-      </button>
+      <div className="signin-links">
+        {(mode === 'signIn' || mode === 'signUp') && (
+          <button
+            className="link-button"
+            type="button"
+            onClick={() => { setMode(mode === 'signIn' ? 'signUp' : 'signIn'); setError(null); setSuccess(null); }}
+          >
+            {mode === 'signIn' ? 'No account yet? Create one' : 'Already have an account? Sign in'}
+          </button>
+        )}
+
+        {(mode === 'forgotPassword' || mode === 'resetPassword') && (
+          <button
+            className="link-button"
+            type="button"
+            onClick={() => { setMode('signIn'); setError(null); setSuccess(null); }}
+          >
+            ← Back to sign in
+          </button>
+        )}
+      </div>
     </form>
   );
 }
@@ -168,7 +272,7 @@ function messageFor(error: unknown, mode: Mode): string {
     return 'Too many attempts. Wait about a minute, then try again.';
   }
   if (error.status === 401) {
-    // Deliberately vague — see the note above.
+    if (mode === 'resetPassword') return 'Invalid or expired reset code.';
     return 'That email and password don’t match an account.';
   }
   if (error.status === 409 && mode === 'signUp') {
@@ -183,12 +287,6 @@ const MIN_AGE = 13;
 /** Today as 'YYYY-MM-DD', so the picker cannot offer a future date. */
 const TODAY = new Date().toISOString().slice(0, 10);
 
-/**
- * Whole years old, by calendar rather than by dividing milliseconds — the naive
- * version is off by a day around a birthday, which is exactly the boundary being
- * checked. Mirrors `ageInYears` on the server; a mismatch would show one message
- * here and a different verdict there.
- */
 function ageFrom(iso: string): number {
   const born = new Date(iso);
   if (Number.isNaN(born.getTime())) return -1;

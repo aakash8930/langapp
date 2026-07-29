@@ -132,3 +132,100 @@ export function countUpNow(element: Element, to: number): void {
     },
   });
 }
+
+/**
+ * The confetti palette, read from the stylesheet rather than written here.
+ *
+ * Colour literals belong in `theme.css`; this module is not a component but the
+ * reason for the rule is the same — a palette that lives in two places drifts.
+ * Read once and cached, because `getComputedStyle` forces layout and a burst
+ * would otherwise pay for it forty times.
+ */
+let confettiPalette: string[] | null = null;
+
+function palette(): string[] {
+  if (confettiPalette) return confettiPalette;
+
+  const styles = getComputedStyle(document.documentElement);
+  const colours = ['--brand-primary', '--brand-secondary', '--brand-tertiary', '--brand-success']
+    .map((token) => styles.getPropertyValue(token).trim())
+    .filter((value) => value.length > 0);
+
+  // Never return empty: an unstyled burst of nothing looks like a bug, and this
+  // runs before anyone would notice a missing token.
+  confettiPalette = colours.length > 0 ? colours : ['#7c3aed'];
+  return confettiPalette;
+}
+
+/**
+ * A short burst of confetti from the centre of `anchor`.
+ *
+ * Hand-rolled rather than a dependency — this is forty absolutely-positioned
+ * divs on a ballistic arc, and a confetti package would be more bytes than the
+ * rest of the page's animation put together.
+ *
+ * The particles live in a `position: fixed` layer appended to `<body>`, not
+ * inside the anchor: a burst rendered inside the card it celebrates gets
+ * clipped by the card's own `overflow` and rounded corners, which is exactly
+ * where confetti wants to escape from.
+ *
+ * Silent under reduced motion — `armed` is false there, and confetti has no
+ * meaningful still frame. Nothing depends on it having run.
+ */
+export function burstConfetti(anchor: Element, options?: { count?: number }): void {
+  if (!armed) return;
+
+  const box = anchor.getBoundingClientRect();
+  // A zero-sized rect means the anchor is display:none or not laid out yet;
+  // bursting from the top-left corner of the viewport would be worse than not.
+  if (box.width === 0 && box.height === 0) return;
+
+  const originX = box.left + box.width / 2;
+  const originY = box.top + box.height / 2;
+  const count = options?.count ?? 40;
+  const colours = palette();
+
+  const layer = document.createElement('div');
+  layer.className = 'confetti-layer';
+  layer.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(layer);
+
+  const pieces: HTMLElement[] = [];
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('span');
+    piece.className = 'confetti-piece';
+    piece.style.background = colours[i % colours.length];
+    piece.style.left = `${originX}px`;
+    piece.style.top = `${originY}px`;
+    layer.appendChild(piece);
+    pieces.push(piece);
+  }
+
+  for (const piece of pieces) {
+    // Upward-biased spread, so it reads as a burst rather than an explosion in
+    // a vacuum: the arc goes up first and gravity brings it back down.
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.1;
+    const distance = 90 + Math.random() * 170;
+
+    animate(piece, {
+      translateX: Math.cos(angle) * distance,
+      translateY: [
+        { to: Math.sin(angle) * distance, duration: 420, ease: 'out(3)' },
+        { to: Math.sin(angle) * distance + 260, duration: 780, ease: 'in(2)' },
+      ],
+      rotate: (Math.random() - 0.5) * 720,
+      scale: [{ to: 1, duration: 120 }, { to: 0.6, duration: 1080 }],
+      opacity: [{ to: 1, duration: 100 }, { to: 0, duration: 1100, delay: 200 }],
+      duration: 1200,
+    });
+  }
+
+  // One removal for the whole layer rather than a per-particle `onComplete`,
+  // so a burst cannot leave orphans behind if a single animation is interrupted.
+  window.setTimeout(() => layer.remove(), 1600);
+}
+
+/** True when animation is switched on — for anything that needs a still fallback. */
+export function motionIsOn(): boolean {
+  return armed;
+}

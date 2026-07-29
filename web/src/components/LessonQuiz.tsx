@@ -17,10 +17,14 @@ import {
   type SpeechQuestion,
 } from '../api';
 import { hasAudio, revealsAnswer } from '../audio';
-import { countUpNow } from '../motion';
+import { burstConfetti, countUpNow } from '../motion';
 import { queryKeys } from '../queryKeys';
 import { SpeakButton } from './SpeakButton';
 import { SpeechQuiz } from './SpeechQuiz';
+// Only the flash: the lesson summary already celebrates its XP with the
+// count-up and the confetti burst, and stacking `XpBurst` on top would show the
+// same number twice.
+import { CorrectFlash } from './XpBurst';
 import { go, goBack } from '../useRoute';
 
 /**
@@ -138,7 +142,23 @@ export function LessonQuiz({
   // flip the seed under our feet. Re-drawing mid-lesson would reshuffle the
   // questions and invalidate the exerciseIds already on screen.
   const [attempt, setAttempt] = useState(() => newAttempt());
+
+  /*
+   * Redraw the attempt when `run` changes — and *only* then.
+   *
+   * An unguarded effect on `[run]` also fires on mount, which drew a second
+   * attempt immediately: two exercise sets were fetched, the screen showed one
+   * and answered against the other, and when the second landed it reset the
+   * phase and wiped the verdict. The symptom was that answering a question
+   * showed no feedback whatsoever.
+   *
+   * The ref is the guard. It cannot be `useState`, because the check has to see
+   * the previous value during the same commit that changes it.
+   */
+  const drawnForRun = useRef(run);
   useEffect(() => {
+    if (drawnForRun.current === run) return;
+    drawnForRun.current = run;
     setAttempt(newAttempt());
   }, [run]);
 
@@ -150,6 +170,17 @@ export function LessonQuiz({
     // old one is left behind as harmless garbage that `gcTime` reaps.
     staleTime: 5 * 60_000,
   });
+
+  /**
+   * Which `(lesson, attempt)` the phase machine is currently walking.
+   *
+   * The effect below restarts the walk when the data arrives, and a refetch
+   * hands back a *new object* for the *same* attempt — on a window focus, say.
+   * Keyed on the object identity, that would silently restart a lesson someone
+   * was halfway through. Keyed on the pair that actually identifies a question
+   * set, it does not.
+   */
+  const walking = useRef<string | null>(null);
 
   // Translate the query state into the phase machine. The query owns the
   // fetch; the phase owns the walk through the questions. This split lets the
@@ -171,9 +202,19 @@ export function LessonQuiz({
       return;
     }
     if (exerciseQuery.data) {
+      const key = `${lessonId}:${attempt}`;
+      if (walking.current === key) return;
+      walking.current = key;
       setPhase({ name: 'asking', set: exerciseQuery.data, index: 0, answered: [], result: null });
     }
-  }, [exerciseQuery.data, exerciseQuery.isPending, exerciseQuery.isError, exerciseQuery.error]);
+  }, [
+    exerciseQuery.data,
+    exerciseQuery.isPending,
+    exerciseQuery.isError,
+    exerciseQuery.error,
+    lessonId,
+    attempt,
+  ]);
 
   /*
    * The `/complete` mutation. Its `onSuccess` invalidates progress so the
@@ -327,7 +368,7 @@ export function LessonQuiz({
       <div className="glass panel note note-error" role="alert">
         <strong>That didn’t work.</strong>
         <span>{phase.message}</span>
-        <button className="button" type="button" onClick={goBack}>
+        <button className="btn btn-primary" type="button" onClick={goBack}>
           Back to the course
         </button>
       </div>
@@ -432,7 +473,17 @@ export function LessonQuiz({
         </p>
       ) : null}
 
-      <div className="glass panel quiz-card">
+      {/*
+        The verdict is also written on the card itself, as a colour wash — a
+        right answer should be readable without moving your eyes off the thing
+        you just answered. It is decoration only: the verdict block below is the
+        live region, and this carries no text of its own.
+      */}
+      <div
+        className={`glass panel quiz-card${
+          phase.result ? (phase.result.correct ? ' quiz-card-right' : ' quiz-card-wrong') : ''
+        }`}
+      >
         <p className={`quiz-prompt ja quiz-prompt-${question.promptKind}`}>{question.prompt}</p>
         <p className="quiz-question">{question.question}</p>
 
@@ -501,21 +552,33 @@ export function LessonQuiz({
             onBlur={() => setHeld(false)}
           >
             <p className={phase.result.correct ? 'verdict-right' : 'verdict-wrong'}>
-              {phase.result.correct ? '○ Correct' : '× Not quite'}
+              {phase.result.correct ? (
+                <>
+                  {/* Keyed by the question, so consecutive right answers each
+                      replay the wash rather than animating only once. */}
+                  <CorrectFlash key={question.exerciseId} />
+                  Correct
+                </>
+              ) : (
+                '× Not quite'
+              )}
             </p>
             {phase.result.correct ? null : (
-              <p className="verdict-detail">
-                {/* The widely-shared shape holds for both kinds: read the prompt,
-                    then the canonical romaji. The wordReading prompt is the
-                    word's written form, so "<word> is <romaji>" reads
-                    correctly without a grammar-specific branch. */}
-                {question.type === 'multipleChoice' && question.promptKind === 'grammar'
-                  ? `The answer is “${phase.result.correctValue}”: ${question.prompt.replace('＿', phase.result.correctValue)}`
-                  : `${question.prompt} is “${phase.result.correctValue}”.`}
-              </p>
+              <div className="verdict-remember">
+                <p className="verdict-remember-kicker">Remember this</p>
+                <p className="verdict-detail">
+                  {/* The widely-shared shape holds for both kinds: read the prompt,
+                      then the canonical romaji. The wordReading prompt is the
+                      word's written form, so "<word> is <romaji>" reads
+                      correctly without a grammar-specific branch. */}
+                  {question.type === 'multipleChoice' && question.promptKind === 'grammar'
+                    ? `The answer is “${phase.result.correctValue}”: ${question.prompt.replace('＿', phase.result.correctValue)}`
+                    : `${question.prompt} is “${phase.result.correctValue}”.`}
+                </p>
+              </div>
             )}
 
-            <button className="button" type="button" onClick={() => void advance()}>
+            <button className="btn btn-primary" type="button" onClick={() => void advance()}>
               {isLast ? 'Finish' : 'Next'}
             </button>
 
@@ -600,7 +663,7 @@ function Retry({
       </ul>
 
       <div className="summary-actions">
-        <button className="button" type="button" onClick={onAgain}>
+        <button className="btn btn-primary" type="button" onClick={onAgain}>
           Run it again
         </button>
         <button className="link-button" type="button" onClick={goBack}>
@@ -688,7 +751,7 @@ function WordReadingInput({
         disabled={disabled}
         aria-label="Type the romaji for this word"
       />
-      <button className="button" type="submit" disabled={disabled || text.trim().length === 0}>
+      <button className="btn btn-primary" type="submit" disabled={disabled || text.trim().length === 0}>
         Submit
       </button>
     </form>
@@ -733,6 +796,7 @@ function Summary({
   onHold: (held: boolean) => void;
 }) {
   const xpRef = useRef<HTMLSpanElement>(null);
+  const bannerRef = useRef<HTMLParagraphElement>(null);
 
   // Counts from zero on mount. `countUpNow` writes the final value straight in
   // when motion is reduced or anime.js never armed, so the number is never left
@@ -740,6 +804,19 @@ function Summary({
   useEffect(() => {
     if (xpRef.current) countUpNow(xpRef.current, summary.xpAwarded);
   }, [summary.xpAwarded]);
+
+  /*
+   * Confetti for finishing, fired from the banner.
+   *
+   * The original plan put this behind a "perfect run" check — but every run
+   * that reaches this screen is already perfect, because the quiz is
+   * pass-or-repeat and a single wrong answer routes to `Retry` instead. A
+   * PERFECT! banner gated on a condition that is always true would be noise, so
+   * the celebration is simply for completing, and the copy says the true thing.
+   */
+  useEffect(() => {
+    if (bannerRef.current) burstConfetti(bannerRef.current, { count: 54 });
+  }, []);
 
   return (
     <div
@@ -754,7 +831,9 @@ function Summary({
       {/* Every completion is now a clean run by construction — the only way to
           reach this screen is to have got everything right — so the score line
           says so rather than making the reader compare two equal numbers. */}
-      <p className="clean-run">Clean run — {total} of {total}.</p>
+      <p className="clean-run" ref={bannerRef}>
+        Clean run — {total} of {total}.
+      </p>
 
       <dl className="summary-rows">
         <div>
@@ -762,6 +841,10 @@ function Summary({
           <dd className="tabular accent">
             +<span ref={xpRef}>{summary.xpAwarded}</span>
           </dd>
+        </div>
+        <div>
+          <dt>Total XP</dt>
+          <dd className="tabular">{summary.totalXp}</dd>
         </div>
         <div>
           <dt>{summary.firstCompletion ? 'New review cards' : 'Cards already in review'}</dt>
@@ -795,7 +878,7 @@ function Summary({
         )}
 
         <div className="summary-actions">
-          <button className="button" type="button" onClick={() => goToStep(next)}>
+          <button className="btn btn-primary" type="button" onClick={() => goToStep(next)}>
             {next.kind === 'practise'
               ? 'Start it now'
               : next.kind === 'learn'

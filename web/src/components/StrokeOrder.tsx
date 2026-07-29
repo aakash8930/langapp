@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-import { API_BASE } from '../api';
+import { useStrokes } from '../strokes';
 
 /**
  * How a character is written: the strokes, in order, drawn one after another.
@@ -34,47 +34,20 @@ import { API_BASE } from '../api';
  * Under reduced motion the whole character is simply shown complete. Holding a
  * partially-drawn glyph on screen would be worse than not animating.
  */
-type Strokes = { char: string; viewBox: string; paths: string[] };
-
 export function StrokeOrder({ char, size = 132 }: { char: string; size?: number }) {
-  const [data, setData] = useState<Strokes | null>(null);
-  const [failed, setFailed] = useState(false);
   /** Bumped to replay: remounting the paths restarts the CSS animation. */
   const [run, setRun] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    setData(null);
-    setFailed(false);
+  // Shared with `TraceCanvas`, which draws the same glyph beside this one. The
+  // cache is what makes that one request rather than two.
+  const strokesQuery = useStrokes(char);
 
-    // Derived from the character itself — no id, no lookup. `codePointAt`
-    // rather than `charCodeAt` so anything outside the BMP would still key
-    // correctly, even though nothing in the course is.
-    const codepoint = char.codePointAt(0)?.toString(16).padStart(5, '0');
-    if (!codepoint) {
-      setFailed(true);
-      return;
-    }
+  // A character with no stroke data shows without a diagram. That is the
+  // designed fallback, not an error worth a banner — the character itself is
+  // already on screen above this.
+  if (strokesQuery.isError) return null;
 
-    fetch(`${API_BASE}/content/strokes/${codepoint}`)
-      .then((response) => (response.ok ? response.json() : Promise.reject(new Error('no data'))))
-      .then((json: Strokes) => {
-        if (!cancelled) setData(json);
-      })
-      .catch(() => {
-        // A character with no stroke data shows without a diagram. That is the
-        // designed fallback, not an error worth a banner — the character itself
-        // is already on screen above this.
-        if (!cancelled) setFailed(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [char]);
-
-  if (failed) return null;
-
+  const data = strokesQuery.data;
   if (!data) {
     return <div className="strokes strokes-loading" style={{ width: size, height: size }} />;
   }

@@ -267,7 +267,7 @@ function LessonRow({
                 ) : state.completed ? (
                   // Already taught. Straight to the questions — walking the
                   // cards again is what the list above is for.
-                  <a className="button" href={`#/lesson/${lesson.id}`}>
+                  <a className="btn btn-primary" href={`#/lesson/${lesson.id}`}>
                     Practise again
                   </a>
                 ) : (
@@ -277,7 +277,7 @@ function LessonRow({
                         game — the same reason a finished lesson whose
                         successor is unlearned sends you here rather than
                         into its quiz. */}
-                    <a className="button" href={`#/study/${lesson.id}`}>
+                    <a className="btn btn-primary" href={`#/study/${lesson.id}`}>
                       Learn it
                     </a>
                     <a className="link-button" href={`#/lesson/${lesson.id}`}>

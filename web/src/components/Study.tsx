@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { fetchLesson } from '../api';
+import { fetchLesson, type ResolvedItem } from '../api';
+import { mnemonicsFor } from '../mnemonics';
 import { queryKeys } from '../queryKeys';
 import { go, goBack } from '../useRoute';
 import { Item } from './LessonItems';
 import { SpeakButton } from './SpeakButton';
 import { StrokeOrder } from './StrokeOrder';
+import { TraceCanvas } from './TraceCanvas';
 
 /**
  * The teach step: one item at a time, before any question is asked.
@@ -74,7 +76,7 @@ export function Study({ lessonId }: { lessonId: string }) {
             ? lessonQuery.error.message
             : 'Could not load this lesson.'}
         </span>
-        <button className="button" type="button" onClick={goBack}>
+        <button className="btn btn-primary" type="button" onClick={goBack}>
           Back to the course
         </button>
       </div>
@@ -95,7 +97,7 @@ export function Study({ lessonId }: { lessonId: string }) {
     return (
       <div className="glass panel note">
         <strong>This lesson has no items yet.</strong>
-        <button className="button" type="button" onClick={goBack}>
+        <button className="btn btn-primary" type="button" onClick={goBack}>
           Back to the course
         </button>
       </div>
@@ -163,6 +165,38 @@ export function Study({ lessonId }: { lessonId: string }) {
           </div>
         ) : null}
 
+        {/*
+          The hook, under the diagram that motivates it. Kana only: a kanji's
+          meaning is not recoverable from its shape by a story, and inventing
+          one would teach a false etymology for a character that has a real one.
+        */}
+        {item.kind === 'kana' ? <Mnemonics kana={item.kana} /> : null}
+
+        {/*
+          Writing it, having just watched it written. One canvas per glyph, so
+          きゃ is traced as two characters — which is what it is.
+
+          Only where the course actually asks for handwriting. A kanji in this
+          unit is asked for by *meaning*, and the busiest of them has 18 strokes
+          against the busiest kana's 4 — tracing 顔 in a 188px box teaches
+          frustration, not stroke order.
+        */}
+        {item.kind === 'kana' ? (
+          <div className="trace-row">
+            {[...item.kana].map((glyph, position) => (
+              <TraceCanvas key={`${position}-${glyph}`} char={glyph} />
+            ))}
+          </div>
+        ) : null}
+
+        {/*
+          Words from this same lesson that use the character. Derived from what
+          the lesson already carries rather than authored — so it can never
+          reference a word the learner has not been given, and it simply shows
+          nothing on a lesson with no vocabulary.
+        */}
+        {item.kind === 'kana' ? <SeenIn kana={item.kana} items={items} /> : null}
+
         <div className="study-nav">
           <button
             className="link-button"
@@ -175,7 +209,7 @@ export function Study({ lessonId }: { lessonId: string }) {
 
           {last ? (
             <button
-              className="button"
+              className="btn btn-primary"
               type="button"
               onClick={() => go({ name: 'lesson', id: lessonId })}
             >
@@ -183,7 +217,7 @@ export function Study({ lessonId }: { lessonId: string }) {
             </button>
           ) : (
             <button
-              className="button"
+              className="btn btn-primary"
               type="button"
               onClick={() => setIndex((n) => Math.min(n + 1, items.length - 1))}
             >
@@ -202,6 +236,84 @@ export function Study({ lessonId }: { lessonId: string }) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The memory hook for a kana, or nothing at all.
+ *
+ * Rendered as its own block rather than folded into the item card because it is
+ * a different *kind* of claim: everything else on this screen is what the
+ * character is, and this is a story about it that happens to be useful. The
+ * heading says so, so nobody memorises the mnemonic as a fact about Japanese.
+ *
+ * Yōon get one per glyph — きゃ is two characters and two hooks.
+ */
+function Mnemonics({ kana }: { kana: string }) {
+  const hints = mnemonicsFor(kana);
+  if (hints.length === 0) return null;
+
+  return (
+    <div className="mnemonics">
+      <p className="mnemonic-kicker">A way to remember it</p>
+      {hints.map(({ char, hint }) => (
+        <p className="mnemonic" key={char}>
+          {hints.length > 1 ? <span className="ja mnemonic-char">{char}</span> : null}
+          <span>{renderEmphasis(hint)}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The `**bold**` spans in a mnemonic, which are always the syllable being
+ * hooked. Parsed rather than stored as markup so the data file stays plain
+ * text — and a stray `**` degrades to visible asterisks rather than to
+ * injected markup, which is the failure mode worth having.
+ */
+function renderEmphasis(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+    part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
+      <strong key={index}>{part.slice(2, -2)}</strong>
+    ) : (
+      part
+    ),
+  );
+}
+
+/**
+ * Vocabulary from this lesson containing the character being taught.
+ *
+ * A character in isolation is a shape; the same character inside a word is the
+ * thing the learner will actually meet. Restricted to the current lesson's own
+ * items on purpose — pulling from the whole course would show words built on
+ * kana that have not been taught yet, which is the ordering the curriculum
+ * exists to protect.
+ */
+function SeenIn({ kana, items }: { kana: string; items: ResolvedItem[] }) {
+  // Matched against the reading as well as the lemma: a word written with kanji
+  // still *contains* the kana being taught, and its reading is where that shows.
+  const words = items.filter(
+    (each): each is Extract<ResolvedItem, { kind: 'vocab' }> =>
+      each.kind === 'vocab' &&
+      [...kana].every((glyph) => each.lemma.includes(glyph) || each.reading.includes(glyph)),
+  );
+
+  if (words.length === 0) return null;
+
+  return (
+    <div className="seen-in">
+      <p className="mnemonic-kicker">In this lesson</p>
+      <ul className="seen-in-list">
+        {words.slice(0, 4).map((word) => (
+          <li key={word.id}>
+            <span className="ja seen-in-word">{word.lemma}</span>
+            <span className="seen-in-gloss">{word.gloss}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

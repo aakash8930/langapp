@@ -435,7 +435,7 @@
 .header-inner {
   display: flex;
   align-items: center;
-  gap: var(--s-lg);
+  gap: var(--s-md);
   padding: var(--s-sm) var(--s-xl);
   border-radius: var(--radius-full);
   background: var(--glass-bg);
@@ -448,76 +448,214 @@
   font-weight: 800;
   color: var(--brand-primary);
   text-decoration: none;
+  flex-shrink: 0;
 }
+
+/* Navigation links */
+.header-nav {
+  display: flex;
+  gap: var(--s-sm);
+  margin-right: auto;
+}
+.nav-link {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  transition: all var(--t-fast) ease;
+}
+.nav-link:hover {
+  color: var(--ink);
+  background: rgba(124, 58, 237, 0.08);
+}
+.nav-admin {
+  color: var(--brand-primary);
+  background: rgba(124, 58, 237, 0.1);
+  font-weight: 700;
+}
+.nav-admin:hover {
+  background: rgba(124, 58, 237, 0.18);
+  color: var(--brand-primary);
+}
+
+/* Gamification stats */
 .header-stats {
   display: flex;
-  gap: var(--s-xl);
-  margin-left: auto;
-}
-.metric {
-  display: flex;
   align-items: center;
-  gap: var(--s-xs);
-  line-height: 1;
+  gap: var(--s-md);
 }
-.metric-label {
-  font-size: var(--text-caption);
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+
+/* Daily goal ring */
+.daily-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  cursor: default;
 }
-.metric-value {
-  font-size: var(--text-body);
+.daily-ring svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.daily-ring-text {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ink);
+  z-index: 1;
+}
+.daily-ring-fill {
+  transition: stroke-dashoffset var(--t-slow, 600ms) ease;
+}
+.daily-ring-done {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+@keyframes pulse-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  50% { filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.4)); }
+}
+
+/* Streak flame */
+.streak-flame {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(100, 116, 139, 0.08);
+  cursor: default;
+  transition: all var(--t-fast) ease;
+}
+.streak-active {
+  background: rgba(249, 115, 22, 0.1);
+}
+.streak-hot {
+  background: rgba(239, 68, 68, 0.12);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+}
+/*
+ * --flame-scale is set per-render from the streak length (1 → 1.4 over the
+ * first 30 days). Every keyframe multiplies by it rather than replacing it,
+ * because an animation overrides the inline style it would otherwise sit on.
+ */
+.streak-fire {
+  font-size: 16px;
+  display: inline-block;
+  transform: scale(var(--flame-scale, 1));
+  transition: transform var(--t-base) var(--spring-bounce);
+}
+.streak-active .streak-fire {
+  animation: flicker 1.5s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%, 100% { transform: scale(var(--flame-scale, 1)) rotate(0deg); }
+  25% { transform: scale(calc(var(--flame-scale, 1) * 1.1)) rotate(-3deg); }
+  75% { transform: scale(calc(var(--flame-scale, 1) * 1.05)) rotate(3deg); }
+}
+.streak-count {
+  font-size: var(--text-small);
   font-weight: 800;
   color: var(--ink);
 }
-.metric-done {
-  color: var(--brand-success);
+
+/* Level badge */
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  cursor: default;
+}
+.level-number {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  color: white;
 }
 .header-name {
   font-size: var(--text-small);
   font-weight: 600;
   color: var(--ink);
-  background: rgba(124, 58, 237, 0.1);
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
 }
+
+/* Level tier colors */
+.level-bronze { background: rgba(205, 127, 50, 0.1); }
+.level-bronze .level-number { background: linear-gradient(135deg, #cd7f32, #b87333); }
+
+.level-silver { background: rgba(192, 192, 192, 0.15); }
+.level-silver .level-number { background: linear-gradient(135deg, #a8a9ad, #c0c0c0); }
+
+.level-gold { background: rgba(255, 215, 0, 0.1); }
+.level-gold .level-number { background: linear-gradient(135deg, #ffd700, #daa520); }
+
+.level-diamond { background: rgba(59, 130, 246, 0.1); }
+.level-diamond .level-number { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+
+.level-master { background: rgba(124, 58, 237, 0.1); }
+.level-master .level-number { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
+
 .header-inner > .link-button:last-child {
-  margin-left: var(--s-md);
+  margin-left: var(--s-sm);
+  font-size: var(--text-small);
+}
+
+.btn-sm {
+  min-height: 36px;
+  font-size: var(--text-small);
+  padding: 0 var(--s-lg);
 }
 
 /* ---- Buttons and forms ---- */
 
-.button {
+/*
+ * `.button` used to live here, a near-duplicate of `.btn` in theme.css. It is
+ * gone and every call site moved to `.btn btn-primary`; the two properties it
+ * had that `.btn` did not — a 48px minimum height and `:disabled` styling —
+ * moved with it. Don't reintroduce a second base class.
+ */
+
+/*
+ * The audio button. It had no rules at all — `SpeakButton` has always rendered
+ * `.speak`, and nothing ever styled it, so it drew as a raw user-agent button
+ * on the study card and in the quiz. Quiet on purpose: it sits beside the thing
+ * being taught and must not compete with it, which is why it is a bordered
+ * ghost rather than another gradient.
+ */
+.speak {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  padding: 0 var(--s-xl);
-  border: none;
+  gap: var(--s-xs);
+  min-height: 36px;
+  padding: 0 var(--s-md);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--brand-primary), var(--brand-tertiary));
-  color: white;
+  background: var(--surface);
+  color: var(--ink);
   font-family: var(--font-ui);
+  font-size: var(--text-small);
   font-weight: 600;
-  font-size: var(--text-body);
-  text-decoration: none;
   cursor: pointer;
-  transition: all var(--t-fast) var(--spring-bounce);
-  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+  transition: all var(--t-fast) ease;
 }
-.button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+.speak:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
 }
-.button:active:not(:disabled) {
-  transform: scale(0.95);
+.speak-playing {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
 }
-.button:disabled {
-  opacity: 0.6;
+/* A missing .wav is a documented 404 whose fallback is silence — the control
+   stays put and stops being pressable rather than vanishing and reflowing. */
+.speak:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 .link-button {
@@ -592,10 +730,31 @@
   margin: 0;
   padding: var(--s-sm) var(--s-md);
   background: rgba(239, 68, 68, 0.1);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--danger);
   font-size: var(--text-small);
   font-weight: 500;
+}
+.form-success {
+  margin: 0;
+  padding: var(--s-sm) var(--s-md);
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: var(--radius-md);
+  color: var(--brand-success);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+.forgot-link {
+  align-self: flex-end;
+  margin-top: calc(-1 * var(--s-md));
+  font-size: var(--text-caption);
+  padding: 2px 8px;
+}
+.signin-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-sm);
 }
 
 /* ---- Quiz ---- */
@@ -1044,4 +1203,387 @@
 
 .study-skip {
   margin-top: var(--s-md);
+}
+
+/* ==== Reward layer: confetti, XP, achievements ==== */
+
+/*
+ * Confetti lives in a fixed layer on <body>, not inside the card it celebrates
+ * — a burst rendered inside a rounded, overflow-clipped panel is a burst you
+ * cannot see. `pointer-events: none` so it never eats a click on the way past.
+ */
+.confetti-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.xp-burst {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-xs);
+  margin: 0 auto var(--s-md);
+  padding: var(--s-sm) var(--s-lg);
+  border-radius: var(--radius-full);
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--brand-success);
+}
+.xp-burst-amount {
+  font-size: var(--text-h2, 1.6rem);
+  font-weight: 800;
+  line-height: 1;
+}
+.xp-burst-label {
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The per-answer tick. No number: the answer endpoint returns no XP. */
+.correct-flash {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  margin-right: var(--s-xs);
+  border-radius: 50%;
+  background: var(--brand-success);
+  color: white;
+  font-size: 0.8em;
+  font-weight: 800;
+  animation: tick-pop var(--t-base) var(--spring-bounce) both;
+}
+.correct-flash-tick {
+  line-height: 1;
+}
+@keyframes tick-pop {
+  from { transform: scale(0.2); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/*
+ * The verdict wash on the quiz card. Kept to a tint on the border and a faint
+ * background — the card holds the question and the options, and washing it
+ * solid green would fight the text it contains for contrast.
+ */
+.quiz-card-right {
+  border-color: rgba(16, 185, 129, 0.5);
+  animation: wash-right var(--t-slow, 600ms) ease-out;
+}
+.quiz-card-wrong {
+  border-color: rgba(239, 68, 68, 0.5);
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+@keyframes wash-right {
+  0%   { background-color: rgba(16, 185, 129, 0.16); }
+  100% { background-color: transparent; }
+}
+
+.verdict-remember {
+  margin-top: var(--s-sm);
+  padding: var(--s-sm) var(--s-md);
+  border-left: 3px solid var(--brand-primary);
+  border-radius: var(--radius-sm);
+  background: rgba(124, 58, 237, 0.06);
+  text-align: left;
+}
+.verdict-remember-kicker {
+  margin: 0 0 2px;
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+}
+
+/* ---- Achievements ---- */
+
+.achievements {
+  padding: var(--s-lg);
+}
+.achievements-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-md);
+  margin-bottom: var(--s-md);
+}
+.achievements-head h2 {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+.achievements-score {
+  font-size: var(--text-small);
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/*
+ * Scrolls sideways rather than wrapping. Ten badges over three rows on a phone
+ * would push the curriculum — the reason for the page — below the fold.
+ */
+.achievement-row {
+  display: flex;
+  gap: var(--s-md);
+  margin: 0;
+  padding: 0 0 var(--s-sm);
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+.achievement {
+  flex: 0 0 148px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-md);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  scroll-snap-align: start;
+  /* Locked badges are legible, not hidden — they say what is next. */
+  opacity: 0.62;
+}
+.achievement-earned {
+  opacity: 1;
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.07);
+}
+.achievement-icon {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  /* Grey out a locked badge's emoji without hiding what it is. */
+  filter: grayscale(1);
+}
+.achievement-earned .achievement-icon {
+  filter: none;
+}
+.achievement-title {
+  font-size: var(--text-small);
+  font-weight: 700;
+  color: var(--ink);
+}
+.achievement-note {
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
+.achievement-bar {
+  margin-top: var(--s-xs);
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--hairline);
+  overflow: hidden;
+}
+.achievement-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--brand-primary);
+}
+
+/* ---- Admin banner ---- */
+
+.admin-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-md) var(--s-lg);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform var(--t-fast) var(--spring-bounce);
+}
+.admin-banner:hover {
+  transform: translateY(-2px);
+}
+.admin-banner-icon {
+  font-size: 1.4rem;
+}
+.admin-banner-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.admin-banner-body strong {
+  font-size: var(--text-body);
+}
+.admin-banner-body span {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.admin-banner-arrow {
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+/* ==== Study: mnemonics, example words, tracing ==== */
+
+.mnemonics,
+.seen-in {
+  margin-top: var(--s-lg);
+  padding-top: var(--s-md);
+  border-top: 1px solid var(--hairline);
+  text-align: left;
+}
+.mnemonic-kicker {
+  margin: 0 0 var(--s-xs);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.mnemonic {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-sm);
+  margin: 0 0 var(--s-xs);
+  font-size: var(--text-small);
+  color: var(--ink);
+}
+.mnemonic strong {
+  font-weight: 800;
+  color: var(--brand-primary);
+}
+.mnemonic-char {
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+
+.seen-in-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.seen-in-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-xs);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(124, 58, 237, 0.07);
+}
+.seen-in-word {
+  font-weight: 700;
+}
+.seen-in-gloss {
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
+
+/* ---- Tracing ---- */
+
+.trace-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-lg);
+  justify-content: center;
+  margin-top: var(--s-lg);
+}
+.trace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-xs);
+}
+.trace-loading {
+  width: 188px;
+  height: 188px;
+  border-radius: var(--radius-md);
+  background: var(--hairline);
+  opacity: 0.4;
+}
+.trace-kicker {
+  margin: 0;
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.trace-count {
+  color: var(--brand-primary);
+}
+
+/*
+ * `touch-action: none` is load-bearing on a phone: without it the browser
+ * claims the drag as a scroll gesture and the stroke is never delivered.
+ */
+.trace-svg {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  touch-action: none;
+  cursor: crosshair;
+}
+.trace-svg-done {
+  border-color: var(--brand-success);
+}
+.trace-guide {
+  stroke: var(--hairline);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.trace-ghost {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* The stroke being asked for, picked out from the rest of the outline. */
+.trace-ghost-next {
+  stroke: var(--brand-primary);
+  opacity: 0.34;
+}
+.trace-hint {
+  fill: none;
+  stroke: var(--brand-primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 3 5;
+  opacity: 0.85;
+}
+.trace-done,
+.trace-live {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.trace-done {
+  stroke: var(--brand-success);
+}
+.trace-live {
+  stroke: var(--ink);
+}
+.trace-verdict {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: var(--text-caption);
+  text-align: center;
+  color: var(--ink-soft);
+}
+.trace-verdict-match {
+  color: var(--brand-success);
+  font-weight: 700;
+}
+.trace-verdict-reversed,
+.trace-verdict-off {
+  color: var(--danger);
 }

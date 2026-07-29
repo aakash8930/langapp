@@ -287,13 +287,31 @@ h1, h2, h3, h4, h5, h6 {
   background-clip: text;
 }
 
-/* Modern Buttons */
+/*
+ * Buttons — one system.
+ *
+ * There were two for a while: this one and a `.button` in app.css that was very
+ * nearly identical. They drifted in the ways near-duplicates always do, and the
+ * differences were the parts that matter rather than cosmetic: `.button` had
+ * `:disabled` styling and a 48px minimum height, `.btn` had neither, and the
+ * quiz — which disables its options on every single answer — was using both.
+ *
+ * So `.button` is gone and its two useful properties moved here. If a third
+ * button style is ever needed it is a `.btn-*` modifier, not a new base class.
+ *
+ * `min-height: 48px` is a tap target, not a look. Don't shrink it without
+ * replacing it with padding that reaches the same size; `.btn-sm` is the one
+ * sanctioned exception and it is for the header bar, which is not a primary
+ * action.
+ */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 48px;
   font-family: var(--font-ui);
   font-weight: 600;
+  font-size: var(--text-body);
   padding: var(--s-md) var(--s-xl);
   border-radius: var(--radius-full);
   border: none;
@@ -302,8 +320,21 @@ h1, h2, h3, h4, h5, h6 {
   text-decoration: none;
 }
 
-.btn:active {
+.btn:active:not(:disabled) {
   transform: scale(0.95);
+}
+
+/*
+ * Hover and active are guarded against :disabled throughout. A disabled button
+ * that still lifts on hover claims to be pressable, which is the one thing it
+ * is not — and the quiz leans on this hard, disabling every option the instant
+ * an answer is sent.
+ */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .btn-primary {
@@ -312,7 +343,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.39);
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
   transform: translateY(-2px);
 }
@@ -324,7 +355,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 2px 8px var(--glass-edge);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background: var(--paper);
   transform: translateY(-2px);
 }

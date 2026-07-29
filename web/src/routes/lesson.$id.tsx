@@ -70,7 +70,7 @@ function LessonRoute() {
       <div className="glass panel note">
         <strong>Sign in to take this lesson.</strong>
         <span>Quizzes and progress need an account; browsing the course does not.</span>
-        <a className="button" href="#/">
+        <a className="btn btn-primary" href="#/">
           Back to the course
         </a>
       </div>

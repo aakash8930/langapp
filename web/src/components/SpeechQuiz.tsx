@@ -88,7 +88,7 @@ export function SpeechQuiz({
         <p>Your browser does not support the Web Speech API.</p>
         <p style={{ fontSize: '12px', color: '#666' }}>Please use Chrome, Edge, or Safari.</p>
         <button 
-          className="button"
+          className="btn btn-primary"
           onClick={() => onSubmit('skipped')}
           disabled={disabled}
         >
@@ -120,7 +120,7 @@ export function SpeechQuiz({
       </div>
       <button 
         type="button" 
-        className={`button ${listening ? 'listening' : ''}`}
+        className={`btn btn-primary ${listening ? 'listening' : ''}`}
         onClick={handleToggle}
         disabled={disabled}
         style={{

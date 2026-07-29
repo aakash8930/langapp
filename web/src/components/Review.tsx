@@ -13,6 +13,7 @@ import {
 import { queryKeys } from '../queryKeys';
 import { showsRomaji } from '../romaji';
 import { SpeakButton } from './SpeakButton';
+import { XpBurst } from './XpBurst';
 import { goBack } from '../useRoute';
 
 /**
@@ -77,7 +78,7 @@ export function Review({
       <div className="glass panel note note-error" role="alert">
         <strong>Can’t load your reviews.</strong>
         <span>{error}</span>
-        <button className="button" type="button" onClick={goBack}>
+        <button className="btn btn-primary" type="button" onClick={goBack}>
           Back to the course
         </button>
       </div>
@@ -104,7 +105,7 @@ export function Review({
           Cards arrive here after you finish a lesson, and come back on their own schedule once
           you have graded them.
         </p>
-        <button className="button" type="button" onClick={goBack}>
+        <button className="btn btn-primary" type="button" onClick={goBack}>
           Back to the course
         </button>
       </div>
@@ -118,6 +119,16 @@ export function Review({
     return (
       <div className="glass panel quiz-summary">
         <h2>Session complete</h2>
+
+        {/*
+          The one XP figure on this screen that the server actually sent — it is
+          the sum of `xpAwarded` across the grades, not a count of cards times a
+          rate. XP here is due-gated, so grading a card that was not really due
+          adds nothing, and a session can legitimately total zero. `XpBurst`
+          renders nothing at zero rather than celebrating "+0".
+        */}
+        <XpBurst xp={xp} />
+
         <dl className="summary-rows">
           <div>
             <dt>Reviewed</dt>
@@ -140,7 +151,7 @@ export function Review({
             come back next session.
           </p>
         ) : null}
-        <button className="button" type="button" onClick={goBack}>
+        <button className="btn btn-primary" type="button" onClick={goBack}>
           Back to the course
         </button>
       </div>
