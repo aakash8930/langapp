@@ -1,10 +1,11 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
 import { AuthService } from './auth.service';
+import { PasswordResetStore } from './password-reset.store';
 import { RefreshTokenStore } from './refresh-token.store';
 
 const ACCESS_SECRET = 'test-access-secret-that-is-long-enough-32';
@@ -35,8 +36,11 @@ function makeUser(overrides: Partial<{ id: string; email: string; passwordHash: 
 }
 
 interface Mocks {
-  userService: jest.Mocked<Pick<UserService, 'create' | 'findById' | 'findByEmail' | 'findByEmailWithPassword'>>;
+  userService: jest.Mocked<
+    Pick<UserService, 'create' | 'findById' | 'findByEmail' | 'findByEmailWithPassword' | 'updatePassword'>
+  >;
   store: jest.Mocked<Pick<RefreshTokenStore, 'store' | 'consume' | 'revokeAll'>>;
+  resets: jest.Mocked<Pick<PasswordResetStore, 'store' | 'verify'>>;
 }
 
 function build(): { service: AuthService; mocks: Mocks } {
@@ -46,11 +50,16 @@ function build(): { service: AuthService; mocks: Mocks } {
       findById: jest.fn(),
       findByEmail: jest.fn(),
       findByEmailWithPassword: jest.fn(),
+      updatePassword: jest.fn().mockResolvedValue(undefined),
     },
     store: {
       store: jest.fn().mockResolvedValue(undefined),
       consume: jest.fn().mockResolvedValue(true),
       revokeAll: jest.fn().mockResolvedValue(1),
+    },
+    resets: {
+      store: jest.fn().mockResolvedValue(undefined),
+      verify: jest.fn().mockResolvedValue(true),
     },
   };
 
@@ -59,6 +68,7 @@ function build(): { service: AuthService; mocks: Mocks } {
     jwtService,
     config,
     mocks.store as unknown as RefreshTokenStore,
+    mocks.resets as unknown as PasswordResetStore,
   );
 
   return { service, mocks };
@@ -208,6 +218,105 @@ describe('AuthService', () => {
       await expect(service.refresh({ refreshToken: wrongSecretToken })).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
+    });
+  });
+
+  describe('forgotPassword', () => {
+    // The service logs every code it issues — that is the delivery mechanism,
+    // not debug noise. Silence it here so 300 draws don't bury the report.
+    let logged: jest.SpyInstance;
+    beforeEach(() => {
+      logged = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    });
+    afterEach(() => logged.mockRestore());
+
+    it('answers identically for a registered and an unknown address', async () => {
+      const { service, mocks } = build();
+
+      mocks.userService.findByEmail.mockResolvedValue(makeUser());
+      const known = await service.forgotPassword('learner@example.com');
+
+      mocks.userService.findByEmail.mockResolvedValue(null);
+      const unknown = await service.forgotPassword('nobody@example.com');
+
+      // Anti-enumeration: the reply must not distinguish the two cases.
+      expect(unknown).toEqual(known);
+    });
+
+    it('issues a six-digit code only when the account exists', async () => {
+      const { service, mocks } = build();
+      mocks.userService.findByEmail.mockResolvedValue(makeUser());
+
+      await service.forgotPassword('learner@example.com');
+
+      expect(mocks.resets.store).toHaveBeenCalledTimes(1);
+      const [, code] = mocks.resets.store.mock.calls[0];
+      expect(code).toMatch(/^\d{6}$/);
+
+      mocks.userService.findByEmail.mockResolvedValue(null);
+      await service.forgotPassword('nobody@example.com');
+      expect(mocks.resets.store).toHaveBeenCalledTimes(1);
+    });
+
+    it('zero-pads, so a low draw is still six digits', async () => {
+      const { service, mocks } = build();
+      mocks.userService.findByEmail.mockResolvedValue(makeUser());
+
+      // randomInt(0, 1e6) can legitimately return 7, and unpadded that is a
+      // one-digit code the DTO's Length(6, 6) would reject as malformed. 300
+      // draws miss the sub-100000 tenth of the range with probability 0.9^300,
+      // about 2e-14 — so a regression here fails essentially every run.
+      for (let i = 0; i < 300; i++) {
+        await service.forgotPassword('learner@example.com');
+      }
+
+      const codes = mocks.resets.store.mock.calls.map(([, code]) => code);
+      expect(codes.every((code) => /^\d{6}$/.test(code))).toBe(true);
+      // And they are not all the same number.
+      expect(new Set(codes).size).toBeGreaterThan(1);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('rehashes the password with argon2id and kills every session', async () => {
+      const { service, mocks } = build();
+      mocks.resets.verify.mockResolvedValue(true);
+      mocks.userService.findByEmail.mockResolvedValue(makeUser());
+
+      await service.resetPassword('learner@example.com', '123456', 'correct-horse-battery');
+
+      expect(mocks.userService.updatePassword).toHaveBeenCalledTimes(1);
+      const [userId, hash] = mocks.userService.updatePassword.mock.calls[0];
+      expect(userId).toBe('507f1f77bcf86cd799439011');
+      expect(hash.startsWith('$argon2id$')).toBe(true);
+      await expect(argon2.verify(hash, 'correct-horse-battery')).resolves.toBe(true);
+
+      // Whoever forced the reset, the other party must not keep a live session.
+      expect(mocks.store.revokeAll).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+    });
+
+    it('refuses a rejected code without touching the password', async () => {
+      const { service, mocks } = build();
+      mocks.resets.verify.mockResolvedValue(false);
+
+      await expect(
+        service.resetPassword('learner@example.com', '000000', 'correct-horse-battery'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(mocks.userService.updatePassword).not.toHaveBeenCalled();
+      expect(mocks.store.revokeAll).not.toHaveBeenCalled();
+    });
+
+    it('refuses an accepted code for an account that no longer exists', async () => {
+      const { service, mocks } = build();
+      mocks.resets.verify.mockResolvedValue(true);
+      mocks.userService.findByEmail.mockResolvedValue(null);
+
+      await expect(
+        service.resetPassword('gone@example.com', '123456', 'correct-horse-battery'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(mocks.userService.updatePassword).not.toHaveBeenCalled();
     });
   });
 });

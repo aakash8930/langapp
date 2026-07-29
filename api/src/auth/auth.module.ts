@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { UserModule } from '../user/user.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { PasswordResetStore } from './password-reset.store';
 import { RefreshTokenStore } from './refresh-token.store';
 
 /**
@@ -11,7 +12,7 @@ import { RefreshTokenStore } from './refresh-token.store';
 @Module({
   imports: [UserModule],
   controllers: [AuthController],
-  providers: [AuthService, RefreshTokenStore],
+  providers: [AuthService, RefreshTokenStore, PasswordResetStore],
   exports: [AuthService],
 })
 export class AuthModule {}

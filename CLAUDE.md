@@ -79,6 +79,9 @@ POST /auth/refresh   { refreshToken }  -> 200
      -> { accessToken, refreshToken, expiresIn }        // flat, NOT nested under `tokens`
 
 POST /auth/logout    { refreshToken }  -> 204 No Content, empty body
+
+POST /auth/forgot-password  { email }                      -> 200 { message }
+POST /auth/reset-password   { email, code, newPassword }   -> 200 { message }
 ```
 
 `/auth/logout` consumes the presented refresh token — the same consumption
@@ -90,9 +93,38 @@ session it is trying to discard. It takes the *refresh* token, not the access
 token, and does not need a bearer.
 
 It only revokes the one token presented. Revoking every session for a user
-exists as `AuthService.logoutAll` but **is not on the wire** — no route calls it.
+exists as `AuthService.logoutAll` but **is not on the wire** — no route calls
+it. (`/auth/reset-password` does revoke every session, but it reaches
+`RefreshTokenStore.revokeAll` directly rather than through `logoutAll`.)
 
 `displayName` is required, 1–60 chars. `password` is 8–128, `email` ≤254.
+
+**Password reset (added 2026-07-29) writes the code to the API's own log,
+because Stage A has no mail service.** That is the whole security model and it
+needs saying plainly: *anyone who can read the server log can reset any
+account.* On a laptop whose only operator is the sole administrator that is
+already true of the database, so it is an acceptable Stage A trade — and it
+stops being acceptable the moment logs are shipped anywhere. Shipping this to a
+host with shared or aggregated logs means fitting a real mail transport first,
+not widening who reads the log.
+
+`/auth/forgot-password` **always answers 200 with the same body**, registered
+address or not — the same anti-enumeration property `/auth/login` burns a dummy
+argon2 verify to keep. Show its `message` verbatim; rewriting it into "check
+your email" states something that did not happen. No dummy work is needed to
+keep the timing flat here: both paths are one indexed lookup and the code is
+generated after the branch.
+
+`code` is **exactly six digits**, valid 15 minutes, single-use, and discarded
+after 5 wrong guesses (`PasswordResetStore`). Six digits is only 10^6 wide, so
+the attempt budget rather than the width is what makes guessing hopeless; both
+routes also sit under the `AUTH_THROTTLE_*` limit. A wrong code, an expired one
+and an unknown address are one indistinguishable **401**, for the same reason
+login has one message.
+
+A successful reset **revokes every refresh token the account holds**. Whoever
+forced the reset, the other party must not keep a live session across it — so a
+client holding tokens for that account is signed out at its next refresh.
 
 **`dateOfBirth` is required** (ISO `YYYY-MM-DD`), added 2026-07-26 with the social
 features. Under-13 registration is **400**. The check runs before the email lookup
@@ -107,8 +139,10 @@ Refresh tokens **rotate**: the presented token is consumed, so replaying one fai
 the Redis check even though the signature still verifies. A client must therefore
 serialise refreshes — concurrent 401s sharing one in-flight refresh, not one each.
 
-`/auth/register` and `/auth/login` are rate limited (`AUTH_THROTTLE_*`, default 10 per
-60s) and return **429** past the limit.
+**Every route on `AuthController` is rate limited** (`AUTH_THROTTLE_*`, default 10
+per 60s) and returns **429** past the limit — the guard is on the controller, so
+`/auth/forgot-password` and `/auth/reset-password` inherit it too, which is what
+keeps the reset code out of reach of a grinder.
 
 Login answers **401 `Invalid credentials` for both an unknown email and a wrong
 password**, and burns a dummy argon2 verify when no user exists to keep timing flat.
@@ -127,7 +161,7 @@ GET    /me/progress   bearer -> { xp, level, xpIntoLevel, xpForNextLevel,
                                           reviewsDone, lessonsDone },
                                  cardsDueNow, lessonsCompleted, completedLessonIds }
 
-UserResponse = { id, email, createdAt,
+UserResponse = { id, email, isAdmin, createdAt,
                  profile:      { displayName, nativeLanguage, activeTrack: 'ja' },
                  gamification: { xp, streakDays, lastStudyDate, dailyGoalXp },
                  settings:     { audioSpeed, theme, tz, leaderboardOptIn } }
@@ -156,6 +190,13 @@ Orchestration lives in `AccountDeletionService`, not `UserService`, because the
 cascade has to call into `learning`, `chat`, `analytics` and `social`, and
 `UserService` calling them would close a dependency cycle — every one of those
 modules imports `UserModule`.
+
+`isAdmin` has been on `UserResponse` since the creator dashboard landed but was
+undocumented here until 2026-07-29. It is also a claim in the access token, which
+is what `CreatorGuard` reads — so **it is authorization, and the copy on
+`UserResponse` is only for deciding what to draw.** A client hiding the Creator
+link for a non-admin hides nothing that was reachable; a client showing it to one
+gets a 403 from the guard, not access.
 
 `PATCH /me/settings` returns the **whole user**, not just the settings block.
 `audioSpeed` is 0.5–2.0, `theme` is `light`/`dark`/`system`, `tz` an IANA zone name,

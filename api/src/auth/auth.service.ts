@@ -2,12 +2,13 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { toUserResponse } from '../user/dto/user-response.dto';
 import { meetsMinimumAge, MIN_AGE_TO_REGISTER } from '../user/gamification/age';
 import { UserDocument } from '../user/schemas/user.schema';
@@ -16,6 +17,7 @@ import { AuthResponse, TokenPair } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { PasswordResetStore, RESET_CODE_TTL_SECONDS } from './password-reset.store';
 import { RefreshTokenStore } from './refresh-token.store';
 
 interface RefreshTokenPayload {
@@ -39,11 +41,14 @@ function getDummyHash(): Promise<string> {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly refreshTokens: RefreshTokenStore,
+    private readonly passwordResets: PasswordResetStore,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
@@ -147,6 +152,64 @@ export class AuthService {
   /** Revoke all active refresh tokens for the user (logout everywhere). */
   async logoutAll(userId: string): Promise<number> {
     return this.refreshTokens.revokeAll(userId);
+  }
+
+  /**
+   * Issues a reset code and **writes it to the server log**, because Stage A has
+   * no mail service (§8: nothing that bills per message). That is a deliberate,
+   * documented trade and it is the whole security model of this flow: anyone who
+   * can read the API's log can reset any account. On a laptop whose only operator
+   * is the sole administrator that is already true of the database itself; it
+   * stops being acceptable the moment logs are shipped anywhere, at which point
+   * this needs a real mail transport rather than a wider log.
+   *
+   * The reply is identical whether or not the address is registered — the same
+   * anti-enumeration property `login` burns a dummy argon2 verify to keep. There
+   * is no dummy work to do here: both paths are one indexed lookup, and the code
+   * is generated after the branch, so the timings already match.
+   */
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.userService.findByEmail(email);
+
+    if (user) {
+      // randomInt, not Math.random — this is a credential, and Math.random is a
+      // predictable PRNG. Zero-padded so every code is the same six digits.
+      const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+      await this.passwordResets.store(email, code);
+      this.logger.warn(
+        `Password reset code for ${email}: ${code} ` +
+          `(valid ${RESET_CODE_TTL_SECONDS / 60} minutes)`,
+      );
+    }
+
+    return {
+      message:
+        'If that email is registered, a reset code has been generated. ' +
+        'It is in the API server log.',
+    };
+  }
+
+  /**
+   * Redeems a reset code. A wrong code, an expired one and an unknown address
+   * are one indistinguishable 401, for the same reason `login` has one message:
+   * telling a stranger which part was wrong tells them the other part was right.
+   */
+  async resetPassword(email: string, code: string, newPassword: string): Promise<{ message: string }> {
+    const accepted = await this.passwordResets.verify(email, code);
+    if (!accepted) throw new UnauthorizedException('Invalid or expired reset code.');
+
+    const user = await this.userService.findByEmail(email);
+    if (!user) throw new UnauthorizedException('Invalid or expired reset code.');
+
+    const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
+    await this.userService.updatePassword(user._id.toString(), passwordHash);
+
+    // Every existing session dies with the old password. Whoever forced the
+    // reset — the owner locked out, or an attacker who read the log — the other
+    // party must not keep a live refresh token across the change.
+    await this.refreshTokens.revokeAll(user._id.toString());
+
+    return { message: 'Password reset. Sign in with your new password.' };
   }
 
   private async buildAuthResponse(user: UserDocument): Promise<AuthResponse> {

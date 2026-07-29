@@ -167,6 +167,17 @@ export class UserService {
   }
 
   /**
+   * Updates only the password hash. Used by the password-reset flow.
+   * The caller is responsible for hashing the new password with argon2.
+   */
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $set: { passwordHash } },
+    );
+  }
+
+  /**
    * The only way another module may change a user's XP — the learning module
    * calls this rather than reaching into `users` itself.
    *
