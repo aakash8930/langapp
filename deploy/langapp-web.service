@@ -13,9 +13,25 @@
 # Funnel mounts /learn -> 127.0.0.1:7703 on the same hostname the API is on;
 # the two services share origin, so CORS_ORIGINS does not need a new entry.
 #
-# Restart=on-failure, not always — a build error should not bounce the service
-# forever; the deploy script's `test -s dist/index.html` is the real gate, and
-# if a broken dist sneaks through, the service exits and you notice.
+# Restart=always, changed from on-failure on 2026-07-29 after an outage.
+#
+# The original reasoning was that a broken dist should not bounce the service
+# forever — you want it to stay down so you notice. What actually happened is
+# the opposite failure: systemd counts a clean SIGTERM as *success*, so
+# `on-failure` did not restart a service that had simply been stopped, and the
+# deploy script only restarts this unit when a new commit lands. Nothing else
+# watches it. /learn served a 502 for hours because the one thing that could
+# have brought it back was waiting on a git push.
+#
+# The "stay down so you notice" argument does not survive contact with the fact
+# that nobody was watching. A restart loop is visible in `systemctl status` and
+# the journal; a silently dead service is not. The deploy script's
+# `test -s dist/index.html` remains the real gate on a bad build — it refuses to
+# restart into one, which is a better place to catch it than here.
+#
+# StartLimit* is deliberately left at the systemd default (5 starts in 10s), so
+# a genuinely crash-looping preview still gives up and lands in `failed` rather
+# than spinning forever.
 
 [Unit]
 Description=langapp web (Vite preview, built static bundle)
@@ -25,7 +41,7 @@ After=network-online.target
 Type=simple
 WorkingDirectory=/home/aakash/deploy/langapp/web
 ExecStart=/usr/bin/npx vite preview --port 7703 --host 127.0.0.1
-Restart=on-failure
+Restart=always
 RestartSec=3
 
 [Install]
