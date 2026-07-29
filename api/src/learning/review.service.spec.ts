@@ -6,6 +6,7 @@ import { ResolvedItem } from '../content/dto/lesson-response.dto';
 import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
 import { newCardFields, ReviewGrade } from './fsrs-card.mapper';
+import { LearnerItemStateService } from './learner-item-state.service';
 import { ReviewService, REVIEW_SESSION_CAP, XP_PER_REVIEW } from './review.service';
 import { SrsCardDocument } from './schemas/srs-card.schema';
 
@@ -76,7 +77,7 @@ function build(opts: { card?: SrsCardDocument; dueCards?: SrsCardDocument[]; tot
     } as unknown as ContentService,
     { awardXp, findById } as unknown as UserService,
     { record } as unknown as AnalyticsService,
-    { record: recordLearnerItem } as unknown as { record: (input: unknown) => Promise<void> },
+    { record: recordLearnerItem } as unknown as LearnerItemStateService,
   );
 
   return { service, card, awardXp, findById, record, recordLearnerItem };

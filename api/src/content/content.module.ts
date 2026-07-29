@@ -1,10 +1,13 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { LearningModule } from '../learning/learning.module';
+import { UserModule } from '../user/user.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { AudioController } from './audio.controller';
 import { StrokesController } from './strokes.controller';
 import { ContentService } from './content.service';
+import { CheckpointController } from './checkpoint.controller';
+import { CheckpointService } from './checkpoint/checkpoint.service';
 import { ExerciseController } from './exercise.controller';
 import { ExerciseService } from './exercise/exercise.service';
 import { LessonController } from './lesson.controller';
@@ -45,17 +48,19 @@ import { CreatorController } from './creator.controller';
       { name: ContentReport.name, schema: ContentReportSchema },
     ]),
     forwardRef(() => LearningModule),
-    // No UserModule: it was here so ExerciseService could charge a heart for a
-    // wrong answer, and hearts were removed in Phase 2 §3.1. `UserModule`
-    // exports only `UserService`, which nothing under `content/` references any
-    // more — a dependency edge that outlives its reason is worse than no comment,
-    // because the next reader assumes content legitimately needs user state.
+    // Back after being removed. It was here so `ExerciseService` could charge
+    // a heart for a wrong answer, and went out with hearts in Phase 2 §3.1 —
+    // the note then was that an edge outliving its reason misleads the next
+    // reader. `CheckpointService` gives it a new and real reason: passing a
+    // unit awards XP, and only `UserService` writes that.
+    UserModule,
     // Audio bytes live behind StorageService, never `fs` directly.
     StorageModule,
   ],
   controllers: [
     LessonController,
     ExerciseController,
+    CheckpointController,
     AudioController,
     StrokesController,
     ContentReportController,
@@ -64,6 +69,7 @@ import { CreatorController } from './creator.controller';
   providers: [
     ContentService,
     ExerciseService,
+    CheckpointService,
     ExercisePluginRegistry,
     MultipleChoicePlugin,
     WordReadingPlugin,
@@ -73,6 +79,6 @@ import { CreatorController } from './creator.controller';
     FlashcardPlugin,
     SpeechPlugin,
   ],
-  exports: [ContentService, ExerciseService, ExercisePluginRegistry],
+  exports: [ContentService, ExerciseService, CheckpointService, ExercisePluginRegistry],
 })
 export class ContentModule {}

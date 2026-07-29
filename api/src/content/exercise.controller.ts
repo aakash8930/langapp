@@ -34,9 +34,17 @@ export class ExerciseController {
     // The DTO is a discriminated union of { optionId } and { text }; pass
     // whichever was provided and let the service decide which one matches
     // the lesson's exercise type.
+    //
+    // `responseTimeMs` has to be forwarded explicitly, and was not until
+    // 2026-07-29: this re-built object silently dropped it, so every
+    // `ExerciseAttempt.responseTimeMs` stored `null` and the Welford stats on
+    // `LearnerItemState` never took a sample. The speed term is a quarter of
+    // `computeConfidence`, so the whole of it was dead weight on lesson
+    // answers while the DTO, the service and the schema all supported it.
     return this.exerciseService.answer(lessonId, exerciseId, user.userId, {
       optionId: dto.optionId,
       text: dto.text,
+      responseTimeMs: dto.responseTimeMs,
     });
   }
 }

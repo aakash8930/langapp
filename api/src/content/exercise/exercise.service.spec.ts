@@ -543,8 +543,11 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
   // `READING_WORDS` / `wordReadingLesson` constants declared further down
   // the file (their `const` bindings aren't hoisted, and the test block
   // sits above their declaration by file position).
+  // Carries `gloss` as well as `romaji` because it goes into the vocab pool
+  // below, where every other entry has one — without it the pool is a union
+  // that no longer matches the parameter's element type.
   const LEARNER_READING_WORDS = [
-    { id: '507f1f77bcf86cd799439201', lemma: 'がっこう', romans: 'gakkou' },
+    { id: '507f1f77bcf86cd799439201', lemma: 'がっこう', romaji: 'gakkou', gloss: 'school' },
   ];
   const LEARNER_READING_POOL = [
     { id: 'v4', lemma: 'うみ', gloss: 'sea' },
@@ -562,12 +565,12 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
       id: w.id,
       lemma: w.lemma,
       reading: w.lemma,
-      gloss: 'school',
+      gloss: w.gloss,
       pos: 'noun',
       jlpt: 'N5',
       // The wordReading build path filters vocabulary items by `romaji`,
       // throwing 422 if none match. The lesson's own items must carry it.
-      romaji: w.romans,
+      romaji: w.romaji,
     })),
   });
 
@@ -610,7 +613,7 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
     const question = set.questions[0];
 
     await service.answer(LESSON_ID, question.exerciseId, USER_A, {
-      text: LEARNER_READING_WORDS[0].romans,
+      text: LEARNER_READING_WORDS[0].romaji,
     });
 
     // `promptKindToSrsKind` already maps `'wordReading' → 'vocab'` for the SRS

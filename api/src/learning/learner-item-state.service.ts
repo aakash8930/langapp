@@ -391,6 +391,56 @@ export class LearnerItemStateService {
   async count(): Promise<number> {
     return this.stateModel.countDocuments().exec();
   }
+
+  /**
+   * The learner's evidence for a specific set of items, keyed `"kind:id"`.
+   *
+   * The first read path on this collection (§5.2 said the first consumer would
+   * be a later slice; the unit checkpoint is it). Items with no row are simply
+   * absent from the map rather than defaulted here — "never seen" and "seen and
+   * scored 0" are different facts, and only the caller knows which way it wants
+   * to rank them.
+   *
+   * One query for the whole set. The `{userId, confidence}` index does not
+   * serve this (it filters on `itemRef`), but the unique
+   * `{userId, itemRef.kind, itemRef.id}` index does.
+   */
+  async findEvidenceForItems(
+    userId: string,
+    refs: { kind: ContentKind; id: Types.ObjectId }[],
+  ): Promise<Map<string, { confidence: number; exposures: number }>> {
+    if (refs.length === 0) return new Map();
+
+    const rows = await this.stateModel
+      .find({
+        userId: new Types.ObjectId(userId),
+        $or: refs.map((ref) => ({ 'itemRef.kind': ref.kind, 'itemRef.id': ref.id })),
+      })
+      .select('itemRef confidence exposures')
+      .lean()
+      .exec();
+
+    return new Map(
+      rows.map((row) => [
+        `${row.itemRef.kind}:${row.itemRef.id.toString()}`,
+        { confidence: row.confidence, exposures: row.exposures },
+      ]),
+    );
+  }
+
+  /**
+   * Account-deletion cascade (OPEN-ITEMS #5/#32).
+   *
+   * Called by `LearningService.deleteAllForUser` as part of `DELETE /me`. This
+   * collection was added after the cascade was written and spent two slices
+   * outside it, so a deleted account left its learner model behind — rows keyed
+   * by a `userId` with no user, holding per-item evidence of what that person
+   * got wrong. The contract calls `DELETE /me` a real cascade; this is part of
+   * making that true.
+   */
+  async deleteAllForUser(userId: string): Promise<void> {
+    await this.stateModel.deleteMany({ userId: new Types.ObjectId(userId) }).exec();
+  }
 }
 
 function isDuplicateKeyError(err: unknown): boolean {

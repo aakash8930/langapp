@@ -4,6 +4,7 @@ import { ListeningPlugin } from './plugins/listening.plugin';
 import { SentenceBuildingPlugin } from './plugins/sentence-building.plugin';
 import { FillInTheBlankPlugin } from './plugins/fill-in-the-blank.plugin';
 import { FlashcardPlugin } from './plugins/flashcard.plugin';
+import { SpeechPlugin } from './plugins/speech.plugin';
 import { ExercisePluginRegistry } from './plugins/exercise-plugin.registry';
 
 describe('Exercise Plugin Architecture & Strategy Pattern (Phase 2)', () => {
@@ -14,6 +15,7 @@ describe('Exercise Plugin Architecture & Strategy Pattern (Phase 2)', () => {
   let sbPlugin: SentenceBuildingPlugin;
   let fitbPlugin: FillInTheBlankPlugin;
   let fcPlugin: FlashcardPlugin;
+  let speechPlugin: SpeechPlugin;
 
   beforeEach(() => {
     mcPlugin = new MultipleChoicePlugin();
@@ -22,6 +24,7 @@ describe('Exercise Plugin Architecture & Strategy Pattern (Phase 2)', () => {
     sbPlugin = new SentenceBuildingPlugin();
     fitbPlugin = new FillInTheBlankPlugin();
     fcPlugin = new FlashcardPlugin();
+    speechPlugin = new SpeechPlugin();
 
     registry = new ExercisePluginRegistry(
       mcPlugin,
@@ -30,6 +33,7 @@ describe('Exercise Plugin Architecture & Strategy Pattern (Phase 2)', () => {
       sbPlugin,
       fitbPlugin,
       fcPlugin,
+      speechPlugin,
     );
   });
 
@@ -40,9 +44,13 @@ describe('Exercise Plugin Architecture & Strategy Pattern (Phase 2)', () => {
     expect(registry.hasPlugin('sentenceBuilding')).toBe(true);
     expect(registry.hasPlugin('fillInTheBlank')).toBe(true);
     expect(registry.hasPlugin('flashcard')).toBe(true);
+    expect(registry.hasPlugin('speech')).toBe(true);
 
     expect(registry.getPlugin('listening')).toBe(listeningPlugin);
-    expect(registry.listSupportedTypes()).toHaveLength(6);
+    // Every constructor argument must land in the map. The count is what
+    // catches a plugin added to the registry and forgotten here — which is
+    // exactly how `speech` arrived undetected.
+    expect(registry.listSupportedTypes()).toHaveLength(7);
   });
 
   describe('ListeningPlugin', () => {

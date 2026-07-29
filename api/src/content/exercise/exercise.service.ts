@@ -3,10 +3,8 @@ import { Types } from 'mongoose';
 import { ContentService } from '../content.service';
 import {
   AnswerResult,
-  ExerciseOption,
   ExerciseSet,
   GeneratedQuestion,
-  PromptKind,
   toPublicQuestion,
 } from '../dto/exercise-response.dto';
 import { LessonDetail, ResolvedItem } from '../dto/lesson-response.dto';
@@ -15,47 +13,39 @@ import { LearnerItemStateService } from '../../learning/learner-item-state.servi
 import { LearningService } from '../../learning/learning.service';
 import { mulberry32, seedFrom, shuffle } from './deterministic-random';
 import { ExercisePluginRegistry } from './plugins/exercise-plugin.registry';
-import { ContentKind } from '../../knowledge-graph/schemas/knowledge-node.schema';
+import {
+  assembleOptions,
+  Choice,
+  GRAMMAR_QUESTION,
+  isGrammar,
+  isKana,
+  isKanji,
+  isVocab,
+  KANA_QUESTION,
+  KANJI_QUESTION,
+  kanaChoice,
+  KindQuestion,
+  normaliseAnswer,
+  promptKindToSrsKind,
+  toGrammarChoice,
+  toKanjiChoice,
+  VOCAB_QUESTION,
+  vocabChoice,
+} from './question-builder';
 
 const OPTION_BASED_TYPES = ['multipleChoice'];
 const TYPING_TYPES = ['wordReading'];
 
 /**
- * One answerable item, flattened out of whatever kind it came from.
- *
- * `answer` is both the correct option's text and the key distractors are
- * deduped on — two options reading the same thing make a question
- * unanswerable, whichever kind produced them.
- *
- * For typing exercises, `answer` is also what the learner is supposed to type
- * and what the typed input is checked against.
- */
-interface Choice {
-  id: string;
-  prompt: string;
-  /** For multipleChoice: the option's value (e.g. `a`). For wordReading: the canonical romaji (e.g. `gakkou`). */
-  answer: string;
-  /**
-   * Extra context the question text needs. Only grammar uses it, to carry the
-   * English gloss — 「わたしはいき＿。」 is grammatical with ます, ません and ました
-   * alike, so without the gloss the question has three right answers.
-   */
-  hint?: string;
-}
-
-/**
  * How a lesson's items become questions, per item kind. The shape of the
  * question (multipleChoice vs wordReading) is decided by `lesson.exerciseTypes`
  * — `style` is about the *content* (kana, vocab, grammar).
+ *
+ * `promptKind` and `question` come from `question-builder.ts`, which the unit
+ * checkpoint shares; only the pool lookup is service-bound, because it is the
+ * one part that reads the database.
  */
-interface QuestionStyle {
-  promptKind: PromptKind;
-  /**
-   * A function rather than a constant because grammar's question changes per
-   * item — it has to state which meaning is wanted. Kana and vocab ignore the
-   * argument and return the same sentence every time.
-   */
-  question: (choice: Choice) => string;
+interface QuestionStyle extends KindQuestion {
   /** Every item of this kind in the unit — the distractor pool. */
   pool: (unit: string) => Promise<Choice[]>;
 }
@@ -78,8 +68,7 @@ export class ExerciseService {
   private readonly logger = new Logger(ExerciseService.name);
 
   private readonly KANA_STYLE: QuestionStyle = {
-    promptKind: 'kana',
-    question: () => 'Which romaji matches this character?',
+    ...KANA_QUESTION,
     pool: async (unit) =>
       (await this.contentService.findUnitKanaPool(unit)).map((doc) => ({
         id: doc._id.toString(),
@@ -89,8 +78,7 @@ export class ExerciseService {
   };
 
   private readonly VOCAB_STYLE: QuestionStyle = {
-    promptKind: 'vocab',
-    question: () => 'What does this word mean?',
+    ...VOCAB_QUESTION,
     pool: async (unit) =>
       (await this.contentService.findUnitVocabPool(unit)).map((doc) => ({
         id: doc._id.toString(),
@@ -114,8 +102,7 @@ export class ExerciseService {
    * here, not the answer key.
    */
   private readonly KANJI_STYLE: QuestionStyle = {
-    promptKind: 'kanji',
-    question: () => 'What does this kanji mean?',
+    ...KANJI_QUESTION,
     pool: async (unit) =>
       (await this.contentService.findUnitKanjiPool(unit)).map((doc) => ({
         id: doc._id.toString(),
@@ -125,9 +112,7 @@ export class ExerciseService {
   };
 
   private readonly GRAMMAR_STYLE: QuestionStyle = {
-    promptKind: 'grammar',
-    question: (choice) =>
-      choice.hint ? `Which fills the gap? — “${choice.hint}”` : 'Which fills the gap?',
+    ...GRAMMAR_QUESTION,
     pool: async (unit) =>
       (await this.contentService.findUnitGrammarPool(unit)).flatMap((doc) =>
         toGrammarChoice({ id: doc._id.toString(), examples: doc.examples }),
@@ -596,42 +581,9 @@ export class ExerciseService {
     const random = mulberry32(seedFrom(lessonId, userId, attempt, 'options', correct.id));
 
     // Prefer distractors from the lesson (same theme), fall back to the unit
-    // when the lesson cannot supply enough. This is the fix for OPEN-ITEMS #29:
-    // a question about チーズ should be confused with other food words, not
-    // with "library" and "two" from different themed lessons in the same unit.
-    //
-    // Strategy:
-    //   1. Take up to OPTIONS_PER_QUESTION-1 from the lesson pool (excluding
-    //      the correct answer and any answer-duplicate).
-    //   2. If still short, fill from the unit pool (same dedup rules).
-    // The seen-set spans both passes so a unit item that duplicates a lesson
-    // item's *answer text* is also excluded.
-    const needed = OPTIONS_PER_QUESTION - 1;
-    const lessonDistractors = shuffle(distractorPool(lessonPool, correct), random);
-    const taken = lessonDistractors.slice(0, needed);
-
-    if (taken.length < needed) {
-      // Build a dedup set from what we already have (including the correct answer).
-      const seen = new Set<string>([correct.answer, ...taken.map((c) => c.answer)]);
-      const fallback: Choice[] = [];
-      for (const candidate of shuffle(distractorPool(unitPool, correct), random)) {
-        if (seen.has(candidate.answer)) continue;
-        seen.add(candidate.answer);
-        fallback.push(candidate);
-        if (taken.length + fallback.length >= needed) break;
-      }
-      taken.push(...fallback);
-    }
-
-    const options: ExerciseOption[] = shuffle([correct, ...taken], random).map(
-      (choice, position) => ({ id: `opt-${position}`, value: choice.answer }),
-    );
-
-    const correctOption = options.find((option) => option.value === correct.answer);
-    if (!correctOption) {
-      // Unreachable — the correct choice is always in the shuffled array.
-      throw new Error(`Correct answer ${correct.answer} vanished during option assembly`);
-    }
+    // when the lesson cannot supply enough — OPEN-ITEMS #29. The rule lives in
+    // `question-builder.ts` because the unit checkpoint applies the same one.
+    const { options, correctOptionId } = assembleOptions(correct, lessonPool, unitPool, random);
 
     return {
       exerciseId: `${attempt}:${index}`,
@@ -644,13 +596,11 @@ export class ExerciseService {
       promptKind: style.promptKind,
       question: style.question(correct),
       options,
-      correctOptionId: correctOption.id,
+      correctOptionId,
       correctValue: correct.answer,
     };
   }
 }
-
-const OPTIONS_PER_QUESTION = 4;
 
 /**
  * Decide which exercise type the lesson uses. The lesson declares one or
@@ -670,105 +620,6 @@ function pickExerciseType(declared: readonly string[]): 'multipleChoice' | 'word
   );
 }
 
-/**
- * The three normalisations applied to a typed answer.
- *
- * `toLowerCase` and `replace(/\s+/g, '')` together make "  Gak Kou " and
- * "gakkou" land on the same canonical answer, while still keeping the
- * doubled consonant unambiguous. (A learner who wrote "gakou" still gets it
- * wrong on purpose.)
- */
-function normaliseAnswer(text: string): string {
-  return text.trim().toLowerCase().replace(/\s+/g, '');
-}
-
-/**
- * Distractors come from real items in the unit, never generated strings.
- *
- * Deduped by answer because Japanese genuinely has distinct kana that share a
- * reading — じ and ぢ are both "ji", as are づ and ず ("zu") — and two words can
- * share a gloss. Two identical options would make a question unanswerable.
- */
-function distractorPool(pool: Choice[], correct: Choice): Choice[] {
-  const seen = new Set<string>([correct.answer]);
-  const unique: Choice[] = [];
-
-  for (const candidate of pool) {
-    if (seen.has(candidate.answer)) continue;
-    seen.add(candidate.answer);
-    unique.push(candidate);
-  }
-
-  return unique;
-}
-
-function isKana(item: ResolvedItem): item is Extract<ResolvedItem, { kind: 'kana' }> {
-  return item.kind === 'kana';
-}
-
-function isVocab(item: ResolvedItem): item is Extract<ResolvedItem, { kind: 'vocab' }> {
-  return item.kind === 'vocab';
-}
-
-function kanaChoice(item: Extract<ResolvedItem, { kind: 'kana' }>): Choice {
-  return { id: item.id, prompt: item.kana, answer: item.romaji };
-}
-
-/**
- * The word is the prompt and the meaning is the answer — recognition, the same
- * direction as kana → romaji. `lemma`, not `reading`: they are identical in the
- * only vocabulary unit that exists, and when kanji arrive the written form is
- * what a learner needs to recognise.
- */
-function vocabChoice(item: Extract<ResolvedItem, { kind: 'vocab' }>): Choice {
-  return { id: item.id, prompt: item.lemma, answer: item.gloss };
-}
-
-function isGrammar(item: ResolvedItem): item is Extract<ResolvedItem, { kind: 'grammar' }> {
-  return item.kind === 'grammar';
-}
-
-function isKanji(item: ResolvedItem): item is Extract<ResolvedItem, { kind: 'kanji' }> {
-  return item.kind === 'kanji';
-}
-
-/**
- * The glyph is the prompt and its meanings are the answer.
- *
- * Returns an array rather than a Choice so a kanji with no meanings drops out
- * instead of producing an option with an empty label — the same shape
- * `toGrammarChoice` uses for a point with no examples. `meanings` is
- * `default: []` on the schema, so an entry seeded without them is possible and
- * would otherwise render a blank option.
- */
-function toKanjiChoice(item: Extract<ResolvedItem, { kind: 'kanji' }>): Choice[] {
-  if (item.meanings.length === 0) {
-    return [];
-  }
-
-  return [{ id: item.id, prompt: item.char, answer: item.meanings.join(', ') }];
-}
-
-/**
- * The first example becomes the question: the gapped sentence is the prompt and
- * what fills the gap is the answer.
- *
- * Returns an array rather than a Choice so a point with no examples drops out
- * instead of producing a question with an empty prompt — a grammar point is
- * still valid content without one, it just cannot be quizzed this way.
- */
-function toGrammarChoice(item: {
-  id: string;
-  examples: { sentence: string; answer: string; gloss: string }[];
-}): Choice[] {
-  const example = item.examples[0];
-  if (!example) return [];
-
-  return [
-    { id: item.id, prompt: example.sentence, answer: example.answer, hint: example.gloss },
-  ];
-}
-
 /** exerciseId is "{attempt}:{index}" — it carries everything answering needs. */
 function parseExerciseId(exerciseId: string): { attempt: number; index: number } {
   const match = /^(\d{1,5}):(\d{1,4})$/.exec(exerciseId);
@@ -779,13 +630,3 @@ function parseExerciseId(exerciseId: string): { attempt: number; index: number }
   return { attempt: Number(match[1]), index: Number(match[2]) };
 }
 
-/**
- * Maps the prompt kind (how the question is displayed) to the SRS item kind
- * (how the card is stored). They are mostly identical, but `wordReading` is a
- * display-level concept — the underlying item is always a vocabulary word, so
- * the card kind is `'vocab'`.
- */
-function promptKindToSrsKind(promptKind: PromptKind): ContentKind {
-  if (promptKind === 'wordReading') return 'vocab';
-  return promptKind as ContentKind; // 'kana' | 'vocab' | 'grammar' | 'kanji' map to themselves
-}

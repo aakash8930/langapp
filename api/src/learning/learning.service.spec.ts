@@ -5,7 +5,9 @@ import { ContentService } from '../content/content.service';
 import { LessonDetail } from '../content/dto/lesson-response.dto';
 import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
+import { CheckpointAttemptsService } from './checkpoint-attempts.service';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
+import { LearnerItemStateService } from './learner-item-state.service';
 import { LearningService, XP_PER_LESSON_COMPLETION } from './learning.service';
 import { LessonCompletionDocument } from './schemas/lesson-completion.schema';
 import { SrsCardDocument } from './schemas/srs-card.schema';
@@ -143,7 +145,8 @@ function build(
     { awardXp } as unknown as UserService,
     { record } as unknown as AnalyticsService,
     exerciseAttempts,
-    { record: jest.fn(() => Promise.resolve()) } as unknown as { record: (input: unknown) => Promise<void> },
+    { record: jest.fn(() => Promise.resolve()) } as unknown as LearnerItemStateService,
+    {} as unknown as CheckpointAttemptsService,
     { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
   );
 
@@ -547,7 +550,8 @@ function buildScheduler(
     {} as unknown as UserService,
     { record: jest.fn() } as unknown as AnalyticsService,
     {} as unknown as ExerciseAttemptsService,
-    { record: recordLearnerItem } as unknown as { record: (input: unknown) => Promise<void> },
+    { record: recordLearnerItem } as unknown as LearnerItemStateService,
+    {} as unknown as CheckpointAttemptsService,
     { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
   );
 
@@ -763,3 +767,69 @@ describe('LearningService.scheduleMissedWords (T1.5)', () => {
 // The "completeLesson — gems (slice 2)" describe block that lived here was
 // removed when hearts and gems were deleted in Phase 2 Stage 0 (§3.1). The XP
 // path is covered by the completeLesson describe above.
+
+describe('LearningService.deleteAllForUser (DELETE /me cascade)', () => {
+  function buildCascade() {
+    const deleteSrsCards = jest.fn(() => ({ exec: () => Promise.resolve({ deletedCount: 3 }) }));
+    const deleteCompletions = jest.fn(() => ({ exec: () => Promise.resolve({ deletedCount: 2 }) }));
+    const deleteAttempts = jest.fn(() => Promise.resolve());
+    const deleteStates = jest.fn(() => Promise.resolve());
+    const deleteCheckpoints = jest.fn(() => Promise.resolve());
+
+    const service = new LearningService(
+      { deleteMany: deleteSrsCards } as never,
+      { deleteMany: deleteCompletions } as never,
+      {} as unknown as ContentService,
+      {} as unknown as UserService,
+      {} as unknown as AnalyticsService,
+      { deleteAllForUser: deleteAttempts } as unknown as ExerciseAttemptsService,
+      { deleteAllForUser: deleteStates } as unknown as LearnerItemStateService,
+      { deleteAllForUser: deleteCheckpoints } as unknown as CheckpointAttemptsService,
+      // The constructor reads this eagerly, so it cannot be an empty stub.
+      { get: () => XP_PER_LESSON_PRACTICE } as unknown as ConfigService,
+    );
+
+    return {
+      service,
+      deleteSrsCards,
+      deleteCompletions,
+      deleteAttempts,
+      deleteStates,
+      deleteCheckpoints,
+    };
+  }
+
+  it('erases every collection this module owns, learnerItemStates included', async () => {
+    // `learnerItemStates` was added two slices after the cascade was written and
+    // spent both of them outside it, so a deleted account kept its learner model
+    // — rows keyed by a userId with no user, holding per-item evidence of what
+    // that person got wrong. The contract calls DELETE /me a real cascade, so
+    // this asserts the whole set rather than only the collection under change.
+    const {
+      service,
+      deleteSrsCards,
+      deleteCompletions,
+      deleteAttempts,
+      deleteStates,
+      deleteCheckpoints,
+    } = buildCascade();
+
+    await service.deleteAllForUser(USER_ID);
+
+    expect(deleteSrsCards).toHaveBeenCalledWith({ userId: new Types.ObjectId(USER_ID) });
+    expect(deleteCompletions).toHaveBeenCalledWith({ userId: new Types.ObjectId(USER_ID) });
+    expect(deleteAttempts).toHaveBeenCalledWith(USER_ID);
+    expect(deleteStates).toHaveBeenCalledWith(USER_ID);
+    expect(deleteCheckpoints).toHaveBeenCalledWith(USER_ID);
+  });
+
+  it('rejects rather than reporting success when a delete fails', async () => {
+    // AccountDeletionService catches per-module failures and logs them; that
+    // only works if the failure actually propagates out of here. Swallowing it
+    // would report a completed erasure that did not happen.
+    const { service, deleteStates } = buildCascade();
+    deleteStates.mockRejectedValueOnce(new Error('mongo down'));
+
+    await expect(service.deleteAllForUser(USER_ID)).rejects.toThrow('mongo down');
+  });
+});

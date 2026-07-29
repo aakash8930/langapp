@@ -168,8 +168,9 @@ UserResponse = { id, email, isAdmin, createdAt,
 ```
 
 **`DELETE /me` is a real cascade, and it is irreversible.** It erases `users`,
-`srsCards`, `lessonCompletions`, `exerciseAttempts`, `chatSessions`,
-`chatMessages`, `events`, `friendships`, `blocks` and `directMessages`. The
+`srsCards`, `lessonCompletions`, `exerciseAttempts`, `learnerItemStates`,
+`unitCheckpointAttempts`, `chatSessions`, `chatMessages`, `events`,
+`friendships`, `blocks` and `directMessages`. The
 cross-module deletes run in parallel *first* and the user document goes **last**,
 deliberately: crashing mid-cascade then leaves consistent data rather than orphan
 rows with no owning user, and re-running is safe because `deleteMany` on an empty
@@ -488,6 +489,72 @@ right at some point during this attempt".
 The gate is still server hardening as well as a rule: honest clients satisfy it by
 construction, and it stops API-spoof paths — `curl`, replay, a future client that
 skips the exercise step — from harvesting XP.
+
+### Unit checkpoints — bearer
+
+```
+POST /units/:unit/checkpoint  -> { unit, attempt, questionCount, passMark,
+                                   questions: [ <PublicCheckpointQuestion> ] }
+POST /units/:unit/checkpoint/:attempt/answer/:exerciseId
+     { optionId: 'opt-N' } OR { text }, plus optional responseTimeMs  -> 200
+     -> <AnswerResult>, but with `correctOptionId` and `correctValue` **blank**
+POST /units/:unit/checkpoint/:attempt/submit  -> 200
+     -> { unit, attempt, questionCount, correctCount, score, passMark, passed,
+          xpAwarded, scheduledForReview,
+          missed: [ { itemId, prompt, promptKind, correctValue, answered } ] }
+
+PublicCheckpointQuestion = { exerciseId, itemId, type, prompt, promptKind,
+                             question, options? }
+```
+
+The end-of-unit test, added 2026-07-29. `:unit` is the **slug** (`hiragana-basics`),
+the same string `Lesson.unit` and `GET /lessons?unit=` use.
+
+**It is not a lesson exercise set, and four things differ deliberately:**
+
+1. **The attempt number is server-issued**, never sent by the client. `POST` on
+   start because starting creates a row.
+2. **Starting again resumes the open attempt** rather than generating a new one —
+   same `attempt`, same questions. That is what stops a learner abandoning a hard
+   draw and re-rolling until an easy one appears; a lesson can allow that
+   (OPEN-ITEMS #4a) because it re-asks until you are right, and a scored test
+   cannot. To get a new set you must submit the one you hold.
+3. **One shot per question.** Answering an already-answered question returns the
+   **stored** verdict and changes nothing — not a 400, so a double-tap is not an
+   error. `ExerciseAttempt.correct` promotes false→true; this never does.
+4. **The answer is not revealed mid-test.** `correctOptionId` and `correctValue`
+   come back as empty strings on every answer. The key is released only at
+   `/submit`, in `missed` — which carries the right answer for each item the
+   learner got wrong, and `answered: false` for ones they never reached.
+
+`questionCount` is `min(20, items in the unit)` — `vocab-n5` has 512 items and
+`hiragana-marks-extra` has 6. Which twenty is **weighted by the learner model**:
+confidence ascending, an item with no evidence counting as 0, and on a tie an
+item with evidence first. So the test spends its questions where the learner is
+weak rather than re-testing what they know. Question *order* is shuffled
+separately from the selection, so the test does not open with their worst item.
+
+**Passing is `score >= passMark` (0.8), and `passMark` is on the wire** so a
+client states the bar rather than hard-coding it. `score` is a fraction rounded
+to 2dp. Unanswered questions count as wrong, so submitting early costs what it
+should.
+
+**Failing blocks nothing.** There is no lock, nothing is taken away, and no
+route treats a checkpoint result as access control. The whole consequence is
+that every missed item is pulled forward in the SRS (`scheduledForReview` says
+how many) — the items the learner got wrong come back sooner, which is what a
+test result is *for*. Hearts were removed in Phase 2 §3.1 for the same reason.
+
+XP is `50` the first time a unit is passed and `5` for a later pass, and it is
+**exactly-once per attempt**: submitting twice returns the stored verdict with
+`xpAwarded: 0`.
+
+Every answer is recorded as learner-model evidence with
+`sourceContext: 'checkpoint'` — deliberately not `'lesson'`, because a lesson's
+evidence means "got there eventually" and a checkpoint's means "one shot, under
+test".
+
+An unknown unit is **404**. A unit with nothing answerable is **422**.
 
 ### Reviews — bearer
 

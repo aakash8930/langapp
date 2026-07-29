@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { ContentModule } from '../content/content.module';
 import { UserModule } from '../user/user.module';
+import { CheckpointAttemptsService } from './checkpoint-attempts.service';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { LearnerItemStateService } from './learner-item-state.service';
 import {
@@ -22,6 +23,10 @@ import {
 } from './schemas/exercise-attempt.schema';
 import { LessonCompletion, LessonCompletionSchema } from './schemas/lesson-completion.schema';
 import { SrsCard, SrsCardSchema } from './schemas/srs-card.schema';
+import {
+  UnitCheckpointAttempt,
+  UnitCheckpointAttemptSchema,
+} from './schemas/unit-checkpoint-attempt.schema';
 
 /**
  * Imports three modules for their exported services only. Learning owns
@@ -40,6 +45,7 @@ import { SrsCard, SrsCardSchema } from './schemas/srs-card.schema';
       { name: LessonCompletion.name, schema: LessonCompletionSchema },
       { name: ExerciseAttempt.name, schema: ExerciseAttemptSchema },
       { name: LearnerItemState.name, schema: LearnerItemStateSchema },
+      { name: UnitCheckpointAttempt.name, schema: UnitCheckpointAttemptSchema },
     ]),
     forwardRef(() => ContentModule),
     UserModule,
@@ -63,15 +69,19 @@ import { SrsCard, SrsCardSchema } from './schemas/srs-card.schema';
     ExerciseAttemptsService,
     LearningEngineService,
     LearnerItemStateService,
+    CheckpointAttemptsService,
   ],
   exports: [
     LearningService,
     ReviewService,
     ExerciseAttemptsService,
     LearningEngineService,
-    // Exported for the backfill entrypoint (ADR-003). Nothing on a request path
-    // reads it yet — the write path is the next slice.
+    // Exported for the backfill entrypoint (ADR-003) and, since the unit
+    // checkpoint landed, for the weakness ranking that picks its questions.
     LearnerItemStateService,
+    // The checkpoint's questions are generated in `content` (where the item
+    // pools live) but recorded here, the same split `exerciseAttempts` has.
+    CheckpointAttemptsService,
   ],
 })
 export class LearningModule {}

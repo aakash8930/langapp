@@ -33,6 +33,23 @@ export interface LessonGraphRow {
 }
 
 /**
+ * A whole unit's teachable content, flattened — what the checkpoint generator
+ * needs and no route serialises directly.
+ *
+ * `exerciseTypes` is the **union** across the unit's lessons. Every seeded unit
+ * is homogeneous (one pack produces one unit), so in practice this is one
+ * value; taking the union rather than the first lesson's means a mixed unit
+ * degrades to "the unit offers both" instead of silently following whichever
+ * lesson happened to sort first.
+ */
+export interface UnitContent {
+  unit: string;
+  lessonIds: string[];
+  items: ResolvedItem[];
+  exerciseTypes: string[];
+}
+
+/**
  * Owns the content collections: kana, vocab, grammar, kanji, lessons and contentReports.
  * Other modules (learning, later the AI orchestrator) come through here.
  */
@@ -69,6 +86,47 @@ export class ContentService {
     }
 
     return { ...toLessonSummary(lesson), items: await this.resolveItemRefs(lesson.itemRefs) };
+  }
+
+  /**
+   * Every item taught anywhere in a unit, resolved, in curriculum order.
+   *
+   * Two queries regardless of unit size, the same shape as the pool reads
+   * below: one for the unit's lessons, one batched resolve across every kind.
+   * Reading the lessons and then calling `findLessonById` per lesson would be
+   * 33 round trips for `vocab-n5`.
+   *
+   * Items are **deduplicated by `(kind, id)`**. Nothing in the seeded content
+   * teaches one item in two lessons of the same unit today, but a checkpoint
+   * that asked about the same word twice because a future unit reinforces it
+   * would be a strange test, and the dedupe is one line.
+   *
+   * An unknown unit returns empty rather than throwing — the caller decides
+   * whether that is a 404, and `findLessons` has the same behaviour.
+   */
+  async findUnitContent(unit: string): Promise<UnitContent> {
+    const lessons = await this.lessonModel
+      .find({ lang: 'ja', unit })
+      .sort({ order: 1 })
+      .exec();
+
+    const seen = new Set<string>();
+    const itemRefs: ItemRef[] = [];
+    for (const lesson of lessons) {
+      for (const ref of lesson.itemRefs) {
+        const key = `${ref.kind}:${ref.id.toString()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        itemRefs.push(ref);
+      }
+    }
+
+    return {
+      unit,
+      lessonIds: lessons.map((lesson) => lesson._id.toString()),
+      items: await this.resolveItemRefs(itemRefs),
+      exerciseTypes: [...new Set(lessons.flatMap((lesson) => lesson.exerciseTypes))],
+    };
   }
 
   /**

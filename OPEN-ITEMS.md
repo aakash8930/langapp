@@ -810,7 +810,58 @@ stands: anything computed into a job's name, id or options is unvalidated until
 it runs. The cheapest honest fix if this bites again is a dev-mode
 `throwOnEnqueueFailure` flag so a bad enqueue is loud outside production.
 
-### 38. `LearnerItemState` exists but nothing writes it yet (ADR-003, 2026-07-28)
+### 38. RESOLVED (2026-07-29) — `LearnerItemState` had no writer
+
+**The write path landed in `15e85a1`, and this entry described the state before
+it for a day without anyone noticing** — the same failure mode as #36, one
+commit later. What follows below the resolution is the original text, kept
+because the backfill numbers in it are still the record of what was migrated.
+
+`record()` is now called from all three evidence sources: lesson answers
+(`ExerciseService.settleAnswer`, `sourceContext: 'lesson'`), review grades
+(`ReviewService.grade`) and chat corrections (`LearningService`). All three of
+the prerequisites this entry listed were met by that commit — `ExerciseAttempt`
+gained `itemId`, `itemKind` and `exerciseType`, and the answer endpoint threads
+them through.
+
+Verified live on 2026-07-29 against a throwaway account: one wrong grammar
+answer produced one state with `exposures: 1`, `incorrect: 1`,
+`byExerciseType: { multipleChoice: { seen: 1, correct: 0 } }`,
+`sourceContexts: ['lesson']` and `confidence: 0.03`, and the matching
+`exerciseAttempts` row carried the item id and kind.
+
+**That verification found two defects, both now fixed:**
+
+1. **`DELETE /me` did not erase `learnerItemStates`.** The collection was added
+   two slices after the cascade was written and was never added to it, so
+   deleting an account left rows keyed by a `userId` with no user, holding
+   per-item evidence of what that person got wrong. Confirmed live — 204 from
+   `DELETE /me`, one state left behind — and the contract calls this cascade
+   real. `LearnerItemStateService.deleteAllForUser` now runs in
+   `LearningService.deleteAllForUser`, pinned by a test that asserts the whole
+   set rather than only the new collection.
+
+2. **`responseTimeMs` never reached the database from a lesson answer.**
+   `ExerciseController.answer` re-builds the request body field by field and
+   forwarded only `optionId` and `text`, so every `ExerciseAttempt.responseTimeMs`
+   stored `null` and the Welford stats on `LearnerItemState` never took a
+   sample. Nothing failed anywhere: the DTO validated the field, the service
+   threaded it end to end, and both schemas had somewhere to put it. Since the
+   speed term is `SPEED_WEIGHT = 0.25` of `computeConfidence`, a quarter of the
+   model was dead on the lesson path. The review path was always correct.
+   `exercise.controller.spec.ts` now pins the forwarding.
+
+**Still open, and neither is a defect:** no per-exercise-type baseline exists
+(`LearnerProfile` is §5.2 [Later]), so `speedScore` returns its neutral `0.5`
+for every call and `baselineMs` is hard-coded `null` at both call sites — the
+samples now accumulate, but nothing compares them yet. And **neither client
+sends `responseTimeMs`**: no occurrence in `web/src` or `client/`, so real
+traffic still stores `null` until a client is changed. The server side is ready
+for it; that is a client milestone.
+
+---
+
+*Original entry, 2026-07-28:*
 
 The §5.2 learner model landed as a collection, the arithmetic, and an additive
 backfill. **Deliberately with no writer and no reader**: §5.4 rule 2 is "additive
@@ -852,6 +903,39 @@ first: the first run against real data left `{userId, confidence}` unbuilt while
 the unique index existed. `ensureIndexes()` now runs before any insert, which
 matters because the unique index — not the lookup-before-insert — is what
 guarantees one state per item.
+
+### 39. The unit checkpoint has no client (2026-07-29)
+
+The end-of-unit test landed API-side: `POST /units/:unit/checkpoint`, its
+answer and submit routes, `unitCheckpointAttempts`, and weighted sampling off
+the learner model. Documented in the contract, 22 tests, verified live on both
+the passing and failing paths.
+
+**No surface calls it.** Neither `web/` nor `client/` has a checkpoint screen,
+so the feature is unreachable by a learner — it exists exactly as far as `curl`.
+That is the milestone boundary and not an oversight, but it is the state, and a
+feature only the operator can reach is not shipped.
+
+Two smaller things ride along with the client work:
+
+- **`responseTimeMs` still arrives `null` from real traffic.** The server side
+  is correct end to end as of #38, and the checkpoint is the natural first
+  sender — it is a timed test, and the speed term is a quarter of
+  `computeConfidence`. Until some client sends it, `responseTimeMs.count` stays
+  0 on every state written by a lesson or a checkpoint.
+- **Nothing surfaces which units a learner has passed.**
+  `CheckpointAttemptsService.passedUnits` exists and is unused — the unit list
+  needs it to show a "tested" tick, and `GET /me/progress` is the obvious home.
+  It was left off rather than guessed at, since adding a field to that response
+  affects both clients.
+
+Also unresolved, and a judgement call rather than a defect: **a checkpoint is
+not required to progress.** Nothing gates the next unit on passing one. That
+follows the §3.1 reasoning — the consequence of failing is that missed items
+come back sooner, not that a door closes — but it does mean a learner can
+ignore checkpoints entirely and never notice they exist. Whether the unit list
+should *push* one after a unit's last lesson is a product decision the client
+milestone has to make.
 
 ### 36. Ten routes shipped undocumented, and nothing noticed (2026-07-28)
 

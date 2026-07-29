@@ -7,6 +7,7 @@ import { ContentService } from '../content/content.service';
 import { ResolvedItem } from '../content/dto/lesson-response.dto';
 import { UserService } from '../user/user.service';
 import { CompleteLessonResponse } from './dto/complete-lesson-response.dto';
+import { CheckpointAttemptsService } from './checkpoint-attempts.service';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { newCardFields } from './fsrs-card.mapper';
 import { LearnerItemStateService } from './learner-item-state.service';
@@ -50,6 +51,10 @@ export class LearningService {
     // across into `learning/` from `chat/`, keeps the §4 "modules touch each
     // other's collections through services only" rule.
     private readonly learnerItemStateService: LearnerItemStateService,
+    // Cascade only. The checkpoint's own reads and writes are driven from
+    // `CheckpointService`; this module holds the reference so `DELETE /me`
+    // erases the collection along with everything else `learning` owns.
+    private readonly checkpointAttempts: CheckpointAttemptsService,
     config: ConfigService,
   ) {
     this.xpPerPractice =
@@ -511,8 +516,18 @@ export class LearningService {
    * Called by `AccountDeletionService` as part of the `DELETE /me` cascade —
    * never by any other path.
    *
-   * Parallel deletes rather than sequential: all three collections are indexed on
+   * Parallel deletes rather than sequential: every collection is indexed on
    * `userId`, so each is an O(1) index seek, and none depends on the other.
+   *
+   * `learnerItemStates` and `unitCheckpointAttempts` go through their own
+   * services rather than models this class injects — those collections have
+   * owners, and the rule that a module never touches another's collections
+   * applies within a module too.
+   *
+   * **A collection added to this module belongs here in the same commit.**
+   * `learnerItemStates` spent two slices outside this list because it was
+   * added after the cascade was written, and `DELETE /me` quietly stopped
+   * being the complete erasure the contract promises (OPEN-ITEMS #38).
    */
   async deleteAllForUser(userId: string): Promise<void> {
     const objectId = new Types.ObjectId(userId);
@@ -520,6 +535,8 @@ export class LearningService {
       this.srsCardModel.deleteMany({ userId: objectId }).exec(),
       this.lessonCompletionModel.deleteMany({ userId: objectId }).exec(),
       this.exerciseAttempts.deleteAllForUser(userId),
+      this.learnerItemStateService.deleteAllForUser(userId),
+      this.checkpointAttempts.deleteAllForUser(userId),
     ]);
   }
 }
