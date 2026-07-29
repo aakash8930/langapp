@@ -2,8 +2,16 @@ import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 import { fetchLesson, type LessonDetail, type LessonSummary, type Unit } from '../api';
 import { revealOnScroll } from '../motion';
-import type { Load } from '../App';
 import { LessonItems } from './LessonItems';
+
+/**
+ * The shape of the curriculum data the route loader returns. Live here
+ * because `Curriculum` is the only consumer; the route file imports it.
+ */
+export type Load =
+  | { state: 'loading' }
+  | { state: 'ready'; units: Unit[] }
+  | { state: 'error'; message: string };
 
 /**
  * Lock state is derived here, not served: `/lessons` is shared, unauthenticated

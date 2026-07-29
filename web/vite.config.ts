@@ -1,9 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    // TanStack Router's file-based routes plugin. Generates `routeTree.gen.ts`
+    // from the `src/routes/` tree at dev/build time. Must run before the React
+    // plugin so the generated module is available when React resolves imports.
+    TanStackRouterVite({
+      routesDirectory: 'src/routes',
+      generatedRouteTree: 'src/routeTree.gen.ts',
+    }),
+    react(),
+  ],
   // The web app is served under the Funnel mount path `/learn/`. Vite bakes
   // the asset prefix into the HTML's <script> and <link> tags at build time.
   // We use *relative* paths here (`./`) instead of an absolute `/learn/`

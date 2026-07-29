@@ -1,59 +1,59 @@
-import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useRouter } from '@tanstack/react-router';
 
 /**
- * Routing, in thirty lines and no dependency.
+ * Compatibility shim for the pre-TanStack-Router call sites.
  *
- * Hash-based on purpose: it needs no server rewrite rule, so the built site is
- * plain static files that work from any directory on any host — which matters
- * because where this ends up deployed is still an open question.
+ * Existing components still call `go({ name: 'lesson', id })` and
+ * `goBack()` — same shape as before, same import path. This shim translates the
+ * descriptor to `window.location.hash = ...` so the slice ships without
+ * rewriting every callsite. The router owns the parse from this hash; the
+ * components are migrated one by one to `<Link>` / `useNavigate` in follow-up
+ * tasks.
  *
- * Three routes exist. A router library would be more code than the feature.
- */
-/**
- * `home.learn` names a lesson the home page should open and scroll to.
+ * **Do not** extend this surface. It is a temporary bridge, not a contract.
  *
- * It exists for one flow: finishing a lesson whose successor has not been
- * learned yet. Sending the learner to a bare `#/` would drop them at the top of
- * a six-unit page with no indication of which row mattered — so the route
- * carries the lesson, and the curriculum opens it.
- *
- * It is part of the route rather than component state because it has to survive
- * the navigation: the quiz screen unmounts on the way.
+ * `useRoute()` is preserved as a hook that returns the current route parsed
+ * off the hash, but it is no longer the source of truth — `useLocation()` /
+ * `useMatch()` are. Components that used `route.name` should migrate; this
+ * shim only honours the *shape* of `Route` for backwards compatibility.
  */
 export type Route =
   | { name: 'home'; learn?: string }
   | { name: 'lesson'; id: string }
-  /** The teach step — the lesson's items, one at a time, before any question. */
   | { name: 'study'; id: string }
   | { name: 'review' };
 
 function parse(hash: string): Route {
   if (hash === '#/review') return { name: 'review' };
-
   const lesson = /^#\/lesson\/([A-Za-z0-9]+)$/.exec(hash);
   if (lesson) return { name: 'lesson', id: lesson[1] };
-
   const study = /^#\/study\/([A-Za-z0-9]+)$/.exec(hash);
   if (study) return { name: 'study', id: study[1] };
-
   const learn = /^#\/learn\/([A-Za-z0-9]+)$/.exec(hash);
   if (learn) return { name: 'home', learn: learn[1] };
-
   return { name: 'home' };
 }
 
+/**
+ * Returns the current route, parsed off the hash.
+ *
+ * Subscribes to the router's location via `useLocation()` so a hash change
+ * drives a re-render the way the old `useEffect`+`hashchange` listener did.
+ *
+ * Components that migrate to TanStack Router should call `useLocation()` /
+ * `useMatch()` directly and stop relying on this hook.
+ */
 export function useRoute(): Route {
-  const [route, setRoute] = useState<Route>(() => parse(window.location.hash));
-
-  useEffect(() => {
-    const onChange = () => setRoute(parse(window.location.hash));
-    window.addEventListener('hashchange', onChange);
-    return () => window.removeEventListener('hashchange', onChange);
-  }, []);
-
-  return route;
+  const location = useLocation();
+  // `location.href` carries the hash. `parse` is deterministic so calling it
+  // every render is cheap.
+  return parse(new URL(location.href).hash);
 }
 
+/**
+ * Drive the URL. Writes to `window.location.hash`, which fires `hashchange`
+ * and the router's listener picks up.
+ */
 export function go(route: Route): void {
   window.location.hash =
     route.name === 'lesson'
@@ -68,11 +68,13 @@ export function go(route: Route): void {
 }
 
 /**
- * Leaves a lesson. `history.back()` when there is somewhere to go back to, so
- * the browser's own back button and this button agree — pushing a new entry
- * instead would make Back re-open the lesson you just left.
+ * Go back. `history.back()` when there is somewhere to go, otherwise home.
  */
 export function goBack(): void {
   if (window.history.length > 1) window.history.back();
   else go({ name: 'home' });
 }
+
+// Re-exports so follow-up slices can begin replacing `go(...)` calls with
+// typed navigation without changing imports.
+export { useNavigate, useRouter };
