@@ -163,6 +163,45 @@ the same thing at any rendered size. Two things worth not breaking:
 `useStrokes` in `strokes.ts` is the single cached fetch per character; the
 diagram and the canvas appear together and must not request twice.
 
+## The unit checkpoint (2026-07-29)
+
+`CheckpointQuiz` is the end-of-unit test, and it is **not `LessonQuiz` with a
+flag**. They look alike and behave oppositely; every difference is one a shared
+component would have to branch on:
+
+- **No verdict panel.** A lesson shows the right answer as soon as you get one
+  wrong. A test cannot — later questions can be about the same item. The server
+  enforces it by sending `correctValue: ''` on every answer, so there is
+  nothing to render even if someone tried. The key arrives at submit, in
+  `missed`, which is the only place this surface ever shows one.
+- **No audio, anywhere on the screen**, including `vocab` prompts where the
+  lesson plays it freely. `hasAudio`/`revealsAnswer` is the lesson's rule; a
+  test's is stricter. Relaxing that is a pedagogical decision, not a UI one.
+- **Answers are fire-and-forget.** The screen advances on click and the POST
+  settles behind it — the same trade `Review` makes, for the same reason. The
+  cost is that submit has to `allSettled` the in-flight answers first, because
+  the server counts an unanswered question as wrong.
+
+Three rules that must not be re-derived here:
+
+- **`passMark` comes from the server**, on both the set and the result. It is
+  not `0.8` in this file. A client with its own copy tells learners they passed
+  when they did not.
+- **Starting is idempotent.** `startCheckpoint` returns the *open* attempt until
+  it is submitted, so mounting twice, refreshing, or navigating back does not
+  produce a second test — and cannot be used to re-roll for easier questions.
+  Do not add a guard against calling it; the guard is server-side.
+- **`responseTimeMs` is sent, and clamped.** This is the first surface that
+  sends it (see OPEN-ITEMS #38 — nothing did before, and the field had been
+  silently dropped API-side for its whole life). Anything over five minutes is
+  omitted rather than sent: the stats are cumulative running means, so one
+  sample from a tab left open overnight sits in that item's average for a very
+  long time.
+
+The curriculum offers the test only once every lesson in the unit is complete.
+Not gated — the API will run one on a barely-started unit, which is right for a
+future placement probe and wrong as the default affordance.
+
 ## Commands
 
 ```bash

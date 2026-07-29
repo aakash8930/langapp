@@ -418,6 +418,109 @@ export function completeLesson(lessonId: string): Promise<CompleteResult> {
   });
 }
 
+/**
+ * A checkpoint question. Structurally the same as a lesson `Question` — same
+ * fields, same names — so the quiz card renders either without branching.
+ *
+ * `type` is a bare string rather than the `Question` union: the server sends
+ * whatever exercise type the unit teaches, and a new plugin type must not make
+ * this file fail to compile before anyone has decided how to draw it. The
+ * screen falls back to "unsupported" for a type it does not know.
+ */
+export type CheckpointQuestion = {
+  exerciseId: string;
+  itemId: ItemId;
+  type: string;
+  prompt: string;
+  promptKind: PromptKind;
+  question: string;
+  /** Absent for typed questions. */
+  options?: ExerciseOption[];
+};
+
+export type CheckpointSet = {
+  unit: string;
+  attempt: number;
+  questionCount: number;
+  /** The fraction needed to pass. Read it; never hard-code 0.8 here. */
+  passMark: number;
+  questions: CheckpointQuestion[];
+};
+
+/** One item the learner got wrong, with its answer. Only present after submit. */
+export type CheckpointMiss = {
+  itemId: string;
+  prompt: string;
+  promptKind: PromptKind;
+  correctValue: string;
+  /** False when they never reached it — submitted early rather than answered wrong. */
+  answered: boolean;
+};
+
+export type CheckpointResult = {
+  unit: string;
+  attempt: number;
+  questionCount: number;
+  correctCount: number;
+  /** Fraction 0..1. */
+  score: number;
+  passMark: number;
+  passed: boolean;
+  xpAwarded: number;
+  missed: CheckpointMiss[];
+  scheduledForReview: number;
+};
+
+/**
+ * Start the unit checkpoint, or resume the one already open.
+ *
+ * **Calling this twice does not produce two tests.** The server returns the
+ * open attempt unchanged until it is submitted, which is what stops a learner
+ * re-rolling for an easier draw — so this is safe to call on mount, and a
+ * refresh mid-test lands back on the same questions.
+ */
+export function startCheckpoint(unit: string): Promise<CheckpointSet> {
+  return authed<CheckpointSet>(`/units/${encodeURIComponent(unit)}/checkpoint`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Answer one checkpoint question.
+ *
+ * Unlike `answerExercise`, the result's `correctValue` and `correctOptionId`
+ * come back **empty** — a test does not show the answer while it is running.
+ * They arrive at submit, in `missed`. Do not build a "remember this" panel out
+ * of this response; it has nothing to put in one.
+ *
+ * `responseTimeMs` is sent because this is a timed test and the server's
+ * confidence model weights answer speed. It is optional on the wire.
+ */
+export function answerCheckpoint(
+  unit: string,
+  attempt: number,
+  exerciseId: string,
+  body: ({ optionId: string } | { text: string }) & { responseTimeMs?: number },
+): Promise<AnswerResult> {
+  return authed<AnswerResult>(
+    `/units/${encodeURIComponent(unit)}/checkpoint/${attempt}/answer/${encodeURIComponent(exerciseId)}`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+/**
+ * Close the attempt and get the verdict.
+ *
+ * Idempotent: submitting again returns the same score with `xpAwarded: 0`, so
+ * a retried request cannot pay out twice and does not need to be guarded here.
+ */
+export function submitCheckpoint(unit: string, attempt: number): Promise<CheckpointResult> {
+  return authed<CheckpointResult>(
+    `/units/${encodeURIComponent(unit)}/checkpoint/${attempt}/submit`,
+    { method: 'POST' },
+  );
+}
+
 export const REVIEW_GRADES = ['again', 'hard', 'good', 'easy'] as const;
 export type ReviewGrade = (typeof REVIEW_GRADES)[number];
 export type CardState = 'new' | 'learning' | 'review' | 'relearning';

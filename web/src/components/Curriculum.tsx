@@ -113,6 +113,10 @@ function UnitCard({
   learnId: string | null;
 }) {
   const done = unit.lessons.filter((l) => stateOf(l).completed).length;
+  // Signed out, `stateOf` reports nothing completed, so this is false and the
+  // checkpoint row never appears for a visitor — which is right, since taking
+  // one needs an account.
+  const allDone = unit.lessons.length > 0 && done === unit.lessons.length;
 
   return (
     <article className="glass panel unit reveal">
@@ -157,9 +161,39 @@ function UnitCard({
           />
         ))}
       </ol>
+
+      {/*
+        The checkpoint, offered once every lesson in the unit is done.
+
+        Not offered earlier, and not gated on it either — the API will happily
+        run a checkpoint on a unit that has barely been started, which is right
+        for a placement-style probe but wrong as the default affordance: a test
+        offered before the material is taught reads as a trick. The row appears
+        when it is worth taking.
+
+        Nothing downstream is locked on the result. Passing awards XP; failing
+        pulls the missed items into reviews. See the checkpoint section of the
+        root CLAUDE.md.
+      */}
+      {allDone ? (
+        <a className="btn btn-primary unit-checkpoint" href={`#/checkpoint/${unit.slug}`}>
+          Test yourself on {unit.label}
+          <span className="unit-checkpoint-sub">
+            {Math.min(CHECKPOINT_MAX_QUESTIONS, unit.itemCount)} questions, one shot each
+          </span>
+        </a>
+      ) : null}
     </article>
   );
 }
+
+/**
+ * Mirrors `CHECKPOINT_QUESTION_COUNT` on the server, and is a *label* only —
+ * the real count comes back on the set. Shown before the test starts because
+ * "how long is this" is the first thing anyone wants to know, and the only way
+ * to answer it before the request is to know the cap.
+ */
+const CHECKPOINT_MAX_QUESTIONS = 20;
 
 /**
  * `<details>` rather than a hand-rolled disclosure: keyboard operable,

@@ -1587,3 +1587,131 @@
 .trace-verdict-off {
   color: var(--danger);
 }
+
+/* ---- Unit checkpoint ---- */
+
+/*
+ * The row on a finished unit that offers its test. A `.btn` so it inherits the
+ * one button system, with the sub-line stacked inside it — the question count
+ * is the thing people want before committing to a test, and putting it in a
+ * separate element beside the button would let the two wrap apart.
+ */
+.unit-checkpoint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  margin-top: var(--s-lg);
+  text-align: center;
+}
+.unit-checkpoint-sub {
+  font-size: var(--text-caption);
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.checkpoint-screen {
+  padding-block: var(--s-3xl);
+}
+
+/*
+ * Said once, above the card, and deliberately quiet.
+ *
+ * "You can't change your answer" is the rule that makes this screen different
+ * from a lesson, and a learner who discovers it by having it happen to them has
+ * been ambushed. It sits at caption weight because it is a standing condition,
+ * not a warning to act on.
+ */
+.checkpoint-note {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.checkpoint-last {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/*
+ * The score, as a number big enough to be the answer to "how did I do".
+ *
+ * `--brand-primary` rather than success/danger: the pass or fail is stated in
+ * the heading and in words underneath, and colouring the figure red on a fail
+ * makes a near miss look like a catastrophe. The result is information, not a
+ * judgement.
+ */
+.checkpoint-score {
+  font-size: var(--text-display);
+  font-weight: 800;
+  color: var(--brand-primary);
+  line-height: 1;
+}
+.checkpoint-score-unit {
+  font-size: var(--text-title);
+  font-weight: 800;
+  color: var(--brand-primary);
+}
+.checkpoint-score-detail {
+  display: block;
+  margin-top: var(--s-sm);
+  font-size: var(--text-small);
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/*
+ * The list of missed items and their answers — the teaching half of the test,
+ * and the only place the answer key is ever shown.
+ */
+.missed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  text-align: left;
+}
+.missed li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-lg);
+  padding: var(--s-md) var(--s-lg);
+  border-bottom: 1px solid var(--hairline);
+}
+.missed li:last-child {
+  border-bottom: none;
+}
+.missed-prompt {
+  font-size: var(--text-large);
+  font-weight: 600;
+  color: var(--ink);
+}
+.missed-answer {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--brand-primary);
+  text-align: right;
+}
+
+.summary-note {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  align-items: center;
+}

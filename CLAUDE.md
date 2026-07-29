@@ -474,11 +474,27 @@ lesson."` when nothing was answered and `"Answer every exercise correctly
 before completing this lesson."` when answers are outstanding — distinct on
 purpose, since telling a learner mid-lesson that they answered nothing is wrong.
 
-**It is not "all correct first try".** Both clients re-ask a question the learner
-got wrong until they answer it correctly, so a mistake costs a heart and a repeat
-rather than the lesson. That matters because `/complete` is what seeds the SRS
-cards: hard-blocking would mean a word the learner got wrong never enters review,
-which is backwards — that is the word they most need scheduled.
+**It is not "all correct first try" — but that is now a property of the server
+alone, not of the clients.** The gate looks for *some* attempt with nothing
+wrong, so a messy attempt followed by a clean one passes. That matters because
+`/complete` is what seeds the SRS cards: hard-blocking would mean a word the
+learner got wrong never enters review, which is backwards — that is the word
+they most need scheduled.
+
+**Neither client re-asks any more**, and this paragraph said they both did until
+2026-07-29: "both clients re-ask a question the learner got wrong until they
+answer it correctly, so a mistake costs a heart and a repeat". Every clause of
+that is now wrong. Hearts went in Phase 2 §3.1, and both `web/`'s `LessonQuiz`
+and `client/`'s lesson screen were rebuilt as **pass-or-repeat** — a walking
+index rather than a queue, every question asked exactly once, and one mistake
+failing the run and offering a restart. Both carry a comment saying the queue
+"made every finished run clean by construction, so a lesson could not actually
+be failed, only delayed".
+
+The server is unchanged by that, and deliberately so: `recordAttempt` still
+promotes `correct` false → true, and the gate still searches attempts rather
+than trusting the client's idea of a clean one. A future client that re-asks
+would still work.
 
 The check groups attempts **by attempt number** and looks for one with `answered
 ≥ 1 and incorrect = 0`, so a messy attempt 1 followed by a clean attempt 2 passes,

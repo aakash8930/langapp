@@ -44,7 +44,13 @@ async function bootstrap(): Promise<void> {
   if (origins.length > 0) {
     app.enableCors({
       origin: origins,
-      methods: ['GET', 'POST', 'PATCH'],
+      // DELETE was missing until 2026-07-29, which broke three routes for the
+      // browser and only the browser: `DELETE /me`, `DELETE /social/friends/:id`
+      // and `DELETE /social/blocks/:id` failed at the preflight, never reaching
+      // a handler. `web/`'s `removeFriend` is a live caller. The Expo app never
+      // noticed — a native fetch is not subject to the same-origin policy,
+      // which is the same reason CORS went unbuilt here until `web/` existed.
+      methods: ['GET', 'POST', 'PATCH', 'DELETE'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
       credentials: false,
     });
