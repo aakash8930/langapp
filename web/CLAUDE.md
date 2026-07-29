@@ -202,6 +202,32 @@ The curriculum offers the test only once every lesson in the unit is complete.
 Not gated — the API will run one on a barely-started unit, which is right for a
 future placement probe and wrong as the default affordance.
 
+## A className with no rule is invisible to every check we run
+
+`tsc`, `oxlint` and `vite build` were all green while ~40 classes were being
+applied to elements with no rules behind them — a class attribute is just a
+string, so nothing validates it. `StrokeOrder` was the worst case: without
+`.stroke-draw`'s dash pair the strokes rendered solid and simultaneously, so
+the component that exists to animate stroke order silently drew a finished
+glyph (OPEN-ITEMS #40).
+
+The audit is a diff of every `className` in the `.tsx` sources against every
+selector in the stylesheets, with two wrinkles: a token containing `${` is a
+dynamic prefix and should be matched against rule *prefixes*, and expression
+fragments leak into a naive regex and need filtering. Same shape of check works
+for `var(--token)` references, which is how three undefined tokens turned up —
+two with no fallback, so the declaration dropped outright.
+
+**Write the rule in the same commit as the class.** Nothing downstream will
+tell you that you forgot.
+
+Two things about editing `app.css`, both learned by breaking the build:
+
+- **A CSS comment cannot contain `*/`.** A glob written out in prose closes the
+  comment early, and lightningcss then reports a pseudo-element error pointing
+  at a line well below the real cause.
+- **No backticks in comments** — lightningcss tokenises them and fails.
+
 ## Commands
 
 ```bash

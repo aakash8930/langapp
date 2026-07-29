@@ -65,6 +65,10 @@
   --s-3xl: 48px;
   --s-4xl: 72px;
 
+  /* Referenced by `.flip-container` since it landed; adding it here rather
+     than rewriting that rule, because a small radius is a reasonable step to
+     have. Without it the declaration dropped and the corner was square. */
+  --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;

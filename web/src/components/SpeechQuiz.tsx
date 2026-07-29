@@ -86,7 +86,7 @@ export function SpeechQuiz({
     return (
       <div className="speech-quiz-unsupported" style={{ textAlign: 'center', padding: '16px' }}>
         <p>Your browser does not support the Web Speech API.</p>
-        <p style={{ fontSize: '12px', color: '#666' }}>Please use Chrome, Edge, or Safari.</p>
+        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--ink-soft)' }}>Please use Chrome, Edge, or Safari.</p>
         <button 
           className="btn btn-primary"
           onClick={() => onSubmit('skipped')}
@@ -104,7 +104,7 @@ export function SpeechQuiz({
         className="transcript-box" 
         style={{ 
           minHeight: '60px', 
-          border: '2px dashed var(--border-default, #eee)',
+          border: '2px dashed var(--hairline)',
           borderRadius: '8px',
           padding: '16px',
           marginBottom: '16px',
@@ -112,11 +112,11 @@ export function SpeechQuiz({
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '18px',
-          backgroundColor: listening ? '#f0fdf4' : 'transparent',
+          backgroundColor: listening ? 'var(--surface)' : 'transparent',
           transition: 'background-color 0.2s'
         }}
       >
-        {transcript || <span style={{ color: '#9ca3af' }}>{listening ? 'Listening...' : 'Tap the microphone and speak Japanese.'}</span>}
+        {transcript || <span style={{ color: 'var(--ink-soft)' }}>{listening ? 'Listening...' : 'Tap the microphone and speak Japanese.'}</span>}
       </div>
       <button 
         type="button" 
@@ -124,7 +124,7 @@ export function SpeechQuiz({
         onClick={handleToggle}
         disabled={disabled}
         style={{
-          backgroundColor: listening ? '#ef4444' : 'var(--primary-default, #2563eb)',
+          backgroundColor: listening ? 'var(--danger)' : 'var(--brand-primary)',
           transition: 'background-color 0.2s'
         }}
       >

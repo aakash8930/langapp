@@ -614,15 +614,15 @@
 /* ---- Buttons and forms ---- */
 
 /*
- * `.button` used to live here, a near-duplicate of `.btn` in theme.css. It is
- * gone and every call site moved to `.btn btn-primary`; the two properties it
- * had that `.btn` did not — a 48px minimum height and `:disabled` styling —
+ * .button used to live here, a near-duplicate of .btn in theme.css. It is
+ * gone and every call site moved to .btn btn-primary; the two properties it
+ * had that .btn did not — a 48px minimum height and :disabled styling —
  * moved with it. Don't reintroduce a second base class.
  */
 
 /*
- * The audio button. It had no rules at all — `SpeakButton` has always rendered
- * `.speak`, and nothing ever styled it, so it drew as a raw user-agent button
+ * The audio button. It had no rules at all — SpeakButton has always rendered
+ * .speak, and nothing ever styled it, so it drew as a raw user-agent button
  * on the study card and in the quiz. Quiet on purpose: it sits beside the thing
  * being taught and must not compete with it, which is why it is a bordered
  * ghost rather than another gradient.
@@ -1210,7 +1210,7 @@
 /*
  * Confetti lives in a fixed layer on <body>, not inside the card it celebrates
  * — a burst rendered inside a rounded, overflow-clipped panel is a burst you
- * cannot see. `pointer-events: none` so it never eats a click on the way past.
+ * cannot see. pointer-events: none so it never eats a click on the way past.
  */
 .confetti-layer {
   position: fixed;
@@ -1239,7 +1239,7 @@
   color: var(--brand-success);
 }
 .xp-burst-amount {
-  font-size: var(--text-h2, 1.6rem);
+  font-size: var(--text-title);
   font-weight: 800;
   line-height: 1;
 }
@@ -1521,7 +1521,7 @@
 }
 
 /*
- * `touch-action: none` is load-bearing on a phone: without it the browser
+ * touch-action: none is load-bearing on a phone: without it the browser
  * claims the drag as a scroll gesture and the stroke is never delivered.
  */
 .trace-svg {
@@ -1591,7 +1591,7 @@
 /* ---- Unit checkpoint ---- */
 
 /*
- * The row on a finished unit that offers its test. A `.btn` so it inherits the
+ * The row on a finished unit that offers its test. A .btn so it inherits the
  * one button system, with the sub-line stacked inside it — the question count
  * is the thing people want before committing to a test, and putting it in a
  * separate element beside the button would let the two wrap apart.
@@ -1640,7 +1640,7 @@
 /*
  * The score, as a number big enough to be the answer to "how did I do".
  *
- * `--brand-primary` rather than success/danger: the pass or fail is stated in
+ * --brand-primary rather than success/danger: the pass or fail is stated in
  * the heading and in words underneath, and colouring the figure red on a fail
  * makes a near miss look like a catastrophe. The result is information, not a
  * judgement.
@@ -1732,4 +1732,374 @@
   border: 1px solid var(--brand-primary);
   border-radius: var(--radius-lg);
   text-align: center;
+}
+
+/* ============================================================
+   Rules for classes that were referenced but never written.
+
+   These were found by diffing every className in the .tsx sources
+   against every selector in the stylesheets: ~40 classes were being
+   applied to elements with no rules behind them, so whole components
+   (stroke order, the study items, the speech quiz, the quiz's
+   countdown and up-next block) were rendering at browser defaults.
+   ============================================================ */
+
+/* ---- The quiz: countdown, verdict banner, up-next ---- */
+
+/*
+ * The bar that runs down while a verdict is on screen.
+ *
+ * The duration and play state are set inline by Tick — the component owns
+ * the timing because it mirrors a real setTimeout. Under reduced motion the
+ * global rule collapses this to 0.01ms, so the bar fills at once while the
+ * timer still runs its full length: the advance is never faster than it looks.
+ */
+.tick {
+  display: block;
+  width: 100%;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--hairline);
+  overflow: hidden;
+}
+.tick-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--brand-primary);
+  animation-name: tick-run;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes tick-run {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+/* The score line on a finished lesson. Celebratory, so it carries the accent. */
+.clean-run {
+  margin: 0;
+  font-size: var(--text-large);
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+
+/*
+ * "This run can't complete the lesson any more."
+ *
+ * Deliberately not --danger: the run is spoiled, nothing is broken, and
+ * colouring it as an error would read as something having gone wrong with the
+ * app rather than with the answers.
+ */
+.run-broken {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--s-sm);
+  margin: 0;
+  padding: var(--s-md) var(--s-lg);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.quiz-audio {
+  display: flex;
+  justify-content: center;
+}
+
+/* The one number worth emphasising in a summary row. */
+.accent {
+  color: var(--brand-primary);
+}
+
+.up-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+}
+.up-next-line {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.up-next-line strong {
+  color: var(--ink);
+}
+
+/* ---- Curriculum ---- */
+
+/*
+ * .unit is the article itself; .units (already defined) is the column that
+ * holds them. Padding only — glass panel on the same element supplies the
+ * surface, and repeating a background here would double the translucency and
+ * break the contrast guarantee that depends on one known composite.
+ */
+.unit {
+  padding: var(--s-xl);
+}
+
+.unit-progress {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--hairline);
+  overflow: hidden;
+}
+.unit-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--brand-primary);
+  transition: width var(--t-base) ease;
+}
+
+.lesson-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-sm);
+  align-items: center;
+}
+.lesson-badge {
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+}
+.learn-first {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
+
+/* ---- Stroke order ----
+ *
+ * The whole component was unstyled, which mattered more here than anywhere
+ * else: .stroke-draw carries no dash offset without these rules, so every
+ * stroke rendered solid and simultaneously — the animation the component
+ * exists for did not happen at all, it just drew the finished glyph.
+ */
+
+.strokes-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-sm);
+}
+
+.strokes {
+  display: block;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+
+/* Reserves the diagram's box while the fetch is in flight, so the layout does
+   not jump when it lands. Sized inline by the component. */
+.strokes-loading {
+  border-radius: var(--radius-md);
+  background: var(--hairline);
+  opacity: 0.4;
+}
+
+/* The finished character underneath, faint — so a stroke draws *into* a shape
+   rather than into empty space. */
+.stroke-ghost {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/*
+ * One stroke, drawn.
+ *
+ * pathLength="1" on the element normalises every path to a unit length,
+ * which is what lets one dash offset animate strokes of wildly different real
+ * lengths at the same visual speed. animation-delay is set inline per stroke
+ * so they draw in order; both holds the first frame during the delay, which
+ * is what keeps a stroke invisible until its turn instead of flashing in.
+ */
+.stroke-draw {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: stroke-draw 0.8s ease-out both;
+}
+@keyframes stroke-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.strokes-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-md);
+  width: 100%;
+}
+.strokes-count {
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
+
+/* The KanjiVG credit. Small, but it sits with the strokes on purpose — the
+   share-alike attribution is an obligation, not a courtesy (see NOTICE). */
+.strokes-credit {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+  text-align: center;
+}
+.strokes-credit a {
+  color: var(--ink-soft);
+  text-decoration: underline;
+}
+
+.strokes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-lg);
+  justify-content: center;
+}
+
+/* ---- Study screen items ---- */
+
+.study-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-md);
+  text-align: center;
+}
+/* Same sizing rule the quiz prompt uses: one glyph is set large, a word is
+   not, and a kanji steps down from a kana because it packs far more detail
+   into the same box. */
+.study-item-kana .ja { font-size: 72px; }
+.study-item-kanji .ja { font-size: 56px; }
+.study-item-vocab .ja { font-size: 2.5rem; }
+.study-item-grammar .ja { font-size: var(--text-title); }
+
+/* ---- Speech quiz ---- */
+
+.speech-quiz,
+.speech-quiz-unsupported {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-md);
+  width: 100%;
+}
+.transcript-box {
+  min-height: 48px;
+  width: 100%;
+  padding: var(--s-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  font-family: var(--font-ja);
+  font-size: var(--text-large);
+  color: var(--ink);
+  text-align: center;
+}
+
+/* ---- Kana cells in a lesson's item list ---- */
+
+.cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  font-size: var(--text-title);
+  color: var(--ink);
+}
+.cell-sm {
+  width: 36px;
+  height: 36px;
+  font-size: var(--text-large);
+}
+
+/* ---- Social, leaderboard and the remaining one-offs ---- */
+
+.friend-list,
+.request-list,
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+
+.bubble-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.empty-msg,
+.loading-msg,
+.empty-tier,
+.leaderboard-loading {
+  margin: 0;
+  padding: var(--s-lg);
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  text-align: center;
+}
+.leaderboard-error {
+  margin: 0;
+  padding: var(--s-lg);
+  font-size: var(--text-small);
+  color: var(--danger);
+  text-align: center;
+}
+
+.leagues-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xl);
+  padding-block: var(--s-3xl);
+}
+
+/* The answer face of a review card. */
+.card-back {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-md);
+  text-align: center;
+}
+
+/* A hint under a form field — not an error, so it stays quiet. */
+.field-hint {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
+
+/* ---- Checkpoint leftovers ---- */
+
+/* The checkpoint's progress bar reuses .quiz-progress; this only removes the
+   side margins that rule carries for sitting between a head and a count. */
+.checkpoint-progress {
+  margin: 0;
+}
+
+.checkpoint-summary {
+  max-width: 560px;
 }

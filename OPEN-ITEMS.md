@@ -904,6 +904,45 @@ the unique index existed. `ensureIndexes()` now runs before any insert, which
 matters because the unique index — not the lookup-before-insert — is what
 guarantees one state per item.
 
+### 40. Forty CSS classes were applied to elements with no rules (2026-07-29)
+
+Found by diffing every `className` in the website's `.tsx` sources against
+every selector in the stylesheets. **58 referenced classes had no rule**; after
+discarding parser noise and dynamic-suffix false positives, ~40 were real.
+
+Whole components were rendering at browser defaults: `StrokeOrder` in its
+entirety, the study-screen items, `SpeechQuiz`, the quiz's countdown tick and
+up-next block, the curriculum's unit card and progress bar, and most of the
+friends/leaderboard lists.
+
+**The worst of them was silent and total.** `.stroke-draw` carries the
+`stroke-dasharray` / `stroke-dashoffset` pair that makes a stroke *draw*. With
+no rule, every stroke rendered solid and all at once — so the component whose
+entire purpose is animating stroke order was drawing a finished glyph. Nothing
+errored, nothing logged, and the diagram looked plausible.
+
+Two smaller classes of the same failure, found the same way:
+
+- **Six `var(--token)` references had no definition.** `--flame-scale` is fine
+  (set inline per render, with a fallback). `--text-secondary` and
+  `--radius-sm` had **no fallback**, so those declarations dropped entirely.
+  `--primary-default` fell back to `#2563eb` — a blue that appears nowhere in
+  this product's palette, on the speech button.
+- **Colour literals in components**, against the rule in `web/CLAUDE.md`:
+  `#666`, `#9ca3af`, `#f0fdf4` and two `rgba(239,68,68,…)`. All now tokens, so
+  they follow dark mode instead of ignoring it.
+
+**Why nothing caught it:** a missing CSS class is not a type error, not a lint
+error, and not a build failure — the class attribute is just a string. `tsc`,
+`oxlint` and `vite build` were all green throughout. The audit that found it is
+a dozen lines of Python and should probably become a CI step; until it does,
+this will recur the moment someone writes a `className` before the rule.
+
+One thing worth knowing about editing `app.css`: **a CSS comment cannot contain
+`*/`**, and a glob like `src/**` + `/*.tsx` inside one closes the comment early.
+lightningcss then fails with a pseudo-element error pointing at a line some
+distance away. Backticks in comments break it too.
+
 ### 39. The unit checkpoint: shipped on all three surfaces, two loose ends (2026-07-29)
 
 The end-of-unit test landed API-side (`POST /units/:unit/checkpoint` plus its

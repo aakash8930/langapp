@@ -15,7 +15,7 @@ function CreatorDashboard() {
 
   if (session.state !== 'signedIn' || !session.user?.isAdmin) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--ink-soft)' }}>
         <h2>Access Denied</h2>
         <p>You do not have creator privileges.</p>
         <button onClick={() => navigate({ to: '/' })} style={{ marginTop: '16px', padding: '8px 16px' }}>Back to Home</button>

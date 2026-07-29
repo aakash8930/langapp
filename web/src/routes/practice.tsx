@@ -120,11 +120,11 @@ function Practice() {
                 <div style={{ 
                   marginTop: '8px', 
                   padding: '12px', 
-                  background: 'rgba(239, 68, 68, 0.1)', 
+                  background: 'var(--surface)', 
                   borderRadius: '12px', 
                   fontSize: '14px', 
                   color: 'var(--danger)', 
-                  border: '1px solid rgba(239, 68, 68, 0.2)' 
+                  border: '1px solid var(--danger)' 
                 }}>
                   {msg.corrections.map((c, i) => (
                     <div key={i} style={{ marginBottom: i < msg.corrections.length - 1 ? '8px' : 0 }}>

@@ -213,3 +213,35 @@
   transform: none;
   box-shadow: none;
 }
+
+/*
+ * Accept / Decline / Remove are used as bare buttons — no `.btn` base class —
+ * so the rules above set colours on elements that had no geometry at all: no
+ * height, no padding, no radius, and a touch target well under 44px. This is
+ * that base, kept beside the colour rules rather than in the global button
+ * system, because these three are the only bare buttons left.
+ */
+.btn-accept,
+.btn-decline,
+.btn-remove {
+  min-height: 40px;
+  padding: var(--s-sm) var(--s-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--t-fast) ease;
+}
+
+/* The affirmative of the pair, so it does not read as a third neutral button. */
+.btn-accept {
+  background: var(--brand-primary);
+  color: white;
+}
+.btn-accept:hover:not(:disabled),
+.btn-decline:hover:not(:disabled),
+.btn-remove:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
