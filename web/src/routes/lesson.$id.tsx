@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { fetchLessons, groupByUnit, type Unit } from '../api';
 import { LessonQuiz } from '../components/LessonQuiz';
+import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
 
 /**
@@ -12,16 +13,20 @@ import { useSession } from '../useSession';
  * without that, the new lesson's questions would mount on top of the previous
  * lesson's.
  *
- * Loader fetches units (public) so `LessonQuiz` can resolve the "next lesson
- * after this one" question on completion — a route that has nowhere to send
- * the learner is broken.
+ * Loader reads the cached lesson list so `LessonQuiz` can resolve "next lesson
+ * after this" on completion — a route that has nowhere to send the learner is
+ * broken. Same `ensureQueryData` call the home page uses, so a back-navigation
+ * to `/` between attempts does not produce a redundant fetch.
  *
  * Auth-gated: signing in is a prerequisite to taking a quiz (the lesson
  * content itself is unauthenticated, but grading is per-user).
  */
 export const Route = createFileRoute('/lesson/$id')({
-  loader: async (): Promise<{ units: Unit[] }> => {
-    const lessons = await fetchLessons();
+  loader: async ({ context }): Promise<{ units: Unit[] }> => {
+    const lessons = await context.queryClient.ensureQueryData({
+      queryKey: queryKeys.lessons.all,
+      queryFn: fetchLessons,
+    });
     return { units: groupByUnit(lessons) };
   },
   component: LessonRoute,

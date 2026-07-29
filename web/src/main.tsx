@@ -6,6 +6,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 
+import { createAppQueryClient } from './queryClient';
 import { routeTree } from './routeTree.gen';
 import './theme.css';
 import './app.css';
@@ -19,9 +20,18 @@ import './app.css';
  */
 const hashHistory = createHashHistory();
 
+/**
+ * One `QueryClient` per browser tab. Created here so the route loaders can
+ * read it via the router's `context` option — `__root.tsx` wraps the same
+ * client in a `QueryClientProvider` so the rest of the app sees it through
+ * `useQueryClient`.
+ */
+const queryClient = createAppQueryClient();
+
 const router = createRouter({
   routeTree,
   history: hashHistory,
+  context: { queryClient },
 });
 
 // Type registration — `RouterProvider` looks up the router's types by name

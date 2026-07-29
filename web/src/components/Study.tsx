@@ -1,6 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { fetchLesson, type LessonDetail } from '../api';
+import { fetchLesson } from '../api';
+import { queryKeys } from '../queryKeys';
 import { go, goBack } from '../useRoute';
 import { Item } from './LessonItems';
 import { SpeakButton } from './SpeakButton';
@@ -32,38 +34,27 @@ import { StrokeOrder } from './StrokeOrder';
  * syllabus you have not started, and for coming back to check one character.
  */
 export function Study({ lessonId }: { lessonId: string }) {
-  const [lesson, setLesson] = useState<LessonDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
 
+  const lessonQuery = useQuery({
+    queryKey: queryKeys.lessons.detail(lessonId),
+    queryFn: () => fetchLesson(lessonId),
+  });
+
+  // Reset to the first item whenever the lesson changes. TanStack Query
+  // keeps the previous lesson's data around while the new one is loading,
+  // so without this reset a navigation between lessons would briefly show
+  // the right side of one lesson with the left side of another.
   useEffect(() => {
-    let cancelled = false;
-
-    setLesson(null);
-    setError(null);
     setIndex(0);
-
-    fetchLesson(lessonId)
-      .then((detail) => {
-        if (!cancelled) setLesson(detail);
-      })
-      .catch((caught: unknown) => {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Could not load this lesson.');
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
   }, [lessonId]);
 
   // Left and right arrows walk the cards. A walkthrough that can only be
   // advanced by pointer is slower than the list it replaced.
   useEffect(() => {
-    if (!lesson) return;
+    if (!lessonQuery.data) return;
 
-    const items = lesson.items;
+    const items = lessonQuery.data.items;
 
     function onKey(event: KeyboardEvent) {
       if (event.key === 'ArrowRight') setIndex((n) => Math.min(n + 1, items.length - 1));
@@ -72,13 +63,17 @@ export function Study({ lessonId }: { lessonId: string }) {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lesson]);
+  }, [lessonQuery.data]);
 
-  if (error) {
+  if (lessonQuery.isError) {
     return (
       <div className="glass panel note note-error" role="alert">
         <strong>Can’t load this lesson.</strong>
-        <span>{error}</span>
+        <span>
+          {lessonQuery.error instanceof Error
+            ? lessonQuery.error.message
+            : 'Could not load this lesson.'}
+        </span>
         <button className="button" type="button" onClick={goBack}>
           Back to the course
         </button>
@@ -86,6 +81,7 @@ export function Study({ lessonId }: { lessonId: string }) {
     );
   }
 
+  const lesson = lessonQuery.data;
   if (!lesson) {
     return (
       <div className="glass panel note" role="status">

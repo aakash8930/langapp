@@ -7,6 +7,7 @@ import { Curriculum, type Load } from '../components/Curriculum';
 import { Hero } from '../components/Hero';
 import { SignIn } from '../components/SignIn';
 import { playHero } from '../motion';
+import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
 
 /**
@@ -14,9 +15,11 @@ import { useSession } from '../useSession';
  * screen — the components that depend on session state render only when the
  * session is signed-in, and the rest of the page is the course catalog.
  *
- * Loader runs once per `staleTime` (default 0 — the catalog is public and
- * cheap, so we re-fetch on every visit). Task #10 will move this behind
- * TanStack Query so the cache survives navigation.
+ * Loader runs once per `staleTime` (default 30s — set in `queryClient.ts`).
+ * The catalog is public and cheap, but we still cache it because the same
+ * data backs the lesson route's "next lesson after this" lookup, so a
+ * lesson-end that asks for the next lesson should not refetch what the home
+ * page already has.
  *
  * The search param `learn` carries a lesson id whose row should auto-open and
  * scroll into view — the only flow that produces it is finishing a lesson whose
@@ -28,9 +31,15 @@ export const Route = createFileRoute('/')({
     const raw = search['learn'];
     return typeof raw === 'string' ? { learn: raw } : {};
   },
-  loader: async (): Promise<Load> => {
+  loader: async ({ context }): Promise<Load> => {
     try {
-      const lessons = await fetchLessons();
+      // `ensureQueryData` returns the cached value if fresh, otherwise fetches
+      // and stores it. The 30s default stale time means a back-navigation
+      // within half a minute of the home page reads from the cache.
+      const lessons = await context.queryClient.ensureQueryData({
+        queryKey: queryKeys.lessons.all,
+        queryFn: fetchLessons,
+      });
       return { state: 'ready', units: groupByUnit(lessons) };
     } catch (error: unknown) {
       return {

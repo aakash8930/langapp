@@ -1,7 +1,9 @@
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
-import { fetchLesson, type LessonDetail, type LessonSummary, type Unit } from '../api';
+import { fetchLesson, type LessonSummary, type Unit } from '../api';
 import { revealOnScroll } from '../motion';
+import { queryKeys } from '../queryKeys';
 import { LessonItems } from './LessonItems';
 
 /**
@@ -177,10 +179,17 @@ function LessonRow({
   state: LessonState;
   highlight: boolean;
 }) {
-  const [detail, setDetail] = useState<LessonDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(false);
+
+  const detailQuery = useQuery({
+    queryKey: queryKeys.lessons.detail(lesson.id),
+    queryFn: () => fetchLesson(lesson.id),
+    // Gated on the row being opened — a page of 32 collapsed rows would
+    // otherwise fire 32 fetches at once on first paint. The query cache means
+    // a second visit to the same row (close → reopen) reads from cache.
+    enabled: open,
+  });
 
   /**
    * Open and scroll to the lesson the learner was sent here to read.
@@ -196,6 +205,7 @@ function LessonRow({
 
     const node = detailsRef.current;
     node.open = true;
+    setOpen(true);
     node.scrollIntoView({
       block: 'center',
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -204,24 +214,27 @@ function LessonRow({
     });
   }, [highlight]);
 
-  function open(event: SyntheticEvent<HTMLDetailsElement>) {
-    if (!event.currentTarget.open || detail || loading) return;
-
-    setLoading(true);
-    fetchLesson(lesson.id)
-      .then(setDetail)
-      .catch((caught: unknown) =>
-        setError(caught instanceof Error ? caught.message : 'Could not load this lesson.'),
-      )
-      .finally(() => setLoading(false));
+  function onToggle(event: SyntheticEvent<HTMLDetailsElement>) {
+    // `event.currentTarget.open` is the DOM truth after this toggle. The
+    // query is gated on `open`, so a close means we drop the local trigger
+    // and the cached data sits idle until the row is opened again.
+    setOpen(event.currentTarget.open);
   }
+
+  const detail = detailQuery.data;
+  const loading = open && detailQuery.isPending;
+  const error = detailQuery.isError
+    ? detailQuery.error instanceof Error
+      ? detailQuery.error.message
+      : 'Could not load this lesson.'
+    : null;
 
   return (
     <li>
       <details
         ref={detailsRef}
         className={`lesson${highlight ? ' lesson-highlight' : ''}`}
-        onToggle={open}
+        onToggle={onToggle}
       >
         <summary>
           <span className="lesson-title">{lesson.title}</span>

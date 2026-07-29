@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import {
   fetchDueReviews,
@@ -9,6 +10,7 @@ import {
   type ResolvedItem,
   type ReviewGrade,
 } from '../api';
+import { queryKeys } from '../queryKeys';
 import { showsRomaji } from '../romaji';
 import { SpeakButton } from './SpeakButton';
 import { goBack } from '../useRoute';
@@ -31,9 +33,27 @@ export function Review({
   onFinished: () => void;
   audioSpeed: number;
 }) {
-  const [queue, setQueue] = useState<DueCard[] | null>(null);
-  const [totalDue, setTotalDue] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const dueReviewsQuery = useQuery({
+    queryKey: queryKeys.reviews.due,
+    queryFn: fetchDueReviews,
+  });
+
+  /*
+   * Grade is a mutation rather than a query — the queue is local and the UI
+   * never waits, so we use TanStack Query purely for the mutation lifecycle
+   * (cancellable on unmount, dedupe across rapid re-grades) and roll the
+   * result back into local state ourselves. `onSuccess` invalidates the due
+   * list and progress so the next session opens with a current count.
+   */
+  const gradeMutation = useMutation({
+    mutationFn: ({ cardId, grade }: { cardId: string; grade: ReviewGrade }) =>
+      gradeReview(cardId, grade),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reviews.due });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.session.progress });
+    },
+  });
 
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -44,25 +64,13 @@ export function Review({
   const [retried, setRetried] = useState<string[]>([]);
   const [lost, setLost] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    fetchDueReviews()
-      .then((due) => {
-        if (cancelled) return;
-        setQueue(due.cards);
-        setTotalDue(due.totalDue);
-      })
-      .catch((caught: unknown) => {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Could not load your reviews.');
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const queue = dueReviewsQuery.data?.cards ?? null;
+  const totalDue = dueReviewsQuery.data?.totalDue ?? 0;
+  const error = dueReviewsQuery.isError
+    ? dueReviewsQuery.error instanceof Error
+      ? dueReviewsQuery.error.message
+      : 'Could not load your reviews.'
+    : null;
 
   if (error) {
     return (
@@ -151,23 +159,26 @@ export function Review({
     setIndex((n) => n + 1);
     setRevealed(false);
 
-    gradeReview(graded.cardId, grade).then(
-      (result) => {
-        setResults((current) => [...current, result]);
-        onFinished();
-      },
-      () => {
-        // Re-queue once, then give up. Re-queueing unconditionally loops
-        // forever against an API that is simply down — a normal Tuesday for
-        // this project. And never on the last card: by the time the failure
-        // lands the summary is already up, and yanking it away to re-ask is
-        // worse than telling the truth in the summary.
-        if (wasLast || retried.includes(graded.cardId)) {
-          setLost((n) => n + 1);
-          return;
-        }
-        setRetried((current) => [...current, graded.cardId]);
-        setRequeued((current) => [...current, graded]);
+    gradeMutation.mutate(
+      { cardId: graded.cardId, grade },
+      {
+        onSuccess: (result) => {
+          setResults((current) => [...current, result]);
+          onFinished();
+        },
+        onError: () => {
+          // Re-queue once, then give up. Re-queueing unconditionally loops
+          // forever against an API that is simply down — a normal Tuesday for
+          // this project. And never on the last card: by the time the failure
+          // lands the summary is already up, and yanking it away to re-ask is
+          // worse than telling the truth in the summary.
+          if (wasLast || retried.includes(graded.cardId)) {
+            setLost((n) => n + 1);
+            return;
+          }
+          setRetried((current) => [...current, graded.cardId]);
+          setRequeued((current) => [...current, graded]);
+        },
       },
     );
   }

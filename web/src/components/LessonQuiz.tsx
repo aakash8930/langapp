@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
@@ -16,6 +17,7 @@ import {
 } from '../api';
 import { hasAudio, revealsAnswer } from '../audio';
 import { countUpNow } from '../motion';
+import { queryKeys } from '../queryKeys';
 import { SpeakButton } from './SpeakButton';
 import { go, goBack } from '../useRoute';
 
@@ -122,6 +124,7 @@ export function LessonQuiz({
   audioSpeed: number;
   onFinished: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [phase, setPhase] = useState<Phase>({ name: 'loading' });
   const [busy, setBusy] = useState(false);
   /** Bumped by "Run it again" to redraw a fresh attempt of the same lesson. */
@@ -129,32 +132,58 @@ export function LessonQuiz({
   /** True while the pointer or focus is on the verdict — holds the timer open. */
   const [held, setHeld] = useState(false);
 
+  // Drawn once per run, kept in state so a TanStack Query cache hit does not
+  // flip the seed under our feet. Re-drawing mid-lesson would reshuffle the
+  // questions and invalidate the exerciseIds already on screen.
+  const [attempt, setAttempt] = useState(() => newAttempt());
   useEffect(() => {
-    let cancelled = false;
-    // Drawn once per run. Re-drawing mid-lesson would reshuffle the questions
-    // and invalidate the exerciseIds already on screen.
-    const attempt = newAttempt();
+    setAttempt(newAttempt());
+  }, [run]);
 
-    setPhase({ name: 'loading' });
-    fetchExercises(lessonId, attempt)
-      .then((set) => {
-        if (!cancelled) {
-          setPhase({ name: 'asking', set, index: 0, answered: [], result: null });
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setPhase({
-            name: 'error',
-            message: error instanceof Error ? error.message : 'Could not load this lesson.',
-          });
-        }
+  const exerciseQuery = useQuery({
+    queryKey: queryKeys.lessons.exercises(lessonId, attempt),
+    queryFn: () => fetchExercises(lessonId, attempt),
+    // Bumping `run` to redo the lesson should drop the cached attempt and
+    // start fresh — the new attempt key produces a new cache entry, but the
+    // old one is left behind as harmless garbage that `gcTime` reaps.
+    staleTime: 5 * 60_000,
+  });
+
+  // Translate the query state into the phase machine. The query owns the
+  // fetch; the phase owns the walk through the questions. This split lets the
+  // phase machine stay simple while the cache, retries and cancellation are
+  // TanStack Query's problem.
+  useEffect(() => {
+    if (exerciseQuery.isPending) {
+      setPhase({ name: 'loading' });
+      return;
+    }
+    if (exerciseQuery.isError) {
+      setPhase({
+        name: 'error',
+        message:
+          exerciseQuery.error instanceof Error
+            ? exerciseQuery.error.message
+            : 'Could not load this lesson.',
       });
+      return;
+    }
+    if (exerciseQuery.data) {
+      setPhase({ name: 'asking', set: exerciseQuery.data, index: 0, answered: [], result: null });
+    }
+  }, [exerciseQuery.data, exerciseQuery.isPending, exerciseQuery.isError, exerciseQuery.error]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [lessonId, run]);
+  /*
+   * The `/complete` mutation. Its `onSuccess` invalidates progress so the
+   * header's XP / streak / completed-lesson list is fresh by the time the
+   * "Done" summary hands the learner back to the course catalog. The
+   * `completedLessonIds` invalidate is what closes the loop — without it,
+   * the row they just finished would still read "○" empty until a full
+   * refetch.
+   */
+  const completeLessonMutation = useMutation({
+    mutationFn: () => completeLesson(lessonId),
+  });
 
   /**
    * Guards against the auto-advance timer and a click landing in the same tick.
@@ -186,7 +215,8 @@ export function LessonQuiz({
 
       setPhase({ name: 'finishing', set: phase.set });
       try {
-        const summary = await completeLesson(lessonId);
+        const summary = await completeLessonMutation.mutateAsync();
+        await queryClient.invalidateQueries({ queryKey: queryKeys.session.progress });
         setPhase({
           name: 'done',
           set: phase.set,
@@ -204,7 +234,7 @@ export function LessonQuiz({
     } finally {
       advancing.current = false;
     }
-  }, [phase, lessonId, units, completedLessonIds, onFinished]);
+  }, [phase, lessonId, units, completedLessonIds, onFinished, completeLessonMutation, queryClient]);
 
   // Auto-advance past a verdict. Held open while the learner is reading it.
   useEffect(() => {
