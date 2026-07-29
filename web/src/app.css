@@ -2117,3 +2117,16 @@
 .checkpoint-summary {
   max-width: 560px;
 }
+
+/*
+ * Steps the heading down from `.quiz-summary h2`'s `--text-display`.
+ *
+ * That size is tuned for "Lesson complete" — two short words. A checkpoint
+ * heading carries the unit name ("Katakana — not yet"), and at up to 4.5rem in
+ * a 560px panel it wrapped with a single word stranded on the second line.
+ */
+.checkpoint-summary h2 {
+  font-size: var(--text-heading);
+  line-height: 1.15;
+  text-wrap: balance;
+}
