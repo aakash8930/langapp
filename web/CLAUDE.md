@@ -12,10 +12,17 @@ where they deliberately diverge.
 
 - **Vite + React 19 + TypeScript** strict
 - **anime.js v4** for animation
-- No component library, no CSS framework, no state manager, **no router** —
-  `useRoute.ts` is a thirty-line hash router. Hash-based on purpose: it needs no
-  server rewrite rule, so the build is plain static files that work from any
-  directory on any host, which matters while deployment is still open.
+- No component library, no CSS framework, no state manager.
+- **TanStack Router**, file-based, from `src/routes/` — since commit 3ff0be9
+  (2026-07-29). This section said "**no router** — `useRoute.ts` is a thirty-line
+  hash router" until 2026-07-30, three weeks after that stopped being true, and
+  the drift is not harmless: `useRoute.ts` is now a compatibility *shim* whose
+  own comment says not to extend it, and reading this file as authoritative is
+  how `#/learn/<id>` came to be hand-written into a button. See the navigation
+  rule below.
+- **Hash history**, kept from the hand-rolled router and for its reason: it needs
+  no server rewrite rule, so the build is plain static files that work from any
+  directory on any host. The Funnel mounts this at `/learn/`.
 
 **anime.js is v4.** The API is `animate(targets, params)` — *two arguments*.
 Nearly every example online is v3's single `anime({ targets: … })` object, which
@@ -201,6 +208,62 @@ Three rules that must not be re-derived here:
 The curriculum offers the test only once every lesson in the unit is complete.
 Not gated — the API will run one on a barely-started unit, which is right for a
 future placement probe and wrong as the default affordance.
+
+## Navigate with `<Link to>`, never a hand-written `href="#/…"` (2026-07-30)
+
+The hash is the router's address bar. Writing it by hand is unchecked by
+everything — `tsc`, `oxlint` and `vite build` were all green while the home
+page's **"Begin" button pointed at `#/learn/<id>`, a path no route matches**.
+`learn` was a path segment under the hand-rolled router; the TanStack migration
+made it a *search param* on `/` and two callers were never updated. TanStack's
+`defaultNotFoundComponent` is literally `<p>Not Found</p>` and logs nothing, so
+the first thing a new learner ever clicked put them on two unstyled words with
+an empty console.
+
+Three rules came out of it:
+
+- **`<Link to>` for every route.** The target is checked against
+  `routeTree.gen.ts`, so the same mistake is now a compile error that lists every
+  valid path. A string in an `href` is just a string. This is the whole fix —
+  the rest is damage limitation.
+- **An in-page anchor must not write the hash.** `href="#curriculum"` makes the
+  router read `curriculum` as a *path*, match nothing, and render not-found over
+  the section it just scrolled to. Use `scrollToSection()` from `motion.ts` from
+  an `onClick` with `preventDefault()`, keeping the `href` for focusability. The
+  skip link additionally needs `{ focus: true }` — scrolling the view while
+  leaving focus in the header has not skipped anything.
+- **`NotFound` is registered as `defaultNotFoundComponent`** and names the
+  unmatched path both on screen and in `console.error`. Never leave the default
+  in place; a dead end that logs nothing costs an entire debugging session.
+
+`useRoute.ts`'s `go()` still writes the hash directly — it is the pre-migration
+shim, it is spelled correctly now, and its remaining callers (`Study`,
+`LessonQuiz`) should migrate to `useNavigate`. Do not add new ones.
+
+## Tracing: `debug.ts`
+
+Console tracing for the flows that fail *silently* — a route miss, a fetch that
+resolves non-2xx, an effect that decides to do nothing. None of those throw, and
+all of them look identical from the outside: a screen that did not change.
+
+`log(channel, message, data?)` is gated; `logError(channel, …)` is **not**,
+because a dead end has to be visible to whoever already has the console open
+without them first knowing a flag exists. Channels are `nav`, `api`, `auth`,
+`route`, `ui`, `quiz` — prefixed on every line so the console filter box works.
+
+On automatically under `npm run dev`. In a production build it is off by default
+and **switchable at runtime**, which is the part that matters: the bug above was
+reported against the deployed site, where a dev-only logger would have been no
+use.
+
+```js
+__langapp.debug.on()   // or localStorage['langapp:debug'] = '1', or #debug in the URL
+```
+
+Instrumented at the choke points rather than sprinkled: `send()` in `api.ts`
+covers all ~40 endpoints, `router.subscribe('onResolved')` in `main.tsx` covers
+every navigation, and `useSession` logs on *transition* (module-scoped, so N
+components calling the hook do not produce N lines for one change).
 
 ## A className with no rule is invisible to every check we run
 

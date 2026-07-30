@@ -229,3 +229,45 @@ export function burstConfetti(anchor: Element, options?: { count?: number }): vo
 export function motionIsOn(): boolean {
   return armed;
 }
+
+/**
+ * Scroll to an element by id, **without writing the URL hash**.
+ *
+ * The site is hash-routed, so the hash is the router's address bar. A plain
+ * `<a href="#curriculum">` therefore does two things at once: the browser scrolls
+ * to `id="curriculum"`, and the router reads `curriculum` as a *path*, matches no
+ * route, and replaces the page with the not-found screen. The scroll lands on
+ * content that is being unmounted underneath it.
+ *
+ * That is the same defect as the `#/learn/<id>` "Begin" button — a hash written
+ * by hand that the route tree does not recognise — and it is why in-page
+ * navigation on this site cannot use the hash at all. Call this from an
+ * `onClick` with `preventDefault()` instead.
+ *
+ * `focus` moves keyboard focus as well as scrolling, which is what a skip link
+ * has to do — scrolling a sighted reader to the section while leaving focus in
+ * the header is worse than not having the link. `tabIndex = -1` is set on the
+ * target so a non-interactive `<main>` or `<section>` can hold focus at all; it
+ * keeps the element out of the tab order.
+ *
+ * Honours reduced motion for the same reason everything else here does: this
+ * module owns that decision.
+ */
+export function scrollToSection(id: string, options?: { focus?: boolean }): boolean {
+  const target = document.getElementById(id);
+  if (!target) return false;
+
+  target.scrollIntoView({
+    block: 'start',
+    behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+  });
+
+  if (options?.focus) {
+    target.tabIndex = -1;
+    // `preventScroll` — `scrollIntoView` above already chose the behaviour, and
+    // letting focus scroll too overrides the smooth scroll with a jump.
+    target.focus({ preventScroll: true });
+  }
+
+  return true;
+}

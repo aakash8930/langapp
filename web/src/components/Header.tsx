@@ -1,3 +1,7 @@
+import { Link } from '@tanstack/react-router';
+
+import { logError } from '../debug';
+import { scrollToSection } from '../motion';
 import type { Session } from '../useSession';
 
 /**
@@ -19,26 +23,30 @@ export function Header({ session, onSignOut }: { session: Session; onSignOut: ()
   return (
     <div className="header">
       <div className="wrap header-inner glass">
-        <a className="header-mark ja" href="#/">
+        {/* `<Link to>` rather than `<a href="#/…">` throughout: the route target
+            is then type-checked against the generated route tree, which is what
+            catches a path the tree does not contain at build time instead of on
+            a learner's screen. */}
+        <Link className="header-mark ja" to="/">
           日本語
-        </a>
+        </Link>
 
         <nav className="header-nav">
-          <a className="nav-link" href="#/leagues">
+          <Link className="nav-link" to="/leagues">
             Leagues
-          </a>
-          <a className="nav-link" href="#/social">
+          </Link>
+          <Link className="nav-link" to="/social">
             Social
-          </a>
-          <a className="nav-link" href="#/practice">
+          </Link>
+          <Link className="nav-link" to="/practice">
             AI Chat
-          </a>
+          </Link>
           {/* The dashboard is unreachable for everyone else — `/creator` bounces a
               non-admin — so hiding the link hides nothing that was available. */}
           {isAdmin && (
-            <a className="nav-link nav-admin" href="#/creator">
+            <Link className="nav-link nav-admin" to="/creator">
               <span aria-hidden="true">⚙</span> Creator
-            </a>
+            </Link>
           )}
         </nav>
 
@@ -64,7 +72,19 @@ export function Header({ session, onSignOut }: { session: Session; onSignOut: ()
             </button>
           </>
         ) : session.state === 'signedOut' ? (
-          <a className="btn btn-primary btn-sm" href="#start">
+          /* An in-page jump to the sign-in card, not a route. Writing `#start`
+             into the hash makes the router read `start` as a path and render
+             not-found over the section — see `scrollToSection`. */
+          <a
+            className="btn btn-primary btn-sm"
+            href="#start"
+            onClick={(event) => {
+              event.preventDefault();
+              if (!scrollToSection('start')) {
+                logError('ui', 'no #start section on this page to scroll to');
+              }
+            }}
+          >
             Sign in
           </a>
         ) : null}

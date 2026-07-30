@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
@@ -17,6 +18,7 @@ import {
   type SpeechQuestion,
 } from '../api';
 import { hasAudio, revealsAnswer } from '../audio';
+import { log, logError } from '../debug';
 import { burstConfetti, countUpNow } from '../motion';
 import { queryKeys } from '../queryKeys';
 import { SpeakButton } from './SpeakButton';
@@ -200,6 +202,9 @@ export function LessonQuiz({
       return;
     }
     if (exerciseQuery.isError) {
+      logError('quiz', `could not load exercises for ${lessonId} attempt ${attempt}`, {
+        error: exerciseQuery.error,
+      });
       setPhase({
         name: 'error',
         message:
@@ -211,8 +216,18 @@ export function LessonQuiz({
     }
     if (exerciseQuery.data) {
       const key = `${lessonId}:${attempt}`;
-      if (walking.current === key) return;
+      if (walking.current === key) {
+        // Not a problem — this is the refetch guard doing its job. Logged
+        // because the alternative reading of "the quiz did not restart" is a
+        // broken restart, and the two are otherwise identical on screen.
+        log('quiz', `already walking ${key} — refetch ignored`);
+        return;
+      }
       walking.current = key;
+      log('quiz', `starting ${key}`, {
+        questionCount: exerciseQuery.data.questionCount,
+        promptKinds: [...new Set(exerciseQuery.data.questions.map((q) => q.promptKind))],
+      });
       setPhase({ name: 'asking', set: exerciseQuery.data, index: 0, answered: [], result: null });
     }
   }, [
@@ -260,10 +275,15 @@ export function LessonQuiz({
       // End of the lesson. A single wrong answer means it was not passed, and
       // `/complete` would refuse it — so we do not ask.
       if (answered.some((result) => !result.correct)) {
+        log('quiz', 'run failed — offering a restart, /complete not called', {
+          wrong: answered.filter((result) => !result.correct).length,
+          of: answered.length,
+        });
         setPhase({ name: 'retry', set: phase.set, answered });
         return;
       }
 
+      log('quiz', `clean run of ${lessonId} — calling /complete`, { answered: answered.length });
       setPhase({ name: 'finishing', set: phase.set });
       try {
         const summary = await completeLessonMutation.mutateAsync();
@@ -284,6 +304,10 @@ export function LessonQuiz({
         });
         onFinished();
       } catch (error) {
+        // A 409 here is the server's two preconditions refusing — prerequisites
+        // unmet, or no clean attempt on record. Worth distinguishing from a
+        // network failure, which the status in the `api` line above does.
+        logError('quiz', `/complete refused ${lessonId}`, error);
         setPhase({
           name: 'error',
           message: error instanceof Error ? error.message : 'Could not save this lesson.',
@@ -836,7 +860,14 @@ function stepAfter(
 }
 
 function goToStep(step: NextStep): void {
+  log('quiz', `next step after this lesson: ${step.kind}`, {
+    lessonId: step.kind === 'practise' || step.kind === 'learn' ? step.lesson.id : null,
+  });
+
   if (step.kind === 'practise') go({ name: 'lesson', id: step.lesson.id });
+  // `{ name: 'home', learn }` — a search param on `/`. This emitted
+  // `#/learn/<id>` until 2026-07-30, which matched no route; the fix is in
+  // `useRoute.ts`'s `go()`, and this call site is unchanged.
   else if (step.kind === 'learn') go({ name: 'home', learn: step.lesson.id });
   else go({ name: 'home' });
 }
@@ -927,9 +958,9 @@ function Summary({
 
         Above the "next lesson" block and styled as the primary action, because
         finishing a unit is the event and moving on is the default that happens
-        anyway. The link is a plain anchor rather than `goToStep`: `useRoute`'s
-        `go()` is a compatibility shim its own comment says not to extend, and
-        the curriculum already links to checkpoints this way.
+        anyway. A `<Link>` rather than `goToStep`: `useRoute`'s `go()` is a
+        compatibility shim its own comment says not to extend, and a typed `to`
+        is checked against the route tree where a hand-written hash is not.
       */}
       {finishedUnit ? (
         <div className="unit-cleared">
@@ -937,9 +968,9 @@ function Summary({
             <strong>You’ve finished {finishedUnit.label}.</strong> Test yourself on the whole
             unit — 20 questions, one answer each, and nothing is locked by the result.
           </p>
-          <a className="btn btn-primary" href={`#/checkpoint/${finishedUnit.slug}`}>
+          <Link className="btn btn-primary" to="/checkpoint/$unit" params={{ unit: finishedUnit.slug }}>
             Take the test
-          </a>
+          </Link>
         </div>
       ) : null}
 

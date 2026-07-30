@@ -7,7 +7,8 @@ import { Continue } from '../components/Continue';
 import { Curriculum, type Load } from '../components/Curriculum';
 import { Hero } from '../components/Hero';
 import { SignIn } from '../components/SignIn';
-import { playHero } from '../motion';
+import { log, logError } from '../debug';
+import { playHero, scrollToSection } from '../motion';
 import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
 
@@ -30,7 +31,14 @@ import { useSession } from '../useSession';
 export const Route = createFileRoute('/')({
   validateSearch: (search: Record<string, unknown>): { learn?: string } => {
     const raw = search['learn'];
-    return typeof raw === 'string' ? { learn: raw } : {};
+    const parsed = typeof raw === 'string' ? { learn: raw } : {};
+    // `learn` arriving as anything but a string is silently dropped, and a
+    // dropped `learn` means the curriculum opens no row and scrolls nowhere —
+    // the same "nothing happened" the wrong URL shape produced.
+    if (raw !== undefined && typeof raw !== 'string') {
+      logError('nav', 'home: `learn` search param was not a string — dropped', { raw });
+    }
+    return parsed;
   },
   loader: async ({ context }): Promise<Load> => {
     try {
@@ -41,8 +49,17 @@ export const Route = createFileRoute('/')({
         queryKey: queryKeys.lessons.all,
         queryFn: fetchLessons,
       });
-      return { state: 'ready', units: groupByUnit(lessons) };
+      const units = groupByUnit(lessons);
+      log('route', 'home loader: curriculum ready', {
+        lessons: lessons.length,
+        units: units.map((unit) => `${unit.slug}(${unit.lessons.length})`),
+      });
+      return { state: 'ready', units };
     } catch (error: unknown) {
+      // The loader deliberately resolves rather than throwing, so the page can
+      // render its own error state instead of the router's boundary. That also
+      // means nothing else would log this.
+      logError('route', 'home loader: curriculum failed to load', error);
       return {
         state: 'error',
         message:
@@ -80,7 +97,24 @@ function HomePage() {
 
   return (
     <>
-      <a className="skip" href="#curriculum">
+      {/*
+        The skip link, and the one in-page anchor where getting this wrong is
+        worst: it is a keyboard user's first tab stop, and `href="#curriculum"`
+        sent the router to a path called `curriculum`, matched nothing, and
+        replaced the page with the not-found screen. `focus: true` moves focus as
+        well as scrolling — a skip link that scrolls the view but leaves focus in
+        the header has not skipped anything.
+      */}
+      <a
+        className="skip"
+        href="#curriculum"
+        onClick={(event) => {
+          event.preventDefault();
+          if (!scrollToSection('curriculum', { focus: true })) {
+            logError('ui', 'skip link: no #curriculum landmark on the page');
+          }
+        }}
+      >
         Skip to the curriculum
       </a>
 

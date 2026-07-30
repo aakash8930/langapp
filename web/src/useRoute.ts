@@ -1,5 +1,7 @@
 import { useLocation, useNavigate, useRouter } from '@tanstack/react-router';
 
+import { log } from './debug';
+
 /**
  * Compatibility shim for the pre-TanStack-Router call sites.
  *
@@ -29,8 +31,26 @@ function parse(hash: string): Route {
   if (lesson) return { name: 'lesson', id: lesson[1] };
   const study = /^#\/study\/([A-Za-z0-9]+)$/.exec(hash);
   if (study) return { name: 'study', id: study[1] };
-  const learn = /^#\/learn\/([A-Za-z0-9]+)$/.exec(hash);
-  if (learn) return { name: 'home', learn: learn[1] };
+
+  /*
+   * `learn` is a search param on `/`, not a path segment.
+   *
+   * It was `#/learn/<id>` under the hand-rolled router this file replaced, and
+   * `index.tsx`'s `validateSearch` made it `#/?learn=<id>` — but both this parse
+   * and `go()` below kept emitting and expecting the old shape until 2026-07-30,
+   * so every link built from them landed on "Not Found". The old form is read
+   * here as well as the new one because a learner may have it bookmarked or in
+   * history; nothing *writes* it any more.
+   */
+  const queryIndex = hash.indexOf('?');
+  if (queryIndex !== -1) {
+    const learn = new URLSearchParams(hash.slice(queryIndex + 1)).get('learn');
+    if (learn) return { name: 'home', learn };
+  }
+
+  const legacyLearn = /^#\/learn\/([A-Za-z0-9]+)$/.exec(hash);
+  if (legacyLearn) return { name: 'home', learn: legacyLearn[1] };
+
   return { name: 'home' };
 }
 
@@ -51,11 +71,20 @@ export function useRoute(): Route {
 }
 
 /**
- * Drive the URL. Writes to `window.location.hash`, which fires `hashchange`
- * and the router's listener picks up.
+ * Drive the URL by assigning `window.location.hash`.
+ *
+ * This said the router picks the change up via `hashchange`. It does not:
+ * `@tanstack/history` listens for `popstate` and patches `history.pushState` /
+ * `replaceState`, and there is **no `hashchange` listener anywhere in the
+ * stack** — a fragment navigation reaches the router as a `popstate`. The
+ * distinction matters if this ever stops working, because the obvious place to
+ * look is the wrong one.
+ *
+ * It is also why `<Link>` is the better tool: it calls `router.navigate`
+ * directly instead of going out through the URL and back in.
  */
 export function go(route: Route): void {
-  window.location.hash =
+  const hash =
     route.name === 'lesson'
       ? `#/lesson/${route.id}`
       : route.name === 'study'
@@ -63,14 +92,30 @@ export function go(route: Route): void {
         : route.name === 'review'
           ? '#/review'
           : route.learn
-            ? `#/learn/${route.learn}`
+            ? // A search param on `/`, matching `index.tsx`'s `validateSearch`.
+              // This said `#/learn/${route.learn}` until 2026-07-30, which
+              // matches no route — see `parse` above.
+              `#/?learn=${encodeURIComponent(route.learn)}`
             : '#/';
+
+  // Every navigation that still goes through the shim, named. `go()` writes the
+  // hash directly rather than calling the router, so a wrong string here fails
+  // as a silent not-found with no stack — the failure mode this line closes.
+  log('nav', `go(${route.name}) → ${hash}`, route);
+
+  window.location.hash = hash;
 }
 
 /**
  * Go back. `history.back()` when there is somewhere to go, otherwise home.
  */
 export function goBack(): void {
+  // `history.length` counts the whole tab's history, not this app's — so a deep
+  // link opened in a fresh tab can still take the `back()` branch and leave the
+  // site entirely. Logged rather than fixed: which branch ran is the first thing
+  // you need when "Back" appears to do nothing.
+  log('nav', 'goBack()', { historyLength: window.history.length, from: window.location.hash });
+
   if (window.history.length > 1) window.history.back();
   else go({ name: 'home' });
 }

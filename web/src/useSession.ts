@@ -16,12 +16,22 @@ import {
   type Tokens,
   type User,
 } from './auth';
+import { log, logError } from './debug';
 import { queryKeys } from './queryKeys';
 
 export type Session =
   | { state: 'loading' }
   | { state: 'signedOut' }
   | { state: 'signedIn'; user: User; progress: Progress | null };
+
+/**
+ * The last session state written to the console, at module scope on purpose.
+ *
+ * `useSession()` is called by the shell and by most screens, each with its own
+ * hook instance — a per-component ref would log the same transition once per
+ * caller. There is only one session, so there should be one line per change.
+ */
+let lastLoggedState: string | null = null;
 
 /**
  * The login/register mutations live outside the hook so their `onSuccess` can
@@ -71,6 +81,49 @@ export function useSession() {
       : userQuery.isError || !userQuery.data
         ? { state: 'signedOut' }
         : { state: 'signedIn', user: userQuery.data, progress: progressQuery.data ?? null };
+
+  /*
+   * Trace the state machine on transition, not on render.
+   *
+   * `signedOut` has two very different causes that render identically — no
+   * tokens at all, and tokens whose `/me` call failed — so the reason is part of
+   * the line. That distinction is the difference between "you are not logged in"
+   * and "your session broke", and the screen says the same thing for both.
+   */
+  const signedOutReason = !tokens
+    ? 'no tokens'
+    : userQuery.isError
+      ? 'the /me request failed'
+      : !userQuery.data
+        ? '/me returned nothing'
+        : null;
+
+  // Primitives, not `session` itself. The session object is rebuilt every
+  // render, so depending on it would run this effect every render — harmless
+  // given the fingerprint guard below, but it is the kind of dependency that
+  // stops being harmless the moment someone adds a second statement here.
+  const sessionState = session.state;
+  const hasProgress = session.state === 'signedIn' && session.progress !== null;
+  const cardsDueNow = session.state === 'signedIn' ? (session.progress?.cardsDueNow ?? null) : null;
+  const hasTokens = tokens !== null;
+  const userError = userQuery.error;
+
+  useEffect(() => {
+    const fingerprint = `${sessionState}:${signedOutReason ?? ''}:${hasProgress}`;
+    if (fingerprint === lastLoggedState) return;
+    lastLoggedState = fingerprint;
+
+    if (sessionState === 'signedOut' && hasTokens) {
+      logError('auth', `session dropped to signedOut — ${signedOutReason}`, { error: userError });
+      return;
+    }
+
+    log('auth', `session → ${sessionState}`, {
+      reason: signedOutReason,
+      hasProgress,
+      cardsDueNow,
+    });
+  }, [sessionState, signedOutReason, hasProgress, cardsDueNow, hasTokens, userError]);
 
   // A 401 that `authed()` couldn't recover has already cleared the tokens and
   // any cached user/progress. Listen so our queries stop re-trying with a

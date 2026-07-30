@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 
 import { Review } from '../components/Review';
 import { useSession } from '../useSession';
@@ -37,9 +37,9 @@ function ReviewRoute() {
     <main className="wrap lesson-screen">
       <div className="glass panel note">
         <strong>Sign in to review.</strong>
-        <a className="btn btn-primary" href="#/">
+        <Link className="btn btn-primary" to="/">
           Back to the course
-        </a>
+        </Link>
       </div>
     </main>
   );

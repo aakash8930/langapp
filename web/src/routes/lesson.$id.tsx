@@ -1,7 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 
 import { fetchLessons, groupByUnit, type Unit } from '../api';
 import { LessonQuiz } from '../components/LessonQuiz';
+import { log, logError } from '../debug';
 import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
 
@@ -22,12 +23,25 @@ import { useSession } from '../useSession';
  * content itself is unauthenticated, but grading is per-user).
  */
 export const Route = createFileRoute('/lesson/$id')({
-  loader: async ({ context }): Promise<{ units: Unit[] }> => {
+  loader: async ({ context, params }): Promise<{ units: Unit[] }> => {
     const lessons = await context.queryClient.ensureQueryData({
       queryKey: queryKeys.lessons.all,
       queryFn: fetchLessons,
     });
-    return { units: groupByUnit(lessons) };
+    const units = groupByUnit(lessons);
+
+    // The route resolves whether or not `:id` names a real lesson — the loader
+    // fetches the *list*, not this lesson — so a bad id gets a mounted quiz that
+    // fails later and further from the cause. Named here instead.
+    const known = units.flatMap((unit) => unit.lessons).some((lesson) => lesson.id === params.id);
+    if (known) log('route', `lesson loader: ${params.id} is in the catalog`);
+    else
+      logError('route', `lesson loader: no lesson ${params.id} in the catalog`, {
+        id: params.id,
+        lessonCount: units.reduce((n, unit) => n + unit.lessons.length, 0),
+      });
+
+    return { units };
   },
   component: LessonRoute,
 });
@@ -36,6 +50,10 @@ function LessonRoute() {
   const { id } = Route.useParams();
   const { session } = useSession();
   const { units } = Route.useLoaderData();
+
+  // Which of the three branches below rendered. "I clicked into a lesson and got
+  // a sign-in card" reads as a bug when the session is merely still loading.
+  log('route', `lesson ${id}: session is ${session.state}`);
 
   if (session.state === 'signedIn') {
     return (
@@ -70,9 +88,9 @@ function LessonRoute() {
       <div className="glass panel note">
         <strong>Sign in to take this lesson.</strong>
         <span>Quizzes and progress need an account; browsing the course does not.</span>
-        <a className="btn btn-primary" href="#/">
+        <Link className="btn btn-primary" to="/">
           Back to the course
-        </a>
+        </Link>
       </div>
     </main>
   );

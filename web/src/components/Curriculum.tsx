@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 import { fetchLesson, type LessonSummary, type Unit } from '../api';
+import { log, logError } from '../debug';
 import { revealOnScroll } from '../motion';
 import { queryKeys } from '../queryKeys';
 import { LessonItems } from './LessonItems';
@@ -31,9 +33,14 @@ export function Curriculum({
   load: Load;
   completedLessonIds: string[] | null;
   /**
-   * A lesson the learner was sent here to read, set by `#/learn/<id>` when a
-   * finished lesson's successor has not been learned yet. That row opens itself
-   * and scrolls into view.
+   * A lesson the learner was sent here to read, carried by the `?learn=<id>`
+   * search param when a finished lesson's successor has not been learned yet, or
+   * when "Begin" is pressed on the Continue card. That row opens itself and
+   * scrolls into view.
+   *
+   * It was a path segment (`#/learn/<id>`) before the TanStack Router migration.
+   * Two callers went on emitting the old shape until 2026-07-30, which matched no
+   * route — see `Continue.tsx`.
    */
   learnId: string | null;
 }) {
@@ -48,6 +55,29 @@ export function Curriculum({
     load.state === 'ready'
       ? new Map(load.units.flatMap((u) => u.lessons).map((l) => [l.id, l.title]))
       : new Map<string, string>();
+
+  /*
+   * The landing half of the "Begin" flow.
+   *
+   * `learnId` gets here from `?learn=<id>` and its only job is to make one row
+   * open itself. If it matches no lesson, the page renders perfectly and simply
+   * does nothing — indistinguishable from the wrong-URL bug that motivated this
+   * tracing, so the miss is called out rather than shrugged off.
+   */
+  useEffect(() => {
+    if (learnId === null || load.state !== 'ready') return;
+
+    const found = load.units
+      .flatMap((unit) => unit.lessons)
+      .some((lesson) => lesson.id === learnId);
+
+    if (found) log('ui', `curriculum: opening row for ${learnId}`);
+    else
+      logError('ui', `curriculum: ?learn=${learnId} matches no lesson — no row will open`, {
+        learnId,
+        hint: 'A stale lesson id in the URL, or an id from a different environment’s database.',
+      });
+  }, [learnId, load]);
 
   function stateOf(lesson: LessonSummary): LessonState {
     if (completedLessonIds === null) return { completed: false, locked: false };
@@ -176,12 +206,16 @@ function UnitCard({
         root CLAUDE.md.
       */}
       {allDone ? (
-        <a className="btn btn-primary unit-checkpoint" href={`#/checkpoint/${unit.slug}`}>
+        <Link
+          className="btn btn-primary unit-checkpoint"
+          to="/checkpoint/$unit"
+          params={{ unit: unit.slug }}
+        >
           Test yourself on {unit.label}
           <span className="unit-checkpoint-sub">
             {Math.min(CHECKPOINT_MAX_QUESTIONS, unit.itemCount)} questions, one shot each
           </span>
-        </a>
+        </Link>
       ) : null}
     </article>
   );
@@ -232,7 +266,15 @@ function LessonRow({
    * it does for a click.
    */
   useEffect(() => {
-    if (!highlight || !detailsRef.current) return;
+    if (!highlight) return;
+    if (!detailsRef.current) {
+      // The ref being empty on a highlighted row means the row rendered without
+      // its `<details>` — nothing opens and nothing scrolls, silently.
+      logError('ui', `lesson row ${lesson.id} is highlighted but has no <details> node`);
+      return;
+    }
+
+    log('ui', `lesson row ${lesson.id}: opening and scrolling into view`);
 
     const node = detailsRef.current;
     node.open = true;
@@ -243,7 +285,7 @@ function LessonRow({
         ? 'auto'
         : 'smooth',
     });
-  }, [highlight]);
+  }, [highlight, lesson.id]);
 
   function onToggle(event: SyntheticEvent<HTMLDetailsElement>) {
     // `event.currentTarget.open` is the DOM truth after this toggle. The
@@ -301,9 +343,9 @@ function LessonRow({
                 ) : state.completed ? (
                   // Already taught. Straight to the questions — walking the
                   // cards again is what the list above is for.
-                  <a className="btn btn-primary" href={`#/lesson/${lesson.id}`}>
+                  <Link className="btn btn-primary" to="/lesson/$id" params={{ id: lesson.id }}>
                     Practise again
-                  </a>
+                  </Link>
                 ) : (
                   <>
                     {/* Never seen. The teach step first, because a quiz on
@@ -311,12 +353,12 @@ function LessonRow({
                         game — the same reason a finished lesson whose
                         successor is unlearned sends you here rather than
                         into its quiz. */}
-                    <a className="btn btn-primary" href={`#/study/${lesson.id}`}>
+                    <Link className="btn btn-primary" to="/study/$id" params={{ id: lesson.id }}>
                       Learn it
-                    </a>
-                    <a className="link-button" href={`#/lesson/${lesson.id}`}>
+                    </Link>
+                    <Link className="link-button" to="/lesson/$id" params={{ id: lesson.id }}>
                       Skip to the quiz
-                    </a>
+                    </Link>
                   </>
                 )}
               </div>

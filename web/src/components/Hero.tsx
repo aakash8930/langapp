@@ -1,7 +1,31 @@
 import { forwardRef, useEffect, useRef } from 'react';
 import { Link } from '@tanstack/react-router';
-import { countUp } from '../motion';
+import { logError } from '../debug';
+import { countUp, scrollToSection } from '../motion';
 import { useSession } from '../useSession';
+
+/**
+ * An in-page jump, as a click handler rather than an `href="#id"`.
+ *
+ * The hash belongs to the router here. `href="#start"` makes the router read
+ * `start` as a path, match nothing, and render the not-found screen over the
+ * section it just scrolled to — the same defect as the `#/learn/<id>` "Begin"
+ * button. See `scrollToSection`.
+ *
+ * The `href` stays, and is load-bearing: an anchor without one is not focusable
+ * and drops out of the tab order entirely. So the element keeps a real `href`
+ * for its semantics and the handler suppresses the navigation it would cause.
+ * A missing target is logged, because the failure is otherwise a click that
+ * does nothing at all.
+ */
+function jumpTo(id: string) {
+  return (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    if (!scrollToSection(id)) {
+      logError('ui', `no #${id} section on this page to scroll to`);
+    }
+  };
+}
 
 type Totals = { units: number; lessons: number; items: number } | null;
 
@@ -25,7 +49,7 @@ export const Hero = forwardRef<HTMLElement, { totals: Totals }>(function Hero({ 
 
         <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }} data-hero-line>
           {session.state === 'signedOut' ? (
-            <a href="#start" className="btn btn-primary">
+            <a href="#start" className="btn btn-primary" onClick={jumpTo('start')}>
               Get Started for Free
             </a>
           ) : (
@@ -33,7 +57,7 @@ export const Hero = forwardRef<HTMLElement, { totals: Totals }>(function Hero({ 
               Continue Learning
             </Link>
           )}
-          <a href="#curriculum" className="btn btn-secondary">
+          <a href="#curriculum" className="btn btn-secondary" onClick={jumpTo('curriculum')}>
             Explore Curriculum
           </a>
         </div>

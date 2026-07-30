@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 
 import { fetchLessons, groupByUnit, type Unit } from '../api';
 import { CheckpointQuiz } from '../components/CheckpointQuiz';
@@ -60,9 +60,9 @@ function CheckpointRoute() {
           A checkpoint is scored against your own progress, so it needs an account. Browsing the
           course does not.
         </span>
-        <a className="btn btn-primary" href="#/">
+        <Link className="btn btn-primary" to="/">
           Back to the course
-        </a>
+        </Link>
       </div>
     </main>
   );

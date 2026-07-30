@@ -11,6 +11,7 @@
  */
 
 import { emitSessionExpired, getTokens, setTokens, type Tokens, type User } from './auth';
+import { log, logError } from './debug';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '');
 
@@ -101,8 +102,23 @@ async function readError(response: Response): Promise<string> {
   return `The server returned ${response.status}.`;
 }
 
+/**
+ * Every request goes through here, and so does every request's trace line.
+ *
+ * One place rather than per-endpoint logging: `send` is the only function that
+ * touches `fetch`, so instrumenting it covers all ~40 callers and cannot drift
+ * out of step with new ones. The method, path, status and duration are the four
+ * facts that separate "the click did nothing" from "the server said no" from
+ * "the laptop is asleep" — and only the third of those produces a network-tab
+ * entry that explains itself.
+ */
 async function send<T>(path: string, init: RequestInit = {}, accessToken?: string): Promise<T> {
+  const method = init.method ?? 'GET';
+
   if (!BASE_URL) {
+    // A misconfigured build, not a server problem. Ungated because the page is
+    // about to show a generic failure that names the wrong culprit.
+    logError('api', 'VITE_API_URL is unset — no request was attempted', { method, path });
     throw new ApiError(
       'VITE_API_URL is not set. Copy .env.example to .env, point it at the API, and restart the dev server.',
       0,
@@ -114,6 +130,11 @@ async function send<T>(path: string, init: RequestInit = {}, accessToken?: strin
   if (init.body !== undefined) headers.set('Content-Type', 'application/json');
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
 
+  const started = performance.now();
+  // `authed: true/false` rather than the token — the leak rule is about the
+  // client too, and a bearer in a console line is a bearer in a screenshot.
+  log('api', `→ ${method} ${path}`, { authed: accessToken !== undefined });
+
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
@@ -123,17 +144,40 @@ async function send<T>(path: string, init: RequestInit = {}, accessToken?: strin
       // forever behind a funnel that terminates TLS for a dead service.
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-  } catch {
+  } catch (cause) {
+    // The original error is otherwise swallowed by the friendly message, and it
+    // is the only thing that distinguishes a timeout from DNS from CORS — the
+    // last of which is the documented symptom of `CORS_ORIGINS` being unset.
+    logError('api', `✗ ${method} ${path} did not complete`, {
+      ms: Math.round(performance.now() - started),
+      cause,
+      hint: 'Timeout, DNS, or CORS. A CORS rejection means the API needs CORS_ORIGINS set to this origin.',
+    });
     throw new ApiError(
       'Can’t reach the server. The API runs on a laptop — check that it’s awake, then try again.',
       0,
     );
   }
 
-  if (!response.ok) throw new ApiError(await readError(response), response.status);
-  if (response.status === 204) return undefined as T;
+  const ms = Math.round(performance.now() - started);
 
-  return (await response.json()) as T;
+  if (!response.ok) {
+    const message = await readError(response);
+    // Ungated: a non-2xx resolves rather than throwing at the network layer, so
+    // without this a 401/403/409 is invisible unless someone opens the network
+    // tab and reads the body.
+    logError('api', `✗ ${method} ${path} → ${response.status}`, { ms, message });
+    throw new ApiError(message, response.status);
+  }
+
+  if (response.status === 204) {
+    log('api', `← ${method} ${path} → 204`, { ms });
+    return undefined as T;
+  }
+
+  const body = (await response.json()) as T;
+  log('api', `← ${method} ${path} → ${response.status}`, { ms, body });
+  return body;
 }
 
 function get<T>(path: string): Promise<T> {
@@ -165,7 +209,15 @@ export function fetchLesson(id: string): Promise<LessonDetail> {
 let refreshInFlight: Promise<Tokens> | null = null;
 
 function refresh(refreshToken: string): Promise<Tokens> {
-  if (refreshInFlight) return refreshInFlight;
+  if (refreshInFlight) {
+    // Worth seeing: this branch firing is the serialisation working. If a trace
+    // ever shows two `/auth/refresh` requests instead of this line, rotation is
+    // being raced and the session will die for no reason.
+    log('auth', 'refresh already in flight — joining it');
+    return refreshInFlight;
+  }
+
+  log('auth', 'refreshing tokens');
 
   const pending = (async () => {
     try {
@@ -189,6 +241,7 @@ function refresh(refreshToken: string): Promise<Tokens> {
 async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
   const tokens = getTokens();
   if (!tokens) {
+    log('auth', `no tokens — ${path} refused before it was sent`);
     emitSessionExpired();
     throw new ApiError('Sign in to continue.', 401);
   }
@@ -198,13 +251,19 @@ async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
 
+    log('auth', `401 on ${path} — attempting one refresh-and-retry`);
+
     let renewed: Tokens;
     try {
       renewed = await refresh(tokens.refreshToken);
     } catch (refreshError) {
       // A refresh that failed because the server is unreachable is not an
       // expired session — keep the tokens so it recovers when it is back.
-      if (refreshError instanceof ApiError && refreshError.status === 0) throw refreshError;
+      if (refreshError instanceof ApiError && refreshError.status === 0) {
+        log('auth', 'refresh failed on an unreachable server — tokens kept');
+        throw refreshError;
+      }
+      logError('auth', 'refresh rejected — session over', { path, refreshError });
       emitSessionExpired();
       throw new ApiError('Your session expired. Sign in again.', 401);
     }
@@ -213,6 +272,7 @@ async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
       return await send<T>(path, init, renewed.accessToken);
     } catch (retryError) {
       if (retryError instanceof ApiError && retryError.status === 401) {
+        logError('auth', `401 again on ${path} after a fresh token — session over`);
         emitSessionExpired();
         throw new ApiError('Your session expired. Sign in again.', 401);
       }

@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
@@ -384,9 +385,9 @@ function Summary({
           Back to the course
         </button>
         {result.passed ? null : (
-          <a className="link-button" href="#/review">
+          <Link className="link-button" to="/review">
             Practise the misses first
-          </a>
+          </Link>
         )}
       </div>
     </div>
