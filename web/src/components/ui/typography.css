@@ -1,0 +1,33 @@
+.ui-text {
+  margin: 0;
+  color: var(--ink);
+}
+
+.ui-text-display {
+  font-size: var(--text-display);
+  font-weight: 800;
+}
+
+.ui-text-h1 {
+  font-size: var(--text-heading);
+  font-weight: 700;
+}
+
+.ui-text-h2 {
+  font-size: var(--text-title);
+  font-weight: 700;
+}
+
+.ui-text-h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.ui-text-body {
+  font-size: var(--text-body);
+}
+
+.ui-text-caption {
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
