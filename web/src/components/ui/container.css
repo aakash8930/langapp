@@ -1,0 +1,12 @@
+.ui-container {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: var(--s-xl);
+}
+
+@media (max-width: 768px) {
+  .ui-container {
+    padding-inline: var(--s-lg);
+  }
+}
