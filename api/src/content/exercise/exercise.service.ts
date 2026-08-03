@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, Logger, UnprocessableEntityException, forwardRef } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { ContentService } from '../content.service';
+import { decomposeIntoKana } from '../../common/kana/decompose';
 import {
   AnswerResult,
   ExerciseSet,
@@ -366,6 +367,16 @@ export class ExerciseService {
       return;
     }
 
+    // A missed word is also a character-level signal. The learner may know
+    // what 「ねこ」 means yet stumble over ね; recording only the vocab card
+    // would make that diagnostic invisible to the next kana-focused lesson.
+    // Kana questions already recorded their own item above, so expand only
+    // word-shaped prompts. This is intentionally best-effort like the other
+    // learning-model writes: feedback to the learner must never become a 500.
+    if (question && (question.promptKind === 'vocab' || question.promptKind === 'wordReading')) {
+      await this.recordCharacterMistakes(userId, question.prompt, responseTimeMs);
+    }
+
     // Wrong answer: pull this item's SRS card due immediately so it surfaces in
     // the learner's next review. Fire-and-forget — `scheduleItemDue` never
     // throws, so this cannot fail the answer response.
@@ -381,6 +392,33 @@ export class ExerciseService {
               `${err instanceof Error ? err.message : String(err)}`,
           );
         });
+    }
+  }
+
+  private async recordCharacterMistakes(
+    userId: string,
+    prompt: string,
+    responseTimeMs?: number,
+  ): Promise<void> {
+    try {
+      const kana = await this.contentService.findKanaByCharacters(decomposeIntoKana(prompt));
+      await Promise.all(
+        kana.map((item) =>
+          this.learnerItemStateService.record({
+            userId: new Types.ObjectId(userId),
+            itemRef: { kind: 'kana', id: item._id },
+            outcome: { correct: false, responseTimeMs },
+            exerciseType: 'wordReading',
+            sourceContext: 'reading',
+          }),
+        ),
+      );
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Character mistake logging lost for user ${userId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
     }
   }
 
@@ -629,4 +667,3 @@ function parseExerciseId(exerciseId: string): { attempt: number; index: number }
 
   return { attempt: Number(match[1]), index: Number(match[2]) };
 }
-

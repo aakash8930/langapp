@@ -7,14 +7,25 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import { ContentService } from '../content/content.service';
 import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
+import { localDateString } from '../user/gamification/streak';
 import {
   DueCard,
   DueReviewsResponse,
   GradeReviewResponse,
+  DailyStudySessionResponse,
 } from './dto/review.dto';
 import { fromFsrsCard, gradeToRating, ReviewGrade, toFsrsCard } from './fsrs-card.mapper';
 import { LearnerItemStateService } from './learner-item-state.service';
-import { computeMastery, SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
+import {
+  computeMastery,
+  RECENT_REVIEW_WINDOW,
+  SrsCard,
+  SrsCardDocument,
+} from './schemas/srs-card.schema';
+import {
+  DailyStudySession,
+  DailyStudySessionDocument,
+} from './schemas/daily-study-session.schema';
 
 /** §6: cap a session so it's bounded. */
 export const REVIEW_SESSION_CAP = 20;
@@ -25,6 +36,7 @@ export const REVIEW_SESSION_CAP = 20;
  * handles it correctly) and awards nothing. OPEN-ITEMS #0b.
  */
 export const XP_PER_REVIEW = 2;
+export const DAILY_NEW_CARD_CAP = 5;
 
 /**
  * The review loop (§6). All scheduling math belongs to ts-fsrs — this class
@@ -45,6 +57,8 @@ export class ReviewService {
     // service handles its own failure semantics (never throws) and we still
     // guard here so a contract change cannot undo a saved grade.
     private readonly learnerItemStateService: LearnerItemStateService,
+    @InjectModel(DailyStudySession.name)
+    private readonly dailySessionModel?: Model<DailyStudySessionDocument>,
   ) {
     // Default parameters: learning steps 1m -> 10m, relearning 10m.
     this.scheduler = fsrs(generatorParameters());
@@ -102,6 +116,108 @@ export class ReviewService {
   }
 
   /**
+   * Generate today's stable study set once: due review cards take priority,
+   * then up to five genuinely new cards fill the remaining space. The selected
+   * ids are persisted, so returning later today never changes the queue.
+   */
+  async findDailySession(userId: string): Promise<DailyStudySessionResponse> {
+    if (!this.dailySessionModel) {
+      throw new Error('Daily study sessions are not configured');
+    }
+    const user = await this.requireUser(userId);
+    const now = new Date();
+    const localDate = localDateString(now, user.settings.tz);
+    const existing = await this.dailySessionModel
+      .findOne({ userId: new Types.ObjectId(userId), localDate })
+      .exec();
+
+    if (existing) {
+      const cards = await this.srsCardModel.find({ _id: { $in: existing.cardIds } }).exec();
+      return this.toDailySessionResponse(cards, existing, localDate);
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+    const due = await this.srsCardModel
+      .find({ userId: userObjectId, due: { $lte: now }, state: { $ne: 'new' } })
+      .sort({ due: 1 })
+      .limit(REVIEW_SESSION_CAP)
+      .exec();
+    const remaining = Math.max(0, REVIEW_SESSION_CAP - due.length);
+    const newCards = remaining === 0
+      ? []
+      : await this.srsCardModel
+          .find({ userId: userObjectId, due: { $lte: now }, state: 'new' })
+          .sort({ createdAt: 1, _id: 1 })
+          .limit(Math.min(remaining, DAILY_NEW_CARD_CAP))
+          .exec();
+    const cardIds = [...due, ...newCards].map((card) => card._id);
+
+    let session: DailyStudySessionDocument;
+    try {
+      session = await this.dailySessionModel.create({
+        userId: userObjectId,
+        localDate,
+        cardIds,
+        dueCount: due.length,
+        newCount: newCards.length,
+      });
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && (err as { code?: number }).code === 11000) {
+        const winner = await this.dailySessionModel
+          .findOne({ userId: userObjectId, localDate })
+          .exec();
+        if (winner) {
+          const cards = await this.srsCardModel.find({ _id: { $in: winner.cardIds } }).exec();
+          return this.toDailySessionResponse(cards, winner, localDate);
+        }
+      }
+      throw err;
+    }
+    return this.toDailySessionResponse([...due, ...newCards], session, localDate);
+  }
+
+  private async toDailySessionResponse(
+    cards: SrsCardDocument[],
+    session: DailyStudySessionDocument,
+    localDate: string,
+  ): Promise<DailyStudySessionResponse> {
+    const byId = new Map(cards.map((card) => [card._id.toString(), card]));
+    const ordered = session.cardIds
+      .map((id) => byId.get(id.toString()))
+      .filter((card): card is SrsCardDocument => card !== undefined);
+    const items = await this.contentService.resolveItemRefs(
+      ordered.map((card) => ({ kind: card.itemRef.kind, id: card.itemRef.id })),
+    );
+    const itemsById = new Map(items.map((item) => [item.id, item]));
+    const due = ordered.flatMap((card) => {
+      const item = itemsById.get(card.itemRef.id.toString());
+      if (!item) return [];
+      const totalReviews = card.totalReviews ?? 0;
+      const correctReviews = card.correctReviews ?? 0;
+      return [{
+        cardId: card._id.toString(),
+        state: card.state,
+        mastery: computeMastery(card),
+        due: card.due,
+        reps: card.reps,
+        lapses: card.lapses,
+        totalReviews,
+        accuracyRate: totalReviews === 0 ? 0 : Number((correctReviews / totalReviews).toFixed(2)),
+        item,
+      }];
+    });
+    return {
+      localDate,
+      dueCount: session.dueCount,
+      newCount: session.newCount,
+      count: due.length,
+      totalDue: session.dueCount + session.newCount,
+      cap: REVIEW_SESSION_CAP,
+      cards: due,
+    };
+  }
+
+  /**
    * Just the number of cards due, for /me/progress. Separate from `findDue`
    * deliberately: that one resolves every card's content through the content
    * service to render a session, which is a lot of work to throw away when the
@@ -151,9 +267,14 @@ export class ReviewService {
 
     card.set(fields);
     card.totalReviews = (card.totalReviews ?? 0) + 1;
-    if (grade === 'good' || grade === 'easy') {
+    const recalled = grade === 'good' || grade === 'easy';
+    if (recalled) {
       card.correctReviews = (card.correctReviews ?? 0) + 1;
     }
+    card.recentReviewOutcomes = [
+      ...(card.recentReviewOutcomes ?? []),
+      recalled,
+    ].slice(-RECENT_REVIEW_WINDOW);
     await card.save();
 
     const xpAwarded = wasDue ? XP_PER_REVIEW : 0;

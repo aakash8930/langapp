@@ -1,0 +1,7 @@
+.app-main {
+  flex: 1;
+
+  padding: var(--s-2xl);
+
+  overflow-y: auto;
+}

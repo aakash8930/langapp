@@ -12,7 +12,11 @@ import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { newCardFields } from './fsrs-card.mapper';
 import { LearnerItemStateService } from './learner-item-state.service';
 import { LessonCompletion, LessonCompletionDocument } from './schemas/lesson-completion.schema';
-import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
+import {
+  RECENT_REVIEW_WINDOW,
+  SrsCard,
+  SrsCardDocument,
+} from './schemas/srs-card.schema';
 
 /**
  * Awarded once per lesson, on the completion that creates the record.
@@ -23,6 +27,10 @@ export const XP_PER_LESSON_COMPLETION = 10;
 
 /** Fallback when XP_PER_LESSON_PRACTICE is absent; the config module validates it. */
 export const DEFAULT_XP_PER_LESSON_PRACTICE = 2;
+
+/** At least this many recent prerequisite reviews must support an unlock. */
+export const MIN_MASTERY_GATE_REVIEWS = 5;
+export const MASTERY_GATE_ACCURACY = 0.9;
 
 /** Mongo duplicate-key error. */
 const DUPLICATE_KEY = 11000;
@@ -74,6 +82,7 @@ export class LearningService {
     // are the defence for the API-spoof paths (curl, replay, future client
     // that forgets the prerequisite check).
     await this.assertPrerequisitesMet(userId, lesson.prerequisiteLessonIds);
+    await this.assertPrerequisitesMastered(userId, lesson.prerequisiteLessonIds);
     await this.assertUserAnsweredEverythingCorrectly(userId, lesson.id);
 
     const created = await this.seedCards(userId, lesson.items);
@@ -84,6 +93,30 @@ export class LearningService {
     // completion look like a replay.
     const completion = await this.recordCompletion(userId, lesson.id);
     const firstCompletion = completion.timesCompleted === 1;
+
+    // Phase 0 — Data foundation. On first completion only, union the lesson's
+    // kana items into `learningState.knownKana`. Re-completions add nothing the
+    // learner did not already have, and going down this branch on every
+    // completion would spend a write per replay for no gain. `$addToSet`
+    // inside `UserService.addKnownKana` is the idempotency backstop that makes
+    // a lesson teaching *no* kana (e.g. vocab-only checkpoint reviews) free.
+    if (firstCompletion) {
+      const newKana: string[] = [];
+      const seen = new Set<string>();
+      for (const item of lesson.items) {
+        if (item.kind !== 'kana') {
+          continue;
+        }
+        if (seen.has(item.kana)) {
+          continue;
+        }
+        seen.add(item.kana);
+        newKana.push(item.kana);
+      }
+      if (newKana.length > 0) {
+        await this.userService.addKnownKana(userId, newKana);
+      }
+    }
 
     // Full award once, practice award thereafter (OPEN-ITEMS #0). The upsert is
     // atomic, so two concurrent first completions produce timesCompleted 1 and 2
@@ -154,6 +187,42 @@ export class LearningService {
     throw new ConflictException(
       `Complete these lessons first: ${missing.join(', ')}`,
     );
+  }
+
+  /**
+   * Phase 2's advancement rule. A completed prerequisite opens the *review*
+   * queue; it does not alone certify retention. Before the next lesson can be
+   * completed, its prerequisite items need at least 90% correct across their
+   * bounded recent-review windows. This deliberately ignores streaks and XP.
+   */
+  private async assertPrerequisitesMastered(
+    userId: string,
+    prerequisiteLessonIds: string[],
+  ): Promise<void> {
+    if (prerequisiteLessonIds.length === 0) return;
+
+    const prerequisites = await Promise.all(
+      prerequisiteLessonIds.map((id) => this.contentService.findLessonById(id)),
+    );
+    const itemIds = prerequisites
+      .flatMap((lesson) => lesson.items)
+      .map((item) => new Types.ObjectId(item.id));
+    if (itemIds.length === 0) return;
+
+    const cards = await this.srsCardModel
+      .find({ userId: new Types.ObjectId(userId), 'itemRef.id': { $in: itemIds } })
+      .select('recentReviewOutcomes')
+      .exec();
+    const outcomes = cards.flatMap((card) => card.recentReviewOutcomes ?? []).slice(-RECENT_REVIEW_WINDOW);
+    const requiredReviews = Math.min(MIN_MASTERY_GATE_REVIEWS, itemIds.length);
+    const accuracy = outcomes.length === 0 ? 0 : outcomes.filter(Boolean).length / outcomes.length;
+
+    if (outcomes.length < requiredReviews || accuracy < MASTERY_GATE_ACCURACY) {
+      const percent = Math.round(accuracy * 100);
+      throw new ConflictException(
+        `Review prerequisite lessons to unlock this one: ${percent}% recent accuracy (${outcomes.length}/${requiredReviews} reviews; 90% required).`,
+      );
+    }
   }
 
   /**

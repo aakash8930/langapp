@@ -11,6 +11,8 @@ import { CheckpointService } from './checkpoint/checkpoint.service';
 import { ExerciseController } from './exercise.controller';
 import { ExerciseService } from './exercise/exercise.service';
 import { LessonController } from './lesson.controller';
+import { VocabController } from './vocab.controller';
+import { GrammarController } from './grammar.controller';
 import { GrammarPoint, GrammarPointSchema } from './schemas/grammar-point.schema';
 import { KanaItem, KanaItemSchema } from './schemas/kana-item.schema';
 import { KanjiEntry, KanjiEntrySchema } from './schemas/kanji-entry.schema';
@@ -59,6 +61,8 @@ import { CreatorController } from './creator.controller';
   ],
   controllers: [
     LessonController,
+    VocabController,
+    GrammarController,
     ExerciseController,
     CheckpointController,
     AudioController,

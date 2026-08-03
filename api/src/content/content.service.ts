@@ -12,6 +12,18 @@ import {
   toLessonSummary,
   vocabToResolved,
 } from './dto/lesson-response.dto';
+import {
+  KanaCurriculumRow,
+  toCurriculumRow,
+} from './dto/curriculum-response.dto';
+import {
+  toVocabReadabilityRow,
+  VocabReadabilityRow,
+} from './dto/vocab-readability-response.dto';
+import {
+  SentenceReadabilityRow,
+  toSentenceReadabilityRow,
+} from './dto/sentence-readability-response.dto';
 import { GrammarPoint, GrammarPointDocument } from './schemas/grammar-point.schema';
 import { KanaItem, KanaItemDocument } from './schemas/kana-item.schema';
 import { KanjiEntry, KanjiEntryDocument } from './schemas/kanji-entry.schema';
@@ -20,6 +32,7 @@ import { JlptLevel, VocabItem, VocabItemDocument } from './schemas/vocab-item.sc
 
 import { ContentReport, ContentReportDocument } from './schemas/content-report.schema';
 import { ReportMistakeDto } from './dto/report-mistake.dto';
+import { UserService } from '../user/user.service';
 
 /**
  * One lesson as the knowledge graph needs to see it (ADR-005): ids, not
@@ -62,6 +75,15 @@ export class ContentService {
     @InjectModel(GrammarPoint.name) private readonly grammarModel: Model<GrammarPointDocument>,
     @InjectModel(KanjiEntry.name) private readonly kanjiModel: Model<KanjiEntryDocument>,
     @InjectModel(ContentReport.name) private readonly reportModel: Model<ContentReportDocument>,
+    /**
+     * Phase 0 — Data foundation. Used *only* by `findVocabByKnownKana`, which
+     * needs the learner's `learningState.knownKana` to compute the readability
+     * filter. Pulled in here rather than letting the controller read the user
+     * and pass `knownKana` across the boundary so the service stays the
+     * authority on "what does the learner know" — controllers never see the
+     * sub-document shape.
+     */
+    private readonly userService: UserService,
   ) {}
 
   async findLessons(unit?: string): Promise<LessonSummary[]> {
@@ -72,6 +94,184 @@ export class ContentService {
 
     const lessons = await this.lessonModel.find(filter).sort({ unit: 1, order: 1 }).exec();
     return lessons.map(toLessonSummary);
+  }
+
+  /**
+   * Phase 0 — Data foundation. The canonical kana curriculum.
+   *
+   * Reads every kana item in teaching order `(script, taughtInLesson, order)`
+   * and projects each row through
+   * `toCurriculumRow`. There is no filter on `taughtInLesson`: absent is a
+   * valid state (pre-migration or for an unattributable character), and the
+   * response serialises it as `null` rather than dropping the row, so the
+   * client-side list keeps stable identity across migration state.
+   *
+   * The endpoint is unauthenticated for the same reason `/lessons` is: kana
+   * ordering is shared reference content. OPEN-ITEMS Phase 0 #3 notes the
+   * same scraping trade-off and the same one-line `JwtAuthGuard` fix.
+   */
+  async findKanaCurriculum(): Promise<KanaCurriculumRow[]> {
+    const rows = await this.kanaModel
+      .find({ lang: 'ja' })
+      .sort({ script: 1, taughtInLesson: 1, order: 1, kana: 1 })
+      .exec();
+    return rows.map(toCurriculumRow);
+  }
+
+  /**
+   * Phase 0 — Data foundation. Vocab filtered by `constituentKana ⊆ knownKana`.
+   *
+   * Returns words the learner can read *right now* — every kana they have
+   * been taught appears in the word's composition. The query is intentionally
+   * simple: `$all` against the partial multikey index on `constituentKana`
+   * gives every row whose constituent array contains every requested
+   * character; the constraint is then `$not` any character *not* in
+   * `knownKana`, which is the intersection in code (Mongo has no `$subset`).
+   *
+   * Three deliberate limits, all protective against Phase-0 misuse:
+   *  - `cap` defaults to 200 and is bounded — the bare reading screen is the
+   *    only caller today and pulls one row; a future caller that wants the
+   *    entire readable corpus should request explicitly because pagination
+   *    is the next conversation we have.
+   *  - An empty `knownKana` set returns `[]`, not "everything" — a brand-new
+   *    learner has not been taught anything, so any readable word would be
+   *    a lie. The bare reading screen surfaces this as an explainer.
+   *  - The endpoint is bearer-protected; `UserService.findById` is the only
+   *    way the response DTO gets a learner id, and the bearer is the gate.
+   */
+  async findVocabByKnownKana(
+    userId: Types.ObjectId,
+    cap: number,
+  ): Promise<VocabReadabilityRow[]> {
+    const user = await this.userService.findById(userId.toString());
+    if (!user) {
+      // Bearer-protected route — a valid token always resolves a user, so a
+      // missing document is a server-side inconsistency rather than a 401.
+      throw new NotFoundException('User not found');
+    }
+    const knownKana = user.learningState?.knownKana ?? [];
+    if (knownKana.length === 0) {
+      return [];
+    }
+    if (cap <= 0) {
+      return [];
+    }
+
+    // `$not + $elemMatch + $nin` is Mongo's subset query: it rejects a word
+    // as soon as one of its component characters is not in `knownKana`.
+    // `$all: knownKana` would mean the opposite (a word has *every character
+    // the learner knows*) and is especially harmful early in the course: a
+    // learner who knows あいうえお would be shown only five-vowel words.
+    // Keep the small in-memory check below as the final guarantee and to
+    // protect documents written before the migration.
+    const candidates = await this.vocabModel
+      .find({
+        lang: 'ja',
+        constituentKana: {
+          $exists: true,
+          $not: { $elemMatch: { $nin: knownKana } },
+        },
+      })
+      .lean<VocabItemDocument[]>()
+      .exec();
+
+    const filtered = candidates.filter((vocab) => {
+      const kana = vocab.constituentKana ?? [];
+      if (kana.length === 0) {
+        return false;
+      }
+      for (const ch of kana) {
+        if (!knownKana.includes(ch)) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Stable order so the bare reading screen fetches in a deterministic shape
+    // — by `lemma` ascending, with `_id` as a tiebreaker so a same-lemma
+    // vocabulary set never reorders between calls.
+    filtered.sort((a, b) => {
+      if (a.lemma < b.lemma) return -1;
+      if (a.lemma > b.lemma) return 1;
+      return a._id.toString().localeCompare(b._id.toString());
+    });
+
+    return filtered.slice(0, cap).map(toVocabReadabilityRow);
+  }
+
+  /**
+   * Phase 3 #15 — Sentence-level reading. Parallel to `findVocabByKnownKana`
+   * for grammar examples: return every example whose `constituentKana` is a
+   * subset of the learner's `knownKana`.
+   *
+   * The filter is the same shape as the vocab one — `$not + $elemMatch +
+   * $nin` rejects an example as soon as one of its kana is not in the known
+   * set, with a final in-memory check to keep documents written before the
+   * `constituentKana` field existed (or whose sentence contained no kana)
+   * from silently matching. The query is in JS rather than in the Mongo
+   * expression because the projection is per-element inside an array-of-
+   * arrays, and the corpus is small — the grammar unit has on the order of
+   * a dozen points with one example each.
+   *
+   * Stable order is by `(grammarPointId, exampleIndex)` so a re-fetch on
+   * the same day yields the same list, which is the same property the vocab
+   * reader provides by sorting on `lemma`.
+   *
+   * `cap` is the total number of *examples* returned, not the number of
+   * grammar points — a point with three examples can supply three rows.
+   */
+  async findSentencesByKnownKana(
+    userId: Types.ObjectId,
+    cap: number,
+  ): Promise<SentenceReadabilityRow[]> {
+    const user = await this.userService.findById(userId.toString());
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const knownKana = user.learningState?.knownKana ?? [];
+    if (knownKana.length === 0) {
+      return [];
+    }
+    if (cap <= 0) {
+      return [];
+    }
+
+    const known = new Set(knownKana);
+    const docs = await this.grammarModel
+      .find({ lang: 'ja', 'examples.0': { $exists: true } })
+      .lean<GrammarPointDocument[]>()
+      .exec();
+
+    const rows: SentenceReadabilityRow[] = [];
+    for (const doc of docs) {
+      const examples = doc.examples ?? [];
+      for (let index = 0; index < examples.length; index += 1) {
+        const example = examples[index];
+        const kana = example.constituentKana ?? [];
+        if (kana.length === 0) {
+          // No kana to test against — either a sentence made entirely of
+          // kanji/punctuation, or a pre-seed doc whose field was never
+          // backfilled. Skip rather than return it as everything-the-learner-
+          // knows: the constrained filter is the safety here, and an empty
+          // `constituentKana` would silently pass for any learner.
+          continue;
+        }
+        let readable = true;
+        for (const ch of kana) {
+          if (!known.has(ch)) {
+            readable = false;
+            break;
+          }
+        }
+        if (!readable) continue;
+        rows.push(toSentenceReadabilityRow(doc, index));
+        if (rows.length >= cap) break;
+      }
+      if (rows.length >= cap) break;
+    }
+
+    return rows;
   }
 
   async findLessonById(id: string): Promise<LessonDetail> {
@@ -149,6 +349,20 @@ export class ContentService {
     }
 
     return this.kanaModel.find({ _id: { $in: kanaIds } }).exec();
+  }
+
+  /**
+   * Resolve the concrete kana documents represented by a displayed word.
+   *
+   * Phase 1 uses this only after a missed vocabulary/reading answer: a word
+   * miss is useful evidence about each character the learner had to decode,
+   * not just the vocabulary card. Keeping this lookup in ContentService means
+   * ExerciseService does not reach into the content collection directly.
+   */
+  async findKanaByCharacters(characters: readonly string[]): Promise<KanaItemDocument[]> {
+    const unique = [...new Set(characters)];
+    if (unique.length === 0) return [];
+    return this.kanaModel.find({ lang: 'ja', kana: { $in: unique } }).exec();
   }
 
   /**
@@ -331,6 +545,17 @@ export class ContentService {
     await this.kanaModel.updateOne({ _id: kanaId }, { $set: { conceptId } }).exec();
   }
 
+  /** Stamp the source lesson's order on every character it introduces. */
+  async setKanaTaughtInLesson(kanaIds: Types.ObjectId[], lessonOrder: number): Promise<void> {
+    if (kanaIds.length === 0) return;
+    await this.kanaModel
+      .updateMany(
+        { _id: { $in: kanaIds } },
+        { $set: { taughtInLesson: lessonOrder } },
+      )
+      .exec();
+  }
+
   async upsertVocab(input: {
     lemma: string;
     reading: string;
@@ -367,7 +592,13 @@ export class ContentService {
     title: string;
     explanation: string;
     jlpt: JlptLevel;
-    examples: { sentence: string; answer: string; romaji: string; gloss: string }[];
+    examples: {
+      sentence: string;
+      answer: string;
+      romaji: string;
+      gloss: string;
+      constituentKana: string[];
+    }[];
   }): Promise<GrammarPointDocument> {
     return this.grammarModel
       .findOneAndUpdate(

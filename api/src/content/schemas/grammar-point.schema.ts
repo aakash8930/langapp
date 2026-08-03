@@ -38,6 +38,19 @@ export class GrammarExample {
    */
   @Prop({ required: true, trim: true })
   gloss: string;
+
+  /**
+   * Unique kana characters in `sentence`, de-duplicated by first occurrence.
+   * Stored, not derived on read, because the reader is the budget path and we
+   * do not want to walk a sentence codepoint by codepoint for every row on
+   * every request. Phase 3 #15: powers `findSentencesByKnownKana`, the
+   * sentence-side parallel to `findVocabByKnownKana`. Seeded by the grammar
+   * pack via `decomposeIntoKana`; absent on pre-seed documents, and the
+   * reader treats `undefined` as "no kana matched" (effectively invisible to
+   * the constrained filter, which is the safe default).
+   */
+  @Prop({ type: [String], default: [] })
+  constituentKana: string[];
 }
 
 const GrammarExampleSchema = SchemaFactory.createForClass(GrammarExample);

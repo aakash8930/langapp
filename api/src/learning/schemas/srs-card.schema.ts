@@ -29,6 +29,9 @@ export const MASTERY_LEVELS: MasteryLevel[] = ['new', 'learning', 'familiar', 'm
 export const STABILITY_DAYS_FAMILIAR = 7;
 export const STABILITY_DAYS_MASTERED = 30;
 
+/** The bounded evidence window used to decide whether a prerequisite is retained. */
+export const RECENT_REVIEW_WINDOW = 10;
+
 /**
  * Computes the human-understandable mastery level from FSRS card stability and reps.
  */
@@ -107,6 +110,10 @@ export class SrsCard {
 
   @Prop({ type: Number, required: true, default: 0, min: 0 })
   correctReviews: number;
+
+  /** Last ten review outcomes, oldest first; updated only by ReviewService. */
+  @Prop({ type: [Boolean], required: true, default: [] })
+  recentReviewOutcomes: boolean[];
 
   /**
    * Written by `timestamps: true`, declared here **without** `@Prop` so it is

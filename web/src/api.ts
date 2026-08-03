@@ -356,6 +356,22 @@ export function fetchProgress(): Promise<Progress> {
   return authed<Progress>('/me/progress');
 }
 
+/** A word that the server has verified uses only the learner's known kana. */
+export type ReadableVocab = {
+  id: string;
+  lemma: string;
+  reading: string;
+  romaji: string | null;
+  gloss: string;
+  jlpt: string;
+  constituentKana: string[];
+};
+
+/** The Phase 0 reading feed. The server, not the client, enforces readability. */
+export function fetchReadableVocab(cap = 30): Promise<ReadableVocab[]> {
+  return authed<ReadableVocab[]>(`/vocab/by-known-kana?cap=${Math.max(0, Math.min(cap, 200))}`);
+}
+
 export type ExerciseOption = { id: string; value: string };
 export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
 

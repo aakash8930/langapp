@@ -33,4 +33,8 @@ export const queryKeys = {
     /** `GET /reviews/due` — the cards the review session consumes. */
     due: ['reviews', 'due'] as const,
   },
+  reading: {
+    /** `GET /vocab/by-known-kana` — server-filtered, character-safe vocabulary. */
+    feed: ['reading', 'by-known-kana'] as const,
+  },
 } as const;

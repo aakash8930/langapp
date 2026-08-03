@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ContentService } from './content.service';
 import { FindLessonsDto } from './dto/find-lessons.dto';
 import { LessonDetail, LessonSummary } from './dto/lesson-response.dto';
+import { KanaCurriculumRow } from './dto/curriculum-response.dto';
 
 /**
  * Unauthenticated on purpose — lessons are shared reference content with no
@@ -15,6 +16,19 @@ export class LessonController {
   @Get()
   async findAll(@Query() query: FindLessonsDto): Promise<LessonSummary[]> {
     return this.contentService.findLessons(query.unit);
+  }
+
+  /**
+   * Phase 0 — Data foundation. The ordered kana curriculum, including each
+   * character's `taughtInLesson` attribution where the migration has stamped it.
+   *
+   * Lives under `/lessons` rather than `/kana` because every row in the
+   * response carries a *lesson* provenance; "what's the next kana I'm going
+   * to learn?" is a question about lessons, not characters.
+   */
+  @Get('curriculum')
+  async findCurriculum(): Promise<KanaCurriculumRow[]> {
+    return this.contentService.findKanaCurriculum();
   }
 
   @Get(':id')

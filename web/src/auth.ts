@@ -34,6 +34,7 @@ export type User = {
   profile: { displayName: string; nativeLanguage: string; activeTrack: string };
   gamification: { xp: number; streakDays: number; lastStudyDate: string | null; dailyGoalXp: number };
   settings: { audioSpeed: number; theme: string; tz: string };
+  learningState: { knownKana: string[] };
 };
 
 /** Storage can throw — Safari private mode, or a user who blocked it entirely. */

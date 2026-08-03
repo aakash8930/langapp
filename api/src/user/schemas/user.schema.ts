@@ -139,6 +139,42 @@ export class Settings {
 }
 export const SettingsSchema = SchemaFactory.createForClass(Settings);
 
+/**
+ * Phase 0 — Data foundation: the aggregate character-mastery state that
+ * gates what content the user is allowed to see. Deliberately separate from
+ * `LearnerItemState` — the two answer different questions:
+ *
+ *  - `LearnerItemState` is per-card FSRS scheduling evidence; one row per
+ *    `(user, card)`, growing with every review, used by the SRS engine.
+ *  - `knownKana` is the *set* of characters the user has been *taught*; it
+ *    answers "what characters may appear on the learner's screen right now",
+ *    which is what the constrained content filter (Phase 1 #5) and the bare
+ *    reading screen (Phase 0 #4) actually need.
+ *
+ * The split matters because the two are updated on different events: FSRS
+ * state changes on every review; `knownKana` changes only on lesson
+ * completion. Conflating them would either force a join through `SrsCard`
+ * on every vocabulary read, or duplicate the lesson-completion signal in two
+ * places. Embedding a tiny `learningState` follows the §5 rule
+ * ("read together, bounded") and keeps `/me` as the single round trip.
+ *
+ * `knownKana` is the union across every completed lesson's `Lesson.itemRefs`
+ * of kind `'kana'`. Computed on `recordCompletion`; never read from raw
+ * `SrsCard` state. Written server-side, never accepted from the client.
+ */
+@Schema({ _id: false })
+export class LearningState {
+  /**
+   * Unique kana characters the learner has been taught. Updated on lesson
+   * completion by `LearningService.completeLesson`. Empty array means
+   * "no kana yet" — the bare reading screen treats that as "nothing
+   * readable" and surfaces an explainer rather than a broken empty list.
+   */
+  @Prop({ type: [String], default: [] })
+  knownKana: string[];
+}
+export const LearningStateSchema = SchemaFactory.createForClass(LearningState);
+
 @Schema({ collection: 'users', timestamps: { createdAt: true, updatedAt: true } })
 export class User {
   @Prop({ required: true, lowercase: true, trim: true })
@@ -159,6 +195,9 @@ export class User {
 
   @Prop({ type: SettingsSchema, required: true, default: () => ({}) })
   settings: Settings;
+
+  @Prop({ type: LearningStateSchema, required: true, default: () => ({}) })
+  learningState: LearningState;
 
   @Prop({ type: Boolean, required: true, default: false })
   isAdmin: boolean;

@@ -48,6 +48,30 @@ export class VocabItem {
 
   @Prop({ type: Types.ObjectId, required: false })
   conceptId?: Types.ObjectId;
+
+  /**
+   * Phase 0 — Data foundation: the distinct kana characters that compose this
+   * word's *lemma* (the display form), in original order, with duplicates
+   * collapsed. Katakana forms get their katakana entry, not the hiragana one
+   * — "always look up the kana you actually see" is the rule (see also OPEN-ITEMS
+   * P0-1 about kanji and mixed-script words, which we do not address here).
+   *
+   * Why lemma, not `reading`: the constrained content filter — "never show a
+   * character the user hasn't been taught" — runs against the form the learner
+   * will see on the screen. Once kanji land (Phase 3+), only `lemma` carries
+   * them, so the filter's input is one stable field across the whole platform.
+   *
+   * Empty for kanji-only words in their introducing lesson; the filter returns
+   * an empty set rather than throwing, and the surface that asks "give me
+   * readable words" simply gets no result back, which is the right answer when
+   * the corpus genuinely has nothing readable yet.
+   *
+   * `required: false` because every existing document predates the field. The
+   * Phase 0 migration (`npm run migrate:phase0-data`) backfills it via
+   * `decomposeIntoKana`; absent therefore means "not yet backfilled".
+   */
+  @Prop({ type: [String], default: undefined })
+  constituentKana?: string[];
 }
 
 export type VocabItemDocument = HydratedDocument<VocabItem>;
@@ -56,3 +80,13 @@ export const VocabItemSchema = SchemaFactory.createForClass(VocabItem);
 VocabItemSchema.index({ lang: 1, lemma: 1 }, { unique: true });
 VocabItemSchema.index({ lang: 1, jlpt: 1 });
 VocabItemSchema.index({ tags: 1 });
+// Phase 0: "give me words whose every character is in `knownKana`".
+// Multikey index on `constituentKana` so Mongo can use the index for
+// `constituentKana: { $all: [...] }` and intersect individual `$in` matches;
+// the constraint filter does the *intersection* in code because there is no
+// `$subset` operator. Partial index because backfill leaves the field unset
+// pre-migration, and we never query against unset entries.
+VocabItemSchema.index(
+  { lang: 1, constituentKana: 1 },
+  { partialFilterExpression: { constituentKana: { $exists: true, $ne: null } } },
+);

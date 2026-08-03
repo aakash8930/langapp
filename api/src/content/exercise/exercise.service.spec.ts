@@ -127,6 +127,7 @@ function makeServiceWithAttempts(
   vocabPool = VOCAB_UNIT_POOL,
   recordAttempt: jest.Mock = jest.fn(() => Promise.resolve(true)),
   recordLearnerItem: jest.Mock = jest.fn(() => Promise.resolve()),
+  characterKana: { id: string; kana: string }[] = [],
 ): { service: ExerciseService; recordAttempt: jest.Mock; recordLearnerItem: jest.Mock } {
   const contentService = {
     findLessonById: () => Promise.resolve(lesson),
@@ -139,6 +140,10 @@ function makeServiceWithAttempts(
         vocabPool.map(
           (v) => ({ _id: v.id, lemma: v.lemma, gloss: v.gloss }) as unknown as VocabItemDocument,
         ),
+      ),
+    findKanaByCharacters: () =>
+      Promise.resolve(
+        characterKana.map((item) => ({ _id: new Types.ObjectId(item.id), kana: item.kana }) as KanaItemDocument),
       ),
   };
   const exerciseAttempts = { recordAttempt } as unknown as ExerciseAttemptsService;
@@ -629,6 +634,38 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
         sourceContext: 'lesson',
       }),
     );
+  });
+
+  it('records each kana in a missed word as reading evidence', async () => {
+    const characterKana = [
+      { id: '507f1f77bcf86cd799439301', kana: 'が' },
+      { id: '507f1f77bcf86cd799439302', kana: 'っ' },
+      { id: '507f1f77bcf86cd799439303', kana: 'こ' },
+      { id: '507f1f77bcf86cd799439304', kana: 'う' },
+    ];
+    const { service, recordLearnerItem } = makeServiceWithAttempts(
+      LEARNER_READING_LESSON,
+      LEARNER_VOWEL_POOL,
+      LEARNER_READING_POOL,
+      undefined,
+      undefined,
+      characterKana,
+    );
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+
+    await service.answer(LESSON_ID, set.questions[0].exerciseId, USER_A, { text: 'gakou' });
+
+    // First is the vocabulary answer itself; the remaining records preserve
+    // character-level mistakes for the reader/next lesson.
+    expect(recordLearnerItem).toHaveBeenCalledTimes(1 + characterKana.length);
+    for (const character of characterKana) {
+      expect(recordLearnerItem).toHaveBeenCalledWith(expect.objectContaining({
+        itemRef: { kind: 'kana', id: new Types.ObjectId(character.id) },
+        outcome: { correct: false, responseTimeMs: undefined },
+        exerciseType: 'wordReading',
+        sourceContext: 'reading',
+      }));
+    }
   });
 
   it('does not fail the answer when the learner-model write throws', async () => {

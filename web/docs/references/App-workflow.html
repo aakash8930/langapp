@@ -313,7 +313,7 @@
 <header class="hero">
   <div class="grid-bg"></div>
   <div class="wrap">
-    <div class="eyebrow">Feature Workflow · v3 <span class="jp">AIネイティブ言語OS・設計図</span></div>
+    <div class="eyebrow">Feature Workflow · v3.1 <span class="jp">AIネイティブ言語OS・設計図</span></div>
 
     <div class="hero-cells" aria-hidden="true">
       <div class="cell">日</div>
@@ -763,6 +763,300 @@
         <div class="mod-top"><div class="mod-kanji" aria-hidden="true">文</div><div><div class="mod-idx">Culture &amp; Tools</div><h3>Culture &amp; Translation</h3></div></div>
         <div class="mrow"><span class="mh">Cultural hub</span><span class="md">Festivals, etiquette, history, food, business customs, news, travel — language taught with its culture.</span></div>
         <div class="mrow"><span class="mh">AI translation workspace</span><span class="md">Translate, compare versions, get nuance explained, rewrite naturally, and practice writing in one place.</span></div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ ROUTE INVENTORY & STATUS ============ -->
+<section class="sec" id="inventory">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-kanji" aria-hidden="true">帳</div>
+      <div class="sec-titles">
+        <div class="sec-idx">Part Eight · Route Inventory &amp; Status</div>
+        <h2>Every screen a user could touch, mapped to where it actually lives</h2>
+        <p>The Parts above are the philosophy and the build order. This part is the route catalog — every page a learner, a teacher, an admin, or a visitor could reach, each tagged with one of four statuses so the document never claims a feature we don't have. Read it as a scope ledger, not a product tour.</p>
+      </div>
+    </div>
+
+    <p class="phase-intro reveal">
+      <strong>Status legend.</strong>
+      <span class="chip" style="margin-left:8px">✅ Shipped &nbsp;— live in <code>api/</code>, <code>client/</code> or <code>web/</code></span>
+      <span class="chip" style="margin-left:8px">🟡 Planned &nbsp;— named in <code>PHASE-0-BLUEPRINT.md</code> / <code>PHASE-2-BLUEPRINT.md</code></span>
+      <span class="chip" style="margin-left:8px">⬜ Backlog &nbsp;— not on any roadmap yet</span>
+      <span class="chip" style="margin-left:8px">❌ Out of scope &nbsp;— explicitly rejected (Phase 0 boundary, §3.3, or removed)</span>
+    </p>
+
+    <p class="phase-intro reveal" style="margin-top:14px">
+      Routes that overlap with Parts One–Seven are <em>not</em> duplicated above —
+      this is the only place they appear. The blueprint remains the source of truth
+      for <em>how</em> something is built; this part is the source of truth for
+      <em>whether</em> it exists.
+    </p>
+
+    <div class="exp-grid">
+
+      <!-- ============ 0. PUBLIC WEBSITE ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">外</div><div><div class="mod-idx">Section 0</div><h3>Public Website</h3></div></div>
+        <div class="mrow"><span class="mh">Landing page</span><span class="md">✅ — marketing root in the new <code>web/</code> app.</span></div>
+        <div class="mrow"><span class="mh">About · Features · Pricing · FAQ · Contact</span><span class="md">⬜ backlog — single static page is enough until launch.</span></div>
+        <div class="mrow"><span class="mh">Schools / Enterprise</span><span class="md">🟡 — Phase 0 §12 explicitly lists <em>"schools/universities (needs the Teacher Portal)"</em> as a later line; not Phase 0.</span></div>
+        <div class="mrow"><span class="mh">JLPT preparation</span><span class="md">🟡 — covered by Phase 2 §6.12 (analytics) + §14 (placement / adaptive prep).</span></div>
+        <div class="mrow"><span class="mh">Success Stories · Testimonials · Reviews</span><span class="md">⬜ backlog — empty until real users exist.</span></div>
+        <div class="mrow"><span class="mh">Blog · Documentation · Roadmap · Changelog</span><span class="md">⬜ backlog — current docs live in <code>docs/</code>; not a public site.</span></div>
+        <div class="mrow"><span class="mh">Careers · Press Kit · Community</span><span class="md">❌ out of scope — solo-maintained Phase 0; no hiring, no press arm, no "community" page yet.</span></div>
+        <div class="mrow"><span class="mh">Gift Plans · Referral Program · Affiliates</span><span class="md">❌ out of scope — Phase 0 §12 lists "family plan" as a <em>later</em> line; gift / referral / affiliate are not named anywhere.</span></div>
+        <div class="mrow"><span class="mh">Status Page</span><span class="md">🟡 — there's a <code>/health</code> route today; a public status page is a follow-up.</span></div>
+        <div class="mrow"><span class="mh">Privacy Policy · Terms of Service · Cookies</span><span class="md">✅ — <code>GET /privacy</code>, <code>GET /terms</code>, <code>GET /legal/privacy</code>, <code>GET /legal/terms</code>; no cookie banner because no third-party trackers.</span></div>
+        <div class="mrow"><span class="mh">Refund Policy</span><span class="md">⬜ backlog — no payments yet, so no refunds yet.</span></div>
+      </article>
+
+      <!-- ============ 1. AUTHENTICATION ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">鍵</div><div><div class="mod-idx">Section 1</div><h3>Authentication</h3></div></div>
+        <div class="mrow"><span class="mh">Welcome · Sign Up · Login</span><span class="md">✅ — <code>POST /auth/register</code>, <code>POST /auth/login</code>; rate-limited under <code>AUTH_THROTTLE_*</code>.</span></div>
+        <div class="mrow"><span class="mh">Continue with Google · Apple · GitHub</span><span class="md">❌ out of scope — no OAuth provider in <code>api/</code> today; would require a third-party identity store and a <code>User</code> schema change.</span></div>
+        <div class="mrow"><span class="mh">Forgot Password · Reset Password</span><span class="md">✅ — <code>POST /auth/forgot-password</code>, <code>POST /auth/reset-password</code> (added 2026-07-29).</span></div>
+        <div class="mrow"><span class="mh">Verify Email · Resend Verification</span><span class="md">⬜ backlog — the API does not require a verified email; <code>Auth</code> can be added when a mail transport exists.</span></div>
+        <div class="mrow"><span class="mh">Two-Factor Authentication · Backup Codes</span><span class="md">❌ out of scope — not in any blueprint; TOTP secret storage is a non-trivial addition.</span></div>
+        <div class="mrow"><span class="mh">Device Management</span><span class="md">⬜ backlog — refresh tokens are server-tracked but not exposed as a per-device list.</span></div>
+        <div class="mrow"><span class="mh">Delete Account Confirmation</span><span class="md">✅ — <code>DELETE /me</code> is a real cascade (users, srsCards, lessonCompletions, exerciseAttempts, learnerItemStates, unitCheckpointAttempts, chatSessions, chatMessages, events, friendships, blocks, directMessages); reports and leagueStandings survive on purpose.</span></div>
+      </article>
+
+      <!-- ============ 2. FIRST-TIME ONBOARDING ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">門</div><div><div class="mod-idx">Section 2</div><h3>First-Time Onboarding</h3></div></div>
+        <div class="mrow"><span class="mh">Welcome · Language Selection · Native Language</span><span class="md">🟡 — <code>profile.nativeLanguage</code> exists on <code>UserResponse</code>; a designed first-screen is Phase 2 §6.9.</span></div>
+        <div class="mrow"><span class="mh">Japanese Level (placement)</span><span class="md">🟡 — Phase 2 §6.9 names the gap: <em>"the placement test is on the map, but not the designed first five minutes."</em></span></div>
+        <div class="mrow"><span class="mh">Goals · Daily Goal</span><span class="md">🟡 — <code>gamification.dailyGoalXp</code> is patched via <code>PATCH /me/settings</code> (10–1000); a goal-selection screen is Phase 2 §6.9.</span></div>
+        <div class="mrow"><span class="mh">Learning Style · Study Time · AI Personalization</span><span class="md">⬜ backlog — no schema fields for these yet.</span></div>
+        <div class="mrow"><span class="mh">Notifications opt-in</span><span class="md">🟡 — no <code>/notifications</code> route group in <code>api/</code> today.</span></div>
+        <div class="mrow"><span class="mh">Complete Setup</span><span class="md">🟡 — registration already succeeds without a flow; the <em>designed</em> first five minutes is the gap.</span></div>
+      </article>
+
+      <!-- ============ 3. DASHBOARD ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">家</div><div><div class="mod-idx">Section 3</div><h3>Dashboard (Home)</h3></div></div>
+        <div class="mrow"><span class="mh">Dashboard · Continue Learning · Today's Progress</span><span class="md">✅ — <code>GET /me/progress</code> returns <code>daily.xpToday</code>, <code>daily.percentOfGoal</code>, <code>daily.goalMet</code>, <code>cardsDueNow</code>.</span></div>
+        <div class="mrow"><span class="mh">Daily Streak · XP</span><span class="md">✅ — <code>gamification.streakDays</code>, <code>gamification.xp</code>, <code>gamification.lastStudyDate</code>.</span></div>
+        <div class="mrow"><span class="mh">Achievements</span><span class="md">⬜ backlog — no achievements collection in <code>api/</code>; learner model records mastery via <code>MasteryLevel</code> instead.</span></div>
+        <div class="mrow"><span class="mh">Calendar (heatmap)</span><span class="md">🟡 — Phase 2 §6.12 "analytics that measure learning" is the planned location; not on the wire today.</span></div>
+        <div class="mrow"><span class="mh">Quick Actions · Recent Lessons · Upcoming Reviews</span><span class="md">✅ — derivable from <code>GET /me/progress</code> (cardsDueNow, completedLessonIds) and <code>GET /reviews/due</code>.</span></div>
+        <div class="mrow"><span class="mh">Announcements</span><span class="md">⬜ backlog — no announcements route.</span></div>
+        <div class="mrow"><span class="mh">Dashboard layout target</span><span class="md">🟡 — reference image at <code>docs/design-reference/platform-dashboard-layout.jpg</code> is the locked shape (sidebar + header + 4-col stats + chart band + list rows + bottom tiles) and palette family for the <code>web/</code> rebuild. Treated as shape + palette only — text labels, icon meanings and typography are not in the reference and stay as design calls.</span></div>
+      </article>
+
+      <!-- ============ 4. COURSES ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">道</div><div><div class="mod-idx">Section 4</div><h3>Courses</h3></div></div>
+        <div class="mrow"><span class="mh">Course Library · Course Details · Learning Path</span><span class="md">✅ — <code>GET /lessons</code>, <code>GET /lessons/:id</code>; <code>Lesson.unit</code> is the slug the rest of the API groups by.</span></div>
+        <div class="mrow"><span class="mh">Units · Lessons · Lesson Overview · Lesson Completion</span><span class="md">✅ — <code>POST /lessons/:id/complete</code> is the gate, returns <code>cardsCreated</code>, <code>xpAwarded</code>, <code>firstCompletion</code>.</span></div>
+        <div class="mrow"><span class="mh">Course Progress</span><span class="md">✅ — derivable from <code>completedLessonIds</code> + each lesson's <code>prerequisiteLessonIds</code>.</span></div>
+        <div class="mrow"><span class="mh">Certificates</span><span class="md">⬜ backlog — no certificate route; not in any blueprint.</span></div>
+      </article>
+
+      <!-- ============ 5. HIRAGANA / 6. KATAKANA ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">仮</div><div><div class="mod-idx">Section 5</div><h3>Hiragana</h3></div></div>
+        <div class="mrow"><span class="mh">Learn · Reading · Listening · Quiz · Flashcards</span><span class="md">✅ — <code>GET /lessons?unit=hiragana-basics</code>; audio via <code>GET /content/kana/:id/audio</code> (added 2026-07-27).</span></div>
+        <div class="mrow"><span class="mh">Writing Practice · Tracing</span><span class="md">🟡 — stroke-order data is on the wire (<code>GET /content/strokes/:codepoint</code>); the writing UI is Phase 2 §6.7 "Kanji Studio" partial.</span></div>
+        <div class="mrow"><span class="mh">Mistakes · Review</span><span class="md">✅ — covered by <code>GET /reviews/due</code> + the learner model.</span></div>
+        <div class="mod-top" style="margin-top:18px"><div class="mod-kanji" aria-hidden="true">片</div><div><div class="mod-idx">Section 6</div><h3>Katakana</h3></div></div>
+        <div class="mrow"><span class="mh">Learn · Reading · Listening · Quiz · Flashcards · Mistakes · Review</span><span class="md">✅ — same surface as Hiragana, unit <code>katakana-basics</code>.</span></div>
+        <div class="mrow"><span class="mh">Writing Practice · Tracing</span><span class="md">🟡 — same as Hiragana; no kana-specific writing UI yet.</span></div>
+      </article>
+
+      <!-- ============ 7. VOCABULARY ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">語</div><div><div class="mod-idx">Section 7</div><h3>Vocabulary</h3></div></div>
+        <div class="mrow"><span class="mh">Vocabulary List · Word Details · Audio · Examples</span><span class="md">✅ — <code>GET /lessons/:id</code> returns <code>resolved.vocab</code> with <code>lemma</code>, <code>reading</code>, <code>romaji</code>, <code>gloss</code>, <code>pos</code>, <code>jlpt</code>; audio at <code>GET /content/vocab/:id/audio</code>.</span></div>
+        <div class="mrow"><span class="mh">Synonyms · Antonyms</span><span class="md">⬜ backlog — not on the data model.</span></div>
+        <div class="mrow"><span class="mh">JLPT Tags</span><span class="md">✅ — every <code>vocab</code> item carries <code>jlpt</code>.</span></div>
+        <div class="mrow"><span class="mh">Bookmarks · Custom Lists</span><span class="md">⬜ backlog — no bookmarks collection.</span></div>
+        <div class="mrow"><span class="mh">Practice · Review</span><span class="md">✅ — exercises for vocab lessons live in <code>Exercise</code> with <code>promptKind: 'vocab'</code>; review via <code>GET /reviews/due</code>.</span></div>
+        <div class="mrow"><span class="mh">Import · Export</span><span class="md">❌ out of scope — Phase 0 boundary; nothing to import from or export to.</span></div>
+      </article>
+
+      <!-- ============ 8. KANJI ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">漢</div><div><div class="mod-idx">Section 8</div><h3>Kanji</h3></div></div>
+        <div class="mrow"><span class="mh">Kanji List · Kanji Details · Meanings · Readings</span><span class="md">✅ — <code>resolved.kanji</code> returns <code>char</code>, <code>on</code>, <code>kun</code>, <code>meanings</code>.</span></div>
+        <div class="mrow"><span class="mh">Stroke Order · Stroke Animation</span><span class="md">✅ — <code>GET /content/strokes/:codepoint</code> returns KanjiVG paths in stroke order; the SVG viewBox is <code>0 0 109 109</code>.</span></div>
+        <div class="mrow"><span class="mh">Radicals</span><span class="md">⬜ backlog — not yet on the data model.</span></div>
+        <div class="mrow"><span class="mh">Examples · Writing Practice</span><span class="md">🟡 — examples appear in <code>grammar</code> items; dedicated kanji examples are Phase 2 §6.7 (Kanji Studio).</span></div>
+        <div class="mrow"><span class="mh">Quiz · Review · Bookmarks</span><span class="md">✅ for quiz (exercises support <code>promptKind: 'kanji'</code>) and review; ⬜ for bookmarks.</span></div>
+      </article>
+
+      <!-- ============ 9. GRAMMAR ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">文</div><div><div class="mod-idx">Section 9</div><h3>Grammar</h3></div></div>
+        <div class="mrow"><span class="mh">Grammar List · Grammar Detail · Examples · Usage</span><span class="md">✅ — <code>resolved.grammar</code> returns <code>title</code>, <code>jlpt</code>, <code>explanation</code>, <code>examples[]</code>.</span></div>
+        <div class="mrow"><span class="mh">Common Mistakes</span><span class="md">🟡 — chat corrections write <code>span</code> / <code>fix</code> / <code>note</code> onto user messages; aggregating them into a "mistakes" view is Phase 2 §6.1.</span></div>
+        <div class="mrow"><span class="mh">Exercises · Quiz · Review</span><span class="md">✅ — grammar exercises use <code>promptKind: 'grammar'</code> with a sentence carrying a <code>＿</code> (U+FF3F) gap; the per-item <code>question</code> carries the English gloss so the right answer is unambiguous.</span></div>
+      </article>
+
+      <!-- ============ 10. LISTENING ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">聴</div><div><div class="mod-idx">Section 10</div><h3>Listening</h3></div></div>
+        <div class="mrow"><span class="mh">Listening Lessons · Audio Player · Speed Control</span><span class="md">✅ — audio exists; <code>settings.audioSpeed</code> (0.5–2.0) is on the user.</span></div>
+        <div class="mrow"><span class="mh">Transcript · Translation · Shadowing · Listening Quiz</span><span class="md">🟡 — shadowing is Phase 2 §6.8 (deferred for voice cost reasons, §3.3); transcripts are not generated.</span></div>
+      </article>
+
+      <!-- ============ 11. SPEAKING ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">話</div><div><div class="mod-idx">Section 11</div><h3>Speaking</h3></div></div>
+        <div class="mrow"><span class="mh">Pronunciation · Speaking Challenges · Voice Recording · Pronunciation Feedback</span><span class="md">❌ out of scope — explicit Phase 0 boundary: <em>"no voice/STT/TTS"</em>; Phase 2 §6.8 builds this after the cost is measured.</span></div>
+        <div class="mrow"><span class="mh">AI Conversation · Conversation History</span><span class="md">✅ — text chat shipped; <code>POST /chat/sessions</code>, <code>POST /chat/sessions/:id/messages</code>; one Gemini call per turn. Voice conversation is 🟡, gated by §3.3.</span></div>
+      </article>
+
+      <!-- ============ 12. READING ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">読</div><div><div class="mod-idx">Section 12</div><h3>Reading</h3></div></div>
+        <div class="mrow"><span class="mh">Reading Library · Article · Story · Dictionary Popup · Bookmarks</span><span class="md">⬜ backlog — Phase 2 §6.6 "Sentence-first learning, immersive reading, and the dictionary" is the planned location.</span></div>
+        <div class="mrow"><span class="mh">Manga Reader · News</span><span class="md">❌ out of scope — not in any blueprint.</span></div>
+        <div class="mrow"><span class="mh">Reading Statistics</span><span class="md">🟡 — Phase 2 §6.12.</span></div>
+      </article>
+
+      <!-- ============ 13. WRITING ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">書</div><div><div class="mod-idx">Section 13</div><h3>Writing</h3></div></div>
+        <div class="mrow"><span class="mh">Writing Practice · Essay · Sentence Builder · AI Feedback · Corrections · History</span><span class="md">⬜ backlog — Japanese text input via kana / romaji is supported; free-form essay prompts are not.</span></div>
+      </article>
+
+      <!-- ============ 14. FLASHCARDS ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">札</div><div><div class="mod-idx">Section 14</div><h3>Flashcards</h3></div></div>
+        <div class="mrow"><span class="mh">Decks · My Decks · Study Session · Review Queue</span><span class="md">✅ — <code>GET /reviews/due</code> is the entire deck surface; <code>cap</code> bounds the batch, <code>totalDue</code> shows the true count.</span></div>
+        <div class="mrow"><span class="mh">Create Deck · Edit Deck · Shared Decks</span><span class="md">⬜ backlog — decks are auto-created from lesson completions; user-defined decks are not.</span></div>
+        <div class="mrow"><span class="mh">Statistics</span><span class="md">🟡 — Phase 2 §6.12 (heatmap + retention curve + forecast).</span></div>
+      </article>
+
+      <!-- ============ 15. REVIEW SYSTEM ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">反</div><div><div class="mod-idx">Section 15</div><h3>Review System (FSRS / SRS)</h3></div></div>
+        <div class="mrow"><span class="mh">Today's Reviews · Review Session · Missed Reviews · Review History</span><span class="md">✅ — <code>GET /reviews/due</code>, <code>POST /reviews/:cardId/grade</code> with <code>grade: 'again'|'hard'|'good'|'easy'</code>. FSRS <code>stability</code> / <code>difficulty</code> are deliberately kept off the response.</span></div>
+        <div class="mrow"><span class="mh">Statistics · Heatmap · Retention · Forecast</span><span class="md">🟡 — Phase 2 §6.12; <code>GET /learning/memory-model</code> already returns <code>forgettingCurve</code> and <code>masteryBreakdown</code>.</span></div>
+      </article>
+
+      <!-- ============ 16. PRACTICE ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">練</div><div><div class="mod-idx">Section 16</div><h3>Practice</h3></div></div>
+        <div class="mrow"><span class="mh">Daily Practice · Mixed Practice · Weak Areas · Random Practice</span><span class="md">🟡 — derivable from <code>LearnerItemState</code>; mixed set generation is Phase 2 §6.1.</span></div>
+        <div class="mrow"><span class="mh">Timed Practice · Challenge Mode</span><span class="md">⬜ backlog — not in any blueprint.</span></div>
+      </article>
+
+      <!-- ============ 17. JLPT / 18. EXAMS ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">試</div><div><div class="mod-idx">Section 17</div><h3>JLPT</h3></div></div>
+        <div class="mrow"><span class="mh">JLPT Dashboard · N5 / N4 / N3 / N2 / N1</span><span class="md">🟡 — JLPT tag is on every vocab / grammar / kanji item; tier-grouped dashboards are Phase 2 §6.12.</span></div>
+        <div class="mrow"><span class="mh">Mock Tests · Results · Recommendations</span><span class="md">🟡 — Phase 2 §6.12 + §14. <code>POST /units/:unit/checkpoint</code> is the in-app test surface; full JLPT mock exams are not on the wire.</span></div>
+        <div class="mod-top" style="margin-top:18px"><div class="mod-kanji" aria-hidden="true">考</div><div><div class="mod-idx">Section 18</div><h3>Exams</h3></div></div>
+        <div class="mrow"><span class="mh">Exam Library · Start Exam · Instructions · Exam · Results · Review Answers</span><span class="md">🟡 — same as above; no general exam library route.</span></div>
+        <div class="mrow"><span class="mh">Leaderboard</span><span class="md">✅ — <code>GET /social/leaderboard</code> (weekly UTC, opt-in, promotion-only).</span></div>
+      </article>
+
+      <!-- ============ 19. AI ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">知</div><div><div class="mod-idx">Section 19</div><h3>AI</h3></div></div>
+        <div class="mrow"><span class="mh">AI Tutor · AI Chat · Grammar Checker · Sentence Explainer · Translation · Conversation</span><span class="md">✅ — text chat only; one Gemini call per turn; <code>corrections</code> come back on the same call as the reply. Voice, sentence explainer beyond chat, and standalone translation are 🟡.</span></div>
+        <div class="mrow"><span class="mh">Writing Feedback · Pronunciation Analysis</span><span class="md">❌ out of scope — explicit Phase 0 boundary <em>"no voice/STT/TTS"</em>; Phase 2 §6.8.</span></div>
+      </article>
+
+      <!-- ============ 20. DICTIONARY ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">辞</div><div><div class="mod-idx">Section 20</div><h3>Dictionary</h3></div></div>
+        <div class="mrow"><span class="mh">Search · Word · Kanji · Grammar · Examples</span><span class="md">🟡 — <code>GET /lessons/:id</code> already returns every item; standalone search is Phase 2 §6.6.</span></div>
+        <div class="mrow"><span class="mh">Bookmarks · History</span><span class="md">⬜ backlog — no history collection.</span></div>
+      </article>
+
+      <!-- ============ 21. PROGRESS ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">歩</div><div><div class="mod-idx">Section 21</div><h3>Progress</h3></div></div>
+        <div class="mrow"><span class="mh">Overview · XP · Level · Daily Goal · Streak</span><span class="md">✅ — <code>GET /me/progress</code> returns <code>xp</code>, <code>level</code>, <code>xpIntoLevel</code>, <code>xpForNextLevel</code>, <code>streakDays</code>, <code>daily.percentOfGoal</code>.</span></div>
+        <div class="mrow"><span class="mh">Weekly Goal · Monthly Goal</span><span class="md">⬜ backlog — only daily goal is on the schema.</span></div>
+        <div class="mrow"><span class="mh">Heatmap · Achievements</span><span class="md">🟡 — Phase 2 §6.12.</span></div>
+        <div class="mrow"><span class="mh">Statistics · Learning Analytics</span><span class="md">✅ — <code>GET /learning/analytics</code> returns <code>totalReviewsToday</code>, <code>accuracyRateToday</code>, <code>averageResponseTimeMs</code>, <code>masteredCount</code>. <code>GET /learning/memory-model</code> returns retention + mastery breakdown.</span></div>
+      </article>
+
+      <!-- ============ 22. GAMIFICATION ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">遊</div><div><div class="mod-idx">Section 22</div><h3>Gamification</h3></div></div>
+        <div class="mrow"><span class="mh">Achievements · Badges</span><span class="md">⬜ backlog — no achievements collection.</span></div>
+        <div class="mrow"><span class="mh">Rewards · Coins</span><span class="md">❌ out of scope — hearts and gems removed in commit <code>9d70f0b</code> (2026-07-28).</span></div>
+        <div class="mrow"><span class="mh">Leaderboard</span><span class="md">✅ — Phase 2 §3.2 final mechanic: weekly UTC, opt-in, promotion-only, <code>relegationCount</code> always 0.</span></div>
+        <div class="mrow"><span class="mh">Challenges · Missions</span><span class="md">⬜ backlog — Phase 2 "Missions &amp; Collection" is a Part Seven module, not a Phase 1 feature.</span></div>
+      </article>
+
+      <!-- ============ 23. COMMUNITY ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">縁</div><div><div class="mod-idx">Section 23</div><h3>Community</h3></div></div>
+        <div class="mrow"><span class="mh">Friends · Messages</span><span class="md">✅ — <code>POST /social/friends/requests/:userId</code>, <code>GET /social/messages/:userId</code>, <code>POST /social/messages/:userId</code>; the four rules are enforced server-side (friendship required, block disqualifies, age ≥ 13, not yourself).</span></div>
+        <div class="mrow"><span class="mh">Feed · Groups · Forums · Study Together</span><span class="md">❌ out of scope — explicit Phase 0 boundary, not on any blueprint.</span></div>
+        <div class="mrow"><span class="mh">Events</span><span class="md">⬜ backlog — not on the wire.</span></div>
+      </article>
+
+      <!-- ============ 24. NOTIFICATIONS ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">報</div><div><div class="mod-idx">Section 24</div><h3>Notifications</h3></div></div>
+        <div class="mrow"><span class="mh">Notification Center · Reminder Settings · Push Notifications · Email Preferences</span><span class="md">⬜ backlog — no <code>/notifications</code> route group in <code>api/</code>; chat corrections are the only signal surfaced today.</span></div>
+      </article>
+
+      <!-- ============ 25. USER PROFILE ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">人</div><div><div class="mod-idx">Section 25</div><h3>User Profile</h3></div></div>
+        <div class="mrow"><span class="mh">Profile · Edit Profile</span><span class="md">✅ — <code>GET /me</code>, <code>PATCH /me/settings</code>; <code>profile.displayName</code>, <code>profile.nativeLanguage</code>, <code>profile.activeTrack</code>.</span></div>
+        <div class="mrow"><span class="mh">Avatar · Bio</span><span class="md">⬜ backlog — no avatar / bio fields on the schema.</span></div>
+        <div class="mrow"><span class="mh">Certificates · Achievements · Bookmarks · Learning History</span><span class="md">⬜ backlog — <code>completedLessonIds</code> and <code>passedUnits</code> exist as derivable bases for History.</span></div>
+      </article>
+
+      <!-- ============ 26. SUBSCRIPTION ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">料</div><div><div class="mod-idx">Section 26</div><h3>Subscription</h3></div></div>
+        <div class="mrow"><span class="mh">Plans · Upgrade · Checkout · Payment Success / Failed</span><span class="md">🟡 — Phase 0 §12 specifies two tiers (Free / Premium ~monthly); voice is the paywall item. No Stripe integration in <code>api/</code> today.</span></div>
+        <div class="mrow"><span class="mh">Invoices · Billing History · Manage Subscription · Cancel · Reactivate</span><span class="md">⬜ backlog — depends on the payment provider.</span></div>
+      </article>
+
+      <!-- ============ 27. SETTINGS ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">設</div><div><div class="mod-idx">Section 27</div><h3>Settings</h3></div></div>
+        <div class="mrow"><span class="mh">Account · Security</span><span class="md">✅ — password reset + account delete are wired; no other security settings yet.</span></div>
+        <div class="mrow"><span class="mh">Privacy · Language · Appearance · Accessibility</span><span class="md">✅ for theme (<code>light</code>/<code>dark</code>/<code>system</code>) and audio speed (0.5–2.0); ⬜ for the rest.</span></div>
+        <div class="mrow"><span class="mh">Notifications · Downloads · Storage · Data Export</span><span class="md">⬜ backlog — no corresponding routes in <code>api/</code>.</span></div>
+        <div class="mrow"><span class="mh">Delete Account</span><span class="md">✅ — <code>DELETE /me</code> (see Section 1).</span></div>
+      </article>
+
+      <!-- ============ 28. SUPPORT ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">援</div><div><div class="mod-idx">Section 28</div><h3>Support</h3></div></div>
+        <div class="mrow"><span class="mh">FAQ · System Status</span><span class="md">✅ — <code>GET /health</code> exists; FAQ is a static page.</span></div>
+        <div class="mrow"><span class="mh">Report Bug · Feature Request · Contact Support · Live Chat</span><span class="md">⬜ backlog — <code>POST /content/report</code> covers content bugs; a general support form is not on the wire.</span></div>
+        <div class="mrow"><span class="mh">Help Center</span><span class="md">🟡 — docs live in <code>docs/</code> and <code>README.md</code>; a public help center is a follow-up.</span></div>
+      </article>
+
+      <!-- ============ 29. ADMIN PANEL ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">管</div><div><div class="mod-idx">Section 29</div><h3>Admin Panel (Web)</h3></div></div>
+        <div class="mrow"><span class="mh">Dashboard · Users · Analytics · Audit Logs · System Settings</span><span class="md">🟡 — <code>isAdmin</code> is on <code>UserResponse</code> and the JWT; <code>CreatorGuard</code> reads it. No admin dashboard yet.</span></div>
+        <div class="mrow"><span class="mh">Courses · Lessons · Vocabulary · Kanji · Grammar · Media</span><span class="md">🟡 — Phase 2 §6.10 "The lesson builder and community publishing" is the planned location; today content is JSON seed + <code>tools/generate-audio.py</code>.</span></div>
+        <div class="mrow"><span class="mh">AI · Reports · Payments · Coupons · Subscriptions</span><span class="md">⬜ backlog — no payment integration; <code>POST /social/reports</code> and <code>POST /content/report</code> exist but are write-only.</span></div>
+        <div class="mrow"><span class="mh">Notifications · Content Approval · Moderation</span><span class="md">🟡 — moderation is in scope (blocks, reports, age check) but reads are not.</span></div>
+        <div class="mrow"><span class="mh">Roles · Permissions</span><span class="md">🟡 — only the binary admin / non-admin split exists today.</span></div>
+      </article>
+
+      <!-- ============ 30. CREATOR / CMS ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">創</div><div><div class="mod-idx">Section 30</div><h3>Creator / CMS (Web)</h3></div></div>
+        <div class="mrow"><span class="mh">Course Builder · Lesson Builder · Quiz Builder · Kanji Editor · Vocabulary Editor · Grammar Editor · Audio Manager · Media Library</span><span class="md">🟡 — Phase 2 §6.10. Today content is authored as JSON in <code>api/src/seed</code> and audio via <code>tools/generate-audio.py</code>.</span></div>
+        <div class="mrow"><span class="mh">Drafts · Publishing · Version History</span><span class="md">⬜ backlog — content is immutable on the wire.</span></div>
+      </article>
+
+      <!-- ============ 31. ERROR & SYSTEM PAGES ============ -->
+      <article class="module reveal">
+        <div class="mod-top"><div class="mod-kanji" aria-hidden="true">誤</div><div><div class="mod-idx">Section 31</div><h3>Error &amp; System Pages</h3></div></div>
+        <div class="mrow"><span class="mh">404 · 500 · Maintenance · Offline · No Internet · Coming Soon · Empty State · Permission Denied · Session Expired · Update Required</span><span class="md">🟡 — error pages are a client concern; the API returns the codes (404, 401, 429, 502, 503) and the UI renders them. <code>502</code> from chat is documented as "try again shortly, not retry-loop" (provider failures surface as 502; rate limits as 429).</span></div>
       </article>
 
     </div>

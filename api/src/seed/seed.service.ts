@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
+import { decomposeIntoKana } from '../common/kana/decompose';
 import { ContentService, LessonGraphRow } from '../content/content.service';
 import { ItemRef } from '../content/schemas/lesson.schema';
 import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.service';
@@ -628,6 +629,12 @@ export class SeedService {
         prerequisiteLessonIds: previousLessonId ? [previousLessonId] : [],
       });
 
+      // Keep the character curriculum self-contained: the reader and the
+      // public curriculum endpoint can identify the teaching lesson without
+      // joining through every lesson's itemRefs. The Phase 0 migration covers
+      // pre-existing databases; this keeps fresh and repeated seeds correct.
+      await this.contentService.setKanaTaughtInLesson(kanaIds, seed.order);
+
       // No graph writes here any more (ADR-005). `syncLessonGraph` derives the
       // whole lesson layer from the lessons themselves once everything is
       // seeded, which is why kana used to be the only unit with a lesson node:
@@ -714,11 +721,22 @@ export class SeedService {
       const ids: Types.ObjectId[] = [];
 
       for (const point of points) {
+        // Phase 3 #15: each example carries its own `constituentKana` so the
+        // sentence reader can do the same subset filter the vocab reader does
+        // without re-walking the sentence on every request. Projected from
+        // the sentence text via the same `decomposeIntoKana` the vocab
+        // migration uses, so the "what counts as known kana" rule stays in
+        // one place (see `common/kana/decompose.ts`).
+        const examples = point.examples.map((example) => ({
+          ...example,
+          constituentKana: [...decomposeIntoKana(example.sentence)],
+        }));
+
         const grammar = await this.contentService.upsertGrammar({
           title: point.title,
           explanation: point.explanation,
           jlpt: 'N5',
-          examples: point.examples,
+          examples,
         });
 
         const node = await this.knowledgeGraph.upsertNode({

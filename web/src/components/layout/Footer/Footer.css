@@ -1,0 +1,11 @@
+.app-footer {
+  padding: var(--s-lg);
+
+  border-top: 1px solid var(--hairline);
+
+  text-align: center;
+
+  color: var(--ink-soft);
+
+  font-size: var(--text-caption);
+}

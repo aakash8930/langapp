@@ -24,6 +24,11 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
     upsertKanji: jest.Mock;
     setKanjiConceptId: jest.Mock;
     upsertLesson: jest.Mock;
+    // Phase 0 — Data foundation: stamped on each lesson's kana by the kana
+    // seed pass so the public curriculum endpoint can resolve "taught in
+    // lesson N" without joining through `itemRefs`. The migration covers
+    // pre-existing databases; this keeps fresh and repeated seeds correct.
+    setKanaTaughtInLesson: jest.Mock;
     countKana: jest.Mock;
     countVocab: jest.Mock;
     countGrammar: jest.Mock;
@@ -63,6 +68,11 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
       upsertKanji: jest.fn().mockImplementation(() => Promise.resolve({ _id: generateOid() })),
       setKanjiConceptId: jest.fn().mockResolvedValue(undefined),
       upsertLesson: jest.fn().mockImplementation(() => Promise.resolve({ _id: generateOid() })),
+      // Phase 0 — Data foundation: stamped on each lesson's kana by the kana
+      // seed pass so the public curriculum endpoint can resolve "taught in
+      // lesson N" without joining through `itemRefs`. The migration covers
+      // pre-existing databases; this keeps fresh and repeated seeds correct.
+      setKanaTaughtInLesson: jest.fn().mockResolvedValue(undefined),
       countKana: jest.fn().mockResolvedValue(208),
       countVocab: jest.fn().mockResolvedValue(800),
       countGrammar: jest.fn().mockResolvedValue(40),

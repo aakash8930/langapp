@@ -328,6 +328,45 @@ export class UserService {
   }
 
   /**
+   * Phase 0 — Data foundation. Idempotently append kana characters to
+   * `learningState.knownKana`.
+   *
+   * Uses Mongo's `$addToSet` because the reader (`/vocab/by-known-kana`,
+   * Phase 1 #5 filter) treats the field as a *set*: a character taught
+   * twice should appear once. `$addToSet` enforces that without a
+   * read-then-write race that would lose concurrent additions.
+   *
+   * Called from `LearningService.completeLesson` on first completion only —
+   * re-completing a lesson teaches no new kana. Calling this with an empty
+   * array is a no-op (Mongo silently skips the operator); calling with an
+   * array of already-present characters is a no-op too.
+   *
+   * Returns the *updated* user so callers do not have to re-fetch — useful
+   * when the next thing they do is read back the resulting `knownKana`
+   * (e.g. a test, or a future "you learned N new kana" toast).
+   */
+  async addKnownKana(userId: string, characters: readonly string[]): Promise<UserDocument> {
+    if (characters.length === 0) {
+      const user = await this.userModel.findById(userId).exec();
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      return user;
+    }
+    const user = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $addToSet: { 'learningState.knownKana': { $each: [...characters] } } },
+        { new: true },
+      )
+      .exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  /**
    * Permanently remove the user document.
    *
    * Called **only** by AccountDeletionService, after all cross-module data has

@@ -63,4 +63,8 @@ describe('the vocabulary unit is internally consistent', () => {
       VOCAB_LESSONS.map((_, index) => index),
     );
   });
+
+  it('uses direct decoding checks, never an English recognition word bank', () => {
+    expect(VOCAB_LESSONS.every((lesson) => lesson.exerciseTypes.includes('wordReading'))).toBe(true);
+  });
 });

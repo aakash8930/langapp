@@ -40,6 +40,13 @@ export interface DueReviewsResponse {
   cards: DueCard[];
 }
 
+/** A persisted daily mix of due reviews plus a small number of new cards. */
+export interface DailyStudySessionResponse extends DueReviewsResponse {
+  localDate: string;
+  dueCount: number;
+  newCount: number;
+}
+
 export interface GradeReviewResponse {
   cardId: string;
   grade: ReviewGrade;

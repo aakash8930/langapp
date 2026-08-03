@@ -7,7 +7,13 @@ import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
 import { newCardFields, ReviewGrade } from './fsrs-card.mapper';
 import { LearnerItemStateService } from './learner-item-state.service';
-import { ReviewService, REVIEW_SESSION_CAP, XP_PER_REVIEW } from './review.service';
+import {
+  DAILY_NEW_CARD_CAP,
+  REVIEW_SESSION_CAP,
+  ReviewService,
+  XP_PER_REVIEW,
+} from './review.service';
+import { DailyStudySessionDocument } from './schemas/daily-study-session.schema';
 import { SrsCardDocument } from './schemas/srs-card.schema';
 
 const USER_ID = '607f1f77bcf86cd799439011';
@@ -450,6 +456,208 @@ describe('ReviewService.grade — writes learner-model evidence (ADR-003)', () =
     await expect(service.grade(USER_ID, CARD_ID, 'good')).resolves.toMatchObject({
       grade: 'good',
     });
+  });
+});
+
+/**
+ * Phase 2 #11 — daily session generator. The shape is different enough from
+ * `build()` (a real `dailySessionModel`, multiple queries, `findOne` returning
+ * either an existing session or `null`) that it earns its own harness. Keeping
+ * it next to the existing one rather than spinning up a separate spec because
+ * the test surface is small and the constructor order matters.
+ */
+function buildSession(opts: {
+  /** Existing session — if omitted, `findOne` returns `null` so a new one is created. */
+  existingSession?: Partial<DailyStudySessionDocument> | null;
+  /** Cards returned by the due query (state != 'new', due <= now). */
+  dueCards?: SrsCardDocument[];
+  /** Cards returned by the new-card fill (state == 'new'). */
+  newCards?: SrsCardDocument[];
+} = {}) {
+  let createdSession: { userId: Types.ObjectId; localDate: string; cardIds: Types.ObjectId[] } | null = null;
+  const findOneByQuery = jest.fn();
+  const createSession = jest.fn((doc: { userId: Types.ObjectId; localDate: string; cardIds: Types.ObjectId[]; dueCount: number; newCount: number }) => {
+    createdSession = { userId: doc.userId, localDate: doc.localDate, cardIds: doc.cardIds };
+    return Promise.resolve({
+      _id: new Types.ObjectId(),
+      ...doc,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as unknown as DailyStudySessionDocument);
+  });
+  const dailySessionModel = {
+    // `findOne` is consulted twice: once at the start for an existing
+    // session, once on a duplicate-key retry. Both go through the same stub.
+    findOne: (query: { userId: Types.ObjectId; localDate: string }) => {
+      findOneByQuery(query);
+      if (opts.existingSession) {
+        return { exec: () => Promise.resolve({ ...opts.existingSession } as DailyStudySessionDocument) };
+      }
+      // Race-loser branch: a previous request created the session under the
+      // same key while this one was reading the cards.
+      if (createdSession) {
+        return { exec: () => Promise.resolve({ ...createdSession, dueCount: 1, newCount: 0 } as unknown as DailyStudySessionDocument) };
+      }
+      return { exec: () => Promise.resolve(null) };
+    },
+    create: createSession,
+  };
+
+  // `findDue` reads cards for the existing-session branch and for the
+  // created-session response. Build a chainable mock keyed off `cardIds`.
+  const dueCards = opts.dueCards ?? [];
+  const newCards = opts.newCards ?? [];
+  const cardById = new Map<string, SrsCardDocument>();
+  for (const card of [...dueCards, ...newCards]) {
+    cardById.set(card._id.toString(), card);
+  }
+  const srsCardModel = {
+    // Multiple chained calls hit this; the third (`sort().limit().exec()`)
+    // is the new-card query when due fills less than the cap.
+    find: (filter: Record<string, unknown>) => {
+      const _idFilter = filter._id as { $in?: Types.ObjectId[] } | undefined;
+      if (_idFilter && Array.isArray(_idFilter.$in)) {
+        const cards = _idFilter.$in
+          .map((id) => cardById.get(id.toString()))
+          .filter((c): c is SrsCardDocument => Boolean(c));
+        return { exec: () => Promise.resolve(cards) };
+      }
+      if (filter.state === 'new') {
+        return {
+          sort: () => ({ limit: (n: number) => ({ exec: () => Promise.resolve(newCards.slice(0, n)) }) }),
+        };
+      }
+      // Default — the due-card query.
+      return {
+        sort: () => ({ limit: (n: number) => ({ exec: () => Promise.resolve(dueCards.slice(0, n)) }) }),
+      };
+    },
+  };
+
+  const findById = jest.fn(() =>
+    Promise.resolve({
+      gamification: { xp: 0 },
+      settings: { tz: 'UTC' },
+    } as unknown as UserDocument),
+  );
+
+  const service = new ReviewService(
+    srsCardModel as never,
+    {
+      resolveItemRefs: (refs: unknown[]) => Promise.resolve(refs.map(() => KANA_ITEM)),
+    } as unknown as ContentService,
+    { findById } as unknown as UserService,
+    { record: jest.fn() } as unknown as AnalyticsService,
+    { record: jest.fn() } as unknown as LearnerItemStateService,
+    dailySessionModel as never,
+  );
+
+  return { service, createSession, findOneByQuery, dueCards, newCards };
+}
+
+describe('ReviewService.findDailySession (Phase 2 #11)', () => {
+  it('persists a fresh daily session for the user on first call today', async () => {
+    const due = makeCard({ state: 'review', due: new Date(Date.now() - 60_000) });
+    const { service, createSession } = buildSession({ dueCards: [due] });
+
+    const response = await service.findDailySession(USER_ID);
+
+    expect(createSession).toHaveBeenCalledTimes(1);
+    expect(response.dueCount).toBe(1);
+    expect(response.newCount).toBe(0);
+    expect(response.count).toBe(1);
+    expect(response.totalDue).toBe(1);
+    expect(response.cap).toBe(REVIEW_SESSION_CAP);
+  });
+
+  it('fills remaining capacity with new cards, capped at 5 per day', async () => {
+    // 15 due cards leave 5 slots under the 20-card cap, which exactly
+    // matches `DAILY_NEW_CARD_CAP`. The new-card fill must respect the
+    // smaller of (remaining capacity, daily new-card cap) — if either bound
+    // shrinks, the new-card count shrinks with it.
+    jest.useFakeTimers();
+    try {
+      jest.setSystemTime(new Date('2026-07-18T12:00:00Z'));
+      const realDue = Array.from({ length: 15 }, (_, i) =>
+        makeCard({
+          state: 'review',
+          due: new Date(Date.now() - (15 - i) * 60_000),
+        }),
+      );
+      const realNew = Array.from({ length: 10 }, () => {
+        const card = makeCard({ state: 'new', due: new Date() });
+        return card;
+      });
+      const { service } = buildSession({ dueCards: realDue, newCards: realNew });
+
+      const response = await service.findDailySession(USER_ID);
+
+      expect(response.dueCount).toBe(15);
+      expect(response.newCount).toBe(DAILY_NEW_CARD_CAP);
+      expect(response.count).toBe(15 + DAILY_NEW_CARD_CAP);
+      expect(response.totalDue).toBe(15 + DAILY_NEW_CARD_CAP);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('returns the persisted session on subsequent calls today without re-querying cards', async () => {
+    // Phase 2 #11's whole point: the queue must be stable. Refresh the page
+    // 30 minutes later, the session should still be the same set.
+    const card = makeCard({ state: 'review', due: new Date(Date.now() - 60_000) });
+    const { service, createSession } = buildSession({
+      dueCards: [card],
+      existingSession: {
+        userId: new Types.ObjectId(USER_ID),
+        localDate: new Date().toISOString().slice(0, 10),
+        cardIds: [card._id],
+        dueCount: 1,
+        newCount: 0,
+      } as Partial<DailyStudySessionDocument>,
+    });
+
+    const response = await service.findDailySession(USER_ID);
+
+    expect(createSession).not.toHaveBeenCalled();
+    expect(response.count).toBe(1);
+    expect(response.cards[0].cardId).toBe(card._id.toString());
+  });
+
+  it('renders the session in the order it was persisted, not in DB order', async () => {
+    // Multiple cards must come back in the order the session recorded them —
+    // Mongo's $in doesn't preserve array order, so the service is responsible
+    // for re-ordering by the persisted `cardIds`.
+    const cardA = makeCard({ state: 'review', due: new Date(Date.now() - 60_000) });
+    const cardB = makeCard({ state: 'review', due: new Date(Date.now() - 30_000) });
+    const { service } = buildSession({
+      existingSession: {
+        userId: new Types.ObjectId(USER_ID),
+        localDate: new Date().toISOString().slice(0, 10),
+        cardIds: [cardB._id, cardA._id],
+        dueCount: 2,
+        newCount: 0,
+      } as Partial<DailyStudySessionDocument>,
+      dueCards: [cardA, cardB],
+    });
+
+    const response = await service.findDailySession(USER_ID);
+
+    expect(response.cards.map((c) => c.cardId)).toEqual([cardB._id.toString(), cardA._id.toString()]);
+  });
+
+  it('throws NotFound when the user does not exist', async () => {
+    // Same contract as `grade`: a bearer-protected route 404s on a missing
+    // user rather than leaking the existence of other users via an empty
+    // session.
+    const { service } = buildSession();
+    // Replace the userService dependency so findById resolves null. The
+    // service's `requireUser` then throws, which is the path under test.
+    const replaced = jest.fn(() => Promise.resolve(null));
+    (service as unknown as { userService: { findById: jest.Mock } }).userService = {
+      findById: replaced,
+    };
+
+    await expect(service.findDailySession(USER_ID)).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 

@@ -23,6 +23,7 @@ import {
 } from './schemas/exercise-attempt.schema';
 import { LessonCompletion, LessonCompletionSchema } from './schemas/lesson-completion.schema';
 import { SrsCard, SrsCardSchema } from './schemas/srs-card.schema';
+import { DailyStudySession, DailyStudySessionSchema } from './schemas/daily-study-session.schema';
 import {
   UnitCheckpointAttempt,
   UnitCheckpointAttemptSchema,
@@ -42,6 +43,7 @@ import {
   imports: [
     MongooseModule.forFeature([
       { name: SrsCard.name, schema: SrsCardSchema },
+      { name: DailyStudySession.name, schema: DailyStudySessionSchema },
       { name: LessonCompletion.name, schema: LessonCompletionSchema },
       { name: ExerciseAttempt.name, schema: ExerciseAttemptSchema },
       { name: LearnerItemState.name, schema: LearnerItemStateSchema },

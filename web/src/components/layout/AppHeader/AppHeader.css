@@ -1,0 +1,13 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  height: 72px;
+
+  padding: 0 var(--s-xl);
+
+  border-bottom: 1px solid var(--hairline);
+
+  background: var(--surface);
+}

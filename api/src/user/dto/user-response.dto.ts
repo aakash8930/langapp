@@ -33,6 +33,10 @@ export interface UserResponse {
      */
     leaderboardOptIn: boolean;
   };
+  learningState: {
+    /** Characters this learner has been taught; used by the reading surface. */
+    knownKana: string[];
+  };
 }
 
 export function toUserResponse(user: UserDocument): UserResponse {
@@ -57,6 +61,9 @@ export function toUserResponse(user: UserDocument): UserResponse {
       theme: user.settings.theme,
       tz: user.settings.tz,
       leaderboardOptIn: user.settings.leaderboardOptIn,
+    },
+    learningState: {
+      knownKana: user.learningState?.knownKana ?? [],
     },
   };
 }

@@ -32,6 +32,9 @@ export function Header({ session, onSignOut }: { session: Session; onSignOut: ()
         </Link>
 
         <nav className="header-nav">
+          <Link className="nav-link" to="/read">
+            Read
+          </Link>
           <Link className="nav-link" to="/leagues">
             Leagues
           </Link>

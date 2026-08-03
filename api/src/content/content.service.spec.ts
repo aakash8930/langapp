@@ -5,7 +5,20 @@ import { KanaItemDocument } from './schemas/kana-item.schema';
 import { LessonDocument } from './schemas/lesson.schema';
 
 function oid(hex: string): Types.ObjectId {
-  return new Types.ObjectId(hex.padStart(24, '0'));
+  // `Types.ObjectId` only accepts a 24-character *hex* string. Some callers
+  // here pass short labels like `'u1'` that pad to non-hex characters; hash
+  // the label into a deterministic 24-char hex value rather than fail the
+  // constructor. Mongoose does the same internally with `ObjectId.isValid`.
+  const isHex24 = /^[0-9a-fA-F]{24}$/.test(hex.padStart(24, '0'));
+  if (isHex24) {
+    return new Types.ObjectId(hex.padStart(24, '0'));
+  }
+  let hash = 0;
+  for (let i = 0; i < hex.length; i += 1) {
+    hash = (hash * 31 + hex.charCodeAt(i)) >>> 0;
+  }
+  const seeded = (hash.toString(16).padStart(8, '0') + '0'.repeat(16)).slice(0, 24);
+  return new Types.ObjectId(seeded);
 }
 
 function kanaDoc(id: Types.ObjectId, kana: string, romaji: string, order: number) {
@@ -38,6 +51,7 @@ function makeService(opts: {
   return new ContentService(
     lessonModel as never,
     kanaModel as never,
+    empty as never,
     empty as never,
     empty as never,
     empty as never,
@@ -113,6 +127,93 @@ describe('ContentService.findLessonById', () => {
   });
 });
 
+describe('ContentService.findVocabByKnownKana (Phase 0 reader)', () => {
+  it('returns words whose component characters are a subset of known kana', async () => {
+    const find = jest.fn(() => ({
+      lean: () => ({
+        exec: () =>
+          Promise.resolve([
+            { _id: oid('c1'), lemma: 'あい', reading: 'あい', romaji: 'ai', gloss: 'love', jlpt: 'N5', constituentKana: ['あ', 'い'] },
+            { _id: oid('c2'), lemma: 'いぬ', reading: 'いぬ', romaji: 'inu', gloss: 'dog', jlpt: 'N5', constituentKana: ['い', 'ぬ'] },
+          ]),
+      }),
+    }));
+    const empty = { find: () => ({ exec: () => Promise.resolve([]) }) };
+    const userService = {
+      findById: () => Promise.resolve({ learningState: { knownKana: ['あ', 'い'] } }),
+    };
+    const service = new ContentService(
+      empty as never,
+      empty as never,
+      { find } as never,
+      empty as never,
+      empty as never,
+      empty as never,
+      userService as never,
+    );
+
+    const rows = await service.findVocabByKnownKana(oid('u1'), 10);
+
+    expect(rows.map((row) => row.lemma)).toEqual(['あい']);
+    expect(find).toHaveBeenCalledWith(expect.objectContaining({
+      constituentKana: expect.objectContaining({ $exists: true, $not: expect.anything() }),
+    }));
+  });
+
+  it('returns no words until the learner has been taught a character', async () => {
+    const find = jest.fn();
+    const empty = { find: () => ({ exec: () => Promise.resolve([]) }) };
+    const service = new ContentService(
+      empty as never,
+      empty as never,
+      { find } as never,
+      empty as never,
+      empty as never,
+      empty as never,
+      { findById: () => Promise.resolve({ learningState: { knownKana: [] } }) } as never,
+    );
+
+    await expect(service.findVocabByKnownKana(oid('u2'), 10)).resolves.toEqual([]);
+    expect(find).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The constrained-filter reader is script-agnostic by construction (it walks
+   * `constituentKana` as code points, not as a prefix-matched string), but the
+   * rest of the suite only exercises hiragana. Pin the katakana case so a
+   * future "optimise for hiragana" pass does not regress the katakana track
+   * that Phase 3 #14 chains onto the end of the course.
+   */
+  it('returns katakana words when the learner has only been taught katakana', async () => {
+    const find = jest.fn(() => ({
+      lean: () => ({
+        exec: () =>
+          Promise.resolve([
+            { _id: oid('k1'), lemma: 'タクシー', reading: 'タクシー', romaji: 'takushii', gloss: 'taxi', jlpt: 'N5', constituentKana: ['タ', 'ク', 'シ', 'ー'] },
+            { _id: oid('k2'), lemma: 'いぬ', reading: 'いぬ', romaji: 'inu', gloss: 'dog', jlpt: 'N5', constituentKana: ['い', 'ぬ'] },
+          ]),
+      }),
+    }));
+    const empty = { find: () => ({ exec: () => Promise.resolve([]) }) };
+    const userService = {
+      findById: () => Promise.resolve({ learningState: { knownKana: ['タ', 'ク', 'シ', 'ー'] } }),
+    };
+    const service = new ContentService(
+      empty as never,
+      empty as never,
+      { find } as never,
+      empty as never,
+      empty as never,
+      empty as never,
+      userService as never,
+    );
+
+    const rows = await service.findVocabByKnownKana(oid('u3'), 10);
+
+    expect(rows.map((row) => row.lemma)).toEqual(['タクシー']);
+  });
+});
+
 /**
  * The lookup §7 step 7 needs: turn a chat correction's free text into the
  * taught words it mentions. Built with a real vocabulary slice, because the
@@ -131,6 +232,7 @@ function makeVocabService(lemmas: [string, string][]): ContentService {
     empty as never,
     empty as never,
     vocabModel as never,
+    empty as never,
     empty as never,
     empty as never,
     empty as never,
@@ -218,6 +320,7 @@ describe('ContentService.reportMistake (OPEN-ITEMS #8)', () => {
       empty as never,
       empty as never,
       reportModel as never,
+      empty as never,
     );
 
     const result = await service.reportMistake('507f1f77bcf86cd799439011', {

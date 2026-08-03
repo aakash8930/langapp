@@ -1,7 +1,12 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
-import { DueReviewsResponse, GradeReviewDto, GradeReviewResponse } from './dto/review.dto';
+import {
+  DailyStudySessionResponse,
+  DueReviewsResponse,
+  GradeReviewDto,
+  GradeReviewResponse,
+} from './dto/review.dto';
 import { ReviewService } from './review.service';
 
 @Controller('reviews')
@@ -12,6 +17,11 @@ export class ReviewController {
   @Get('due')
   async due(@CurrentUser() user: AuthenticatedUser): Promise<DueReviewsResponse> {
     return this.reviewService.findDue(user.userId);
+  }
+
+  @Get('session')
+  async session(@CurrentUser() user: AuthenticatedUser): Promise<DailyStudySessionResponse> {
+    return this.reviewService.findDailySession(user.userId);
   }
 
   @Post(':cardId/grade')
