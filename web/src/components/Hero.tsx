@@ -57,9 +57,15 @@ export const Hero = forwardRef<HTMLElement, { totals: Totals }>(function Hero({ 
               Continue Learning
             </Link>
           )}
-          <a href="#curriculum" className="btn btn-secondary" onClick={jumpTo('curriculum')}>
+          {/*
+            A route, not an in-page jump. The curriculum was the bottom of this
+            page until the dashboard took the home address; it is `/courses`
+            now, and scrolling to a `#curriculum` landmark that no longer exists
+            left this button doing nothing but writing a console error.
+          */}
+          <Link to="/courses" className="btn btn-secondary">
             Explore Curriculum
-          </a>
+          </Link>
         </div>
 
         <div className="hero-stats glass" data-hero-line style={{ marginTop: '32px' }}>

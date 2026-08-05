@@ -37,4 +37,35 @@ export const queryKeys = {
     /** `GET /vocab/by-known-kana` — server-filtered, character-safe vocabulary. */
     feed: ['reading', 'by-known-kana'] as const,
   },
+  learning: {
+    /** `GET /learning/memory-model` — mastery bands and the forgetting curve. */
+    memoryModel: ['learning', 'memory-model'] as const,
+    /** `GET /learning/analytics` — today's review accuracy and pace. */
+    analytics: ['learning', 'analytics'] as const,
+  },
+  content: {
+    /** `GET /lessons/curriculum` — the canonical kana list. Public. */
+    kanaCurriculum: ['lessons', 'curriculum'] as const,
+    /**
+     * Every item the syllabus teaches, across every unit, deduplicated.
+     *
+     * One key for one derived collection, fetched by `useCorpus` as a fan-out
+     * over `GET /units/:unit/content`. Vocabulary, Kanji, Grammar and the
+     * dictionary all read *this* entry rather than each running their own
+     * fan-out — which is the whole reason it is a single key rather than one
+     * per unit.
+     */
+    corpus: ['content', 'corpus'] as const,
+  },
+  social: {
+    /**
+     * `GET /social/leaderboard` — the weekly league bracket.
+     *
+     * The bare string is what `Leaderboard.tsx` had hard-coded before this key
+     * existed, and it is kept rather than renamed so the two callers — that
+     * screen and the dashboard's rank tile — go on sharing one cache entry. A
+     * tidier key here would have meant two fetches of the same bracket.
+     */
+    leaderboard: ['leaderboard'] as const,
+  },
 } as const;

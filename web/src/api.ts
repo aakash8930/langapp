@@ -356,6 +356,138 @@ export function fetchProgress(): Promise<Progress> {
   return authed<Progress>('/me/progress');
 }
 
+/**
+ * One character of the gojūon, with the lesson that teaches it.
+ *
+ * `GET /lessons/curriculum` is **public** and returns the canonical kana list
+ * in curriculum order — it is the whole of what the Hiragana and Katakana
+ * screens need, and nothing on this site read it until those screens existed.
+ *
+ * `taughtInLesson` is `lesson.order` within the character's unit, and it is
+ * `null` when the server's attribution migration has not stamped that row. Null
+ * means *unknown*, not "lesson zero"; the library screens say "not yet
+ * attributed" rather than guessing.
+ */
+export type KanaCurriculumRow = {
+  id: string;
+  script: 'hiragana' | 'katakana';
+  kana: string;
+  romaji: string;
+  /** Gojūon row — 'a', 'ka', 'kya'… Used to group the grid. */
+  row: string;
+  order: number;
+  taughtInLesson: number | null;
+};
+
+export function fetchKanaCurriculum(): Promise<KanaCurriculumRow[]> {
+  return send<KanaCurriculumRow[]>('/lessons/curriculum');
+}
+
+/**
+ * Everything a unit teaches, resolved, deduplicated by `(kind, id)`.
+ *
+ * `GET /units/:unit/content` is **two database queries regardless of unit
+ * size** — one for the unit's lessons, one batched resolve across every item
+ * kind. The alternative the browse screens would otherwise need is
+ * `/lessons?unit=` followed by `/lessons/:id` per row, which is 32 round trips
+ * for `vocab-n5` alone.
+ *
+ * An unrecognised unit returns empty rather than 404, matching `findLessons`.
+ * `lessonIds` being empty too is how a caller tells "no such unit" from "a real
+ * unit that teaches nothing".
+ */
+export type UnitContent = {
+  unit: string;
+  lessonIds: string[];
+  items: ResolvedItem[];
+  exerciseTypes: string[];
+};
+
+export function fetchUnitContent(unit: string): Promise<UnitContent> {
+  return send<UnitContent>(`/units/${encodeURIComponent(unit)}/content`);
+}
+
+/** How well a card is known. The server's bands, not ours. */
+export type MasteryLevel = 'new' | 'learning' | 'familiar' | 'mastered';
+
+/**
+ * `GET /learning/memory-model` — the shape of what the learner remembers.
+ *
+ * This is the one endpoint that is allowed to describe SRS behaviour in
+ * aggregate. It does not leak per-card FSRS internals: `stability` and
+ * `difficulty` are absent here exactly as they are absent from `GradeResult`,
+ * and the leak rule is enforced server-side rather than by this type.
+ */
+export type MemoryModel = {
+  totalCards: number;
+  /** Percentage, 0–100 — already scaled by the server. Do not multiply again. */
+  overallRetentionRate: number;
+  masteryBreakdown: Record<MasteryLevel, number>;
+  forgettingCurve: { day: number; retentionRate: number }[];
+};
+
+export function fetchMemoryModel(): Promise<MemoryModel> {
+  return authed<MemoryModel>('/learning/memory-model');
+}
+
+/**
+ * `GET /learning/analytics` — today's review numbers.
+ *
+ * Note the two different scales, which is the trap in this pair:
+ * `accuracyRateToday` is a **fraction** (0–1) while `MemoryModel`'s
+ * `overallRetentionRate` is a **percentage** (0–100). They are rendered
+ * differently for that reason and not because one is more precise.
+ */
+export type ReviewAnalytics = {
+  totalReviewsToday: number;
+  /** 0.0–1.0. */
+  accuracyRateToday: number;
+  averageResponseTimeMs: number;
+  masteredCount: number;
+};
+
+export function fetchAnalytics(): Promise<ReviewAnalytics> {
+  return authed<ReviewAnalytics>('/learning/analytics');
+}
+
+/** The themes the server will accept. Mirrors `THEMES` in the user schema. */
+export const THEMES = ['light', 'dark', 'system'] as const;
+export type Theme = (typeof THEMES)[number];
+
+/**
+ * The bounds the server enforces on the daily goal, restated so the form can
+ * refuse a bad value before spending a round trip on it.
+ *
+ * They are a *copy*, and the server is still the authority — a 422 is handled
+ * either way. Widening these here does not widen them there.
+ */
+export const MIN_DAILY_GOAL_XP = 10;
+export const MAX_DAILY_GOAL_XP = 1000;
+
+/**
+ * Everything `PATCH /me/settings` accepts. Every field optional: the endpoint
+ * patches, so sending one key leaves the rest alone.
+ *
+ * `dailyGoalXp` lives on `gamification` server-side rather than on `settings`,
+ * and is patched through this DTO anyway — "daily goal" is a setting to
+ * everyone except the schema. It comes *back* on `/me/progress` as
+ * `daily.goalXp`, which is why saving it invalidates that query too.
+ */
+export type SettingsPatch = {
+  audioSpeed?: number;
+  theme?: Theme;
+  tz?: string;
+  dailyGoalXp?: number;
+  leaderboardOptIn?: boolean;
+};
+
+export function updateSettings(patch: SettingsPatch): Promise<User> {
+  return authed<User>('/me/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
 /** A word that the server has verified uses only the learner's known kana. */
 export type ReadableVocab = {
   id: string;

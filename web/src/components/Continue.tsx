@@ -20,10 +20,14 @@ import { log } from '../debug';
  *
  * ## Where it points
  *
- * `/` with `?learn=<id>`, the same destination the end of a lesson uses when the
- * next one has not been learned: it opens that row in the curriculum and scrolls
- * to it. Straight into the quiz would be wrong here — this lesson has not been
- * taught yet, and the row is where the teaching is.
+ * `/courses` with `?learn=<id>`, the same destination the end of a lesson uses
+ * when the next one has not been learned: it opens that row in the curriculum
+ * and scrolls to it. Straight into the quiz would be wrong here — this lesson
+ * has not been taught yet, and the row is where the teaching is.
+ *
+ * That was `/` until the dashboard took over the home address. The param moved
+ * with the catalog; there is no `learn` on `/` any more, and one left there is
+ * dropped silently by the router.
  *
  * **It is a `<Link>`, and that is load-bearing.** This button was a plain
  * `<a href={`#/learn/${id}`}>` until 2026-07-30 and it was broken: `learn` used
@@ -66,7 +70,7 @@ export function Continue({
     completedCount: progress.completedLessonIds.length,
     // The destination, spelled out. This is the line that would have made the
     // 2026-07-30 bug a five-second diagnosis.
-    to: next ? `/?learn=${next.id}` : null,
+    to: next ? `/courses?learn=${next.id}` : null,
   });
 
   if (!next) {
@@ -98,7 +102,7 @@ export function Continue({
       </div>
       <Link
         className="btn btn-primary"
-        to="/"
+        to="/courses"
         search={{ learn: next.id }}
         onClick={() => log('nav', 'Continue: begin clicked', { lessonId: next.id })}
       >

@@ -865,10 +865,11 @@ function goToStep(step: NextStep): void {
   });
 
   if (step.kind === 'practise') go({ name: 'lesson', id: step.lesson.id });
-  // `{ name: 'home', learn }` — a search param on `/`. This emitted
-  // `#/learn/<id>` until 2026-07-30, which matched no route; the fix is in
-  // `useRoute.ts`'s `go()`, and this call site is unchanged.
-  else if (step.kind === 'learn') go({ name: 'home', learn: step.lesson.id });
+  // `{ name: 'catalog', learn }` — a search param on `/courses`, where the
+  // syllabus now lives. It emitted `#/learn/<id>` until 2026-07-30 and
+  // `#/?learn=<id>` until the dashboard took `/`; both fixes were in
+  // `useRoute.ts`'s `go()` and this call site only names the destination.
+  else if (step.kind === 'learn') go({ name: 'catalog', learn: step.lesson.id });
   else go({ name: 'home' });
 }
 

@@ -240,6 +240,155 @@ Three rules came out of it:
 shim, it is spelled correctly now, and its remaining callers (`Study`,
 `LessonQuiz`) should migrate to `useNavigate`. Do not add new ones.
 
+## The shell and the dashboard (2026-08-05)
+
+`__root.tsx` mounts `<AppShell>` around every route: a full-height sidebar, a
+sticky header, the routed screen, a footer. Two consequences to know before
+touching it.
+
+**`/` is the dashboard when signed in and the shop window when signed out.**
+The catalog that used to be the bottom two-thirds of `/` is now `/courses`, and
+**`?learn=` moved with it** — `/` declares no search params, so a `learn` left
+on the home route is dropped silently. Its writers are the dashboard's Continue
+card and the end of a lesson; both point at `/courses`. This is the same class
+of defect as the `#/learn/<id>` button, so a third writer points there too.
+
+**The sidebar's collapsed state lives in `AppShell` and must stay there.** It is
+one boolean meaning "rail" on a desktop and "out of the way" on a phone. A shell
+that remounted on navigation would spring the menu open every time a learner
+opened a lesson, which is the reason the shell is in `__root` rather than being
+a per-route layout.
+
+### The design has features this API cannot answer, and they are absent
+
+`platform-dashboard-layout.jpg` in the repo root is the reference. It draws
+several things the server has no data for, and each was dropped rather than
+filled with a plausible number — the reward layer's rule ("never render a figure
+the server did not send") applied to a whole screen. Do not re-add them without
+the endpoint that makes them true:
+
+- **Study time (45 / 60 min)** — nothing records session duration.
+- **Per-activity daily targets** (Reviews 32 / 40, Lessons 2 / 3) — only
+  `daily.goalXp` exists. Those rows are counts, not fractions.
+- **"Upcoming reviews — due in 15m"** — `/reviews/due` is `due: { $lte: now }`.
+  There is no forward schedule on the wire, so the panel shows what is *ready*
+  and how long it has waited.
+- **Global rank #3,247** — there is no global ranking. `/social/leaderboard` is
+  a weekly league bracket, so the tile names the tier and says which rank it is.
+- **Notification bell, Upgrade to Premium** — no notifications API, no billing.
+- **Month navigation on the calendar** — `streakDays` + `lastStudyDate` prove
+  exactly one unbroken run. Paging back would render empty squares, and an empty
+  square in a calendar is read as "nothing happened that day" — a false claim
+  about the learner's own history rather than an absence of data.
+- **Curated "Recommended for You" tiles and their cover art** — no
+  recommendation endpoint and no lesson artwork. The row is the next unlearned
+  lessons in teaching order, which is derivable and is a real answer.
+- **The padlocked path node** — `GET /lessons` is public and the curriculum
+  renders every row, so a lock here would be a rule the product does not have
+  and a learner could disprove by clicking.
+
+**Dates are `'YYYY-MM-DD'` strings in the *account* timezone, never `Date`
+comparisons.** `days.ts` mirrors `api/src/user/gamification/streak.ts` for the
+reason that file gives: a day is a calendar concept, and comparing instants
+breaks a streak at exactly the wrong moment. The split is that the header's
+*greeting* reads the browser clock — it describes where the learner is sitting —
+while anything the server counts reads `settings.tz`.
+
+## The browse surfaces, and what unlocked them (2026-08-05)
+
+Nine of the sidebar's twenty-five rows were `planned`; eight still are. What
+unlocked the rest was mostly **finding endpoints nothing was reading**, not
+writing new ones:
+
+- `/hiragana`, `/katakana` — `GET /lessons/curriculum`, public, one request,
+  208 characters. `KanaLibrary` backs both.
+- `/progress` — `GET /learning/memory-model` and `GET /learning/analytics`.
+  Neither had ever been called from this site.
+- `/achievements` — `gamification.ts`, and it re-homes `Achievements.tsx`, which
+  the dashboard orphaned.
+- `/settings` — `PATCH /me/settings`. The only screen here that writes.
+- `/vocabulary`, `/kanji`, `/grammar`, `/dictionary` — `GET /units/:unit/content`,
+  **the one API addition**, and it is a controller over
+  `ContentService.findUnitContent`, which already existed and was already used
+  by the checkpoint. Two queries per unit; the alternative was 32 lesson fetches
+  for `vocab-n5` alone.
+
+**`useCorpus` is one cache entry shared by four screens.** It fans out over
+every unit, dedupes by `(kind, id)` *across* units as well as within them, and
+`allSettled`s so one dead unit degrades the library rather than emptying it.
+Measured today: 11 units, 1126 unique items — 802 vocab, 208 kana, 104 kanji,
+12 grammar. Do not give the four screens their own fetches.
+
+Lists are capped at `RENDER_CAP` (120) with the match count shown beside it.
+802 vocabulary rows is ~4000 DOM nodes and a search field that stutters on every
+keystroke; a cap plus an honest count is the dependency-free version of
+virtualisation, and a truncated list that says it is truncated is not a lie.
+
+### Two content gaps that make shipped features inert
+
+Both were found by building on top of them, and neither is a code defect:
+
+- **`/content/strokes/:codepoint` 404s for every character** — あ, ア and 日 all
+  tried. Nothing is seeded. `StrokeOrder` renders `null` by design when it has
+  no data, so this is silent: the Study screen's stroke diagram and
+  `TraceCanvas` — "the one graded thing on the study screen" — have had no
+  target for their whole life.
+- **`taughtInLesson` is `null` for all 208 kana.** The attribution migration has
+  not run. `KanaLibrary` omits the field rather than printing "unknown" 208
+  times.
+
+The remaining eight locked rows and what each needs are documented in
+`constants/navigation/sidebar.ts`. Keep that list current — it is the only
+place the reasons live.
+
+## `/courses` is the course page (2026-08-05)
+
+Built from `UI/course-ui.png`. **That mock is black and gold; this is not.** The
+palette stays the dashboard's violet/pink on slate, because the two screens sit
+one click apart behind the same sidebar and a course page in a different scheme
+reads as a different product. Only the structure was taken: banner, progress
+dial, module accordion, right rail, feature strip. `course.css` contains no
+colour literals, which is what makes that a property of the file rather than a
+promise in a comment.
+
+**There is one course, so `/courses` *is* it.** The design has "← Back to
+Courses" above a detail page; a list of one card with a back link to it is
+ceremony. If a second track lands — the API already models
+`profile.activeTrack` — the list becomes worth building and this becomes
+`/courses/$track`.
+
+**Modules are units.** The design shows eight; there are eleven, from
+`groupByUnit` in teaching order with their `UNIT_LABELS` blurbs. The percentage
+on each is completed lessons over total, counted from `completedLessonIds`.
+
+`Curriculum.tsx` is gone. `LessonRow` **moved** out of it into
+`components/course/` unchanged — lazy detail fetch on open, the imperative
+`?learn=` open-and-scroll, prerequisite locking, and the learn/practise/skip
+actions are all still there and all still load-bearing. It was a move rather
+than a copy on purpose: two near-identical lesson rows is how `.btn` and
+`.button` came to disagree about `:disabled`.
+
+**The module holding `?learn=` must be open before its lesson row mounts** —
+`scrollIntoView` on an element inside a closed `<details>` does nothing. That is
+why the open set is computed in the `useState` initialiser rather than in an
+effect, and why the follow-up effect depends on the resolved *slug* rather than
+on `units` (which is rebuilt every render, so depending on it re-ran the effect
+and its setState on every single render).
+
+### Dropped from the design, for the usual reason
+
+Ratings and the Reviews/Q&A tabs (no reviews API), durations — "25h 30m", "18
+min" — (nothing records or estimates lesson length; `itemCount` takes the slot),
+the named instructor (no instructor model), course statistics like "24,531
+students enrolled" (no aggregate endpoint — the panel shows *your* figures and
+is titled accordingly), certificate/lifetime access/Go Premium (no
+entitlements), bookmarking (nowhere to persist it), and related JLPT N4/N3
+courses (they do not exist; every levelled item in the corpus is N5).
+
+With Reviews, Q&A and Resources gone the tab bar would be "Overview" — the page
+you are on — and "Curriculum" — the section below it. That is chrome pretending
+to be navigation, so the tabs went too.
+
 ## Tracing: `debug.ts`
 
 Console tracing for the flows that fail *silently* — a route miss, a fetch that

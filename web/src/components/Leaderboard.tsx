@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchLeaderboard } from '../api';
+import { queryKeys } from '../queryKeys';
 import './Leaderboard.css';
 
 export function Leaderboard() {
   const { data: leaderboard, isLoading, error } = useQuery({
-    queryKey: ['leaderboard'],
+    queryKey: queryKeys.social.leaderboard,
     queryFn: fetchLeaderboard,
   });
 

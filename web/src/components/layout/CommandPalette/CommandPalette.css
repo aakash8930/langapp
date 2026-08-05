@@ -1,0 +1,154 @@
+/*
+ * The search dialog behind the header's field.
+ *
+ * It is a native <dialog showModal>, so the backdrop, the focus trap and
+ * Escape-to-close are the browser's. What is left to style is the panel and
+ * the result rows — and one thing that is easy to miss: a modal dialog is
+ * centred by the UA's default margin, and a palette centred vertically jumps
+ * under the cursor. Hence the explicit top margin.
+ */
+
+.palette {
+  width: min(560px, calc(100vw - 2 * var(--s-xl)));
+  max-height: min(60vh, 520px);
+  padding: 0;
+
+  margin: 12vh auto auto;
+
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+
+  background: var(--glass-solid);
+  color: var(--ink);
+
+  box-shadow: 0 24px 64px -16px var(--glass-edge);
+
+  overflow: hidden;
+}
+
+.palette::backdrop {
+  background: rgba(15, 23, 42, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.palette-body {
+  display: flex;
+  flex-direction: column;
+
+  max-height: inherit;
+}
+
+.palette-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+
+  padding: var(--s-lg) var(--s-xl);
+
+  border-bottom: 1px solid var(--hairline);
+
+  color: var(--ink-soft);
+}
+
+.palette-input {
+  flex: 1;
+  min-width: 0;
+
+  border: none;
+  background: none;
+
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-large);
+}
+
+.palette-input:focus {
+  outline: none;
+}
+
+/* The field is the focus ring, not the bare input inside it — a ring drawn
+   around a borderless box floating in a panel reads as a stray rectangle. */
+.palette-field:focus-within {
+  box-shadow: inset 0 0 0 2px var(--brand-primary);
+}
+
+.palette-note {
+  margin: 0;
+  padding: var(--s-lg) var(--s-xl);
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.palette-results {
+  flex: 1;
+
+  margin: 0;
+  padding: var(--s-sm);
+
+  list-style: none;
+
+  overflow-y: auto;
+}
+
+.palette-result {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+
+  width: 100%;
+
+  padding: var(--s-md) var(--s-lg);
+
+  border: none;
+  border-radius: var(--radius-md);
+
+  background: none;
+  color: var(--ink);
+
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  text-align: left;
+
+  cursor: pointer;
+}
+
+/*
+ * One highlight, driven by the cursor state rather than by :hover.
+ *
+ * Both the arrow keys and the mouse write `cursor`, so the keyboard and the
+ * pointer cannot disagree about which row Enter would open — which is what a
+ * separate :hover rule would produce the moment someone moved the mouse.
+ */
+.palette-result-active {
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+}
+
+.palette-result-icon {
+  display: inline-flex;
+
+  color: var(--ink-soft);
+}
+
+.palette-result-active .palette-result-icon {
+  color: var(--brand-primary);
+}
+
+.palette-result-label {
+  flex: 1;
+  min-width: 0;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-result-hint {
+  flex-shrink: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

@@ -1,0 +1,443 @@
+/*
+ * The browse surfaces: Vocabulary, Kanji, Grammar and the dictionary search.
+ *
+ * All four share `LibraryFrame`, so the search box and the count live here once
+ * and each list adds only its own row shape.
+ */
+
+.library-title-glyph {
+  color: var(--brand-primary);
+}
+
+.library-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+
+  max-width: 520px;
+  padding: var(--s-sm) var(--s-lg);
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-full);
+
+  background: var(--surface);
+  color: var(--ink-soft);
+}
+
+.library-search:focus-within {
+  border-color: var(--brand-primary);
+}
+
+.library-search-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+
+  border: none;
+  background: none;
+
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+}
+
+/* The container carries the focus ring; a ring around a borderless box sitting
+   inside a pill reads as a stray rectangle. */
+.library-search-input:focus {
+  outline: none;
+}
+
+.library-count {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+/* ---- Vocabulary ---- */
+
+.vocab-list {
+  display: flex;
+  flex-direction: column;
+
+  margin: 0;
+  padding: 0;
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+
+  list-style: none;
+
+  overflow: hidden;
+}
+
+.vocab-row {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) minmax(0, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-md);
+
+  padding: var(--s-md) var(--s-lg);
+
+  border-bottom: 1px solid var(--hairline);
+}
+
+.vocab-row:last-child {
+  border-bottom: none;
+}
+
+.vocab-row:hover {
+  background: var(--paper);
+}
+
+.vocab-lemma {
+  font-size: var(--text-large);
+  font-weight: 600;
+}
+
+.vocab-reading {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.vocab-gloss {
+  min-width: 0;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vocab-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+
+  flex-shrink: 0;
+}
+
+.vocab-romaji {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  font-style: italic;
+}
+
+.vocab-tag {
+  padding: 1px var(--s-sm);
+
+  border-radius: var(--radius-full);
+
+  background: var(--hairline);
+  color: var(--ink-soft);
+
+  font-size: var(--text-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vocab-tag-jlpt {
+  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  color: var(--brand-primary);
+}
+
+@media (max-width: 760px) {
+  /* The four-column row cannot survive a phone. It becomes two lines: the word
+     and its reading, then the gloss and tags. */
+  .vocab-row {
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  }
+
+  .vocab-gloss,
+  .vocab-meta {
+    grid-column: 1 / -1;
+  }
+
+  .vocab-gloss {
+    white-space: normal;
+  }
+}
+
+/* ---- Kanji ---- */
+
+.kanji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--s-md);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+
+  /* `start` rather than the default stretch: an open <details> must be allowed
+     to grow without dragging every card in its row taller. */
+  align-items: start;
+}
+
+.kanji-card {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+
+  overflow: hidden;
+}
+
+.kanji-card[open] {
+  border-color: var(--brand-primary);
+}
+
+.kanji-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+
+  padding: var(--s-md);
+
+  cursor: pointer;
+
+  list-style: none;
+}
+
+/* The default disclosure triangle is removed in both engines' spellings; the
+   card's own open state is the affordance. */
+.kanji-summary::-webkit-details-marker {
+  display: none;
+}
+
+.kanji-char {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.kanji-meaning {
+  min-width: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kanji-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+
+  margin: 0;
+  padding: 0 var(--s-md) var(--s-md);
+}
+
+.kanji-facts > div,
+.grammar-card dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-md);
+}
+
+.kanji-facts dt {
+  flex-shrink: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.kanji-facts dd {
+  margin: 0;
+
+  font-size: var(--text-small);
+  text-align: right;
+}
+
+/* ---- Grammar ---- */
+
+.grammar-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.grammar-card {
+  padding: var(--s-lg);
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+}
+
+.grammar-card[open] {
+  border-color: var(--brand-primary);
+}
+
+.grammar-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-md);
+
+  cursor: pointer;
+
+  list-style: none;
+}
+
+.grammar-summary::-webkit-details-marker {
+  display: none;
+}
+
+.grammar-title {
+  font-family: var(--font-display);
+  font-size: var(--text-large);
+  font-weight: 700;
+}
+
+.grammar-explanation {
+  margin: var(--s-md) 0 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+  line-height: 1.6;
+}
+
+.example-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+
+  margin: var(--s-lg) 0 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.example {
+  padding-left: var(--s-lg);
+
+  border-left: 3px solid var(--brand-primary);
+}
+
+.example-sentence {
+  margin: 0;
+
+  font-size: var(--text-large);
+}
+
+.example-romaji {
+  margin: 2px 0 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  font-style: italic;
+}
+
+.example-gloss {
+  margin: 2px 0 0;
+
+  font-size: var(--text-small);
+}
+
+/* ---- Dictionary ---- */
+
+.dict-list {
+  display: flex;
+  flex-direction: column;
+
+  margin: 0;
+  padding: 0;
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+
+  list-style: none;
+
+  overflow: hidden;
+}
+
+.dict-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-lg);
+
+  padding: var(--s-md) var(--s-lg);
+
+  border-bottom: 1px solid var(--hairline);
+}
+
+.dict-row:last-child {
+  border-bottom: none;
+}
+
+.dict-row:hover {
+  background: var(--paper);
+}
+
+.dict-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  min-width: 52px;
+
+  font-size: var(--text-title);
+}
+
+.dict-body {
+  display: flex;
+  flex-direction: column;
+
+  flex: 1;
+  min-width: 0;
+}
+
+.dict-label {
+  font-weight: 600;
+}
+
+.dict-note {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+/*
+ * One tint per kind. Four rules rather than an inline style, so the kinds stay
+ * a closed set here as they are in the `ResolvedItem` union — a fifth kind
+ * arrives as an unstyled grey tag rather than as a colour picked at random.
+ */
+.dict-kind {
+  flex-shrink: 0;
+}
+
+.dict-kind-kana {
+  background: color-mix(in srgb, var(--brand-tertiary) 16%, transparent);
+  color: var(--brand-tertiary);
+}
+
+.dict-kind-vocab {
+  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  color: var(--brand-primary);
+}
+
+.dict-kind-kanji {
+  background: color-mix(in srgb, var(--shu) 16%, transparent);
+  color: var(--shu-glass);
+}
+
+.dict-kind-grammar {
+  background: color-mix(in srgb, var(--brand-success) 18%, transparent);
+  color: var(--brand-success);
+}

@@ -1,56 +1,50 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 
 import { fetchLessons, groupByUnit, type Unit } from '../api';
-import { Achievements } from '../components/Achievements';
-import { Continue } from '../components/Continue';
-import { Curriculum, type Load } from '../components/Curriculum';
+import { Dashboard } from '../components/dashboard';
 import { Hero } from '../components/Hero';
 import { SignIn } from '../components/SignIn';
 import { log, logError } from '../debug';
-import { playHero, scrollToSection } from '../motion';
+import { playHero } from '../motion';
 import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
 
+type Load =
+  | { state: 'ready'; units: Unit[] }
+  | { state: 'error'; message: string };
+
 /**
- * The home route. The marketing page and the unauthenticated one are the same
- * screen — the components that depend on session state render only when the
- * session is signed-in, and the rest of the page is the course catalog.
+ * The home route, and now two different screens behind one address.
  *
- * Loader runs once per `staleTime` (default 30s — set in `queryClient.ts`).
- * The catalog is public and cheap, but we still cache it because the same
- * data backs the lesson route's "next lesson after this" lookup, so a
- * lesson-end that asks for the next lesson should not refetch what the home
- * page already has.
+ * **Signed in, it is the dashboard.** **Signed out, it is the shop window** —
+ * the hero and the sign-in form, which is where the header's "Sign in" button
+ * points precisely because `/` *is* the sign-in screen when there is no session.
  *
- * The search param `learn` carries a lesson id whose row should auto-open and
- * scroll into view — the only flow that produces it is finishing a lesson whose
- * successor has not been learned yet. Passing it through the URL keeps the
- * intent visible in a log line and survives a refresh.
+ * The course catalog used to be the bottom two-thirds of this page and now
+ * lives at `/courses`. Nothing about it changed in the move except the address,
+ * and one consequence is load-bearing: **`?learn=` belongs to `/courses` now.**
+ * This route deliberately declares no search params, so a `learn` left on `/`
+ * is dropped rather than half-honoured. Its two writers — the dashboard's
+ * Continue card and the end of a lesson — both point at `/courses`.
+ *
+ * The loader still runs for signed-out visitors, because the hero's three
+ * counters come from the catalog and browsing is public. It is the same cached
+ * query the dashboard and `/courses` read, so arriving at any of the three
+ * warms the other two.
  */
 export const Route = createFileRoute('/')({
-  validateSearch: (search: Record<string, unknown>): { learn?: string } => {
-    const raw = search['learn'];
-    const parsed = typeof raw === 'string' ? { learn: raw } : {};
-    // `learn` arriving as anything but a string is silently dropped, and a
-    // dropped `learn` means the curriculum opens no row and scrolls nowhere —
-    // the same "nothing happened" the wrong URL shape produced.
-    if (raw !== undefined && typeof raw !== 'string') {
-      logError('nav', 'home: `learn` search param was not a string — dropped', { raw });
-    }
-    return parsed;
-  },
   loader: async ({ context }): Promise<Load> => {
     try {
       // `ensureQueryData` returns the cached value if fresh, otherwise fetches
       // and stores it. The 30s default stale time means a back-navigation
-      // within half a minute of the home page reads from the cache.
+      // within half a minute reads from the cache.
       const lessons = await context.queryClient.ensureQueryData({
         queryKey: queryKeys.lessons.all,
         queryFn: fetchLessons,
       });
       const units = groupByUnit(lessons);
-      log('route', 'home loader: curriculum ready', {
+      log('route', 'home loader: catalog ready', {
         lessons: lessons.length,
         units: units.map((unit) => `${unit.slug}(${unit.lessons.length})`),
       });
@@ -59,13 +53,11 @@ export const Route = createFileRoute('/')({
       // The loader deliberately resolves rather than throwing, so the page can
       // render its own error state instead of the router's boundary. That also
       // means nothing else would log this.
-      logError('route', 'home loader: curriculum failed to load', error);
+      logError('route', 'home loader: catalog failed to load', error);
       return {
         state: 'error',
         message:
-          error instanceof Error
-            ? error.message
-            : 'Something stopped the curriculum loading.',
+          error instanceof Error ? error.message : 'Something stopped the catalog loading.',
       };
     }
   },
@@ -74,131 +66,129 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   const data = Route.useLoaderData();
-  const { learn } = Route.useSearch();
   const { session, signIn, signUp } = useSession();
+
+  const units: Unit[] = data.state === 'ready' ? data.units : [];
+
+  if (session.state === 'loading') {
+    return <DashboardSkeleton />;
+  }
+
+  if (session.state === 'signedOut') {
+    return <ShopWindow onSignIn={signIn} onSignUp={signUp} units={units} />;
+  }
+
+  /*
+   * Signed in, but `/me/progress` has not landed yet.
+   *
+   * Every card on the dashboard is a rendering of a figure from that one
+   * response, so there is nothing to draw half of — which is why `Dashboard`
+   * takes a non-null `Progress` rather than eleven components each guarding
+   * for it.
+   */
+  if (!session.progress) {
+    return <DashboardSkeleton />;
+  }
+
+  return (
+    <>
+      {data.state === 'error' ? (
+        // The catalog failing does not empty the dashboard: the streak, the
+        // goal, the level and the review queue all come from elsewhere. Only
+        // the three lesson-driven cards go quiet, so this says which.
+        <p className="note note-error dashboard-warning">
+          <strong>The course catalog could not be loaded.</strong>
+          <span>
+            {data.message} Your progress is still shown — what to study next is not. The API may
+            be asleep.
+          </span>
+        </p>
+      ) : null}
+
+      <Dashboard
+        units={units}
+        progress={session.progress}
+        tz={session.user.settings.tz}
+      />
+    </>
+  );
+}
+
+/**
+ * The signed-out home: hero, then the sign-in form.
+ *
+ * `#start` is the one in-page anchor left on this screen, and `Hero`'s button
+ * scrolls to it with `scrollToSection` rather than writing the hash — the hash
+ * is the router's address bar, and `href="#start"` makes it read `start` as a
+ * path, match nothing, and render not-found over the section it just scrolled
+ * to.
+ */
+function ShopWindow({
+  units,
+  onSignIn,
+  onSignUp,
+}: {
+  units: Unit[];
+  onSignIn: (email: string, password: string) => Promise<void>;
+  onSignUp: (
+    email: string,
+    password: string,
+    displayName: string,
+    dateOfBirth: string,
+  ) => Promise<void>;
+}) {
   const heroRef = useRef<HTMLElement>(null);
 
-  // The hero only plays on the home mount. The shell keeps mounted across
-  // navigation, so this runs on every push to `/`, not on every render.
+  // The shell stays mounted across navigation, so this runs on each arrival at
+  // `/` rather than on every render.
   useEffect(() => {
     if (heroRef.current) playHero(heroRef.current);
   }, []);
 
-  const units: Unit[] = data.state === 'ready' ? data.units : [];
-
-  const totals =
-    data.state === 'ready'
-      ? {
-          units: data.units.length,
-          lessons: data.units.reduce((n, unit) => n + unit.lessons.length, 0),
-          items: data.units.reduce((n, unit) => n + unit.itemCount, 0),
-        }
-      : null;
+  const totals = {
+    units: units.length,
+    lessons: units.reduce((n, unit) => n + unit.lessons.length, 0),
+    items: units.reduce((n, unit) => n + unit.itemCount, 0),
+  };
 
   return (
-    <>
-      {/*
-        The skip link, and the one in-page anchor where getting this wrong is
-        worst: it is a keyboard user's first tab stop, and `href="#curriculum"`
-        sent the router to a path called `curriculum`, matched nothing, and
-        replaced the page with the not-found screen. `focus: true` moves focus as
-        well as scrolling — a skip link that scrolls the view but leaves focus in
-        the header has not skipped anything.
-      */}
-      <a
-        className="skip"
-        href="#curriculum"
-        onClick={(event) => {
-          event.preventDefault();
-          if (!scrollToSection('curriculum', { focus: true })) {
-            logError('ui', 'skip link: no #curriculum landmark on the page');
-          }
-        }}
-      >
-        Skip to the curriculum
-      </a>
+    <div className="page">
+      <Hero ref={heroRef} totals={units.length > 0 ? totals : null} />
 
-      <Hero ref={heroRef} totals={totals} />
-
-      {session.state === 'signedOut' ? (
-        <section className="section section-tight" id="start">
-          <div className="wrap">
-            <SignIn onSignIn={signIn} onSignUp={signUp} />
-          </div>
-        </section>
-      ) : null}
-
-      {session.state === 'signedIn' && (session.progress?.cardsDueNow ?? 0) > 0 ? (
-        <section className="section section-tight">
-          <div className="wrap">
-            {/*
-              The loudest thing on the page when it is here. SRS only works if
-              due cards get cleared before new material is added, so this has to
-              out-shout a list of tempting new lessons.
-            */}
-            <Link className="due-callout" to="/review">
-              <span className="due-count tabular">{session.progress?.cardsDueNow}</span>
-              <span>
-                <strong>Cards are due</strong>
-                <span>Clear these before starting something new.</span>
-              </span>
-            </Link>
-          </div>
-        </section>
-      ) : null}
-
-      {session.state === 'signedIn' ? (
-        <section className="section section-tight">
-          <div className="wrap">
-            <Continue units={units} progress={session.progress} />
-          </div>
-        </section>
-      ) : null}
-
-      {/* Below Continue, above the catalog: what you have done sits between
-          what to do next and the whole course. Needs progress — there is
-          nothing to derive a badge from until it loads. */}
-      {session.state === 'signedIn' && session.progress ? (
-        <section className="section section-tight">
-          <div className="wrap">
-            <Achievements progress={session.progress} />
-          </div>
-        </section>
-      ) : null}
-
-      {session.state === 'signedIn' && session.user?.isAdmin && (
-        <section className="section section-tight">
-          <div className="wrap">
-            <Link className="admin-banner glass" to="/creator">
-              <span className="admin-banner-icon">⚙</span>
-              <span className="admin-banner-body">
-                <strong>Creator Dashboard</strong>
-                <span>Add vocabulary, lessons, and manage content.</span>
-              </span>
-              <span className="admin-banner-arrow">→</span>
-            </Link>
-          </div>
-        </section>
-      )}
-
-      <main id="curriculum">
-        <Curriculum
-          load={data}
-          completedLessonIds={
-            session.state === 'signedIn' ? (session.progress?.completedLessonIds ?? []) : null
-          }
-          learnId={learn ?? null}
-        />
-      </main>
-
-      <footer className="footer">
-        <div className="wrap footer-inner">
-          <span className="ja footer-mark">日本語</span>
-          <p>
-            Learn Japanese with spaced repetition, AI-powered practice, and gamified progress tracking.
-          </p>
+      <section className="section section-tight" id="start">
+        <div className="wrap">
+          <SignIn onSignIn={onSignIn} onSignUp={onSignUp} />
         </div>
-      </footer>
-    </>
+      </section>
+    </div>
+  );
+}
+
+/**
+ * The dashboard's loading state.
+ *
+ * Blocks rather than a spinner, and in the dashboard's own proportions: the
+ * page it becomes has a wide column and a narrow one, and a layout that
+ * reshuffles the moment data lands reads as a glitch. Nothing here animates —
+ * a shimmer under `prefers-reduced-motion` is exactly the kind of decoration
+ * the site's motion rule turns off.
+ */
+function DashboardSkeleton() {
+  return (
+    <div className="dashboard" aria-busy="true" aria-live="polite">
+      <span className="visually-hidden">Loading your dashboard…</span>
+
+      <div className="dashboard-main">
+        <span className="skeleton-card streak-card" />
+        <span className="skeleton-card today-card" />
+        <span className="skeleton-card continue-card" />
+        <span className="skeleton-card reviews-card" />
+      </div>
+
+      <div className="dashboard-side">
+        <span className="skeleton-card skeleton-card-tall" />
+        <span className="skeleton-card" />
+      </div>
+    </div>
   );
 }

@@ -1,14 +1,69 @@
+/*
+ * The frame: a full-height sidebar beside a column of header / screen / footer.
+ *
+ * The shell sets no background of its own. `body` already carries the mesh
+ * ground from theme.css, and painting `--paper` over it here — which this file
+ * used to do — deletes the site's backdrop the moment the shell is mounted.
+ */
+
 .app-shell {
   display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+  align-items: flex-start;
 
-  background: var(--paper);
+  min-height: 100vh;
 }
 
-.app-shell__body {
+.app-shell-column {
   display: flex;
-  flex: 1;
+  flex-direction: column;
 
-  min-height: 0;
+  flex: 1;
+  /* Without this a wide child — a long unbroken title, a scrolling row of
+     cards — stretches the flex item past the viewport instead of scrolling
+     inside it, and the whole page gains a horizontal scrollbar. */
+  min-width: 0;
+
+  min-height: 100vh;
+}
+
+/*
+ * The scrim. Hidden outright above the breakpoint rather than merely
+ * transparent: a full-viewport invisible button laid over the dashboard would
+ * swallow every click on it.
+ */
+.app-scrim {
+  display: none;
+
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+
+  border: none;
+
+  background: rgba(15, 23, 42, 0.5);
+
+  cursor: pointer;
+}
+
+@media (max-width: 860px) {
+  /*
+   * Narrow: the sidebar leaves the flow, so expanding it overlays the screen
+   * rather than squeezing the content into a column too narrow to read. The
+   * column keeps a rail-width inset, because the rail is still there and still
+   * holds the only control that brings the sidebar back.
+   */
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
+  }
+
+  .app-shell-column {
+    margin-left: 76px;
+  }
+
+  .app-shell:not(.app-shell-railed) .app-scrim {
+    display: block;
+  }
 }

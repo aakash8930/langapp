@@ -2,9 +2,8 @@ import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { Header } from '../components/Header';
+import { AppShell } from '../components/layout/AppShell';
 import { armMotion } from '../motion';
-import { useSession } from '../useSession';
 
 /**
  * The shape every route loader sees as its `context` argument. Caches the
@@ -21,9 +20,13 @@ export interface RouterContext {
  * Owns the things that *should not* remount when the learner moves between
  * screens:
  *   - the `<QueryClientProvider>` for every cached fetch,
- *   - the `<Header>` with its live XP/streak numbers,
- *   - the `useSession()` state machine (loading / signed-out / signed-in),
+ *   - the `<AppShell>` — sidebar, header and the sidebar's collapsed state,
  *   - `armMotion()` — the page-load animation driver.
+ *
+ * The sidebar's collapsed/railed state is the clearest example of why this is a
+ * shell rather than a per-route layout: it lives in `AppShell`, and a shell
+ * that remounted on navigation would spring the menu back open every time a
+ * learner opened a lesson.
  *
  * It is deliberately split into two components, and the split is load-bearing —
  * see `ShellContent` below.
@@ -78,9 +81,10 @@ function RootShell() {
  * Everything inside the provider, and the reason this is a separate component
  * rather than the body of `RootShell`.
  *
+ * `AppShell` reaches `useSession()` through its header and sidebar, and
  * `useSession()` calls `useQueryClient()`. React resolves context by walking a
  * component's *ancestors*, so a component can never consume a provider it
- * renders itself — calling `useSession()` in `RootShell` throws "No QueryClient
+ * renders itself — mounting the shell inside `RootShell` throws "No QueryClient
  * set, use QueryClientProvider to set one" and takes down the whole app, since
  * the root shell is what every route renders into. That shipped and reached
  * production on 2026-07-29.
@@ -90,13 +94,9 @@ function RootShell() {
  * boundary, not in `RootShell`.
  */
 function ShellContent() {
-  const { session, signOut } = useSession();
-
   return (
-    <>
-      <Header session={session} onSignOut={signOut} />
-
+    <AppShell>
       <Outlet />
-    </>
+    </AppShell>
   );
 }

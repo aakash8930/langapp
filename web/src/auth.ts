@@ -33,7 +33,18 @@ export type User = {
   isAdmin?: boolean;
   profile: { displayName: string; nativeLanguage: string; activeTrack: string };
   gamification: { xp: number; streakDays: number; lastStudyDate: string | null; dailyGoalXp: number };
-  settings: { audioSpeed: number; theme: string; tz: string };
+  /**
+   * `leaderboardOptIn` was missing from this type until the Settings screen
+   * needed it — the server has always sent it (see `UserResponse`), so the
+   * field was arriving and being dropped on the floor. That is the quiet
+   * failure mode of a hand-written client type: an *absent* field is not a type
+   * error anywhere, it just means nothing can render it.
+   *
+   * `theme` stays a plain `string` rather than the `Theme` union, because this
+   * is what came off the wire and the wire is not type-checked. The Settings
+   * form narrows it at the point of use.
+   */
+  settings: { audioSpeed: number; theme: string; tz: string; leaderboardOptIn: boolean };
   learningState: { knownKana: string[] };
 };
 

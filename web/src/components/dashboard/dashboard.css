@@ -1,0 +1,1198 @@
+/*
+ * The dashboard.
+ *
+ * Every class applied in `components/dashboard/*.tsx` has a rule in this file.
+ * That is not a style preference — CLAUDE.md records the pass where ~40 classes
+ * were being applied with nothing behind them, green through tsc, oxlint and
+ * vite build, because a className is just a string and nothing validates it.
+ * Write the rule in the same commit as the class.
+ */
+
+/* ---- The two regions ---- */
+
+.dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr);
+  gap: var(--s-xl);
+
+  align-items: start;
+}
+
+.dashboard-main {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--s-xl);
+
+  align-items: start;
+}
+
+.dashboard-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xl);
+}
+
+/*
+ * The pairs. Named by their card rather than by position, so moving a card in
+ * the markup does not silently give it someone else's width.
+ */
+.streak-card {
+  grid-column: span 5;
+}
+
+.today-card {
+  grid-column: span 7;
+}
+
+.continue-card {
+  grid-column: span 7;
+}
+
+.reviews-card {
+  grid-column: span 5;
+}
+
+.recommend-card,
+.path-card {
+  grid-column: span 12;
+}
+
+/*
+ * Two breakpoints, and they do different jobs. At 1280px the side column goes
+ * under the main one — three columns of cards below that leaves nothing wide
+ * enough to read. At 900px the pairs unstack as well.
+ */
+@media (max-width: 1280px) {
+  .dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The side column becomes a row of cards that wrap, rather than a tall stack
+     of half-empty full-width panels. */
+  .dashboard-side {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: start;
+  }
+
+  /* Seven columns of dates do not fit in a 260px track without the numbers
+     colliding, and a calendar is the one card here that has a hard minimum. */
+  .calendar-card {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .streak-card,
+  .today-card,
+  .continue-card,
+  .reviews-card,
+  .recommend-card,
+  .path-card {
+    grid-column: span 1;
+  }
+}
+
+/* ---- Loading and degraded states ---- */
+
+/*
+ * The skeleton reuses the real cards' grid-column rules, so the blocks land in
+ * the dashboard's own proportions and the layout does not reshuffle when the
+ * data arrives.
+ *
+ * It does not animate. A shimmer is the first thing `prefers-reduced-motion`
+ * should turn off, and a two-state rule for a placeholder that lives for 300ms
+ * is not worth the maintenance.
+ */
+.skeleton-card {
+  display: block;
+
+  min-height: 190px;
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+
+  background: var(--glass-bg);
+}
+
+.skeleton-card-tall {
+  min-height: 280px;
+}
+
+/*
+ * Sits above the grid when the catalog failed but progress did not — the
+ * dashboard is still mostly alive and should still be shown.
+ *
+ * No `grid-column` here: it is a sibling of `.dashboard`, not a child of it, so
+ * a span rule would be a declaration with nothing to apply to.
+ */
+.dashboard-warning {
+  margin-bottom: var(--s-xl);
+  padding: var(--s-lg);
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+}
+
+/* ---- Card chrome, shared ---- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+
+  padding: var(--s-xl);
+
+  /* `.glass` already carries the surface, border and shadow. This only adds
+     the box model, so the two can be reasoned about separately. */
+  border-radius: var(--radius-xl);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-md);
+}
+
+.card-title {
+  margin: 0;
+
+  font-size: var(--text-large);
+  font-weight: 700;
+}
+
+.card-note {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.card-pill {
+  padding: 2px var(--s-md);
+
+  border-radius: var(--radius-full);
+
+  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  color: var(--brand-primary);
+
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+
+/* ---- Streak ---- */
+
+.streak-figure {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+}
+
+.streak-flame {
+  display: inline-flex;
+
+  color: var(--shu-glass);
+}
+
+.streak-count {
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: 2.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.streak-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--s-xs);
+
+  margin: var(--s-sm) 0 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.streak-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-xs);
+}
+
+.streak-day-letter {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.streak-day-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 26px;
+  height: 26px;
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-full);
+
+  color: transparent;
+}
+
+.streak-day-done .streak-day-dot {
+  border-color: transparent;
+
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+  color: #fff;
+}
+
+/* Missed and still-to-come are drawn differently on purpose: a day that has not
+   arrived yet is not a day you failed to study. */
+.streak-day-missed .streak-day-dot {
+  border-style: solid;
+  border-color: var(--hairline);
+}
+
+.streak-day-ahead .streak-day-dot {
+  border-style: dashed;
+
+  opacity: 0.6;
+}
+
+/* ---- Today ---- */
+
+.today-body {
+  display: flex;
+  align-items: center;
+  gap: var(--s-xl);
+}
+
+.today-dial {
+  position: relative;
+
+  flex-shrink: 0;
+  width: 132px;
+  height: 132px;
+}
+
+.today-ring {
+  width: 100%;
+  height: 100%;
+
+  /* Twelve o'clock start. SVG circles begin at three. */
+  transform: rotate(-90deg);
+}
+
+.today-ring-track,
+.today-ring-fill {
+  fill: none;
+  stroke-width: 9;
+}
+
+.today-ring-track {
+  stroke: var(--hairline);
+}
+
+.today-ring-fill {
+  stroke: var(--brand-primary);
+  stroke-linecap: round;
+
+  transition: stroke-dasharray var(--t-slow) ease;
+}
+
+.today-dial-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  position: absolute;
+  inset: 0;
+
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+
+  /* Centres the two lines as a block without the parent needing to be a flex
+     container, which would fight the absolutely positioned ring. */
+  justify-content: center;
+  line-height: 1.15;
+}
+
+.today-dial-figure span {
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+  font-weight: 500;
+}
+
+.today-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+
+  flex: 1;
+  min-width: 0;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.today-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+
+  font-size: var(--text-small);
+}
+
+.today-row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+
+  border-radius: var(--radius-sm);
+
+  background: var(--hairline);
+  color: var(--ink-soft);
+}
+
+.today-row-done .today-row-icon {
+  background: var(--brand-success);
+  color: #fff;
+}
+
+.today-row-label {
+  flex: 1;
+  min-width: 0;
+
+  color: var(--ink-soft);
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-row-value {
+  font-weight: 700;
+}
+
+.today-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin: 0;
+  padding-top: var(--s-md);
+
+  border-top: 1px solid var(--hairline);
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.today-foot strong {
+  color: var(--brand-primary);
+}
+
+@media (max-width: 520px) {
+  .today-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .today-dial {
+    align-self: center;
+  }
+}
+
+/* ---- Level ---- */
+
+.level-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+}
+
+.level-crest {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+
+  border-radius: var(--radius-lg);
+
+  color: #fff;
+}
+
+/*
+ * One rule per tier. `levelTier` is a closed union of five, so these cannot
+ * drift apart silently — adding a sixth tier is a type error at every call
+ * site before it is a missing colour here.
+ */
+.level-crest-bronze {
+  background: linear-gradient(135deg, #b45309, #f59e0b);
+}
+
+.level-crest-silver {
+  background: linear-gradient(135deg, #64748b, #cbd5e1);
+}
+
+.level-crest-gold {
+  background: linear-gradient(135deg, #b8860b, #fbbf24);
+}
+
+.level-crest-diamond {
+  background: linear-gradient(135deg, #0e7490, #67e8f9);
+}
+
+.level-crest-master {
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+}
+
+.level-name {
+  display: flex;
+  flex-direction: column;
+
+  margin: 0;
+}
+
+.level-name strong {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  line-height: 1.2;
+}
+
+.level-name span {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.level-bar {
+  display: block;
+
+  height: 8px;
+
+  border-radius: var(--radius-full);
+
+  background: var(--hairline);
+
+  overflow: hidden;
+}
+
+.level-bar-fill {
+  display: block;
+
+  height: 100%;
+
+  border-radius: inherit;
+
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+
+  transition: width var(--t-slow) ease;
+}
+
+.level-bar-note {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  text-align: right;
+}
+
+.level-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: var(--s-md);
+
+  margin: 0;
+  padding-top: var(--s-md);
+
+  border-top: 1px solid var(--hairline);
+}
+
+.level-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  text-align: center;
+}
+
+.level-stat dt {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+.level-stat dd {
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: var(--text-large);
+  font-weight: 700;
+}
+
+/* ---- Continue ---- */
+
+.continue-lead {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.continue-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-lg);
+}
+
+.continue-plate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 116px;
+  height: 92px;
+
+  border-radius: var(--radius-lg);
+
+  /* A flat tint, not a photograph — the glass panels' contrast guarantee
+     assumes the ground behind them stays flat. */
+  background: linear-gradient(135deg, var(--mesh-1), var(--mesh-3));
+
+  color: var(--ink);
+  font-size: var(--text-title);
+}
+
+.continue-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+
+  flex: 1;
+  min-width: 0;
+}
+
+.continue-unit {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.continue-lesson {
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: var(--text-large);
+  font-weight: 700;
+}
+
+.continue-bar {
+  display: block;
+
+  height: 6px;
+  margin-top: var(--s-xs);
+
+  border-radius: var(--radius-full);
+
+  background: var(--hairline);
+
+  overflow: hidden;
+}
+
+.continue-bar-fill {
+  display: block;
+
+  height: 100%;
+
+  border-radius: inherit;
+
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+}
+
+.continue-bar-note {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+.continue-go {
+  align-self: flex-start;
+  gap: var(--s-xs);
+}
+
+@media (max-width: 520px) {
+  .continue-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .continue-plate {
+    width: 100%;
+  }
+}
+
+/* ---- Reviews ---- */
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.review-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+}
+
+.review-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+
+  border-radius: var(--radius-md);
+
+  background: color-mix(in srgb, var(--brand-tertiary) 16%, transparent);
+
+  font-size: var(--text-large);
+}
+
+.review-body {
+  display: flex;
+  flex-direction: column;
+
+  flex: 1;
+  min-width: 0;
+}
+
+.review-label {
+  font-size: var(--text-small);
+  font-weight: 600;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review-kind {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+.review-wait {
+  flex-shrink: 0;
+
+  color: var(--shu-glass);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+
+.reviews-go {
+  align-self: flex-start;
+}
+
+/* ---- Coming up ---- */
+
+.recommend-pager {
+  display: flex;
+  gap: var(--s-xs);
+}
+
+.pager-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 30px;
+  height: 30px;
+
+  padding: 0;
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-full);
+
+  background: none;
+  color: var(--ink-soft);
+
+  cursor: pointer;
+
+  transition: background var(--t-fast) ease, color var(--t-fast) ease;
+}
+
+.pager-btn:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.recommend-row {
+  display: flex;
+  gap: var(--s-lg);
+
+  margin: 0;
+  padding: 0 0 var(--s-sm);
+
+  list-style: none;
+
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+
+  /* Wide content scrolls inside its own container rather than pushing the page
+     sideways — the shell column's `min-width: 0` is the other half of this. */
+  scrollbar-width: thin;
+}
+
+.recommend-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+
+  width: 190px;
+
+  padding: var(--s-md);
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+
+  scroll-snap-align: start;
+
+  transition: transform var(--t-fast) var(--spring-bounce), border-color var(--t-fast) ease;
+}
+
+.recommend-tile:hover {
+  border-color: var(--brand-primary);
+  transform: translateY(-3px);
+}
+
+.recommend-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 84px;
+
+  border-radius: var(--radius-md);
+
+  background: linear-gradient(135deg, var(--mesh-2), var(--mesh-1));
+
+  font-size: var(--text-title);
+}
+
+.recommend-unit {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.recommend-title {
+  font-weight: 600;
+  font-size: var(--text-small);
+  line-height: 1.35;
+}
+
+.recommend-meta {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+@media (max-width: 640px) {
+  /* Touch is the obvious gesture here and the row scrolls natively without
+     them; two buttons at this width is clutter. */
+  .recommend-pager {
+    display: none;
+  }
+}
+
+/* ---- Learning path ---- */
+
+.path-row {
+  display: flex;
+  gap: 0;
+
+  margin: 0;
+  padding: 0 0 var(--s-sm);
+
+  list-style: none;
+
+  overflow-x: auto;
+}
+
+.path-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-xs);
+
+  position: relative;
+
+  flex: 1 0 128px;
+
+  padding-top: var(--s-lg);
+
+  text-align: center;
+}
+
+/*
+ * The connector, drawn as a bar behind each node's dot and clipped at the ends
+ * of the row by the first and last node's rules below. Behind, not between, so
+ * it scrolls with the nodes rather than needing its own layer.
+ */
+.path-track {
+  position: absolute;
+  top: calc(var(--s-lg) + 24px);
+  left: 0;
+  right: 0;
+  z-index: 0;
+
+  height: 3px;
+
+  background: var(--hairline);
+}
+
+.path-node:first-child .path-track {
+  left: 50%;
+}
+
+.path-node:last-child .path-track {
+  right: 50%;
+}
+
+/* A completed unit's connector reaching into the next node is what makes the
+   track read as a route travelled rather than a row of separate circles. */
+.path-node-done .path-track {
+  background: linear-gradient(90deg, var(--brand-success), var(--brand-success));
+}
+
+.path-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  position: relative;
+  z-index: 1;
+
+  width: 48px;
+  height: 48px;
+
+  border: 3px solid var(--hairline);
+  border-radius: var(--radius-full);
+
+  background: var(--surface);
+  color: var(--ink-soft);
+  text-decoration: none;
+
+  font-size: var(--text-body);
+
+  transition: transform var(--t-fast) var(--spring-bounce);
+}
+
+.path-dot:hover {
+  transform: scale(1.06);
+}
+
+.path-node-done .path-dot {
+  border-color: transparent;
+
+  background: var(--brand-success);
+  color: #fff;
+}
+
+.path-node-doing .path-dot {
+  border-color: var(--brand-primary);
+
+  color: var(--brand-primary);
+}
+
+.path-label {
+  font-size: var(--text-caption);
+  font-weight: 600;
+
+  /* Unit names are two or three words; wrapping them is better than an
+     ellipsis nobody can expand. */
+  padding-inline: var(--s-xs);
+}
+
+.path-count {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+.path-node-done .path-count {
+  color: var(--brand-success);
+  font-weight: 700;
+}
+
+/* ---- Badges ---- */
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+  gap: var(--s-sm);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  aspect-ratio: 1;
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+
+  font-size: 1.5rem;
+
+  /* Locked badges are dimmed rather than hidden or masked with a `?`. A row of
+     question marks answers neither "what have I done" nor "what is close". */
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.badge-earned {
+  border-color: transparent;
+
+  background: linear-gradient(135deg, var(--mesh-1), var(--mesh-2));
+
+  opacity: 1;
+  filter: none;
+}
+
+.badge-icon {
+  line-height: 1;
+}
+
+.badges-corner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+}
+
+/* A quiet text link for a card's corner — `.btn` is too loud beside a title,
+   and this is a "more of the same", not an action. */
+.card-link {
+  color: var(--brand-primary);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.card-link:hover {
+  text-decoration: underline;
+}
+
+/* ---- Study calendar ---- */
+
+.calendar-month {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+
+  /* `role="presentation"` on the container: this is a layout grid, not a data
+     table, and the days that carry meaning name themselves individually. */
+  text-align: center;
+}
+
+.calendar-weekday {
+  padding-bottom: var(--s-xs);
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+
+.calendar-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  aspect-ratio: 1;
+
+  border-radius: var(--radius-full);
+
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The adjacent months' days are there to keep every row seven cells wide. They
+   are context, not content — a ragged first row reads as missing data. */
+.calendar-day-outside {
+  color: var(--ink-soft);
+
+  opacity: 0.35;
+}
+
+.calendar-day-studied {
+  background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+/*
+ * Today is a ring, studied is a fill, and they compose: today can also be a
+ * studied day, and the two states have to be legible at once rather than one
+ * overwriting the other.
+ */
+.calendar-day-today {
+  box-shadow: inset 0 0 0 2px var(--brand-primary);
+  font-weight: 700;
+}
+
+/* ---- Proverb ---- */
+
+.proverb-card {
+  position: relative;
+
+  gap: var(--s-xs);
+
+  overflow: hidden;
+}
+
+.proverb-ja {
+  margin: 0;
+
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.proverb-romaji {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.proverb-gloss {
+  margin: 0;
+
+  font-size: var(--text-small);
+}
+
+.proverb-petals {
+  position: absolute;
+  right: -10px;
+  bottom: -22px;
+
+  color: var(--brand-secondary);
+  font-size: 5rem;
+  line-height: 1;
+
+  opacity: 0.18;
+
+  pointer-events: none;
+}
+
+/* ---- Quick actions ---- */
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: var(--s-sm);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.action-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-sm);
+
+  height: 100%;
+
+  padding: var(--s-md) var(--s-sm);
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+  text-decoration: none;
+
+  font-size: var(--text-caption);
+  font-weight: 600;
+
+  transition: border-color var(--t-fast) ease, transform var(--t-fast) var(--spring-bounce);
+}
+
+.action-tile:hover {
+  border-color: var(--brand-primary);
+  transform: translateY(-2px);
+}
+
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: var(--radius-md);
+
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  color: var(--brand-primary);
+}
+
+.action-label {
+  line-height: 1.3;
+}

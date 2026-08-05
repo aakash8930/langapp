@@ -1,0 +1,204 @@
+/*
+ * The gojūon chart, shared by /hiragana and /katakana.
+ *
+ * The chart scrolls and the detail panel sticks. That pairing is the whole
+ * layout decision: the panel is what you are reading *about* the cell you just
+ * clicked, and a panel that scrolls away from the grid it describes makes you
+ * scroll back up to click the next character.
+ */
+
+.kana-title-glyph {
+  color: var(--brand-primary);
+}
+
+.kana-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--s-xl);
+
+  align-items: start;
+}
+
+.kana-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+}
+
+.kana-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-md);
+}
+
+.kana-row-label {
+  flex-shrink: 0;
+  width: 46px;
+
+  margin: 0;
+  padding-top: var(--s-md);
+
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.kana-cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-sm);
+
+  flex: 1;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.kana-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+
+  width: 64px;
+  height: 64px;
+
+  padding: 0;
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+
+  background: var(--surface);
+  color: var(--ink);
+
+  cursor: pointer;
+
+  transition: border-color var(--t-fast) ease, transform var(--t-fast) var(--spring-bounce);
+}
+
+.kana-cell:hover {
+  border-color: var(--brand-primary);
+  transform: translateY(-2px);
+}
+
+/*
+ * Learned cells carry a tint *and* a heavier glyph. Colour alone would put the
+ * only distinction between "learned" and "not learned" in hue, which is the
+ * one channel some readers do not have.
+ */
+.kana-cell-known {
+  border-color: transparent;
+
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+}
+
+.kana-cell-known .kana-cell-glyph {
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+.kana-cell-selected {
+  border-color: var(--brand-primary);
+
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 35%, transparent);
+}
+
+.kana-cell-glyph {
+  font-family: var(--font-ja);
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.kana-cell-romaji {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+/* ---- Detail panel ---- */
+
+.kana-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-md);
+
+  position: sticky;
+  top: calc(72px + var(--s-lg));
+
+  padding: var(--s-xl);
+
+  text-align: center;
+}
+
+.kana-detail-glyph {
+  margin: 0;
+
+  font-family: var(--font-ja);
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.kana-detail-romaji {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-large);
+  font-weight: 600;
+}
+
+.kana-detail-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+
+  width: 100%;
+
+  margin: 0;
+  padding-top: var(--s-md);
+
+  border-top: 1px solid var(--hairline);
+
+  text-align: left;
+}
+
+.kana-detail-facts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-md);
+}
+
+.kana-detail-facts dt {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.kana-detail-facts dd {
+  margin: 0;
+
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-align: right;
+}
+
+@media (max-width: 1000px) {
+  /* The panel goes above the chart rather than beside it, and stops sticking —
+     a sticky block at the top of a phone screen eats a third of the viewport. */
+  .kana-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kana-detail {
+    position: static;
+
+    order: -1;
+  }
+}

@@ -20,7 +20,8 @@ import { log } from './debug';
  * shim only honours the *shape* of `Route` for backwards compatibility.
  */
 export type Route =
-  | { name: 'home'; learn?: string }
+  | { name: 'home' }
+  | { name: 'catalog'; learn?: string }
   | { name: 'lesson'; id: string }
   | { name: 'study'; id: string }
   | { name: 'review' };
@@ -33,23 +34,29 @@ function parse(hash: string): Route {
   if (study) return { name: 'study', id: study[1] };
 
   /*
-   * `learn` is a search param on `/`, not a path segment.
+   * `learn` is a search param on the catalog, not a path segment.
    *
-   * It was `#/learn/<id>` under the hand-rolled router this file replaced, and
-   * `index.tsx`'s `validateSearch` made it `#/?learn=<id>` — but both this parse
-   * and `go()` below kept emitting and expecting the old shape until 2026-07-30,
-   * so every link built from them landed on "Not Found". The old form is read
-   * here as well as the new one because a learner may have it bookmarked or in
-   * history; nothing *writes* it any more.
+   * It has now been in three places. `#/learn/<id>` under the hand-rolled router
+   * this file replaced; `#/?learn=<id>` once `index.tsx` declared it in
+   * `validateSearch`; and `#/courses?learn=<id>` since the dashboard took over
+   * `/` and the catalog moved to `/courses`. Both older forms are still *read*
+   * here — a learner can have either in a bookmark or in history — but only the
+   * current one is written, by `go()` below.
+   *
+   * The two earlier moves each shipped with a caller left pointing at the old
+   * shape, and both times the symptom was a bare "Not Found" with an empty
+   * console. That is the whole reason this comment is longer than the code.
    */
   const queryIndex = hash.indexOf('?');
   if (queryIndex !== -1) {
     const learn = new URLSearchParams(hash.slice(queryIndex + 1)).get('learn');
-    if (learn) return { name: 'home', learn };
+    if (learn) return { name: 'catalog', learn };
   }
 
   const legacyLearn = /^#\/learn\/([A-Za-z0-9]+)$/.exec(hash);
-  if (legacyLearn) return { name: 'home', learn: legacyLearn[1] };
+  if (legacyLearn) return { name: 'catalog', learn: legacyLearn[1] };
+
+  if (hash === '#/courses') return { name: 'catalog' };
 
   return { name: 'home' };
 }
@@ -91,11 +98,13 @@ export function go(route: Route): void {
         ? `#/study/${route.id}`
         : route.name === 'review'
           ? '#/review'
-          : route.learn
-            ? // A search param on `/`, matching `index.tsx`'s `validateSearch`.
-              // This said `#/learn/${route.learn}` until 2026-07-30, which
-              // matches no route — see `parse` above.
-              `#/?learn=${encodeURIComponent(route.learn)}`
+          : route.name === 'catalog'
+            ? // A search param on `/courses`, matching that route's
+              // `validateSearch`. This said `#/learn/${…}` until 2026-07-30 and
+              // `#/?learn=${…}` until the dashboard took `/` — see `parse`.
+              route.learn
+              ? `#/courses?learn=${encodeURIComponent(route.learn)}`
+              : '#/courses'
             : '#/';
 
   // Every navigation that still goes through the shim, named. `go()` writes the

@@ -1,11 +1,26 @@
+/*
+ * The shell's footer. Deliberately quiet — it sits under every screen,
+ * including a dashboard that already has fourteen panels competing for
+ * attention, so it carries the mark and nothing else.
+ */
+
 .app-footer {
-  padding: var(--s-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-sm);
+
+  /* `margin-top: auto` inside the shell column, so a short screen still puts
+     the footer at the bottom of the viewport rather than half way up it. */
+  margin-top: auto;
+  padding: var(--s-xl) var(--s-2xl);
 
   border-top: 1px solid var(--hairline);
 
-  text-align: center;
-
   color: var(--ink-soft);
-
   font-size: var(--text-caption);
+}
+
+.app-footer-mark {
+  font-family: var(--font-ja);
 }

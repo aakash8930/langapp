@@ -1,7 +1,52 @@
+/*
+ * The routed region, and the page scaffolding every screen inside it uses.
+ *
+ * `.page` / `.page-head` / `.page-title` / `.page-sub` live here rather than in
+ * app.css because they only mean anything inside `<Main>` — they are the shape
+ * of a screen in the shell, not site-wide layout. `/courses` was written
+ * against them before any of them existed, which is the failure mode CLAUDE.md
+ * describes: a className with no rule behind it passes tsc, oxlint and the
+ * build, and shows up only as a page that looks unfinished.
+ */
+
 .app-main {
   flex: 1;
 
-  padding: var(--s-2xl);
+  width: 100%;
+  /* The dashboard's three-column grid stops making sense much past this, and
+     line lengths on the text screens stop being readable well before it. */
+  max-width: 1560px;
 
-  overflow-y: auto;
+  padding: var(--s-2xl);
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xl);
+}
+
+.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+}
+
+.page-title {
+  margin: 0;
+
+  font-size: var(--text-heading);
+}
+
+.page-sub {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+@media (max-width: 860px) {
+  .app-main {
+    padding: var(--s-lg);
+  }
 }

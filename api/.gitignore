@@ -1,0 +1,5 @@
+
+# Redis writes this here if redis-server is started with api/ as its cwd
+# (which is easy to do when bringing the dev stack up by hand). Not an artifact
+# of the app — the real Redis lives in the compose stack with its own volume.
+dump.rdb

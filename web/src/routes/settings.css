@@ -1,0 +1,143 @@
+/*
+ * The settings form.
+ *
+ * Native controls throughout — `<select>`, `<input type="range">`,
+ * `<input type="checkbox">`, `<fieldset>`/`<legend>`. The project's rule is to
+ * prefer native elements, and a settings page is where that pays best: every
+ * one of these is keyboard operable, announced correctly, and works with the
+ * platform's own pickers on a phone. A custom select is where that goes to die.
+ */
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xl);
+
+  max-width: 620px;
+}
+
+/*
+ * `.card` is a flex column, and a fieldset needs the border reset before it
+ * will honour that — the UA default draws its own box.
+ */
+.settings-group {
+  gap: var(--s-lg);
+
+  margin: 0;
+
+  border: 1px solid var(--glass-border);
+  min-width: 0;
+}
+
+.settings-group > .card-title {
+  padding-inline: var(--s-xs);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+}
+
+.field-label {
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.field-input {
+  width: 100%;
+  min-height: 44px;
+
+  padding: var(--s-sm) var(--s-md);
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+
+  background: var(--surface);
+  color: var(--ink);
+
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+}
+
+.field-input:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 1px;
+}
+
+.field-range {
+  width: 100%;
+
+  accent-color: var(--brand-primary);
+}
+
+.field-note {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
+
+.field-error {
+  margin: 0;
+
+  color: var(--danger);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-md);
+
+  padding-top: var(--s-xs);
+}
+
+/*
+ * The whole label is the hit target, not just the dot. `gap` plus a real
+ * `<input>` inside the `<label>` means no `for`/`id` pairing to keep in sync
+ * and a target that already meets the tap-size floor.
+ */
+.radio,
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+
+  min-height: 32px;
+
+  font-size: var(--text-small);
+
+  cursor: pointer;
+}
+
+.radio input,
+.check input {
+  accent-color: var(--brand-primary);
+
+  /* The UA default is 13px, which is under the comfortable tap size and reads
+     small beside 14px text. */
+  width: 18px;
+  height: 18px;
+
+  cursor: pointer;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-lg);
+
+  flex-wrap: wrap;
+}
+
+.settings-status {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+  /* Reserves the line so the buttons do not shift when a message appears. */
+  min-height: 1.5em;
+}

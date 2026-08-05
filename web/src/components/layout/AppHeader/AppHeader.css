@@ -1,13 +1,167 @@
+/*
+ * The top bar: who you are, and where you're going.
+ *
+ * Sticky, and the one element on the site that has scrolling content passing
+ * under it — which is what backdrop blur is actually for. The `@supports`
+ * fallback matters more here than anywhere else: without a blur this bar is
+ * translucent over moving text, and the search label and greeting land on
+ * whatever happens to be underneath.
+ */
+
 .app-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: var(--s-xl);
 
-  height: 72px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 
-  padding: 0 var(--s-xl);
+  padding: var(--s-xl) var(--s-2xl) var(--s-lg);
 
   border-bottom: 1px solid var(--hairline);
 
+  background: color-mix(in srgb, var(--mesh-bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .app-header {
+    background: var(--mesh-bg);
+  }
+}
+
+.app-header-greeting {
+  min-width: 0;
+}
+
+.app-header-hello {
+  margin: 0;
+
+  font-size: var(--text-heading);
+  line-height: 1.25;
+}
+
+.app-header-name {
+  /* The name is the part that changes; the greeting is the constant. Keeping
+     the name at the same weight but in the ink colour lets the Japanese
+     carry the emphasis without two competing bolds. */
+  font-family: var(--font-display);
+}
+
+.app-header-sub {
+  margin: var(--s-xs) 0 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.app-header-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+
+  flex-shrink: 0;
+
+  /* Pulls the controls onto the greeting's first line rather than its top
+     edge, which is what the two-line left side would otherwise align to. */
+  padding-top: var(--s-xs);
+}
+
+/* ---- Search ---- */
+
+.app-search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+
+  min-width: 260px;
+
+  padding: var(--s-sm) var(--s-md);
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-full);
+
   background: var(--surface);
+  color: var(--ink-soft);
+
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  text-align: left;
+
+  cursor: pointer;
+
+  transition: border-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+
+.app-search:hover {
+  border-color: var(--brand-primary);
+  color: var(--ink);
+}
+
+.app-search-label {
+  flex: 1;
+}
+
+.app-search-kbd {
+  padding: 2px var(--s-sm);
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+}
+
+/* ---- User ---- */
+
+.app-header-user {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+}
+
+.app-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 40px;
+  height: 40px;
+
+  border-radius: var(--radius-full);
+
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+  color: #fff;
+
+  font-size: var(--text-small);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * Narrow: the search field loses its label and becomes the icon alone, which
+ * is why the button carries an accessible name rather than relying on the
+ * label text being present.
+ */
+@media (max-width: 860px) {
+  .app-header {
+    padding: var(--s-lg) var(--s-lg) var(--s-md);
+  }
+
+  .app-header-hello {
+    font-size: var(--text-title);
+  }
+
+  .app-search {
+    min-width: 0;
+  }
+
+  .app-search-label,
+  .app-search-kbd {
+    display: none;
+  }
 }

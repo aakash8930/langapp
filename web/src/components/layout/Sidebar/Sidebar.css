@@ -1,21 +1,395 @@
+/*
+ * The primary navigation.
+ *
+ * Opaque rather than glass, and that is a contrast decision rather than a
+ * stylistic one. This panel holds twenty-four rows of 14px text, several of
+ * them deliberately dimmed (the `planned` rows), and dimmed text on a
+ * translucent surface is exactly where the site's "surfaces are translucent,
+ * text never is" rule gets close to the line. A solid surface takes the
+ * question off the table.
+ *
+ * The rail width is shared with AppShell.css: 76px in both files, because the
+ * narrow layout reserves the rail's width as a margin while the sidebar itself
+ * is fixed. Change one and you must change the other.
+ */
+
 .app-sidebar {
-  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+
+  flex-shrink: 0;
+  width: 264px;
+  height: 100vh;
+
+  /* Sticky rather than fixed: in the wide layout the sidebar stays in the
+     flow, so the content column needs no margin to avoid it. */
+  position: sticky;
+  top: 0;
+
+  padding: var(--s-lg) var(--s-md);
 
   border-right: 1px solid var(--hairline);
 
   background: var(--surface);
 
-  padding: var(--s-lg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  transition: width var(--t-base) ease;
 }
 
+.app-sidebar-collapsed {
+  width: 76px;
+}
+
+/* ---- Brand ---- */
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+
+  padding: var(--s-sm) var(--s-sm) var(--s-sm) var(--s-md);
+}
+
+.sidebar-mark {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+
+  flex: 1;
+  min-width: 0;
+
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sidebar-mark-glyph {
+  flex-shrink: 0;
+
+  font-size: 1.5rem;
+  line-height: 1;
+
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sidebar-mark-word {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+
+  padding: 0;
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+
+  background: none;
+  color: var(--ink-soft);
+
+  cursor: pointer;
+
+  transition: background var(--t-fast) ease, color var(--t-fast) ease;
+}
+
+.sidebar-toggle:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/*
+ * Railed, the brand stacks: the wordmark and the toggle cannot both sit on a
+ * 76px row. The word goes — the glyph carries the identity at this size — and
+ * the toggle drops beneath it, because the toggle is the one control that has
+ * to stay reachable at every width.
+ */
+.app-sidebar-collapsed .sidebar-brand {
+  flex-direction: column;
+  gap: var(--s-md);
+
+  padding-inline: var(--s-sm);
+}
+
+.app-sidebar-collapsed .sidebar-mark {
+  flex: none;
+  justify-content: center;
+}
+
+.app-sidebar-collapsed .sidebar-mark-word {
+  display: none;
+}
+
+/* ---- Groups ---- */
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+
+  flex: 1;
+}
+
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-group-title {
+  margin: 0 0 var(--s-xs);
+  padding-inline: var(--s-md);
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/*
+ * Railed, the group heading becomes a rule. Hiding it outright would run five
+ * groups of icons together into one undifferentiated column: the heading text
+ * does not fit, but the *division* it marks still has to be visible.
+ *
+ * It keeps its text rather than being emptied, because `aria-labelledby` on
+ * each list points at this element — `display: none` here would strip the name
+ * off five navigation lists.
+ */
+.app-sidebar-collapsed .sidebar-group-title {
+  height: 1px;
+  margin: var(--s-sm) var(--s-md) var(--s-md);
+  padding: 0;
+
+  background: var(--hairline);
+
+  overflow: hidden;
+  text-indent: -200px;
+  white-space: nowrap;
+}
+
+.sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+/* ---- Rows ---- */
+
 .sidebar-item {
-  padding: var(--s-md);
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+
+  padding: var(--s-sm) var(--s-md);
 
   border-radius: var(--radius-md);
 
-  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+  font-weight: 500;
+  text-decoration: none;
+
+  transition: background var(--t-fast) ease, color var(--t-fast) ease;
 }
 
-.sidebar-item:hover {
-  background: var(--glass-bg);
+/* Scoped to the anchor: the planned rows share this class and must not light
+   up under the pointer, since nothing happens when they are clicked. */
+a.sidebar-item:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.sidebar-item-active {
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+/*
+ * A planned row is not a link and must not read as one — no pointer, no hover,
+ * and dimmer than a live row that happens to be unvisited. The lock glyph is
+ * what makes it legible as "later" rather than "broken", which is why the row
+ * keeps its icon slot instead of being greyed into a blur.
+ */
+.sidebar-item-planned {
+  color: var(--ink-soft);
+  opacity: 0.55;
+
+  cursor: default;
+}
+
+.sidebar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 20px;
+}
+
+/* The kana rows draw あ / ア / 漢 in the icon slot. They need the Japanese face
+   and a size of their own — a glyph set in the icon's 18px box reads small
+   beside a line icon of the same nominal size. */
+.sidebar-icon-ja {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.sidebar-label {
+  flex: 1;
+  min-width: 0;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-lock {
+  flex-shrink: 0;
+
+  opacity: 0.8;
+}
+
+.sidebar-badge {
+  flex-shrink: 0;
+
+  min-width: 22px;
+  padding: 1px var(--s-sm);
+
+  border-radius: var(--radius-full);
+
+  background: var(--brand-primary);
+  color: #fff;
+
+  font-size: var(--text-caption);
+  font-weight: 700;
+  text-align: center;
+}
+
+/*
+ * Railed, rows centre on their icon. The label is already `visually-hidden` in
+ * the markup at this width, so this only concerns the box it leaves behind.
+ *
+ * The due badge stays — it is the one live number on this panel, and a learner
+ * with thirty-two cards waiting should not have to expand the menu to find
+ * that out. It moves to the corner of the icon, the only place it fits.
+ */
+.app-sidebar-collapsed .sidebar-item {
+  justify-content: center;
+  gap: 0;
+
+  position: relative;
+
+  padding-inline: var(--s-sm);
+}
+
+.app-sidebar-collapsed .sidebar-badge {
+  position: absolute;
+  top: 0;
+  right: var(--s-xs);
+
+  min-width: 16px;
+  padding: 0 4px;
+
+  font-size: 0.625rem;
+  line-height: 16px;
+}
+
+/* ---- Today's goal ---- */
+
+.sidebar-goal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+
+  margin-top: auto;
+  padding: var(--s-lg);
+
+  /* Overrides `.glass`, whose 24px is too round for a card this narrow. */
+  border-radius: var(--radius-lg);
+}
+
+.sidebar-goal-title {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sidebar-goal-figure {
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sidebar-goal-figure span {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.sidebar-goal-bar {
+  display: block;
+
+  height: 6px;
+  margin: var(--s-xs) 0;
+
+  border-radius: var(--radius-full);
+
+  background: var(--hairline);
+
+  overflow: hidden;
+}
+
+.sidebar-goal-fill {
+  display: block;
+
+  height: 100%;
+
+  border-radius: inherit;
+
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+
+  transition: width var(--t-slow) ease;
+}
+
+.sidebar-goal-note {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+/* No railed form. At 76px this would be a bar with no numbers beside it, which
+   is decoration — and the same figure is on the dashboard. */
+.app-sidebar-collapsed .sidebar-goal {
+  display: none;
 }

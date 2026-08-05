@@ -5,8 +5,11 @@ import { UserModule } from '../user/user.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { AudioController } from './audio.controller';
 import { StrokesController } from './strokes.controller';
+import { CombinedTestController } from './combined-test.controller';
+import { CombinedTestService } from './combined-test/combined-test.service';
 import { ContentService } from './content.service';
 import { CheckpointController } from './checkpoint.controller';
+import { UnitController } from './unit.controller';
 import { CheckpointService } from './checkpoint/checkpoint.service';
 import { ExerciseController } from './exercise.controller';
 import { ExerciseService } from './exercise/exercise.service';
@@ -61,10 +64,12 @@ import { CreatorController } from './creator.controller';
   ],
   controllers: [
     LessonController,
+    UnitController,
     VocabController,
     GrammarController,
     ExerciseController,
     CheckpointController,
+    CombinedTestController,
     AudioController,
     StrokesController,
     ContentReportController,
@@ -74,6 +79,7 @@ import { CreatorController } from './creator.controller';
     ContentService,
     ExerciseService,
     CheckpointService,
+    CombinedTestService,
     ExercisePluginRegistry,
     MultipleChoicePlugin,
     WordReadingPlugin,
@@ -83,6 +89,6 @@ import { CreatorController } from './creator.controller';
     FlashcardPlugin,
     SpeechPlugin,
   ],
-  exports: [ContentService, ExerciseService, CheckpointService, ExercisePluginRegistry],
+  exports: [ContentService, ExerciseService, CheckpointService, CombinedTestService, ExercisePluginRegistry],
 })
 export class ContentModule {}

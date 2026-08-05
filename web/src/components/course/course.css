@@ -1,0 +1,722 @@
+/*
+ * The course page.
+ *
+ * The design this follows is black and gold. This is not: the palette stays the
+ * dashboard's violet/pink on slate, straight out of `theme.css`, because the
+ * two screens sit one click apart behind the same sidebar and a course page in
+ * a different colour scheme reads as a different product. Only the *structure*
+ * is taken from the mock — the banner, the progress dial, the module accordion,
+ * the right rail, the feature strip.
+ *
+ * No colour literals here. Every value is a token, which is what makes the
+ * above a property of the file rather than a promise in a comment.
+ */
+
+.course {
+  gap: var(--s-xl);
+}
+
+/* ---- Banner ---- */
+
+.course-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--s-2xl);
+
+  padding: var(--s-2xl);
+
+  /*
+   * A flat wash where the design has a photograph. The glass panels' worst-case
+   * contrast guarantee assumes the ground behind them stays flat, and this is
+   * the one panel big enough for a picture to be tempting.
+   */
+  background:
+    radial-gradient(120% 140% at 85% 0%, var(--mesh-2), transparent 60%),
+    radial-gradient(100% 120% at 0% 100%, var(--mesh-1), transparent 55%),
+    var(--glass-bg);
+}
+
+.course-hero-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+
+  min-width: 0;
+}
+
+.course-badge {
+  align-self: flex-start;
+
+  margin: 0;
+  padding: 2px var(--s-md);
+
+  border-radius: var(--radius-full);
+
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  color: var(--brand-primary);
+
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.course-title {
+  margin: 0;
+
+  font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+  line-height: 1.15;
+}
+
+.course-title em {
+  font-style: normal;
+
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.course-lede {
+  max-width: 56ch;
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-large);
+  line-height: 1.6;
+}
+
+.course-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-lg);
+
+  margin: var(--s-sm) 0 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.meta-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+}
+
+.meta-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: var(--radius-md);
+
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  color: var(--brand-primary);
+}
+
+.meta-chip-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.meta-chip-text strong {
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+
+.meta-chip-text span {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+/* ---- Progress dial ---- */
+
+.course-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-md);
+
+  padding: var(--s-xl);
+
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+
+  text-align: center;
+}
+
+.course-dial {
+  position: relative;
+
+  width: 156px;
+  height: 156px;
+}
+
+.course-ring {
+  width: 100%;
+  height: 100%;
+
+  /* Twelve o'clock start. SVG circles begin at three. */
+  transform: rotate(-90deg);
+}
+
+.course-ring-track,
+.course-ring-fill {
+  fill: none;
+  stroke-width: 8;
+}
+
+.course-ring-track {
+  stroke: var(--hairline);
+}
+
+.course-ring-fill {
+  stroke: var(--brand-primary);
+  stroke-linecap: round;
+
+  transition: stroke-dasharray var(--t-slow) ease;
+}
+
+.course-dial-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  position: absolute;
+  inset: 0;
+
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: var(--text-heading);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.course-dial-figure span {
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+  font-weight: 500;
+}
+
+.course-progress-count {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.course-progress-note {
+  margin: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+  line-height: 1.6;
+}
+
+.course-cta {
+  gap: var(--s-xs);
+  width: 100%;
+}
+
+@media (max-width: 1000px) {
+  .course-hero {
+    grid-template-columns: minmax(0, 1fr);
+
+    padding: var(--s-xl);
+  }
+}
+
+/* ---- Body split ---- */
+
+.course-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--s-xl);
+
+  align-items: start;
+}
+
+.course-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xl);
+
+  min-width: 0;
+}
+
+.course-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xl);
+}
+
+@media (max-width: 1180px) {
+  .course-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .course-rail {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: start;
+  }
+}
+
+/* ---- Modules ---- */
+
+.module-list,
+.lesson-list {
+  display: flex;
+  flex-direction: column;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.module-list {
+  gap: var(--s-md);
+}
+
+.module {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+
+  overflow: hidden;
+}
+
+.module[open] {
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
+}
+
+.module-done {
+  border-color: color-mix(in srgb, var(--brand-success) 40%, transparent);
+}
+
+.module-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-lg);
+
+  padding: var(--s-lg);
+
+  cursor: pointer;
+
+  list-style: none;
+}
+
+/* The card's own open state is the affordance; the UA triangle is removed in
+   both engines' spellings. */
+.module-summary::-webkit-details-marker {
+  display: none;
+}
+
+.module-summary:hover {
+  background: var(--paper);
+}
+
+.module-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+
+  border-radius: var(--radius-full);
+
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  color: var(--brand-primary);
+
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+
+.module-index-done {
+  background: var(--brand-success);
+  color: #fff;
+}
+
+.module-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  flex: 1;
+  min-width: 0;
+}
+
+.module-name {
+  font-family: var(--font-display);
+  font-size: var(--text-large);
+  font-weight: 700;
+}
+
+.module-ja {
+  color: var(--ink-soft);
+  font-family: var(--font-ja);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.module-blurb {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-figures {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-md);
+
+  flex-shrink: 0;
+}
+
+.module-percent {
+  font-weight: 700;
+}
+
+.module-done .module-percent {
+  color: var(--brand-success);
+}
+
+.module-count {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.module-lock {
+  display: inline-flex;
+
+  flex-shrink: 0;
+
+  color: var(--ink-soft);
+
+  opacity: 0.7;
+}
+
+.module-bar {
+  display: block;
+
+  height: 4px;
+  margin: 0 var(--s-lg);
+
+  border-radius: var(--radius-full);
+
+  background: var(--hairline);
+
+  overflow: hidden;
+}
+
+.module-bar-fill {
+  display: block;
+
+  height: 100%;
+
+  border-radius: inherit;
+
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+}
+
+.module-checkpoint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  margin: 0 var(--s-lg) var(--s-lg);
+}
+
+.module-checkpoint-sub {
+  font-size: var(--text-caption);
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* ---- Lessons ---- */
+
+.lesson-list {
+  padding: var(--s-sm) var(--s-lg) var(--s-lg);
+}
+
+.lesson-item {
+  border-radius: var(--radius-md);
+}
+
+.lesson-item[open] {
+  background: var(--paper);
+}
+
+/* The row the learner was sent here to read. */
+.lesson-item-highlight {
+  box-shadow: inset 0 0 0 2px var(--brand-primary);
+}
+
+.lesson-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+
+  padding: var(--s-sm) var(--s-md);
+
+  cursor: pointer;
+
+  list-style: none;
+}
+
+.lesson-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lesson-summary:hover {
+  background: var(--paper);
+}
+
+.lesson-index {
+  flex-shrink: 0;
+  width: 20px;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  text-align: right;
+}
+
+.lesson-icon {
+  display: inline-flex;
+
+  flex-shrink: 0;
+
+  color: var(--ink-soft);
+}
+
+.lesson-name {
+  flex: 1;
+  min-width: 0;
+
+  font-size: var(--text-small);
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lesson-count {
+  flex-shrink: 0;
+
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+}
+
+/*
+ * The slot keeps its width whether or not it holds anything, so lesson titles
+ * line up down the module whether the rows are done, locked or untouched.
+ */
+.lesson-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 20px;
+}
+
+.lesson-mark-done {
+  color: var(--brand-success);
+}
+
+/* A lock is not an achievement, and must not arrive in the completion green. */
+.lesson-mark-locked {
+  color: var(--ink-soft);
+
+  opacity: 0.7;
+}
+
+.lesson-body {
+  padding: 0 var(--s-md) var(--s-md);
+}
+
+.lesson-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-md);
+
+  margin-top: var(--s-md);
+}
+
+.learn-first {
+  margin: 0 0 var(--s-md);
+  padding: var(--s-md);
+
+  border-radius: var(--radius-md);
+
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+
+  font-size: var(--text-small);
+}
+
+/* ---- Rail cards ---- */
+
+.about-list,
+.learn-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.about-row,
+.learn-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-md);
+
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+
+.about-icon {
+  display: inline-flex;
+
+  flex-shrink: 0;
+
+  color: var(--brand-primary);
+}
+
+.learn-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+
+  border-radius: var(--radius-full);
+
+  background: color-mix(in srgb, var(--brand-success) 20%, transparent);
+  color: var(--brand-success);
+}
+
+.stat-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+
+  margin: 0;
+}
+
+.stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-md);
+
+  padding-bottom: var(--s-sm);
+
+  border-bottom: 1px solid var(--hairline);
+}
+
+.stat-row:last-child {
+  padding-bottom: 0;
+
+  border-bottom: none;
+}
+
+.stat-row dt {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.stat-row dd {
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: var(--text-large);
+  font-weight: 700;
+}
+
+/* ---- Feature strip ---- */
+
+.feature-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-md);
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.feature-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+
+  height: 100%;
+  padding: var(--s-lg);
+
+  border-radius: var(--radius-lg);
+
+  color: var(--ink);
+  text-decoration: none;
+
+  transition: transform var(--t-fast) var(--spring-bounce);
+}
+
+.feature-tile:hover {
+  transform: translateY(-2px);
+}
+
+.feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+
+  border-radius: var(--radius-md);
+
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  color: var(--brand-primary);
+}
+
+.feature-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.feature-text strong {
+  font-size: var(--text-small);
+}
+
+.feature-text span {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  line-height: 1.4;
+}
