@@ -127,7 +127,10 @@ describe('CheckpointAttemptsService.passedUnits', () => {
     return { service, find };
   }
 
-  it('asks only for passed attempts, scoped to the one learner', async () => {
+  it('asks only for passed per-unit attempts, scoped to the one learner', async () => {
+    // `passedUnits` is the unit list on `/me/progress`, and combined-test
+    // passes are a different axis — not units, so they must not appear here.
+    // The `kind: 'unit'` filter is what enforces that.
     const { service, find } = makeService([]);
 
     await service.passedUnits(USER_ID);
@@ -135,6 +138,7 @@ describe('CheckpointAttemptsService.passedUnits', () => {
     expect(find).toHaveBeenCalledWith({
       userId: new Types.ObjectId(USER_ID),
       passed: true,
+      kind: 'unit',
     });
   });
 

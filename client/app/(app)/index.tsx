@@ -9,6 +9,7 @@ import { fetchProgress } from '@/api/progress';
 import { fetchRequests } from '@/api/social';
 import { useAuth } from '@/components/AuthProvider';
 import { ChatCallout } from '@/components/ChatCallout';
+import { CombinedTestCallout } from '@/components/CombinedTestCallout';
 import { ContinueCard, CourseComplete } from '@/components/ContinueCard';
 import { FriendsCallout } from '@/components/FriendsCallout';
 import { ErrorState } from '@/components/ErrorState';
@@ -110,6 +111,16 @@ export default function Home() {
       ? groupByUnit(withLockState(lessons.data, progress.data.completedLessonIds))
       : [];
 
+  /**
+   * `groupByUnit` already derives "finished" for its own status field, so the
+   * list could be derived twice. Reading it from `units` keeps the two
+   * definitions honest: a unit the home screen considers done is the same
+   * unit the combined test considers finished.
+   */
+  const finishedUnits = units.filter((unit) => unit.status === 'done');
+  const finished = finishedUnits.map((unit) => unit.unit);
+  const showCombinedTestCard = finished.length >= 2;
+
   const next = nextLesson(units);
   const nextUnitLabel = units.find((unit) => unit.unit === next?.unit)?.label ?? '';
   const nothingDoneYet = (progress.data?.lessonsCompleted ?? 0) === 0;
@@ -174,6 +185,14 @@ export default function Home() {
           )}
 
           <ChatCallout onPress={() => router.push('/chat')} />
+
+          {showCombinedTestCard ? (
+            <CombinedTestCallout
+              finishedCount={finished.length}
+              unitLabels={finishedUnits.map((unit) => unit.label)}
+              onPress={() => router.push('/combined-test')}
+            />
+          ) : null}
 
           <FriendsCallout
             pendingRequests={requests.data?.length ?? 0}

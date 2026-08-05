@@ -85,7 +85,27 @@ export class CheckpointQuestion {
 export const CheckpointQuestionSchema = SchemaFactory.createForClass(CheckpointQuestion);
 
 /**
- * A unit checkpoint: the end-of-unit test.
+ * Which test a row records. The two kinds share storage (one collection, one
+ * schema) so the one-shot answer machinery and the exactly-once submit rule
+ * apply to both, but they are not the same test:
+ *
+ *  - `unit` covers one unit. `unit` on the document is that unit's slug.
+ *  - `combined` covers every unit the learner has *finished* at the moment the
+ *    attempt started. `unit` on the document is a stable marker
+ *    (`combined:<hash-of-sorted-slugs>`) so the attempt key stays unique and
+ *    queryable; `unitSlugs` is the readable explanation of what was tested.
+ *
+ * A combined test that happens to cover one unit (the learner has only
+ * finished one) is not allowed — the controller 422s. The schema still
+ * permits it for the same reason it permits an empty `unitSlugs`: a
+ * defensive default is cheaper than a stricter constraint that would have to
+ * be loosened.
+ */
+export type CheckpointKind = 'unit' | 'combined';
+
+/**
+ * A unit checkpoint: the end-of-unit test, or a combined test across all
+ * finished units.
  *
  * Owned by `learning` rather than `content` for the same reason
  * `exerciseAttempts` is — this is a record of what a *learner* did, not
@@ -98,13 +118,36 @@ export class UnitCheckpointAttempt {
   userId: Types.ObjectId;
 
   /**
-   * The unit *slug* (`'hiragana-basics'`), not an id. Phase 2 §5 turns `Unit`
-   * into a real document with a `unitId`; keying on the slug now means that
-   * migration is a rename here rather than a redesign, and the slug is already
-   * what `Lesson.unit` and `GET /lessons?unit=` use.
+   * The discriminator's value in the index. For a `unit` kind this is the
+   * unit slug (`'hiragana-basics'`); for a `combined` kind this is
+   * `combined:<stable-hash>` of the sorted finished-units list. Not an id —
+   * Phase 2 §5 turns `Unit` into a real document with a `unitId`, and
+   * keying on a slug now means that migration is a rename here rather than
+   * a redesign. The slug is already what `Lesson.unit` and
+   * `GET /lessons?unit=` use.
    */
   @Prop({ type: String, required: true, trim: true })
   unit: string;
+
+  /**
+   * Discriminates a per-unit attempt from a cross-unit one. Defaults to
+   * `'unit'` so the collection's existing rows (pre-combined-test) are
+   * valid without a backfill, and so the partial indexes below can keep
+   * using the field.
+   */
+  @Prop({ type: String, required: true, enum: ['unit', 'combined'], default: 'unit' })
+  kind: CheckpointKind;
+
+  /**
+   * The unit slugs a combined test covered. Empty for `kind: 'unit'`.
+   *
+   * `unit` (the slug-or-hash field) is the index key, so the hash is what
+   * makes uniqueness work. This list is the human-readable explanation of
+   * what was tested, persisted so a result screen can say "Hiragana basics
+   * + Katakana basics" without re-deriving it from the question set.
+   */
+  @Prop({ type: [String], default: [] })
+  unitSlugs: string[];
 
   /** Server-issued, 1-based. Never taken from the request. */
   @Prop({ type: Number, required: true, min: 1 })
@@ -134,3 +177,11 @@ UnitCheckpointAttemptSchema.index({ userId: 1, unit: 1, attempt: 1 }, { unique: 
 
 // "The open attempt for this user and unit" — the resume read, on every start.
 UnitCheckpointAttemptSchema.index({ userId: 1, unit: 1, submittedAt: 1 });
+
+// "Every combined test this learner has passed" — the dashboard asks for this
+// without scanning the unit-kind rows. Partial so the existing per-unit reads
+// keep using their index; the kind is the discriminator the partial needs.
+UnitCheckpointAttemptSchema.index(
+  { userId: 1, passed: 1 },
+  { partialFilterExpression: { kind: 'combined' } },
+);

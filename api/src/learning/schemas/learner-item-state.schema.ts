@@ -14,16 +14,26 @@ export const ITEM_MASTERY_LEVELS: ItemMasteryLevel[] = [
  * Where the learner has been seen practising an item. §5.2's provenance field.
  *
  * `lesson`, `review`, `chat` and `checkpoint` are written today; `reading` is
- * reserved for §6.7. Recorded so that "weak on へ" can eventually distinguish
- * weak *in a quiz* from weak *in conversation*.
+ * reserved for §6.7. `combined` is the across-units test. Recorded so that
+ * "weak on へ" can eventually distinguish weak *in a quiz* from weak *in
+ * conversation*.
  *
  * `checkpoint` is deliberately not folded into `lesson`, even though both come
  * from answering a generated question. A lesson re-asks until the learner is
  * right, so its evidence is "got there eventually"; a checkpoint is one shot
  * under test conditions. Collapsing them would make the distinction
- * unrecoverable, and it is the more informative of the two.
+ * unrecoverable, and it is the more informative of the two. Same logic
+ * applies to `combined`: a 40-question test across the course is a different
+ * signal from a 20-question test of one unit.
  */
-export const SOURCE_CONTEXTS = ['lesson', 'review', 'chat', 'reading', 'checkpoint'] as const;
+export const SOURCE_CONTEXTS = [
+  'lesson',
+  'review',
+  'chat',
+  'reading',
+  'checkpoint',
+  'combined',
+] as const;
 export type SourceContext = (typeof SOURCE_CONTEXTS)[number];
 
 /** Welford running statistics (§5.2) — mean and variance in constant space. */

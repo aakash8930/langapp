@@ -383,6 +383,42 @@ export class LearningService {
   }
 
   /**
+   * The unit slugs the learner has *finished* — every lesson in the unit
+   * has a row in `lessonCompletions`.
+   *
+   * "Finished" here means lesson-completion, matching the client's
+   * `UnitGroup.status === 'done'` derivation. That is the same rule the home
+   * screen applies, and what makes a combined-test entry point appear in
+   * the right place at the right time.
+   *
+   * Two queries regardless of how many units the course grows to: one for
+   * the completed set, one for the unit↔lesson map. Returns slugs in the
+   * order they come out of the curriculum (`findLessons` already sorts by
+   * `unit` then `order`), not alphabetical — which keeps the result screen
+   * saying "Hiragana basics + Katakana basics" in the order a learner
+   * actually did them.
+   */
+  async listFinishedUnitSlugs(userId: string): Promise<string[]> {
+    const completed = new Set(await this.findCompletedLessonIds(userId));
+    if (completed.size === 0) return [];
+
+    const lessons = await this.contentService.findLessons();
+    const byUnit = new Map<string, Set<string>>();
+    for (const lesson of lessons) {
+      let set = byUnit.get(lesson.unit);
+      if (!set) {
+        set = new Set();
+        byUnit.set(lesson.unit, set);
+      }
+      set.add(lesson.id);
+    }
+
+    return [...byUnit.entries()]
+      .filter(([, lessonIds]) => [...lessonIds].every((id) => completed.has(id)))
+      .map(([unit]) => unit);
+  }
+
+  /**
    * §7 step 7: schedule words the learner got wrong in conversation.
    *
    * `texts` are the free-text fragments of a chat correction — the `span` the
