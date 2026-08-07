@@ -114,6 +114,7 @@ export const sidebarGroups: SidebarGroup[] = [
         to: '/dictionary',
       },
       { kind: 'link', id: 'ai-tutor', label: 'AI Tutor', icon: 'bot', to: '/practice' },
+      { kind: 'link', id: 'exams', label: 'Exams', icon: 'graduation-cap', to: '/exams' },
       { kind: 'link', id: 'progress', label: 'Progress', icon: 'trending-up', to: '/progress' },
       {
         kind: 'link',
