@@ -525,6 +525,44 @@ export class ContentService {
 
   // ---- Seed support. Upserts keyed on the natural key so re-running is safe. ----
 
+  async findVocabById(id: string): Promise<Extract<ResolvedItem, { kind: 'vocab' }> | null> {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException(`Malformed vocab id: ${id}`);
+    }
+    const doc = await this.vocabModel.findById(id).exec();
+    if (!doc) return null;
+    return vocabToResolved(doc);
+  }
+
+  async importVocabBatch(
+    entries: { lemma: string; reading: string; romaji?: string; gloss: string; pos: string; jlpt?: string; examples?: { sentence: string; reading?: string; romaji?: string; gloss: string }[]; synonyms?: string[]; antonyms?: string[] }[],
+  ): Promise<{ created: number; skipped: number }> {
+    let created = 0;
+    let skipped = 0;
+    for (const entry of entries) {
+      const existing = await this.vocabModel.findOne({ lang: 'ja', lemma: entry.lemma }).exec();
+      if (existing) {
+        skipped++;
+        continue;
+      }
+      await this.vocabModel.create({
+        lang: 'ja',
+        lemma: entry.lemma,
+        reading: entry.reading,
+        romaji: entry.romaji ?? '',
+        gloss: entry.gloss,
+        pos: entry.pos,
+        jlpt: (entry.jlpt as JlptLevel) ?? 'N5',
+        tags: [],
+        examples: entry.examples ?? [],
+        synonyms: entry.synonyms ?? [],
+        antonyms: entry.antonyms ?? [],
+      });
+      created++;
+    }
+    return { created, skipped };
+  }
+
   async upsertKana(input: {
     kana: string;
     romaji: string;
@@ -582,6 +620,24 @@ export class ContentService {
         { new: true, upsert: true },
       )
       .exec();
+  }
+
+  async enrichVocab(lemma: string, data: {
+    examples?: { sentence: string; reading?: string; romaji?: string; gloss: string }[];
+    synonyms?: string[];
+    antonyms?: string[];
+  }): Promise<boolean> {
+    const result = await this.vocabModel.updateOne(
+      { lang: 'ja', lemma },
+      {
+        $set: {
+          examples: data.examples ?? [],
+          synonyms: data.synonyms ?? [],
+          antonyms: data.antonyms ?? [],
+        },
+      },
+    ).exec();
+    return result.modifiedCount > 0;
   }
 
   async setVocabConceptId(vocabId: Types.ObjectId, conceptId: Types.ObjectId): Promise<void> {

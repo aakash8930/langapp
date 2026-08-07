@@ -28,6 +28,7 @@ import {
   VOCAB_EVERYDAY_LESSONS,
   VOCAB_EVERYDAY_UNIT,
 } from './japanese/vocab-everyday';
+import { VOCAB_ENRICHMENTS } from './japanese/vocab-enrichment';
 
 /** The base gojūon, both scripts. Everything else assumes these. */
 const BASE_PACKS: KanaPack[] = [HIRAGANA_PACK, KATAKANA_PACK];
@@ -198,6 +199,18 @@ export class SeedService {
     previousLessonId = await this.seedKanji(previousLessonId);
     await this.seedVocabPack(VOCAB_N5_PACK, previousLessonId);
     this.logger.log(`Seeded ${VOCAB_N5_UNIT}: ${countWordsIn(VOCAB_N5_PACK)} words`);
+
+    // Enrich vocab with examples, synonyms, antonyms
+    let enriched = 0;
+    for (const entry of VOCAB_ENRICHMENTS) {
+      const ok = await this.contentService.enrichVocab(entry.lemma, {
+        examples: entry.examples,
+        synonyms: entry.synonyms,
+        antonyms: entry.antonyms,
+      });
+      if (ok) enriched++;
+    }
+    this.logger.log(`Enriched ${enriched} vocab items with examples, synonyms and antonyms`);
 
     // Indexes first: ADR-005 replaced a unique index with a partial one, and the
     // concept pass below cannot write a second concept until the old index is

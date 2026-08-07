@@ -18,6 +18,9 @@ export type ResolvedItem =
       gloss: string;
       pos: string;
       jlpt: string;
+      examples: { sentence: string; reading?: string; romaji?: string; gloss: string }[];
+      synonyms: string[];
+      antonyms: string[];
     }
   | {
       kind: 'grammar';
@@ -80,6 +83,14 @@ export function vocabToResolved(doc: VocabItemDocument): Extract<ResolvedItem, {
     gloss: doc.gloss,
     pos: doc.pos,
     jlpt: doc.jlpt,
+    examples: doc.examples?.map((e) => ({
+      sentence: e.sentence,
+      reading: e.reading,
+      romaji: e.romaji,
+      gloss: e.gloss,
+    })) ?? [],
+    synonyms: doc.synonyms ?? [],
+    antonyms: doc.antonyms ?? [],
   };
 }
 

@@ -103,6 +103,9 @@ function vocabLesson(overrides: Partial<LessonDetail> = {}): LessonDetail {
       gloss: w.gloss,
       pos: 'noun',
       jlpt: 'N5',
+      examples: [],
+      synonyms: [],
+      antonyms: [],
     })),
     ...overrides,
   });
@@ -576,6 +579,9 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
       // The wordReading build path filters vocabulary items by `romaji`,
       // throwing 422 if none match. The lesson's own items must carry it.
       romaji: w.romaji,
+      examples: [],
+      synonyms: [],
+      antonyms: [],
     })),
   });
 
@@ -1041,6 +1047,9 @@ function wordReadingLesson(overrides: Partial<LessonDetail> = {}): LessonDetail 
       pos: 'noun',
       jlpt: 'N5',
       romaji: w.romans,
+      examples: [],
+      synonyms: [],
+      antonyms: [],
     })),
     ...overrides,
   });

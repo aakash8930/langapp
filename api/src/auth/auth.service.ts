@@ -8,7 +8,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { generateSecret, verify as verifyTotp } from 'otplib';
 import { randomInt, randomUUID } from 'node:crypto';
+import { RedisService } from '../redis/redis.service';
 import { toUserResponse } from '../user/dto/user-response.dto';
 import { meetsMinimumAge, MIN_AGE_TO_REGISTER } from '../user/gamification/age';
 import { UserDocument } from '../user/schemas/user.schema';
@@ -18,7 +20,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { PasswordResetStore, RESET_CODE_TTL_SECONDS } from './password-reset.store';
-import { RefreshTokenStore } from './refresh-token.store';
+import { RefreshTokenStore, SessionInfo } from './refresh-token.store';
 
 interface RefreshTokenPayload {
   sub: string;
@@ -49,6 +51,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly refreshTokens: RefreshTokenStore,
     private readonly passwordResets: PasswordResetStore,
+    private readonly redis: RedisService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
@@ -83,6 +86,14 @@ export class AuthService {
     if (!user) {
       throw new ConflictException('Email already registered');
     }
+
+    // Generate an email verification token and write it to the log (no mail
+    // service yet — same trade as forgot-password).
+    const verificationToken = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    await this.userService.setVerificationToken(user._id.toString(), verificationToken);
+    this.logger.warn(
+      `Email verification code for ${dto.email}: ${verificationToken}`,
+    );
 
     return this.buildAuthResponse(user);
   }
@@ -210,6 +221,179 @@ export class AuthService {
     await this.refreshTokens.revokeAll(user._id.toString());
 
     return { message: 'Password reset. Sign in with your new password.' };
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    const fullUser = await this.userService.findById(userId);
+    if (!fullUser) throw new UnauthorizedException('User not found');
+
+    const withHash = await this.userService.findByEmailWithPassword(fullUser.email);
+    if (!withHash) throw new UnauthorizedException('User not found');
+
+    const match = await argon2.verify(withHash.passwordHash, currentPassword).catch(() => false);
+    if (!match) throw new UnauthorizedException('Current password is incorrect.');
+
+    const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
+    await this.userService.updatePassword(userId, passwordHash);
+
+    // Kill every session — password changes invalidate all existing tokens.
+    await this.refreshTokens.revokeAll(userId);
+
+    return { message: 'Password changed.' };
+  }
+
+  async get2faStatus(userId: string): Promise<{ enabled: boolean }> {
+    const user = await this.userService.findById(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+    return { enabled: !!user.totpEnabled };
+  }
+
+  async enable2fa(userId: string): Promise<{ secret: string; qrCodeUri: string }> {
+    const user = await this.userService.findById(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+    if (user.totpEnabled) {
+      throw new ConflictException('2FA is already enabled.');
+    }
+
+    const secret = generateSecret();
+    const qrCodeUri =
+      'otpauth://totp/' +
+      encodeURIComponent('GENKŌ:' + user.email) +
+      '?secret=' + secret +
+      '&issuer=' + encodeURIComponent('GENKŌ');
+
+    await this.userService.updateTotpSecret(userId, secret);
+
+    return { secret, qrCodeUri };
+  }
+
+  async verifyAndActivate2fa(
+    userId: string,
+    token: string,
+  ): Promise<{ recoveryCodes: string[] }> {
+    const user = await this.userService.findById(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+    if (user.totpEnabled) {
+      throw new ConflictException('2FA is already enabled.');
+    }
+
+    const secret = await this.userService.getTotpSecret(userId);
+    if (!secret) {
+      throw new BadRequestException('2FA has not been initiated. Enable it first.');
+    }
+
+    const result = await verifyTotp({ token, secret });
+    if (!result) throw new BadRequestException('Invalid verification code.');
+
+    await this.userService.enableTotp(userId);
+
+    // Generate 8 recovery codes and store them in Redis
+    const recoveryCodes = Array.from({ length: 8 }, () =>
+      `${String(randomInt(0, 10000)).padStart(4, '0')}-${String(randomInt(0, 10000)).padStart(4, '0')}`,
+    );
+    for (const code of recoveryCodes) {
+      await this.redis.client.set(
+        `recovery:${userId}:${code}`,
+        '1',
+        'EX',
+        365 * 24 * 3600,
+      );
+    }
+
+    return { recoveryCodes };
+  }
+
+  async disable2fa(userId: string, password: string): Promise<{ message: string }> {
+    const fullUser = await this.userService.findById(userId);
+    if (!fullUser) throw new UnauthorizedException('User not found');
+
+    const withHash = await this.userService.findByEmailWithPassword(fullUser.email);
+    if (!withHash) throw new UnauthorizedException('User not found');
+
+    const match = await argon2.verify(withHash.passwordHash, password).catch(() => false);
+    if (!match) throw new UnauthorizedException('Password is incorrect.');
+
+    await this.userService.disableTotp(userId);
+
+    // Clean up recovery codes
+    const pattern = `recovery:${userId}:*`;
+    let cursor = '0';
+    do {
+      const [next, keys] = await this.redis.client.scan(
+        cursor, 'MATCH', pattern, 'COUNT', 100,
+      );
+      cursor = next;
+      if (keys.length > 0) {
+        await this.redis.client.del(...keys);
+      }
+    } while (cursor !== '0');
+
+    return { message: '2FA has been disabled.' };
+  }
+
+  async deleteAccount(userId: string, password: string): Promise<{ message: string }> {
+    const fullUser = await this.userService.findById(userId);
+    if (!fullUser) throw new UnauthorizedException('User not found');
+
+    const withHash = await this.userService.findByEmailWithPassword(fullUser.email);
+    if (!withHash) throw new UnauthorizedException('User not found');
+
+    const match = await argon2.verify(withHash.passwordHash, password).catch(() => false);
+    if (!match) throw new UnauthorizedException('Password is incorrect.');
+
+    // Revoke all sessions
+    await this.refreshTokens.revokeAll(userId);
+
+    // Delete user
+    await this.userService.deleteUser(userId);
+
+    return { message: 'Account deleted.' };
+  }
+
+  async listSessions(userId: string): Promise<SessionInfo[]> {
+    return this.refreshTokens.listSessions(userId);
+  }
+
+  async revokeSession(userId: string, jti: string): Promise<{ message: string }> {
+    await this.refreshTokens.removeSession(userId, jti);
+    return { message: 'Session revoked.' };
+  }
+
+  async revokeAllSessions(userId: string): Promise<{ count: number }> {
+    const count = await this.refreshTokens.revokeAll(userId);
+    return { count };
+  }
+
+  async verifyEmail(userId: string, token: string): Promise<{ message: string }> {
+    const stored = await this.userService.getVerificationToken(userId);
+    if (!stored) {
+      throw new BadRequestException('No verification token found. Try resending.');
+    }
+    if (stored !== token) {
+      throw new BadRequestException('Invalid verification code.');
+    }
+    await this.userService.verifyEmail(userId);
+    return { message: 'Email verified.' };
+  }
+
+  async resendVerification(userId: string): Promise<{ message: string }> {
+    const user = await this.userService.findById(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+    if (user.emailVerified) {
+      throw new BadRequestException('Email is already verified.');
+    }
+
+    const token = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    await this.userService.setVerificationToken(userId, token);
+    this.logger.warn(
+      `Email verification code for ${user.email}: ${token}`,
+    );
+
+    return { message: 'A new verification code has been generated. Check the API server log.' };
   }
 
   private async buildAuthResponse(user: UserDocument): Promise<AuthResponse> {

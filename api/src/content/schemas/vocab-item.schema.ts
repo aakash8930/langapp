@@ -46,6 +46,18 @@ export class VocabItem {
   @Prop({ type: [String], default: [] })
   tags: string[];
 
+  @Prop({
+    type: [{ sentence: String, reading: String, romaji: String, gloss: String }],
+    default: [],
+  })
+  examples: { sentence: string; reading?: string; romaji?: string; gloss: string }[];
+
+  @Prop({ type: [String], default: [] })
+  synonyms: string[];
+
+  @Prop({ type: [String], default: [] })
+  antonyms: string[];
+
   @Prop({ type: Types.ObjectId, required: false })
   conceptId?: Types.ObjectId;
 
