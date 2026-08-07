@@ -4,8 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import {
   fetchAnalytics,
   fetchMemoryModel,
+  fetchReviewHeatmap,
+  fetchReviewForecast,
   type MasteryLevel,
   type MemoryModel,
+  type HeatmapEntry,
+  type ForecastEntry,
 } from '../api';
 import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
@@ -36,6 +40,18 @@ function ProgressPage() {
   const analytics = useQuery({
     queryKey: queryKeys.learning.analytics,
     queryFn: fetchAnalytics,
+    enabled: signedIn,
+  });
+
+  const heatmap = useQuery({
+    queryKey: ['reviews', 'heatmap'],
+    queryFn: () => fetchReviewHeatmap(84),
+    enabled: signedIn,
+  });
+
+  const forecast = useQuery({
+    queryKey: ['reviews', 'forecast'],
+    queryFn: fetchReviewForecast,
     enabled: signedIn,
   });
 
@@ -90,8 +106,10 @@ function ProgressPage() {
         {/* Study Heatmap */}
         <section className="card glass" aria-labelledby="heatmap-heading">
           <h2 className="card-title" id="heatmap-heading">Study Heatmap</h2>
-          <p className="card-note">Each column is a day. Darker = more reviews that day.</p>
-          <ActivityHeatmap />
+          <p className="card-note">Each cell is a day. Darker = more reviews that day.</p>
+          {heatmap.isPending ? <p className="card-note">Loading…</p> :
+           heatmap.isError ? <p className="card-note">Could not load.</p> :
+           <ActivityHeatmap data={heatmap.data ?? []} />}
         </section>
 
         {/* Forgetting Curve */}
@@ -106,41 +124,33 @@ function ProgressPage() {
         {/* Forecast */}
         <section className="card glass curve-card" aria-labelledby="forecast-heading">
           <h2 className="card-title" id="forecast-heading">Forecast</h2>
-          <p className="card-note">Upcoming reviews based on your current memory model.</p>
-          <Forecast totalCards={memory.data?.totalCards ?? 0} retention={memory.data?.overallRetentionRate ?? 0} />
+          <p className="card-note">Upcoming reviews based on your due cards.</p>
+          {forecast.isPending ? <p className="card-note">Loading…</p> :
+           forecast.isError ? <p className="card-note">Could not load.</p> :
+           <ForecastView data={forecast.data ?? []} />}
         </section>
       </div>
     </div>
   );
 }
 
-function ActivityHeatmap() {
-  const days = 84;
-  const today = new Date();
-  const cols: { day: number; month: number; count: number }[] = [];
-
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    cols.push({ day: d.getDate(), month: d.getMonth(), count: 0 });
-  }
-
-  const max = 10;
+function ActivityHeatmap({ data }: { data: HeatmapEntry[] }) {
+  const max = Math.max(...data.map((d) => d.count), 10);
 
   return (
-    <div className="heatmap" role="img" aria-label="Study activity over the last 12 weeks">
+    <div className="heatmap" role="img" aria-label="Study activity over time">
       <div className="heatmap-grid">
-        {cols.map((c, i) => {
+        {data.map((c) => {
           const intensity = Math.min(c.count / max, 1);
           const r = Math.round(235 - intensity * 210);
           const g = Math.round(235 - intensity * 180);
           const b = Math.round(245 - intensity * 100);
           return (
             <div
-              key={i}
+              key={c.date}
               className="heatmap-cell"
-              title={`${c.day}/${c.month + 1}`}
-              style={{ background: intensity > 0 ? `rgb(${r},${g},${b})` : 'var(--hairline)', borderRadius: '3px' }}
+              title={`${c.date}: ${c.count} reviews`}
+              style={{ background: intensity > 0 ? `rgb(${r},${g},${b})` : 'var(--hairline)' }}
             />
           );
         })}
@@ -161,31 +171,27 @@ function ActivityHeatmap() {
   );
 }
 
-function Forecast({ totalCards, retention }: { totalCards: number; retention: number }) {
-  if (totalCards === 0) return <p className="card-note">No cards yet — finish some lessons first.</p>;
-
-  const dailyRate = Math.round(retention / 10);
-  const weeks = 4;
-  const next7 = Math.round(totalCards * (1 - retention / 100));
-  const activeCards = Math.round(totalCards * (retention / 100));
+function ForecastView({ data }: { data: ForecastEntry[] }) {
+  if (data.length === 0) return <p className="card-note">No cards yet — finish some lessons first.</p>;
+  const maxDue = Math.max(...data.map((f) => f.due), 1);
+  const totalDue = data[data.length - 1]?.due ?? 0;
 
   return (
     <div>
       <dl className="fact-list">
-        <Fact label="Active cards" value={String(activeCards)} />
-        <Fact label="Due within 7 days" value={String(next7)} />
-        <Fact label="Daily pace needed" value={`~${Math.max(1, Math.round(next7 / 7))} reviews/day`} />
+        <Fact label="Total due now" value={String(data[0]?.due ?? 0)} />
+        <Fact label="Due in 4 weeks" value={String(totalDue)} />
+        <Fact label="Daily pace" value={`~${Math.max(1, Math.round(totalDue / 28))} reviews/day`} />
       </dl>
 
       <div className="forecast-bars" style={{ marginTop: 'var(--s-lg)' }}>
-        {Array.from({ length: weeks }, (_, w) => {
-          const due = Math.round(next7 * (0.5 + Math.random() * 1.0));
-          const barH = Math.min(120, Math.max(8, due * 3));
+        {data.map((f) => {
+          const barH = Math.min(120, Math.max(8, (f.due / maxDue) * 100));
           return (
-            <div key={w} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--s-xs)', flex: 1 }}>
-              <span className="tabular" style={{ fontSize: 'var(--text-caption)', color: 'var(--ink-soft)' }}>{due}</span>
-              <div style={{ width: '100%', maxWidth: '40px', height: `${barH}px`, background: 'var(--brand-primary)', borderRadius: 'var(--radius-sm) 0 0 0', opacity: 0.7 + w * 0.08 }} />
-              <span style={{ fontSize: 'var(--text-caption)', color: 'var(--ink-soft)' }}>W{w + 1}</span>
+            <div key={f.weekLabel} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--s-xs)', flex: 1 }}>
+              <span className="tabular" style={{ fontSize: 'var(--text-caption)', color: 'var(--ink-soft)' }}>{f.due}</span>
+              <div style={{ width: '100%', maxWidth: '40px', height: `${barH}px`, background: 'var(--brand-primary)', borderRadius: 'var(--radius-sm) 0 0 0', opacity: 0.7 + data.indexOf(f) * 0.08 }} />
+              <span style={{ fontSize: 'var(--text-caption)', color: 'var(--ink-soft)' }}>{f.weekLabel}</span>
             </div>
           );
         })}

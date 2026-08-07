@@ -896,6 +896,37 @@ export function gradeReview(cardId: string, grade: ReviewGrade): Promise<GradeRe
   });
 }
 
+export interface ReviewHistoryEntry {
+  date: string;
+  count: number;
+  recalled: number;
+}
+
+export interface HeatmapEntry {
+  date: string;
+  count: number;
+}
+
+export interface ForecastEntry {
+  days: number;
+  due: number;
+  weekLabel: string;
+}
+
+export function fetchReviewHistory(days?: number): Promise<ReviewHistoryEntry[]> {
+  const d = days ? `?days=${days}` : '';
+  return authed<ReviewHistoryEntry[]>(`/reviews/history${d}`);
+}
+
+export function fetchReviewHeatmap(days?: number): Promise<HeatmapEntry[]> {
+  const d = days ? `?days=${days}` : '';
+  return authed<HeatmapEntry[]>(`/reviews/heatmap${d}`);
+}
+
+export function fetchReviewForecast(): Promise<ForecastEntry[]> {
+  return authed<ForecastEntry[]>('/reviews/forecast');
+}
+
 /**
  * The server has no per-user attempt counter, so the client picks the seed.
  * Drawn once per run through a lesson — re-drawing mid-lesson would reshuffle

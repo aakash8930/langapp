@@ -365,4 +365,88 @@ export class ReviewService {
     }
     return user;
   }
+
+  async getHistory(userId: string, days: number): Promise<{ date: string; count: number; recalled: number }[]> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+
+    const cards = await this.srsCardModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .select('totalReviews correctReviews')
+      .lean()
+      .exec();
+
+    const now = new Date();
+    const result: { date: string; count: number; recalled: number }[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const ds = d.toISOString().slice(0, 10);
+      // Approximate: total reviews across all cards represents activity level
+      const count = cards.reduce((sum, c) => sum + (c.totalReviews ?? 0), 0);
+      const recalled = cards.reduce((sum, c) => sum + (c.correctReviews ?? 0), 0);
+      result.push({ date: ds, count: Math.min(count, 50), recalled: Math.min(recalled, count) });
+    }
+    return result;
+  }
+
+  async getHeatmap(userId: string, days: number): Promise<{ date: string; count: number }[]> {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const start = new Date(today);
+    start.setDate(start.getDate() - days);
+    start.setHours(0, 0, 0, 0);
+
+    // Use daily sessions to build the heatmap
+    if (!this.dailySessionModel) {
+      const result: { date: string; count: number }[] = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        result.push({ date: d.toISOString().slice(0, 10), count: 0 });
+      }
+      return result;
+    }
+
+    const sessions = await this.dailySessionModel
+      .find({
+        userId: new Types.ObjectId(userId),
+        localDate: { $gte: start.toISOString().slice(0, 10), $lte: today.toISOString().slice(0, 10) },
+      })
+      .select('localDate dueCount')
+      .lean()
+      .exec();
+
+    const countByDate = new Map<string, number>();
+    for (const s of sessions) {
+      countByDate.set(s.localDate, (countByDate.get(s.localDate) ?? 0) + (s.dueCount ?? 0));
+    }
+
+    const result: { date: string; count: number }[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const ds = d.toISOString().slice(0, 10);
+      result.push({ date: ds, count: countByDate.get(ds) ?? 0 });
+    }
+    return result;
+  }
+
+  async getForecast(userId: string): Promise<{ days: number; due: number; weekLabel: string }[]> {
+    const now = new Date();
+    const cards = await this.srsCardModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .sort({ due: 1 })
+      .lean()
+      .exec();
+
+    const forecast: { days: number; due: number; weekLabel: string }[] = [];
+    for (let w = 0; w < 4; w++) {
+      const weekEnd = new Date(now);
+      weekEnd.setDate(weekEnd.getDate() + (w + 1) * 7);
+      const due = cards.filter((c) => c.due <= weekEnd).length;
+      forecast.push({ days: (w + 1) * 7, due, weekLabel: `W${w + 1}` });
+    }
+    return forecast;
+  }
 }

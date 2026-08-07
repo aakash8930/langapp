@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import {
@@ -22,6 +22,29 @@ export class ReviewController {
   @Get('session')
   async session(@CurrentUser() user: AuthenticatedUser): Promise<DailyStudySessionResponse> {
     return this.reviewService.findDailySession(user.userId);
+  }
+
+  @Get('history')
+  async history(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('days') days?: string,
+  ) {
+    const d = days ? Math.min(90, Math.max(1, parseInt(days, 10) || 30)) : 30;
+    return this.reviewService.getHistory(user.userId, d);
+  }
+
+  @Get('heatmap')
+  async heatmap(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('days') days?: string,
+  ) {
+    const d = days ? Math.min(365, Math.max(7, parseInt(days, 10) || 84)) : 84;
+    return this.reviewService.getHeatmap(user.userId, d);
+  }
+
+  @Get('forecast')
+  async forecast(@CurrentUser() user: AuthenticatedUser) {
+    return this.reviewService.getForecast(user.userId);
   }
 
   @Post(':cardId/grade')
