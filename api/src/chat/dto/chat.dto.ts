@@ -41,3 +41,13 @@ export interface ChatTurnResponse {
   corrections: Correction[];
   reply: ChatMessageResponse;
 }
+
+export interface ChatSessionListItem {
+  id: string;
+  scenario: string;
+  title: string;
+  titleJa: string;
+  startedAt: Date;
+  messageCount: number;
+  lastActivityAt: Date | null;
+}

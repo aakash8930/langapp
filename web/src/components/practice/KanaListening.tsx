@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { API_BASE } from '../../api';
 import { useKanaData, type KanaCurriculumRow } from '../../hooks/useKanaData';
 import { useLocalMistakes } from '../../hooks/useLocalMistakes';
+import { useSession } from '../../useSession';
 
 import './practice.css';
 
@@ -24,7 +25,9 @@ function pickOptions(correct: KanaCurriculumRow, pool: KanaCurriculumRow[], coun
 
 export function KanaListening({ script }: { script: 'hiragana' | 'katakana' }) {
   const { kana, learned, isPending, isError, chartPath, scriptLabel } = useKanaData(script);
+  const { session } = useSession();
   const { add: addMistake, remove: removeMistake } = useLocalMistakes();
+  const audioSpeed = session.state === 'signedIn' ? session.user.settings.audioSpeed : 1;
 
   const items = learned.length > 0 ? learned : kana;
   const shuffled = useMemo(() => shuffle(items), [items]);
@@ -49,6 +52,7 @@ export function KanaListening({ script }: { script: 'hiragana' | 'katakana' }) {
     const src = `${API_BASE}/content/kana/${encodeURIComponent(selected.id)}/audio`;
     const el = new Audio(src);
     el.currentTime = 0;
+    el.playbackRate = audioSpeed;
     audioRef.current = el;
     void el.play().catch(() => {});
   }, [selected]);

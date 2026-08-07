@@ -5,7 +5,7 @@ import { AiOrchestratorService, ChatTurn } from '../ai-orchestrator/ai-orchestra
 import { DEFAULT_SCENARIO_ID } from '../ai-orchestrator/scenarios';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { LearningService } from '../learning/learning.service';
-import { ChatMessageResponse, ChatSessionResponse, ChatTurnResponse } from './dto/chat.dto';
+import { ChatMessageResponse, ChatSessionListItem, ChatSessionResponse, ChatTurnResponse } from './dto/chat.dto';
 import { ChatMessage, ChatMessageDocument } from './schemas/chat-message.schema';
 import { ChatSession, ChatSessionDocument } from './schemas/chat-session.schema';
 
@@ -128,6 +128,62 @@ export class ChatService {
       sessionId: session._id.toString(),
       corrections: userMessage.corrections,
       reply: toMessageResponse(reply),
+    };
+  }
+
+  async listSessions(userId: string): Promise<ChatSessionListItem[]> {
+    const sessions = await this.sessionModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .sort({ startedAt: -1 })
+      .lean()
+      .exec();
+
+    const scenario = this.orchestrator.requireScenario(DEFAULT_SCENARIO_ID);
+
+    const result: ChatSessionListItem[] = [];
+    for (const s of sessions) {
+      const msgCount = await this.messageModel.countDocuments({ sessionId: s._id }).exec();
+      const lastMsg = await this.messageModel
+        .findOne({ sessionId: s._id })
+        .sort({ createdAt: -1 })
+        .select('createdAt')
+        .lean()
+        .exec();
+      result.push({
+        id: s._id.toString(),
+        scenario: s.scenario,
+        title: scenario.title,
+        titleJa: scenario.titleJa,
+        startedAt: s.startedAt,
+        messageCount: msgCount,
+        lastActivityAt: lastMsg?.createdAt ?? null,
+      });
+    }
+    return result;
+  }
+
+  async getSession(userId: string, sessionId: string): Promise<ChatSessionResponse> {
+    const session = await this.findOwnedSession(userId, sessionId);
+    const scenario = this.orchestrator.requireScenario(session.scenario);
+    const messages = await this.messageModel
+      .find({ sessionId: session._id })
+      .sort({ createdAt: 1 })
+      .lean()
+      .exec();
+
+    return {
+      id: session._id.toString(),
+      scenario: session.scenario,
+      title: scenario.title,
+      titleJa: scenario.titleJa,
+      startedAt: session.startedAt,
+      messages: messages.map((m) => ({
+        id: m._id.toString(),
+        role: m.role,
+        text: m.text,
+        corrections: m.corrections,
+        createdAt: m.createdAt,
+      })),
     };
   }
 

@@ -1177,12 +1177,30 @@ export interface ChatTurnResponse {
   reply: ChatMessageResponse;
 }
 
+export interface ChatSessionListItem {
+  id: string;
+  scenario: string;
+  title: string;
+  titleJa: string;
+  startedAt: string;
+  messageCount: number;
+  lastActivityAt: string | null;
+}
+
 export async function createChatSession(scenario?: string): Promise<ChatSessionResponse> {
   const body = scenario ? { scenario } : {};
   return authed<ChatSessionResponse>('/chat/sessions', {
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export function listChatSessions(): Promise<ChatSessionListItem[]> {
+  return authed<ChatSessionListItem[]>('/chat/sessions');
+}
+
+export function getChatSession(sessionId: string): Promise<ChatSessionResponse> {
+  return authed<ChatSessionResponse>(`/chat/sessions/${encodeURIComponent(sessionId)}`);
 }
 
 export async function sendChatMessage(sessionId: string, text: string): Promise<ChatTurnResponse> {

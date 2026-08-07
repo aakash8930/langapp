@@ -70,7 +70,7 @@ export const sidebarGroups: SidebarGroup[] = [
       { kind: 'link', id: 'kanji', label: 'Kanji', glyph: '漢', to: '/kanji' },
       { kind: 'link', id: 'grammar', label: 'Grammar', icon: 'book-marked', to: '/grammar' },
       { kind: 'link', id: 'listening', label: 'Listening', icon: 'headphones', to: '/hiragana-listening' },
-      { kind: 'planned', id: 'speaking', label: 'Speaking', icon: 'mic' },
+      { kind: 'link', id: 'speaking', label: 'Speaking', icon: 'mic', to: '/speaking' },
       { kind: 'link', id: 'reading', label: 'Reading', icon: 'languages', to: '/read' },
       { kind: 'link', id: 'writing', label: 'Writing', icon: 'pen-tool', to: '/hiragana-writing' },
       { kind: 'planned', id: 'jlpt', label: 'JLPT', icon: 'graduation-cap' },
