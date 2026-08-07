@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
+import { useMemo } from 'react';
 
 import { VocabBrowse } from '../components/library/VocabBrowse';
 import { useBookmarks } from '../hooks/useBookmarks';
@@ -9,10 +10,10 @@ export const Route = createFileRoute('/vocabulary')({
 });
 
 function VocabRoute() {
-  const { bookmarks, toggle, isBookmarked } = useBookmarks();
+  const { bookmarks, toggle } = useBookmarks();
   const { lists, addEntry } = useVocabLists();
 
-  const bmSet = new Set(bookmarks.map((b) => b.id));
+  const bmSet = useMemo(() => new Set(bookmarks.map((b) => b.id)), [bookmarks]);
 
   return (
     <VocabBrowse

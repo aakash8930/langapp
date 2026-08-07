@@ -10,17 +10,25 @@ interface Bookmark {
   addedAt: number;
 }
 
+let cachedRaw: string | null = null;
+let cachedValue: Bookmark[] = [];
+
 function readAll(): Bookmark[] {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? '';
+  if (raw === cachedRaw) return cachedValue;
+  cachedRaw = raw;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Bookmark[]) : [];
+    cachedValue = raw ? (JSON.parse(raw) as Bookmark[]) : [];
   } catch {
-    return [];
+    cachedValue = [];
   }
+  return cachedValue;
 }
 
 function writeAll(bookmarks: Bookmark[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
+  cachedRaw = JSON.stringify(bookmarks);
+  cachedValue = bookmarks;
+  localStorage.setItem(STORAGE_KEY, cachedRaw);
 }
 
 let listeners: (() => void)[] = [];
@@ -33,7 +41,7 @@ function subscribe(cb: () => void) {
 function notify() { for (const l of listeners) l(); }
 
 export function useBookmarks() {
-  const bookmarks = useSyncExternalStore(subscribe, readAll, readAll);
+  const bookmarks = useSyncExternalStore(subscribe, readAll);
 
   const isBookmarked = useCallback((id: string) => bookmarks.some((b) => b.id === id), [bookmarks]);
 

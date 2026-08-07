@@ -23,17 +23,9 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
 
   /**
-   * CORS, for the `web/` site only.
-   *
-   * The Expo app has never needed this — a native fetch is not subject to the
-   * same-origin policy — so the API answered browsers with no
-   * `Access-Control-Allow-Origin` at all and every cross-origin read failed.
-   *
-   * Closed by default: with `CORS_ORIGINS` unset nothing changes, which keeps
-   * the internet-facing deployment (§10) shut unless it is deliberately opened.
-   * An explicit allowlist rather than `*`, and **no credentials** — auth here is
-   * a Bearer token the site sends deliberately, never an ambient cookie a
-   * hostile page could ride on.
+   * CORS MUST be enabled BEFORE versioning. URI versioning processes every
+   * request including OPTIONS preflights — if versioning runs first, it rejects
+   * the browser's preflight before CORS can add the headers that make it valid.
    */
   const origins = config
     .get<string>('CORS_ORIGINS', '')
@@ -44,18 +36,23 @@ async function bootstrap(): Promise<void> {
   if (origins.length > 0) {
     app.enableCors({
       origin: origins,
-      // DELETE was missing until 2026-07-29, which broke three routes for the
-      // browser and only the browser: `DELETE /me`, `DELETE /social/friends/:id`
-      // and `DELETE /social/blocks/:id` failed at the preflight, never reaching
-      // a handler. `web/`'s `removeFriend` is a live caller. The Expo app never
-      // noticed — a native fetch is not subject to the same-origin policy,
-      // which is the same reason CORS went unbuilt here until `web/` existed.
-      methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+      methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
       credentials: false,
     });
     new Logger('Bootstrap').log(`CORS enabled for: ${origins.join(', ')}`);
   }
+
+  // Versioning comes after CORS so preflights bypass the version matcher.
+  enableApiVersioning(app);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // Lets OnModuleDestroy hooks (Redis quit, Mongo close) run on SIGINT/SIGTERM.
   app.enableShutdownHooks();

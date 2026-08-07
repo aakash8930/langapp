@@ -8,17 +8,25 @@ export interface KanaMistake {
 
 const STORAGE_KEY = 'hiragana_mistakes';
 
+let cachedRaw: string | null = null;
+let cachedValue: KanaMistake[] = [];
+
 function readMistakes(): KanaMistake[] {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? '';
+  if (raw === cachedRaw) return cachedValue;
+  cachedRaw = raw;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as KanaMistake[]) : [];
+    cachedValue = raw ? (JSON.parse(raw) as KanaMistake[]) : [];
   } catch {
-    return [];
+    cachedValue = [];
   }
+  return cachedValue;
 }
 
 function writeMistakes(mistakes: KanaMistake[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(mistakes));
+  cachedRaw = JSON.stringify(mistakes);
+  cachedValue = mistakes;
+  localStorage.setItem(STORAGE_KEY, cachedRaw);
 }
 
 let listeners: (() => void)[] = [];
@@ -37,7 +45,7 @@ function notify() {
 }
 
 export function useLocalMistakes() {
-  const mistakes = useSyncExternalStore(subscribe, readMistakes, readMistakes);
+  const mistakes = useSyncExternalStore(subscribe, readMistakes);
 
   const add = useCallback((kana: string, romaji: string) => {
     const current = readMistakes();

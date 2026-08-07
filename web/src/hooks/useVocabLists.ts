@@ -19,17 +19,25 @@ export interface VocabList {
   entries: ListEntry[];
 }
 
+let cachedRaw: string | null = null;
+let cachedValue: VocabList[] = [];
+
 function readAll(): VocabList[] {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? '';
+  if (raw === cachedRaw) return cachedValue;
+  cachedRaw = raw;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as VocabList[]) : [];
+    cachedValue = raw ? (JSON.parse(raw) as VocabList[]) : [];
   } catch {
-    return [];
+    cachedValue = [];
   }
+  return cachedValue;
 }
 
 function writeAll(lists: VocabList[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
+  cachedRaw = JSON.stringify(lists);
+  cachedValue = lists;
+  localStorage.setItem(STORAGE_KEY, cachedRaw);
 }
 
 let listeners: (() => void)[] = [];
@@ -46,7 +54,7 @@ function genId(): string {
 }
 
 export function useVocabLists() {
-  const lists = useSyncExternalStore(subscribe, readAll, readAll);
+  const lists = useSyncExternalStore(subscribe, readAll);
 
   const create = useCallback((name: string) => {
     const current = readAll();
