@@ -240,3 +240,47 @@
   color: var(--ink-soft);
   font-size: var(--text-caption);
 }
+
+/* ---- Heatmap ---- */
+
+.heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  grid-auto-flow: column;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1;
+  min-width: 12px;
+}
+
+.heatmap-labels {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-sm);
+}
+
+.heatmap-legend {
+  display: flex;
+  gap: 2px;
+}
+
+/* ---- Forecast ---- */
+
+.forecast-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--s-lg);
+  padding-top: var(--s-md);
+  border-top: 1px solid var(--hairline);
+}
