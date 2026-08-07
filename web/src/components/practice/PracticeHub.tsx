@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 export function PracticeHub() {
   const modes = [
     { to: '/review' as const, label: 'SRS Review', icon: '🔄', desc: 'Spaced repetition — grade the cards you\'re due to review.' },
+    { to: '/mixed-practice' as const, label: 'Mixed Practice', icon: '🎯', desc: 'Random questions from vocab, kanji, and grammar.' },
     { to: '/vocab-practice' as const, label: 'Vocab Quiz', icon: '📝', desc: 'Multiple-choice quiz on your vocabulary words.' },
     { to: '/hiragana-flashcards' as const, label: 'Kana Flashcards', icon: '🃏', desc: 'Flip-and-grade for hiragana and katakana.' },
     { to: '/sentence-builder' as const, label: 'Sentence Builder', icon: '🧱', desc: 'Arrange tokens into correct Japanese sentences.' },
