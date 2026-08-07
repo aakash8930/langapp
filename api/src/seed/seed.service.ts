@@ -750,6 +750,8 @@ export class SeedService {
           explanation: point.explanation,
           jlpt: 'N5',
           examples,
+          usage: (point as any).usage,
+          commonMistakes: (point as any).commonMistakes,
         });
 
         const node = await this.knowledgeGraph.upsertNode({

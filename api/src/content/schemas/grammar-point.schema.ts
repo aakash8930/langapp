@@ -74,6 +74,15 @@ export class GrammarPoint {
   @Prop({ type: [GrammarExampleSchema], default: [] })
   examples: GrammarExample[];
 
+  @Prop({ type: String, required: false })
+  usage?: string;
+
+  @Prop({
+    type: [{ mistake: String, correction: String, note: String }],
+    default: [],
+  })
+  commonMistakes: { mistake: string; correction: string; note: string }[];
+
   @Prop({ type: Types.ObjectId, required: false })
   conceptId?: Types.ObjectId;
 }

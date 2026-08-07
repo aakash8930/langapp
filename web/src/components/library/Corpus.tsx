@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from '@tanstack/react-router';
 
 import type { ResolvedItem } from '../../api';
 import { useKanjiBookmarks } from '../../hooks/useKanjiBookmarks';
@@ -265,7 +266,9 @@ export function GrammarLibrary() {
             <li key={item.id}>
               <details className="grammar-card">
                 <summary className="grammar-summary">
-                  <span className="grammar-title">{item.title}</span>
+                  <Link to="/grammar/$id" params={{ id: item.id }} className="grammar-title" style={{ textDecoration: 'none' }}>
+                    {item.title}
+                  </Link>
                   <span className="vocab-tag vocab-tag-jlpt">{item.jlpt}</span>
                 </summary>
 
@@ -276,7 +279,7 @@ export function GrammarLibrary() {
                     {item.examples.map((example, index) => (
                       <li className="example" key={`${item.id}-${index}`}>
                         <p className="example-sentence ja" lang="ja">
-                          {example.sentence.replace('___', example.answer)}
+                          {example.sentence.replace('＿', example.answer)}
                         </p>
                         {example.romaji ? (
                           <p className="example-romaji">{example.romaji}</p>

@@ -79,7 +79,10 @@ export type ResolvedItem =
       title: string;
       jlpt: string;
       explanation: string;
+      /** Worked examples, gap and all. The quiz asks about the first. */
       examples: { sentence: string; answer: string; romaji?: string; gloss: string }[];
+      usage?: string;
+      commonMistakes: { mistake: string; correction: string; note: string }[];
     }
   | {
       kind: 'kanji';

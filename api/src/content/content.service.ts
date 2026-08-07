@@ -655,6 +655,8 @@ export class ContentService {
       gloss: string;
       constituentKana: string[];
     }[];
+    usage?: string;
+    commonMistakes?: { mistake: string; correction: string; note: string }[];
   }): Promise<GrammarPointDocument> {
     return this.grammarModel
       .findOneAndUpdate(
@@ -665,6 +667,8 @@ export class ContentService {
             explanation: input.explanation,
             jlpt: input.jlpt,
             examples: input.examples,
+            usage: input.usage,
+            commonMistakes: input.commonMistakes ?? [],
           },
         },
         { new: true, upsert: true },

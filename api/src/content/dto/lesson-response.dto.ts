@@ -30,6 +30,8 @@ export type ResolvedItem =
       explanation: string;
       /** Worked examples, gap and all. The quiz asks about the first. */
       examples: { sentence: string; answer: string; romaji?: string; gloss: string }[];
+      usage?: string;
+      commonMistakes: { mistake: string; correction: string; note: string }[];
     }
   | { kind: 'kanji'; id: string; char: string; on: string[]; kun: string[]; meanings: string[]; strokes: number; radical: string; jlpt: string };
 
@@ -111,6 +113,12 @@ export function grammarToResolved(
       romaji: example.romaji,
       gloss: example.gloss,
     })),
+    usage: doc.usage,
+    commonMistakes: doc.commonMistakes?.map((m) => ({
+      mistake: m.mistake,
+      correction: m.correction,
+      note: m.note,
+    })) ?? [],
   };
 }
 
