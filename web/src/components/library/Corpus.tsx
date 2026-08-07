@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import type { ResolvedItem } from '../../api';
+import { useKanjiBookmarks } from '../../hooks/useKanjiBookmarks';
 import { Icon } from '../ui/Icon';
 import {
   itemsOfKind,
@@ -10,6 +11,7 @@ import {
   type KanjiItem,
   type VocabItem,
 } from './useCorpus';
+import { KANJI_WRITES } from './kanjiWrites';
 
 import './corpus.css';
 
@@ -159,30 +161,42 @@ export function VocabularyLibrary() {
 export function KanjiLibrary() {
   const corpus = useCorpus();
   const items = corpus.data ? itemsOfKind(corpus.data.items, 'kanji') : null;
+  const { isBookmarked, toggle } = useKanjiBookmarks();
 
   return (
     <LibraryFrame
       title="Kanji"
       glyph="漢"
-      blurb="Every character the course teaches, with readings and stroke count."
+      blurb="Every character the course teaches, with readings, stroke count, and compound words."
       placeholder="Search by character, meaning or reading…"
       items={items}
       render={(matched) => (
         <ul className="kanji-grid">
-          {(matched as KanjiItem[]).map((item) => (
+          {(matched as KanjiItem[]).map((item) => {
+            const compounds = KANJI_WRITES[item.char] ?? [];
+            const bm = isBookmarked(item.char);
+
+            return (
             <li key={item.id}>
-              {/*
-                `<details>` rather than a div with onClick: it is keyboard
-                operable, announced correctly, and findable by in-page search
-                while closed — which for a grid of 104 characters is the
-                property that matters most.
-              */}
               <details className="kanji-card">
                 <summary className="kanji-summary">
                   <span className="kanji-char ja" lang="ja">
                     {item.char}
                   </span>
                   <span className="kanji-meaning">{item.meanings[0] ?? '—'}</span>
+                  <button
+                    type="button"
+                    className="vocab-bookmark-btn"
+                    style={{ marginLeft: 'auto', color: bm ? '#f59e0b' : undefined }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggle(item.char, item.meanings[0] ?? '');
+                    }}
+                    title={bm ? 'Remove bookmark' : 'Bookmark'}
+                  >
+                    {bm ? '★' : '☆'}
+                  </button>
                 </summary>
 
                 <dl className="kanji-facts">
@@ -192,24 +206,41 @@ export function KanjiLibrary() {
                   </div>
                   <div>
                     <dt>On</dt>
-                    <dd className="ja" lang="ja">
-                      {item.on.join('、') || '—'}
-                    </dd>
+                    <dd className="ja" lang="ja">{item.on.join('、') || '—'}</dd>
                   </div>
                   <div>
                     <dt>Kun</dt>
-                    <dd className="ja" lang="ja">
-                      {item.kun.join('、') || '—'}
-                    </dd>
+                    <dd className="ja" lang="ja">{item.kun.join('、') || '—'}</dd>
                   </div>
                   <div>
                     <dt>Strokes</dt>
                     <dd className="tabular">{item.strokes}</dd>
                   </div>
+                  {(item as any).radical && (
+                    <div><dt>Radical</dt><dd className="ja" lang="ja">{(item as any).radical}</dd></div>
+                  )}
+                  {(item as any).jlpt && (
+                    <div><dt>JLPT</dt>
+                    <dd><span className="vocab-tag vocab-tag-jlpt">{(item as any).jlpt}</span></dd></div>
+                  )}
                 </dl>
+
+                {compounds.length > 0 && (
+                  <div style={{ marginTop: 'var(--s-md)', paddingTop: 'var(--s-md)', borderTop: '1px solid var(--hairline)' }}>
+                    <h3 style={{ color: 'var(--ink-soft)', fontSize: 'var(--text-caption)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 var(--s-sm)' }}>
+                      Writes these words
+                    </h3>
+                    <div className="vocab-related-tags">
+                      {compounds.map((w) => (
+                        <span key={w} className="vocab-tag vocab-tag-related">{w}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </details>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     />

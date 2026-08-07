@@ -31,7 +31,7 @@ export type ResolvedItem =
       /** Worked examples, gap and all. The quiz asks about the first. */
       examples: { sentence: string; answer: string; romaji?: string; gloss: string }[];
     }
-  | { kind: 'kanji'; id: string; char: string; on: string[]; kun: string[]; meanings: string[]; strokes: number };
+  | { kind: 'kanji'; id: string; char: string; on: string[]; kun: string[]; meanings: string[]; strokes: number; radical: string; jlpt: string };
 
 export interface LessonSummary {
   id: string;
@@ -123,6 +123,8 @@ export function kanjiToResolved(doc: KanjiEntryDocument): Extract<ResolvedItem, 
     kun: doc.kun,
     meanings: doc.meanings,
     strokes: doc.strokes,
+    radical: doc.radical,
+    jlpt: doc.jlpt,
   };
 }
 

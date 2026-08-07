@@ -89,6 +89,8 @@ export type ResolvedItem =
       kun: string[];
       meanings: string[];
       strokes: number;
+      radical: string;
+      jlpt: string;
     };
 
 export type LessonDetail = LessonSummary & { items: ResolvedItem[] };
