@@ -106,6 +106,7 @@ export function JLPTDashboard() {
         </p>
         <div style={{ display: 'flex', gap: 'var(--s-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link className="btn btn-primary" to="/jlpt-mock-test">Take N5 Mock Test</Link>
+          <Link className="btn btn-secondary" to="/jlpt-results">View Results</Link>
           <Link className="btn btn-secondary" to="/vocabulary">Browse N5 words</Link>
           <Link className="btn btn-secondary" to="/kanji">Browse N5 kanji</Link>
         </div>
