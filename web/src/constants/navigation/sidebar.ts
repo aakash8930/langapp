@@ -73,7 +73,7 @@ export const sidebarGroups: SidebarGroup[] = [
       { kind: 'link', id: 'speaking', label: 'Speaking', icon: 'mic', to: '/speaking' },
       { kind: 'link', id: 'reading', label: 'Reading', icon: 'languages', to: '/read' },
       { kind: 'link', id: 'writing', label: 'Writing', icon: 'pen-tool', to: '/hiragana-writing' },
-      { kind: 'planned', id: 'jlpt', label: 'JLPT', icon: 'graduation-cap' },
+      { kind: 'link', id: 'jlpt', label: 'JLPT', icon: 'graduation-cap', to: '/jlpt' },
     ],
   },
   {
@@ -90,7 +90,7 @@ export const sidebarGroups: SidebarGroup[] = [
       },
       { kind: 'link', id: 'flashcards', label: 'Flashcards', icon: 'layers', to: '/hiragana-flashcards' },
       { kind: 'planned', id: 'quizzes', label: 'Quizzes', icon: 'grid' },
-      { kind: 'planned', id: 'practice-hub', label: 'Practice Hub', icon: 'pen-square' },
+      { kind: 'link', id: 'practice-hub', label: 'Practice Hub', icon: 'pen-square', to: '/practice-hub' },
     ],
   },
   {
