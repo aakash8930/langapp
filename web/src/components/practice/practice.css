@@ -1,0 +1,177 @@
+/*
+ * Hiragana practice modes — the five drill screens.
+ *
+ * Writing, Reading, Listening, Flashcards and Mistakes each get half their
+ * styles from `app.css` (the quiz card, the flip card, grade buttons, verdicts)
+ * and the other half from here. The parts they share are deliberate: a reading
+ * card should feel like a quiz card because it *is* a quiz card with a text
+ * input instead of options.
+ */
+
+/* ---- Toggle bar (Learned / All) ---- */
+
+.practice-toggle-bar {
+  display: flex;
+  gap: var(--s-sm);
+  margin-bottom: var(--s-lg);
+}
+
+/* ---- Controls row (toggles + progress) ---- */
+
+.practice-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-md);
+  margin-bottom: var(--s-xl);
+  flex-wrap: wrap;
+}
+
+.practice-progress {
+  margin-left: auto;
+}
+
+.practice-count {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+/* ---- Reading input ---- */
+
+.reading-input {
+  width: 100%;
+  max-width: 320px;
+  padding: var(--s-lg) var(--s-xl);
+  border: 2px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 1.25rem;
+  text-align: center;
+  transition: border-color var(--t-fast) ease;
+  box-sizing: border-box;
+}
+
+.reading-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 25%, transparent);
+}
+
+.reading-input-correct {
+  border-color: var(--brand-success);
+}
+
+.reading-input-wrong {
+  border-color: var(--danger);
+}
+
+.reading-input:disabled {
+  opacity: 0.7;
+}
+
+/* ---- Verdict labels (feel like the quiz verdicts) ---- */
+
+.verdict-correct {
+  color: var(--brand-success);
+  font-weight: 700;
+  font-size: var(--text-large);
+}
+
+/* .verdict-wrong already defined in app.css */
+
+/* ---- Listening ---- */
+
+.listening-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border: 2px solid var(--brand-primary);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brand-primary) 12%, var(--surface));
+  color: var(--brand-primary);
+  cursor: pointer;
+  transition: all var(--t-fast) ease;
+}
+
+.listening-play-btn:hover {
+  transform: scale(1.08);
+  background: color-mix(in srgb, var(--brand-primary) 20%, var(--surface));
+}
+
+.listening-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-md);
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.listening-option {
+  padding: var(--s-lg) var(--s-md);
+  border: 2px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ja);
+  font-size: 2rem;
+  cursor: pointer;
+  transition: all var(--t-fast) ease;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.listening-option:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+  transform: translateY(-2px);
+}
+
+.listening-option:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.listening-option-pressed {
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 10%, var(--surface));
+}
+
+.listening-option-correct {
+  border-color: var(--brand-success);
+  background: color-mix(in srgb, var(--brand-success) 14%, var(--surface));
+  color: var(--brand-success);
+  font-weight: 700;
+}
+
+.listening-option-wrong {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  color: var(--danger);
+}
+
+/* ---- Mistakes ---- */
+
+.kana-cell-missed {
+  border-color: color-mix(in srgb, var(--shu) 40%, transparent);
+  background: color-mix(in srgb, var(--shu) 10%, var(--surface));
+}
+
+.kana-cell-missed:hover {
+  border-color: var(--shu);
+}
+
+.missed-list h3 {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--s-sm);
+}
