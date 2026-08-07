@@ -1,0 +1,327 @@
+/*
+ * Vocabulary browse with expandable detail panels, bookmarks, audio, and lists.
+ *
+ * Each row is a <details> element — keyboard-accessible, open/closed natively,
+ * no custom state machine.
+ */
+
+.vocab-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  margin-bottom: var(--s-lg);
+  flex-wrap: wrap;
+}
+
+.vocab-toolbar .library-search {
+  max-width: 420px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.vocab-detail-card {
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface);
+}
+
+.vocab-detail-card:last-child {
+  border-bottom: none;
+}
+
+.vocab-detail-card[open] {
+  background: color-mix(in srgb, var(--brand-primary) 3%, var(--surface));
+}
+
+.vocab-detail-summary {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) minmax(0, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-md);
+  padding: var(--s-md) var(--s-lg);
+  cursor: pointer;
+  list-style: none;
+}
+
+.vocab-detail-summary::-webkit-details-marker { display: none; }
+
+.vocab-detail-summary:hover {
+  background: var(--paper);
+}
+
+.vocab-bookmark-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0;
+  line-height: 1;
+  color: var(--ink-soft);
+  transition: color var(--t-fast) ease, transform var(--t-fast) ease;
+}
+
+.vocab-bookmark-btn:hover {
+  transform: scale(1.2);
+}
+
+.vocab-bookmarked {
+  color: #f59e0b;
+}
+
+.vocab-detail-body {
+  padding: 0 var(--s-lg) var(--s-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+}
+
+.vocab-detail-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--s-sm);
+  margin: 0;
+  padding-top: var(--s-md);
+  border-top: 1px solid var(--hairline);
+}
+
+.vocab-detail-facts > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-sm);
+}
+
+.vocab-detail-facts dt {
+  flex-shrink: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vocab-detail-facts dd {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.vocab-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  flex-wrap: wrap;
+}
+
+.vocab-list-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+}
+
+.vocab-list-select {
+  padding: var(--s-xs) var(--s-sm);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+}
+
+/* ---- Bookmarks page ---- */
+
+.bookmark-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+
+.bookmark-row {
+  display: grid;
+  grid-template-columns: minmax(80px, auto) minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: var(--s-md);
+  padding: var(--s-md);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.bookmark-lemma {
+  font-size: var(--text-large);
+  font-weight: 600;
+}
+
+.bookmark-gloss {
+  color: var(--ink-soft);
+}
+
+/* ---- Lists page ---- */
+
+.list-card {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--s-lg);
+  margin-bottom: var(--s-md);
+}
+
+.list-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-md);
+  margin-bottom: var(--s-md);
+}
+
+.list-card-name {
+  font-weight: 700;
+  font-size: var(--text-large);
+}
+
+.list-card-count {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.list-entry-row {
+  display: grid;
+  grid-template-columns: minmax(80px, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-md);
+  padding: var(--s-sm) var(--s-md);
+  border-radius: var(--radius-sm);
+}
+
+.list-entry-row:hover {
+  background: var(--paper);
+}
+
+.list-entry-lemma {
+  font-weight: 600;
+}
+
+.list-entry-gloss {
+  color: var(--ink-soft);
+  font-size: var(--text-small);
+}
+
+.list-entry-remove {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: var(--text-caption);
+  padding: 2px var(--s-sm);
+}
+
+.list-entry-remove:hover {
+  text-decoration: underline;
+}
+
+/* ---- Export ---- */
+
+.export-area {
+  margin-top: var(--s-lg);
+  padding: var(--s-lg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+}
+
+.export-area pre {
+  max-height: 320px;
+  overflow: auto;
+  padding: var(--s-md);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-caption);
+  margin: 0;
+}
+
+/* ---- Practice/Quiz ---- */
+
+.vocab-quiz-card {
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.vocab-quiz-prompt {
+  font-size: 3rem;
+  margin-bottom: var(--s-lg);
+  font-weight: 700;
+}
+
+.vocab-quiz-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-md);
+  width: 100%;
+}
+
+.vocab-quiz-option {
+  padding: var(--s-md);
+  border: 2px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-body);
+  cursor: pointer;
+  transition: all var(--t-fast) ease;
+  text-align: left;
+}
+
+.vocab-quiz-option:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+  transform: translateY(-2px);
+}
+
+.vocab-quiz-option:disabled { opacity: 0.7; cursor: default; }
+
+.vocab-quiz-option-correct {
+  border-color: var(--brand-success);
+  background: color-mix(in srgb, var(--brand-success) 14%, var(--surface));
+  color: var(--brand-success);
+  font-weight: 700;
+}
+
+.vocab-quiz-option-wrong {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  color: var(--danger);
+}
+
+/* ---- Examples, Synonyms, Antonyms ---- */
+
+.vocab-section-title {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--s-sm);
+}
+
+.vocab-examples {
+  padding-top: var(--s-md);
+  border-top: 1px solid var(--hairline);
+}
+
+.vocab-related {
+  padding-top: var(--s-md);
+  border-top: 1px solid var(--hairline);
+}
+
+.vocab-related-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-sm);
+}
+
+.vocab-tag-related {
+  background: color-mix(in srgb, var(--brand-tertiary) 12%, transparent);
+  color: var(--brand-tertiary);
+}

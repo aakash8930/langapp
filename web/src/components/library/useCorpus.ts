@@ -113,7 +113,7 @@ export function searchableText(item: ResolvedItem): string {
     case 'kana':
       return `${item.kana} ${item.romaji} ${item.script}`;
     case 'vocab':
-      return `${item.lemma} ${item.reading} ${item.romaji ?? ''} ${item.gloss} ${item.pos}`;
+      return `${item.lemma} ${item.reading} ${item.romaji ?? ''} ${item.gloss} ${item.pos} ${(item.synonyms ?? []).join(' ')} ${(item.antonyms ?? []).join(' ')}`;
     case 'kanji':
       return `${item.char} ${item.meanings.join(' ')} ${item.on.join(' ')} ${item.kun.join(' ')}`;
     case 'grammar':

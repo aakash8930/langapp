@@ -1,16 +1,25 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 
-import { VocabularyLibrary } from '../components/library/Corpus';
+import { VocabBrowse } from '../components/library/VocabBrowse';
+import { useBookmarks } from '../hooks/useBookmarks';
+import { useVocabLists } from '../hooks/useVocabLists';
 
-/**
- * Every word the course teaches.
- *
- * No loader: `useCorpus` fans out over eleven `GET /units/:unit/content` calls
- * and caches the union for an hour under one key, which the Kanji, Grammar and
- * Dictionary screens read too. Putting that in a loader would block the first
- * paint on eleven requests to render a screen whose own loading state is
- * already written.
- */
 export const Route = createFileRoute('/vocabulary')({
-  component: VocabularyLibrary,
+  component: VocabRoute,
 });
+
+function VocabRoute() {
+  const { bookmarks, toggle, isBookmarked } = useBookmarks();
+  const { lists, addEntry } = useVocabLists();
+
+  const bmSet = new Set(bookmarks.map((b) => b.id));
+
+  return (
+    <VocabBrowse
+      bookmarked={bmSet}
+      onToggleBookmark={toggle}
+      lists={lists.map((l) => ({ id: l.id, name: l.name }))}
+      onAddToList={(listId, entry) => addEntry(listId, entry)}
+    />
+  );
+}

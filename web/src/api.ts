@@ -69,6 +69,9 @@ export type ResolvedItem =
       gloss: string;
       pos: string;
       jlpt: string;
+      examples: { sentence: string; reading?: string; romaji?: string; gloss: string }[];
+      synonyms: string[];
+      antonyms: string[];
     }
   | {
       kind: 'grammar';
@@ -322,6 +325,95 @@ export function resetPassword(
   });
 }
 
+export function changePassword(body: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ message: string }> {
+  return authed<{ message: string }>('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function get2faStatus(): Promise<{ enabled: boolean }> {
+  return authed<{ enabled: boolean }>('/auth/2fa/status');
+}
+
+export function enable2fa(): Promise<{ secret: string; qrCodeUri: string }> {
+  return authed<{ secret: string; qrCodeUri: string }>('/auth/2fa/enable', { method: 'POST' });
+}
+
+export function verify2fa(body: { token: string }): Promise<{ recoveryCodes: string[] }> {
+  return authed<{ recoveryCodes: string[] }>('/auth/2fa/verify', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function disable2fa(body: { password: string }): Promise<{ message: string }> {
+  return authed<{ message: string }>('/auth/2fa/disable', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export interface SessionInfo {
+  jti: string;
+  device: string;
+  ip: string;
+  createdAt: string;
+}
+
+export function listSessions(): Promise<SessionInfo[]> {
+  return authed<SessionInfo[]>('/auth/sessions');
+}
+
+export function revokeSession(jti: string): Promise<{ message: string }> {
+  return authed<{ message: string }>(`/auth/sessions/revoke/${jti}`, { method: 'POST' });
+}
+
+export function revokeAllSessions(): Promise<{ count: number }> {
+  return authed<{ count: number }>('/auth/sessions/revoke-all', { method: 'POST' });
+}
+
+export function deleteAccount(body: { password: string }): Promise<{ message: string }> {
+  return authed<{ message: string }>('/auth/delete-account', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function verifyEmail(token: string): Promise<{ message: string }> {
+  return authed<{ message: string }>('/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
+export function resendVerification(): Promise<{ message: string }> {
+  return authed<{ message: string }>('/auth/resend-verification', { method: 'POST' });
+}
+
+export interface OnboardingPatch {
+  step?: number;
+  nativeLanguage?: string;
+  proficiencyLevel?: string;
+  learningGoals?: string[];
+  learningStyle?: string;
+  preferredStudyTime?: string;
+  notificationsEnabled?: boolean;
+  studyTimeMinutes?: number;
+  dailyGoalXp?: number;
+  onboardingComplete?: boolean;
+}
+
+export function updateOnboarding(body: OnboardingPatch): Promise<User> {
+  return authed<User>('/me/onboarding', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
 export function fetchMe(): Promise<User> {
   return authed<User>('/me');
 }
@@ -485,6 +577,27 @@ export function updateSettings(patch: SettingsPatch): Promise<User> {
   return authed<User>('/me/settings', {
     method: 'PATCH',
     body: JSON.stringify(patch),
+  });
+}
+
+export function fetchVocabById(id: string): Promise<ResolvedItem & { kind: 'vocab' }> {
+  return get<ResolvedItem & { kind: 'vocab' }>(`/vocab/${encodeURIComponent(id)}`);
+}
+
+export function importVocab(entries: {
+  lemma: string;
+  reading: string;
+  romaji?: string;
+  gloss: string;
+  pos: string;
+  jlpt?: string;
+  examples?: { sentence: string; reading?: string; romaji?: string; gloss: string }[];
+  synonyms?: string[];
+  antonyms?: string[];
+}[]): Promise<{ created: number; skipped: number }> {
+  return authed<{ created: number; skipped: number }>('/vocab/import', {
+    method: 'POST',
+    body: JSON.stringify({ entries }),
   });
 }
 
