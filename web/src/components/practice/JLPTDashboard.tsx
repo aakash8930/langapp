@@ -101,10 +101,14 @@ export function JLPTDashboard() {
       </div>
 
       <div className="glass panel" style={{ marginTop: 'var(--s-xl)', padding: 'var(--s-lg)', textAlign: 'center' }}>
-        <p className="card-note" style={{ margin: 0 }}>
-          Currently <strong>802 N5 words</strong>, <strong>104 N5 kanji</strong>, and <strong>12 N5 grammar points</strong> are in the course. N5 is the only level with data right now.
-          Complete all lessons to work toward N5 readiness.
+        <p className="card-note" style={{ margin: '0 0 var(--s-md)' }}>
+          Currently <strong>802 N5 words</strong>, <strong>104 N5 kanji</strong>, and <strong>12 N5 grammar points</strong> are in the course.
         </p>
+        <div style={{ display: 'flex', gap: 'var(--s-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link className="btn btn-primary" to="/jlpt-mock-test">Take N5 Mock Test</Link>
+          <Link className="btn btn-secondary" to="/vocabulary">Browse N5 words</Link>
+          <Link className="btn btn-secondary" to="/kanji">Browse N5 kanji</Link>
+        </div>
       </div>
     </div>
   );
