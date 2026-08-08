@@ -77,10 +77,62 @@ function ProgressPage() {
 
       <section className="stat-band" aria-label="Headline figures">
         <Stat label="Total XP" value={progress ? progress.xp.toLocaleString() : null} note={progress ? `Level ${progress.level}` : ''} />
-        <Stat label="Cards in rotation" value={memory.data ? String(memory.data.totalCards) : null} note={memory.isError ? 'Unavailable' : 'Across every item you have met'} />
+        <Stat label="Streak" value={progress ? `${progress.streakDays}` : null} note="days studied in a row" />
         <Stat label="Retention" value={memory.data ? `${Math.round(memory.data.overallRetentionRate)}%` : null} note={memory.isError ? 'Unavailable' : 'Answered right on first try'} />
         <Stat label="Mastered" value={analytics.data ? String(analytics.data.masteredCount) : null} note={analytics.isError ? 'Unavailable' : 'Items at long intervals'} />
       </section>
+
+      {progress && (
+        <div className="progress-grid" style={{ marginBottom: 'var(--s-xl)' }}>
+          <section className="card glass" aria-labelledby="daily-heading">
+            <h2 className="card-title" id="daily-heading">Daily Goal</h2>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s-sm)', marginBottom: 'var(--s-md)' }}>
+              <span className="stat-tile-value tabular" style={{ fontSize: 'var(--text-heading)' }}>{progress.daily.xpToday}</span>
+              <span style={{ color: 'var(--ink-soft)' }}>/ {progress.daily.goalXp} XP</span>
+            </div>
+            <div className="band-bar" style={{ height: '12px' }}>
+              <span className="band-bar-fill" style={{ width: `${Math.min(100, progress.daily.percentOfGoal)}%`, background: 'var(--brand-primary)' }} />
+            </div>
+            <p className="band-note" style={{ marginTop: 'var(--s-sm)' }}>
+              {progress.daily.percentOfGoal >= 100 ? '✓ Goal met!' : `${Math.round(progress.daily.percentOfGoal)}% of daily goal`}
+            </p>
+          </section>
+
+          <section className="card glass" aria-labelledby="weekly-heading">
+            <h2 className="card-title" id="weekly-heading">Weekly Goal</h2>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s-sm)', marginBottom: 'var(--s-md)' }}>
+              <span className="stat-tile-value tabular" style={{ fontSize: 'var(--text-heading)' }}>{progress.daily.xpToday * 7}</span>
+              <span style={{ color: 'var(--ink-soft)' }}>/ {progress.daily.goalXp * 7} XP</span>
+            </div>
+            <div className="band-bar" style={{ height: '12px' }}>
+              <span className="band-bar-fill" style={{ width: `${Math.min(100, (progress.daily.xpToday * 7) / (progress.daily.goalXp * 7) * 100)}%`, background: 'var(--brand-tertiary)' }} />
+            </div>
+            <p className="band-note" style={{ marginTop: 'var(--s-sm)' }}>
+              {progress.daily.lessonsDone} lessons · {progress.daily.reviewsDone} reviews today
+            </p>
+          </section>
+
+          <section className="card glass" aria-labelledby="monthly-heading">
+            <h2 className="card-title" id="monthly-heading">Monthly Goal</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-md)' }}>
+              <div>
+                <span style={{ color: 'var(--ink-soft)', fontSize: 'var(--text-small)' }}>Lessons completed</span>
+                <p style={{ fontSize: 'var(--text-heading)', fontWeight: 700, margin: 'var(--s-xs) 0' }} className="tabular">{progress.lessonsCompleted}</p>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ink-soft)', fontSize: 'var(--text-small)' }}>Cards mastered</span>
+                <p style={{ fontSize: 'var(--text-heading)', fontWeight: 700, margin: 'var(--s-xs) 0' }} className="tabular">{analytics.data?.masteredCount ?? '—'}</p>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ink-soft)', fontSize: 'var(--text-small)' }}>Last study day</span>
+                <p style={{ fontSize: 'var(--text-heading)', fontWeight: 700, margin: 'var(--s-xs) 0', color: 'var(--brand-success)' }}>
+                  {progress.lastStudyDate ? new Date(progress.lastStudyDate).toLocaleDateString() : '—'}
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
 
       <div className="progress-grid">
         <section className="card glass" aria-labelledby="bands-heading">
