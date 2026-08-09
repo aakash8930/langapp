@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { NotificationService } from '../notification/notification.service';
 import { UserService } from '../user/user.service';
 import { meetsMinimumAge, MIN_AGE_FOR_MESSAGING } from '../user/gamification/age';
 import { Block, BlockDocument } from './schemas/block.schema';
@@ -58,6 +59,7 @@ export class SocialService {
     @InjectModel(Block.name) private readonly blockModel: Model<BlockDocument>,
     @InjectModel(Report.name) private readonly reportModel: Model<ReportDocument>,
     private readonly userService: UserService,
+    private readonly notifications: NotificationService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -135,6 +137,18 @@ export class SocialService {
       throw err;
     }
 
+    // Notify the target about the friend request
+    const requester = await this.userService.findById(viewerId);
+    if (requester) {
+      this.notifications.create({
+        userId: targetId,
+        type: 'community',
+        title: 'New Friend Request',
+        body: `${requester.profile.displayName} sent you a friend request.`,
+        metadata: { requesterId: viewerId, requesterName: requester.profile.displayName },
+      }).catch(() => {});
+    }
+
     return { status: 'pending' };
   }
 
@@ -167,6 +181,18 @@ export class SocialService {
     await this.friendshipModel
       .updateOne({ _id: request._id }, { $set: { status: 'accepted', respondedAt: new Date() } })
       .exec();
+
+    // Notify the original requester that their request was accepted
+    const accepter = await this.userService.findById(viewerId);
+    if (accepter) {
+      this.notifications.create({
+        userId: request.requesterId.toString(),
+        type: 'community',
+        title: 'Friend Request Accepted',
+        body: `${accepter.profile.displayName} accepted your friend request.`,
+        metadata: { accepterId: viewerId, accepterName: accepter.profile.displayName },
+      }).catch(() => {});
+    }
 
     return { status: 'accepted' };
   }
@@ -237,6 +263,18 @@ export class SocialService {
       recipientId: new Types.ObjectId(targetId),
       text: trimmed,
     });
+
+    // Notify the recipient of the new message
+    const sender = await this.userService.findById(viewerId);
+    if (sender) {
+      this.notifications.create({
+        userId: targetId,
+        type: 'community',
+        title: 'New Message',
+        body: `${sender.profile.displayName}: ${trimmed.slice(0, 100)}${trimmed.length > 100 ? '...' : ''}`,
+        metadata: { senderId: viewerId, senderName: sender.profile.displayName },
+      }).catch(() => {});
+    }
 
     return {
       id: message._id.toString(),

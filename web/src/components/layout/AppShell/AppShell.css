@@ -66,4 +66,12 @@
   .app-shell:not(.app-shell-railed) .app-scrim {
     display: block;
   }
+
+  /*
+   * When the sidebar is absent (signed-out visitors) the column sits flush-left
+   * on mobile instead of leaving a 76px gap for a rail that isn't there.
+   */
+  .app-shell-no-sidebar .app-shell-column {
+    margin-left: 0;
+  }
 }

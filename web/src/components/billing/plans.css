@@ -1,0 +1,232 @@
+/* ---- Plans page ---- */
+
+.plans-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--s-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xl);
+}
+
+.plans-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-md);
+}
+
+.plans-heading {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.plans-subtitle {
+  color: var(--ink-soft);
+  font-size: var(--text-base);
+  max-width: 480px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.plans-toggle {
+  display: inline-flex;
+  background: var(--hairline);
+  border-radius: var(--radius-full);
+  padding: 4px;
+  margin-top: var(--s-sm);
+}
+
+.plans-toggle-option {
+  padding: var(--s-xs) var(--s-lg);
+  border: none;
+  background: none;
+  font-size: var(--text-small);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  color: var(--ink-soft);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--t-fast);
+  position: relative;
+}
+
+.plans-toggle--active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.plans-save-badge {
+  margin-left: var(--s-xs);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--brand-success);
+  text-transform: uppercase;
+}
+
+/* ---- Grid ---- */
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-lg);
+  align-items: start;
+}
+
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  padding: var(--s-xl);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+  position: relative;
+}
+
+.plan-card--featured {
+  border-color: var(--brand-primary);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  transform: translateY(-8px);
+}
+
+.plan-card.skeleton {
+  height: 400px;
+  background: var(--hairline);
+  border: none;
+}
+
+.plan-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--s-xs) var(--s-lg);
+  background: var(--brand-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.plan-name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.plan-price-value {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.plan-price-period {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  flex: 1;
+}
+
+.plan-feature {
+  font-size: var(--text-small);
+  color: var(--ink);
+  padding-left: var(--s-lg);
+  position: relative;
+}
+
+.plan-feature::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  background: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  border-radius: var(--radius-full);
+}
+
+.plan-feature::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 9px;
+  width: 6px;
+  height: 6px;
+  background: var(--brand-primary);
+  border-radius: var(--radius-full);
+}
+
+.plan-cta {
+  margin-top: auto;
+  min-height: 44px;
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--t-fast);
+}
+
+.plan-cta:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.plan-cta.btn-primary {
+  background: var(--brand-primary);
+  color: #fff;
+}
+
+.plan-cta.btn-secondary {
+  background: var(--hairline);
+  color: var(--ink);
+}
+
+/* ---- Trust ---- */
+
+.plans-trust {
+  text-align: center;
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 900px) {
+  .plans-grid {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+
+  .plan-card--featured {
+    transform: none;
+  }
+}

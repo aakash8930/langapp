@@ -31,8 +31,12 @@ export type User = {
   id: string;
   email: string;
   isAdmin?: boolean;
-  profile: { displayName: string; nativeLanguage: string; activeTrack: string };
-  gamification: { xp: number; streakDays: number; lastStudyDate: string | null; dailyGoalXp: number };
+  avatarUrl?: string | null;
+  createdAt?: string;
+  totpEnabled?: boolean;
+  emailVerified?: boolean;
+  profile: { displayName: string; bio?: string; nativeLanguage: string; activeTrack: string };
+  gamification: { xp: number; streakDays: number; lastStudyDate: string | null; dailyGoalXp: number; leagueTier?: number };
   /**
    * `leaderboardOptIn` was missing from this type until the Settings screen
    * needed it — the server has always sent it (see `UserResponse`), so the
@@ -44,8 +48,38 @@ export type User = {
    * is what came off the wire and the wire is not type-checked. The Settings
    * form narrows it at the point of use.
    */
-  settings: { audioSpeed: number; theme: string; tz: string; leaderboardOptIn: boolean };
+  settings: { audioSpeed: number; theme: string; tz: string; fontSize?: string; leaderboardOptIn: boolean };
   learningState: { knownKana: string[] };
+  onboardingState?: {
+    onboardingComplete: boolean;
+    onboardingStep: number;
+    targetLanguage: string;
+    proficiencyLevel: string;
+    learningGoals: string[];
+    learningStyle: string;
+    preferredStudyTime: string;
+    notificationsEnabled: boolean;
+    studyTimeMinutes: number;
+    placementTestCompleted: boolean;
+    placementTestScore: number | null;
+    placementTestLevel: string;
+  };
+  notificationSettings?: {
+    studyReminders: boolean;
+    achievements: boolean;
+    community: boolean;
+    eventsUpdates: boolean;
+    marketing: boolean;
+    emailDailyGoal: boolean;
+    emailWeeklyDigest: boolean;
+    emailMarketing: boolean;
+  };
+  subscription?: {
+    plan: string;
+    status: string;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+  };
 };
 
 /** Storage can throw — Safari private mode, or a user who blocked it entirely. */

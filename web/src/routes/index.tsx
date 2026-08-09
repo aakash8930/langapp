@@ -3,6 +3,14 @@ import { useEffect, useRef } from 'react';
 
 import { fetchLessons, groupByUnit, type Unit } from '../api';
 import { Dashboard } from '../components/dashboard';
+import { Footer } from '../components/layout/Footer';
+import { FeaturesSection } from '../components/landing/FeaturesSection';
+import { HowItWorks } from '../components/landing/HowItWorks';
+import { JLPTPrepSection } from '../components/landing/JLPTPrepSection';
+import { PricingPreview } from '../components/landing/PricingPreview';
+import { TestimonialsSection } from '../components/landing/TestimonialsSection';
+import { FaqPreview } from '../components/landing/FaqPreview';
+import '../components/landing/landing.css';
 import { Hero } from '../components/Hero';
 import { SignIn } from '../components/SignIn';
 import { log, logError } from '../debug';
@@ -155,11 +163,20 @@ function ShopWindow({
     <div className="page">
       <Hero ref={heroRef} totals={units.length > 0 ? totals : null} />
 
+      <FeaturesSection />
+      <HowItWorks />
+      <JLPTPrepSection />
+      <PricingPreview />
+      <TestimonialsSection />
+      <FaqPreview />
+
       <section className="section section-tight" id="start">
         <div className="wrap">
           <SignIn onSignIn={onSignIn} onSignUp={onSignUp} />
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 }
@@ -178,17 +195,29 @@ function DashboardSkeleton() {
     <div className="dashboard" aria-busy="true" aria-live="polite">
       <span className="visually-hidden">Loading your dashboard…</span>
 
-      <div className="dashboard-main">
-        <span className="skeleton-card streak-card" />
-        <span className="skeleton-card today-card" />
-        <span className="skeleton-card continue-card" />
-        <span className="skeleton-card reviews-card" />
-      </div>
+      <section className="dashboard-main" aria-label="Loading learning dashboard">
+        <div className="dashboard-main-header">
+          <span className="skeleton-line skeleton-line-kicker" />
+          <span className="skeleton-line skeleton-line-title" />
+          <span className="skeleton-line skeleton-line-subtitle" />
+        </div>
+        <span className="skeleton-card skeleton-card-wide" />
+        <div className="dashboard-progress-grid">
+          <span className="skeleton-card" />
+          <span className="skeleton-card" />
+        </div>
+        <div className="dashboard-action-grid">
+          <span className="skeleton-card skeleton-card-tall" />
+          <span className="skeleton-card" />
+        </div>
+        <span className="skeleton-card skeleton-card-wide" />
+      </section>
 
-      <div className="dashboard-side">
-        <span className="skeleton-card skeleton-card-tall" />
+      <aside className="dashboard-side" aria-label="Loading account status">
         <span className="skeleton-card" />
-      </div>
+        <span className="skeleton-card" />
+        <span className="skeleton-card skeleton-card-tall" />
+      </aside>
     </div>
   );
 }

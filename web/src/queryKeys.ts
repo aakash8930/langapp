@@ -28,6 +28,9 @@ export const queryKeys = {
     me: ['me'] as const,
     /** `GET /me/progress` — XP, streak, due-now, completed lessons. */
     progress: ['me', 'progress'] as const,
+    /** `GET /me/history` — paginated activity events. */
+    history: (params?: Record<string, unknown>) =>
+      ['me', 'history', params ?? {}] as const,
   },
   reviews: {
     /** `GET /reviews/due` — the cards the review session consumes. */
@@ -67,5 +70,18 @@ export const queryKeys = {
      * tidier key here would have meant two fetches of the same bracket.
      */
     leaderboard: ['leaderboard'] as const,
+  },
+  notifications: {
+    /** `GET /me/notifications` — paginated notification list. */
+    list: (params?: Record<string, unknown>) =>
+      ['notifications', 'list', params ?? {}] as const,
+    /** `GET /me/notifications/unread-count` — badge number. */
+    unreadCount: ['notifications', 'unread-count'] as const,
+  },
+  billing: {
+    /** `GET /billing/plans` — public plan list. */
+    plans: ['billing', 'plans'] as const,
+    /** `GET /me/billing/invoices` — billing history. */
+    invoices: ['billing', 'invoices'] as const,
   },
 } as const;

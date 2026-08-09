@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
-import { fetchReadableVocab, type ReadableVocab } from '../api';
+import { fetchReadableVocab } from '../api';
 import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
 import { useBookmarks } from '../hooks/useBookmarks';

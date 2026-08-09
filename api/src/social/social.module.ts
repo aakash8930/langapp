@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { NotificationModule } from '../notification/notification.module';
 import { UserModule } from '../user/user.module';
 import { LeagueSettleProcessor } from './league-settle.processor';
 import { LeagueSettleScheduler } from './league-settle.scheduler';
@@ -34,6 +35,7 @@ import { SocialService } from './social.service';
       { name: LeagueStanding.name, schema: LeagueStandingSchema },
     ]),
     UserModule,
+    NotificationModule,
   ],
   controllers: [SocialController],
   providers: [SocialService, LeagueService, LeagueSettleProcessor, LeagueSettleScheduler],

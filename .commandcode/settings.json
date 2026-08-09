@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(docker:*)",
+      "Shell(sleep:*)",
+      "Shell(npm:*)",
+      "Shell(curl -s http://localhost:3000/)",
+      "Shell(sed:*)",
+      "Shell(lsof:*)",
+      "Shell(ss:*)",
+      "Shell(find /home/aakash/Projects/langapp -maxdepth 2 -name \"CLAUDE.md\" -o -name \"AGENTS.md\" -o -name \"CLAUDE.md\" 2>/dev/null; ls /home/aakash/Projects/langapp/*.md 2>/dev/null; ls /home/aakash/Projects/langapp/web/CLAUDE.md 2>/dev/null; ls /home/aakash/Projects/langapp/api/CLAUDE.md 2>/dev/null)",
+      "Shell(npx tsc -b --noEmit 2 >& 1)",
+      "Shell(curl -sI http://localhost:5175/ 2 > /dev/null)",
+      "Shell(curl -s http://localhost:5175/signup 2 > /dev/null)",
+      "Shell(npx oxlint src/components/SignupFlow.tsx src/routes/signup.tsx src/routes/__root.tsx 2 >& 1)",
+      "Shell(tail -5 /tmp/commandcode/shellout/2026-08-07T02-31-54-612Z-s1hoo98s.log 2>/dev/null; echo \"=== curl ===\"; curl -s http://localhost:5175/signup 2>/dev/null | grep -i \"signup\\|GENKŌ\\|Create Your Account\\|Personalize\\|Almost There\" | head -10)",
+      "Shell(curl -s http://localhost:3000/health 2>/dev/null)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

@@ -2,7 +2,12 @@ import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JobsService } from './jobs.service';
-import { QUEUE_ANALYTICS, QUEUE_LEAGUE } from './queues';
+import {
+  QUEUE_ANALYTICS,
+  QUEUE_LEAGUE,
+  QUEUE_MAIL,
+  QUEUE_NOTIFICATIONS,
+} from './queues';
 
 /**
  * Background jobs behind the existing Redis (ADR-006).
@@ -87,6 +92,23 @@ import { QUEUE_ANALYTICS, QUEUE_LEAGUE } from './queues';
           attempts: 1,
           removeOnComplete: { count: 100 },
           removeOnFail: { count: 100 },
+        },
+      },
+      {
+        name: QUEUE_NOTIFICATIONS,
+        defaultJobOptions: {
+          attempts: 1,
+          removeOnComplete: { count: 100 },
+          removeOnFail: { count: 100 },
+        },
+      },
+      {
+        name: QUEUE_MAIL,
+        defaultJobOptions: {
+          attempts: 2,
+          backoff: { type: 'exponential', delay: 5000 },
+          removeOnComplete: { count: 500 },
+          removeOnFail: { count: 500 },
         },
       },
     ),

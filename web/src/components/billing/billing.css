@@ -1,0 +1,146 @@
+/* ---- Billing page ---- */
+
+.billing-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--s-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+}
+
+.billing-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.billing-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+}
+
+.billing-plan-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  flex-wrap: wrap;
+}
+
+.billing-plan-name {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink);
+  font-family: var(--font-display);
+}
+
+.billing-status {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-left: var(--s-sm);
+}
+
+.billing-status--active {
+  background: color-mix(in srgb, var(--brand-success) 15%, transparent);
+  color: var(--brand-success);
+}
+
+.billing-status--canceled {
+  background: color-mix(in srgb, var(--ink-soft) 15%, transparent);
+  color: var(--ink-soft);
+}
+
+.billing-status--past_due {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+
+.billing-status--paid {
+  background: color-mix(in srgb, var(--brand-success) 15%, transparent);
+  color: var(--brand-success);
+}
+
+.billing-next {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.billing-actions {
+  display: flex;
+  gap: var(--s-md);
+  flex-wrap: wrap;
+}
+
+.billing-actions .btn {
+  font-size: var(--text-small);
+}
+
+.billing-note {
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+/* ---- Table ---- */
+
+.billing-table-wrap {
+  overflow-x: auto;
+}
+
+.billing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+}
+
+.billing-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding: var(--s-sm) var(--s-md);
+  border-bottom: 1px solid var(--hairline);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.billing-table td {
+  padding: var(--s-sm) var(--s-md);
+  border-bottom: 1px solid var(--hairline);
+  color: var(--ink);
+}
+
+.billing-invoice-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-xs);
+  color: var(--brand-primary);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.billing-invoice-link:hover {
+  text-decoration: underline;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 520px) {
+  .billing-page {
+    padding: var(--s-md);
+  }
+
+  .billing-actions {
+    flex-direction: column;
+  }
+}

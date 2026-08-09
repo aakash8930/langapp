@@ -7,11 +7,12 @@ import { Sidebar } from '../Sidebar';
 import { Main } from '../Main';
 import { Footer } from '../Footer';
 
+import { useSession } from '../../../useSession';
 import './AppShell.css';
 
 /**
- * The persistent frame: a full-height sidebar, and a column holding the header,
- * the routed screen and the footer.
+ * The persistent frame: a header, the routed screen and the footer, with a
+ * sidebar that only appears for signed-in users.
  *
  * ## One boolean drives two behaviours, on purpose
  *
@@ -27,37 +28,49 @@ import './AppShell.css';
  * choice, and a window resize silently overwriting it is worse than a stale
  * default.
  *
- * **The sidebar never disappears entirely.** A fully off-canvas sidebar has to
- * put its own toggle somewhere else — usually the header — and then there are
- * two controls for one thing. The rail keeps the toggle in the same place at
- * every width, which is why this is a rail rather than a drawer.
+ * **The sidebar is gated on login.** Signed-out visitors are on the shop window
+ * — the hero and sign-in form on `/` — and have no need of a full navigation
+ * rail. The sidebar renders only during `loading` (the brief window while `/me`
+ * resolves for a returning user) and `signedIn`, so a returning learner never
+ * sees it flicker out and back in. `Header` and `Footer` stay on every route
+ * regardless: the header carries the sign-in button, and the footer is the
+ * product tag.
  */
 export function AppShell({ children }: AppShellProps) {
+  const { session } = useSession();
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches,
   );
 
+  const showSidebar = session.state !== 'signedOut';
+
   return (
-    <div className={`app-shell${collapsed ? ' app-shell-railed' : ''}`}>
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((current) => !current)} />
+    <div
+      className={`app-shell${!showSidebar ? ' app-shell-no-sidebar' : ''}${showSidebar && collapsed ? ' app-shell-railed' : ''}`}
+    >
+      {showSidebar ? (
+        <>
+          <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((current) => !current)} />
 
-      {/*
-        The scrim is always in the tree and hidden by CSS above 860px, rather
-        than rendered conditionally off a matchMedia result. A media query the
-        browser already evaluates does not need a JS listener duplicating it,
-        and the duplicate is the copy that goes stale.
+          {/*
+            The scrim is always in the tree and hidden by CSS above 860px, rather
+            than rendered conditionally off a matchMedia result. A media query the
+            browser already evaluates does not need a JS listener duplicating it,
+            and the duplicate is the copy that goes stale.
 
-        It leaves the tab order while the sidebar is railed, because a
-        zero-sized button that closes something already closed is a tab stop
-        that does nothing.
-      */}
-      <button
-        type="button"
-        className="app-scrim"
-        tabIndex={collapsed ? -1 : undefined}
-        aria-label="Close navigation"
-        onClick={() => setCollapsed(true)}
-      />
+            It leaves the tab order while the sidebar is railed, because a
+            zero-sized button that closes something already closed is a tab stop
+            that does nothing.
+          */}
+          <button
+            type="button"
+            className="app-scrim"
+            tabIndex={collapsed ? -1 : undefined}
+            aria-label="Close navigation"
+            onClick={() => setCollapsed(true)}
+          />
+        </>
+      ) : null}
 
       <div className="app-shell-column">
         <Header />

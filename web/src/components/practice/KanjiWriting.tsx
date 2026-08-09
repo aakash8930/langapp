@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 
-import { useCorpus, type KanjiItem } from '../components/library/useCorpus';
-import { TraceCanvas } from '../components/TraceCanvas';
+import { useCorpus, type KanjiItem } from '../library/useCorpus';
+import { TraceCanvas } from '../TraceCanvas';
 
-import './vocab-browse.css';
-import '../components/practice/practice.css';
+import '../library/vocab-browse.css';
+import './practice.css';
 
 export function KanjiWritingPage() {
   const corpus = useCorpus();

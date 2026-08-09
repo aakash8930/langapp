@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { fetchLeaderboard } from '../api';
-import { useSession } from '../useSession';
+import { fetchLeaderboard } from '../../api';
+import { useSession } from '../../useSession';
 
 export function ExamHubPage() {
   const { session } = useSession();

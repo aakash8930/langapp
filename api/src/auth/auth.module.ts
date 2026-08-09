@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MailModule } from '../mail/mail.module';
 import { UserModule } from '../user/user.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -10,7 +11,7 @@ import { RefreshTokenStore } from './refresh-token.store';
  * That's what keeps Auth extractable later (§4).
  */
 @Module({
-  imports: [UserModule],
+  imports: [UserModule, MailModule],
   controllers: [AuthController],
   providers: [AuthService, RefreshTokenStore, PasswordResetStore],
   exports: [AuthService],

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 
-import '../components/library/vocab-browse.css';
-import '../components/practice/practice.css';
+import '../library/vocab-browse.css';
+import './practice.css';
 
 const MOCK_QUESTIONS = [
   { question: '「わたし＿せんせいです。」に入るのは？', options: ['は', 'を', 'に', 'で'], answer: 0, topic: 'Grammar' },

@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -10,6 +9,7 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { generateSecret, verify as verifyTotp } from 'otplib';
 import { randomInt, randomUUID } from 'node:crypto';
+import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
 import { toUserResponse } from '../user/dto/user-response.dto';
 import { meetsMinimumAge, MIN_AGE_TO_REGISTER } from '../user/gamification/age';
@@ -43,8 +43,6 @@ function getDummyHash(): Promise<string> {
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
@@ -52,6 +50,7 @@ export class AuthService {
     private readonly refreshTokens: RefreshTokenStore,
     private readonly passwordResets: PasswordResetStore,
     private readonly redis: RedisService,
+    private readonly mail: MailService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
@@ -87,12 +86,13 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
-    // Generate an email verification token and write it to the log (no mail
-    // service yet — same trade as forgot-password).
+    // Generate an email verification token and send it
     const verificationToken = String(randomInt(0, 1_000_000)).padStart(6, '0');
     await this.userService.setVerificationToken(user._id.toString(), verificationToken);
-    this.logger.warn(
-      `Email verification code for ${dto.email}: ${verificationToken}`,
+    this.mail.enqueue(
+      dto.email,
+      'Verify your GENKŌ account',
+      `<p>Welcome to GENKŌ!</p><p>Your verification code is: <strong>${verificationToken}</strong></p>`,
     );
 
     return this.buildAuthResponse(user);
@@ -187,16 +187,16 @@ export class AuthService {
       // predictable PRNG. Zero-padded so every code is the same six digits.
       const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
       await this.passwordResets.store(email, code);
-      this.logger.warn(
-        `Password reset code for ${email}: ${code} ` +
-          `(valid ${RESET_CODE_TTL_SECONDS / 60} minutes)`,
+      this.mail.enqueue(
+        email,
+        'Password reset — GENKŌ',
+        `<p>Your password reset code is: <strong>${code}</strong></p><p>This code is valid for ${RESET_CODE_TTL_SECONDS / 60} minutes.</p>`,
       );
     }
 
     return {
       message:
-        'If that email is registered, a reset code has been generated. ' +
-        'It is in the API server log.',
+        'If that email is registered, a reset code has been sent.',
     };
   }
 
@@ -389,11 +389,13 @@ export class AuthService {
 
     const token = String(randomInt(0, 1_000_000)).padStart(6, '0');
     await this.userService.setVerificationToken(userId, token);
-    this.logger.warn(
-      `Email verification code for ${user.email}: ${token}`,
+    this.mail.enqueue(
+      user.email,
+      'Verify your GENKŌ account',
+      `<p>Your verification code is: <strong>${token}</strong></p>`,
     );
 
-    return { message: 'A new verification code has been generated. Check the API server log.' };
+    return { message: 'A new verification code has been sent to your email.' };
   }
 
   private async buildAuthResponse(user: UserDocument): Promise<AuthResponse> {

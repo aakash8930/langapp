@@ -1,0 +1,486 @@
+/*
+ * Security dashboard — Japanese Ink palette from signin.
+ *
+ * Scoped to .security-page. Reuses the dark charcoal/gold palette with
+ * the same form patterns from signin.css. Single-column card layout.
+ */
+
+.security-page {
+  --si-bg: #171717;
+  --si-card: #262626;
+  --si-input-bg: #1F1F1F;
+  --si-input-border: #3F3F46;
+  --si-input-border-hover: #52525B;
+  --si-input-border-focus: #D4A017;
+  --si-accent: #D4A017;
+  --si-accent-hover: #E6B325;
+  --si-accent-text: #171717;
+  --si-text: #F5F5F4;
+  --si-text-soft: #A1A1AA;
+  --si-placeholder: #71717A;
+  --si-error: #DC2626;
+  --si-success: #16A34A;
+  --si-border-subtle: rgba(255, 255, 255, 0.08);
+
+  min-height: calc(100vh - 160px);
+  background-color: var(--si-bg);
+  color: var(--si-text);
+  font-family: var(--font-ui);
+}
+
+/* ---- Layout ---- */
+
+.security-container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--s-2xl) var(--s-xl);
+}
+
+.security-page .page-head {
+  margin-bottom: var(--s-2xl);
+}
+
+.security-page .page-title {
+  margin: 0 0 var(--s-xs);
+  font-size: var(--text-heading);
+  font-weight: 700;
+  color: var(--si-text);
+}
+
+.security-page .page-sub {
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--si-text-soft);
+}
+
+.security-section {
+  margin-bottom: var(--s-xl);
+  padding: var(--s-xl);
+  background: var(--si-card);
+  border: 1px solid var(--si-border-subtle);
+  border-radius: var(--radius-xl);
+}
+
+.security-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  margin: 0 0 var(--s-lg);
+  font-family: var(--font-display);
+  font-size: var(--text-large);
+  font-weight: 700;
+  color: var(--si-text);
+}
+
+.security-section-icon {
+  color: var(--si-accent);
+}
+
+/* ---- Fields ---- */
+
+.security-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  margin-bottom: var(--s-lg);
+}
+
+.security-field:last-child {
+  margin-bottom: 0;
+}
+
+.security-field-label {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--si-text);
+}
+
+.security-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--s-md);
+  background: var(--si-input-bg);
+  border: 1px solid var(--si-input-border);
+  border-radius: var(--radius-md);
+  color: var(--si-text);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  transition:
+    border-color var(--t-fast) ease,
+    box-shadow var(--t-fast) ease;
+  appearance: none;
+}
+
+.security-input::placeholder {
+  color: var(--si-placeholder);
+}
+
+.security-input:hover:not(:focus) {
+  border-color: var(--si-input-border-hover);
+}
+
+.security-input:focus {
+  outline: none;
+  border-color: var(--si-input-border-focus);
+  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
+}
+
+.security-field-hint {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--si-text-soft);
+  line-height: 1.4;
+}
+
+/* ---- Buttons ---- */
+
+.security-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-sm);
+  min-height: 44px;
+  padding: 0 var(--s-xl);
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform var(--t-fast) var(--spring-bounce),
+    background-color var(--t-fast) ease,
+    box-shadow var(--t-fast) ease;
+}
+
+.security-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.security-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.security-btn-primary {
+  background: var(--si-accent);
+  color: var(--si-accent-text);
+}
+
+.security-btn-primary:hover:not(:disabled) {
+  background: var(--si-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(212, 160, 23, 0.25);
+}
+
+.security-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--si-input-border);
+  color: var(--si-text);
+}
+
+.security-btn-ghost:hover:not(:disabled) {
+  border-color: var(--si-input-border-hover);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.security-btn-danger {
+  background: transparent;
+  border: 1px solid var(--si-error);
+  color: var(--si-error);
+}
+
+.security-btn-danger:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.1);
+  transform: translateY(-2px);
+}
+
+/* ---- Status messages ---- */
+
+.security-status {
+  margin: var(--s-md) 0 0;
+  min-height: 1.4em;
+  font-size: var(--text-small);
+  color: var(--si-text-soft);
+}
+
+.security-status-error {
+  color: var(--si-error);
+  font-weight: 600;
+}
+
+.security-status-success {
+  color: var(--si-success);
+  font-weight: 600;
+}
+
+/* ---- Profile ---- */
+
+.security-profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-sm) 0;
+}
+
+.security-profile-label {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--si-text-soft);
+}
+
+.security-profile-value {
+  font-size: var(--text-body);
+  color: var(--si-text);
+}
+
+/* ---- 2FA ---- */
+
+.security-2fa-status {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-lg);
+  background: var(--si-input-bg);
+  border: 1px solid var(--si-input-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--s-lg);
+}
+
+.security-2fa-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.security-2fa-indicator--on {
+  background: var(--si-success);
+  box-shadow: 0 0 8px rgba(22, 163, 74, 0.4);
+}
+
+.security-2fa-indicator--off {
+  background: var(--si-input-border-hover);
+}
+
+.security-2fa-label {
+  flex: 1;
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--si-text);
+}
+
+.security-2fa-note {
+  font-size: var(--text-caption);
+  color: var(--si-text-soft);
+}
+
+/* ---- QR code ---- */
+
+.security-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-lg);
+}
+
+.security-qr {
+  display: block;
+  padding: var(--s-md);
+  background: #fff;
+  border-radius: var(--radius-md);
+}
+
+.security-qr-label {
+  font-size: var(--text-small);
+  color: var(--si-text-soft);
+}
+
+.security-qr-secret {
+  padding: var(--s-sm) var(--s-md);
+  background: var(--si-input-bg);
+  border: 1px solid var(--si-input-border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-caption);
+  color: var(--si-text);
+  word-break: break-all;
+}
+
+/* ---- Recovery codes ---- */
+
+.security-recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--s-sm);
+  margin: var(--s-md) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.security-recovery-code {
+  padding: var(--s-sm) var(--s-md);
+  background: var(--si-input-bg);
+  border: 1px solid var(--si-input-border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-caption);
+  color: var(--si-text);
+  text-align: center;
+}
+
+.security-recovery-warning {
+  margin: var(--s-sm) 0 0;
+  font-size: var(--text-caption);
+  color: var(--si-error);
+  font-weight: 600;
+}
+
+/* ---- Sessions ---- */
+
+.security-session {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-md) 0;
+  border-top: 1px solid var(--si-border-subtle);
+}
+
+.security-session:first-of-type {
+  border-top: 0;
+}
+
+.security-session-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--si-input-bg);
+  color: var(--si-text-soft);
+  flex-shrink: 0;
+}
+
+.security-session-current .security-session-icon {
+  background: rgba(212, 160, 23, 0.15);
+  color: var(--si-accent);
+}
+
+.security-session-detail {
+  flex: 1;
+  min-width: 0;
+}
+
+.security-session-device {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--si-text);
+}
+
+.security-session-meta {
+  font-size: var(--text-caption);
+  color: var(--si-text-soft);
+}
+
+.security-session-badge {
+  padding: 1px var(--s-sm);
+  border-radius: var(--radius-full);
+  background: rgba(22, 163, 74, 0.15);
+  color: var(--si-success);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---- Danger zone ---- */
+
+.security-danger {
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.security-danger .security-section-title {
+  color: var(--si-error);
+}
+
+.security-danger .security-section-icon {
+  color: var(--si-error);
+}
+
+.security-danger-text {
+  margin: 0 0 var(--s-lg);
+  font-size: var(--text-small);
+  color: var(--si-text-soft);
+  line-height: 1.5;
+}
+
+/* ---- Confirmation modal ---- */
+
+.security-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  animation: security-fade-in 150ms ease-out;
+}
+
+.security-modal {
+  width: 100%;
+  max-width: 400px;
+  margin: var(--s-xl);
+  padding: var(--s-2xl);
+  background: var(--si-card);
+  border: 1px solid var(--si-border-subtle);
+  border-radius: var(--radius-xl);
+  animation: security-scale-in 200ms var(--spring-bounce);
+}
+
+.security-modal-title {
+  margin: 0 0 var(--s-sm);
+  font-size: var(--text-large);
+  font-weight: 700;
+  color: var(--si-text);
+}
+
+.security-modal-text {
+  margin: 0 0 var(--s-xl);
+  font-size: var(--text-small);
+  color: var(--si-text-soft);
+  line-height: 1.5;
+}
+
+.security-modal-actions {
+  display: flex;
+  gap: var(--s-md);
+  justify-content: flex-end;
+}
+
+@keyframes security-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes security-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 600px) {
+  .security-recovery-codes {
+    grid-template-columns: 1fr;
+  }
+
+  .security-modal-actions {
+    flex-direction: column;
+  }
+}

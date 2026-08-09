@@ -8,6 +8,9 @@ import { HydratedDocument } from 'mongoose';
 export const THEMES = ['light', 'dark', 'system'] as const;
 export type Theme = (typeof THEMES)[number];
 
+export const FONT_SIZES = ['small', 'medium', 'large'] as const;
+export type FontSize = (typeof FONT_SIZES)[number];
+
 /**
  * §5: embed what is read together and bounded. Profile, gamification and
  * settings are always read with the user, so they are sub-documents, not refs.
@@ -17,6 +20,9 @@ export type Theme = (typeof THEMES)[number];
 export class Profile {
   @Prop({ required: true, trim: true })
   displayName: string;
+
+  @Prop({ type: String, default: '', maxlength: 500 })
+  bio: string;
 
   @Prop({ required: true, default: 'en' })
   nativeLanguage: string;
@@ -136,6 +142,9 @@ export class Settings {
    */
   @Prop({ required: true, default: false })
   leaderboardOptIn: boolean;
+
+  @Prop({ type: String, required: true, enum: FONT_SIZES, default: 'medium' })
+  fontSize: FontSize;
 }
 export const SettingsSchema = SchemaFactory.createForClass(Settings);
 
@@ -175,6 +184,96 @@ export class LearningState {
 }
 export const LearningStateSchema = SchemaFactory.createForClass(LearningState);
 
+@Schema({ _id: false })
+export class OnboardingState {
+  @Prop({ type: Boolean, default: false })
+  onboardingComplete: boolean;
+
+  @Prop({ required: true, default: 0 })
+  onboardingStep: number;
+
+  @Prop({ type: String, default: 'ja' })
+  targetLanguage: string;
+
+  @Prop({ type: String, default: '' })
+  proficiencyLevel: string;
+
+  @Prop({ type: [String], default: [] })
+  learningGoals: string[];
+
+  @Prop({ type: String, default: '' })
+  learningStyle: string;
+
+  @Prop({ type: String, default: '' })
+  preferredStudyTime: string;
+
+  @Prop({ type: Boolean, default: false })
+  notificationsEnabled: boolean;
+
+  @Prop({ type: Number, default: 15, min: 5, max: 120 })
+  studyTimeMinutes: number;
+
+  @Prop({ type: Boolean, default: false })
+  placementTestCompleted: boolean;
+
+  @Prop({ type: Number, default: null })
+  placementTestScore: number | null;
+
+  @Prop({ type: String, default: '' })
+  placementTestLevel: string;
+}
+export const OnboardingStateSchema = SchemaFactory.createForClass(OnboardingState);
+
+@Schema({ _id: false })
+export class NotificationSettings {
+  @Prop({ type: Boolean, default: true })
+  studyReminders: boolean;
+
+  @Prop({ type: Boolean, default: true })
+  achievements: boolean;
+
+  @Prop({ type: Boolean, default: true })
+  community: boolean;
+
+  @Prop({ type: Boolean, default: true })
+  eventsUpdates: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  marketing: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  emailDailyGoal: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  emailWeeklyDigest: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  emailMarketing: boolean;
+}
+export const NotificationSettingsSchema = SchemaFactory.createForClass(NotificationSettings);
+
+@Schema({ _id: false })
+export class Subscription {
+  @Prop({ type: String, enum: ['free', 'pro', 'enterprise'], default: 'free' })
+  plan: 'free' | 'pro' | 'enterprise';
+
+  @Prop({ type: String, enum: ['active', 'canceled', 'past_due', 'trialing'], default: 'active' })
+  status: 'active' | 'canceled' | 'past_due' | 'trialing';
+
+  @Prop({ type: Date, default: null })
+  currentPeriodEnd: Date | null;
+
+  @Prop({ type: Boolean, default: false })
+  cancelAtPeriodEnd: boolean;
+
+  @Prop({ type: String, default: null })
+  gatewaySubscriptionId: string | null;
+
+  @Prop({ type: String, default: null })
+  gatewayCustomerId: string | null;
+}
+export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);
+
 @Schema({ collection: 'users', timestamps: { createdAt: true, updatedAt: true } })
 export class User {
   @Prop({ required: true, lowercase: true, trim: true })
@@ -199,8 +298,33 @@ export class User {
   @Prop({ type: LearningStateSchema, required: true, default: () => ({}) })
   learningState: LearningState;
 
+  @Prop({ type: OnboardingStateSchema, required: true, default: () => ({}) })
+  onboardingState: OnboardingState;
+
+  @Prop({ type: NotificationSettingsSchema, required: true, default: () => ({}) })
+  notificationSettings: NotificationSettings;
+
+  @Prop({ type: SubscriptionSchema, required: true, default: () => ({}) })
+  subscription: Subscription;
+
   @Prop({ type: Boolean, required: true, default: false })
   isAdmin: boolean;
+
+  /** Storage key for the user's avatar image. Null means no avatar. */
+  @Prop({ type: String, default: null })
+  avatarUrl: string | null;
+
+  @Prop({ type: String, default: null, select: false })
+  totpSecret: string | null;
+
+  @Prop({ type: Boolean, default: false })
+  totpEnabled: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  emailVerified: boolean;
+
+  @Prop({ type: String, default: null, select: false })
+  emailVerificationToken: string | null;
 }
 
 export type UserDocument = HydratedDocument<User>;

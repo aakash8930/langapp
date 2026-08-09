@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { nextUnlearnedLesson, type LessonSummary, type Progress, type Unit } from '../../api';
 import { log, logError } from '../../debug';
 import { Icon, type IconName } from '../ui/Icon';
+import { CourseCertificate } from './CourseCertificate';
 import { LessonRow } from './LessonRow';
 import { lessonStateReader, type LessonState } from './lessonState';
 
@@ -78,11 +79,13 @@ export function CoursePage({
   progress,
   signedIn,
   learnId,
+  displayName,
 }: {
   load: Load;
   progress: Progress | null;
   signedIn: boolean;
   learnId: string | null;
+  displayName?: string;
 }) {
   const units = load.state === 'ready' ? load.units : [];
   const completedLessonIds = progress?.completedLessonIds ?? null;
@@ -179,6 +182,16 @@ export function CoursePage({
       />
 
       <div className="course-body">
+        {percent >= 100 && progress ? (
+          <CourseCertificate
+            doneCount={doneCount}
+            totalLessons={allLessons.length}
+            unitCount={units.length}
+            xp={progress.xp}
+            level={progress.level}
+            displayName={displayName ?? 'Learner'}
+          />
+        ) : null}
         <section className="course-main" aria-labelledby="curriculum-heading">
           <div className="card glass">
             <div className="card-head">

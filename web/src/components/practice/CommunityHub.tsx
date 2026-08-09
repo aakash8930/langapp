@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
-import { useSession } from '../useSession';
+import { useSession } from '../../useSession';
 import { useQuery } from '@tanstack/react-query';
-import { fetchFriends, searchUsers, sendFriendRequest, type PublicProfile } from '../api';
+import { fetchFriends, searchUsers, sendFriendRequest, type PublicProfile } from '../../api';
 import { useState } from 'react';
 
 export function CommunityPage() {

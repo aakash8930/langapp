@@ -4,13 +4,17 @@ import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AiOrchestratorModule } from './ai-orchestrator/ai-orchestrator.module';
+import { AdminModule } from './admin/admin.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
+import { BillingModule } from './billing/billing.module';
 import { ChatModule } from './chat/chat.module';
 import { ContentModule } from './content/content.module';
 import { JobsModule } from './jobs/jobs.module';
 import { LearningModule } from './learning/learning.module';
 import { KnowledgeGraphModule } from './knowledge-graph/knowledge-graph.module';
+import { MailModule } from './mail/mail.module';
+import { NotificationModule } from './notification/notification.module';
 import { StorageModule } from './common/storage/storage.module';
 import { RedisThrottlerStorage } from './common/throttler/redis-throttler.storage';
 import { ThrottlerStorageModule } from './common/throttler/throttler-storage.module';
@@ -73,11 +77,15 @@ import { UserModule } from './user/user.module';
     HealthModule,
     UserModule,
     AuthModule,
+    BillingModule,
+    NotificationModule,
+    MailModule,
     ContentModule,
     KnowledgeGraphModule,
     LearningModule,
     AnalyticsModule,
     AiOrchestratorModule,
+    AdminModule,
     ChatModule,
     SocialModule,
     // Account deletion — must come after all owning modules it depends on.

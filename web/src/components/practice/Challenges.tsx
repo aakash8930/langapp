@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { useSession } from '../useSession';
+import { useSession } from '../../useSession';
 
 interface Challenge {
   id: string;

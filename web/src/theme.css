@@ -113,21 +113,28 @@
     --brand-tertiary: #60a5fa;
     --brand-success: #34d399;
 
-    --paper: #0f172a; /* Slate 900 */
+    /*
+     * Deeper than the original slate-900 to match the new dashboard's
+     * indigo / sumi-black mood. `--ink-soft` and `--ground-scrim` are kept
+     * because they were measured against the photographic ground; changing
+     * either is the failure mode the body::before comment documents.
+     */
+    --paper: #0b1220; /* Deeper indigo for the dark-primary mood */
     --surface: #1e293b; /* Slate 800 */
     --ink: #f8fafc;
     --ink-soft: #94a3b8;
     --hairline: #334155;
-    
+
     --shu: #fb7185;
     --ai: #a78bfa;
     --danger: #f87171;
 
-    /* Mesh Gradient Background Colors (Dark) */
-    --mesh-1: rgba(139, 92, 246, 0.2);
-    --mesh-2: rgba(244, 114, 182, 0.15);
-    --mesh-3: rgba(96, 165, 250, 0.15);
-    --mesh-bg: #0f172a;
+    /* Mesh Gradient Background Colors (Dark) — the tints land on top of the
+       deeper ground, so they are nudged slightly stronger to stay readable. */
+    --mesh-1: rgba(139, 92, 246, 0.22);
+    --mesh-2: rgba(244, 114, 182, 0.18);
+    --mesh-3: rgba(96, 165, 250, 0.18);
+    --mesh-bg: #0b1220;
 
     /* Same alpha as the light scheme and for the same measured reason. The
        photo is a night scene, so this scheme is the one it was made for. */

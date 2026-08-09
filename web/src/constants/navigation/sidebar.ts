@@ -57,7 +57,23 @@ import type { SidebarGroup } from '../../types/layout';
 export const sidebarGroups: SidebarGroup[] = [
   {
     id: 'top',
-    items: [{ kind: 'link', id: 'dashboard', label: 'Dashboard', icon: 'home', to: '/' }],
+    items: [
+      { kind: 'link', id: 'dashboard', label: 'Dashboard', icon: 'home', to: '/' },
+      { kind: 'link', id: 'profile', label: 'Profile', icon: 'award', to: '/profile' },
+    ],
+  },
+  {
+    id: 'admin',
+    items: [
+      {
+        kind: 'link',
+        id: 'admin',
+        label: 'Admin Panel',
+        icon: 'shield',
+        to: '/admin',
+        adminOnly: true,
+      },
+    ],
   },
   {
     id: 'learn',
@@ -118,13 +134,6 @@ export const sidebarGroups: SidebarGroup[] = [
       { kind: 'link', id: 'progress', label: 'Progress', icon: 'trending-up', to: '/progress' },
       {
         kind: 'link',
-        id: 'security',
-        label: 'Security',
-        icon: 'shield',
-        to: '/security',
-      },
-      {
-        kind: 'link',
         id: 'achievements',
         label: 'Achievements',
         icon: 'award',
@@ -139,6 +148,20 @@ export const sidebarGroups: SidebarGroup[] = [
         adminOnly: true,
       },
       { kind: 'link', id: 'settings', label: 'Settings', icon: 'settings', to: '/settings' },
+      {
+        kind: 'link',
+        id: 'billing',
+        label: 'Billing',
+        icon: 'crown',
+        to: '/billing',
+      },
+      {
+        kind: 'link',
+        id: 'notifications',
+        label: 'Notifications',
+        icon: 'bell',
+        to: '/notifications',
+      },
     ],
   },
 ];

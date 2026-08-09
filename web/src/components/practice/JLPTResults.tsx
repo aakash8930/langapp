@@ -16,27 +16,8 @@ function loadResults(): TestResult[] {
   } catch { return []; }
 }
 
-function saveResults(results: TestResult[]) {
-  localStorage.setItem('jlpt_results', JSON.stringify(results));
-}
-
 export function JLPTResults() {
   const [results] = useState<TestResult[]>(() => loadResults());
-
-  // Demo: simulate adding a result from the mock test
-  const addDemoResult = () => {
-    const existing = loadResults();
-    const scores = [45, 58, 62, 71, 83, 92];
-    const newResult: TestResult = {
-      date: new Date(Date.now() - (existing.length * 24 * 60 * 60 * 1000)).toISOString(),
-      score: scores[existing.length % scores.length],
-      total: 12,
-      passed: scores[existing.length % scores.length] >= 60,
-      level: 'N5',
-    };
-    saveResults([...existing, newResult]);
-    window.location.reload();
-  };
 
   if (results.length === 0) {
     return (
@@ -56,7 +37,6 @@ export function JLPTResults() {
   }
 
   const best = Math.max(...results.map((r) => r.score));
-  const latest = results[results.length - 1];
   const passed = results.filter((r) => r.passed).length;
   const improving = results.length >= 2 && results[results.length - 1].score > results[0].score;
 

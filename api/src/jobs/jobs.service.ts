@@ -7,6 +7,8 @@ import {
   JobPayloads,
   QUEUE_ANALYTICS,
   QUEUE_LEAGUE,
+  QUEUE_MAIL,
+  QUEUE_NOTIFICATIONS,
   QueueName,
 } from './queues';
 
@@ -36,10 +38,14 @@ export class JobsService {
   constructor(
     @InjectQueue(QUEUE_ANALYTICS) analytics: Queue,
     @InjectQueue(QUEUE_LEAGUE) league: Queue,
+    @InjectQueue(QUEUE_NOTIFICATIONS) notifications: Queue,
+    @InjectQueue(QUEUE_MAIL) mail: Queue,
   ) {
     this.queues = {
       [QUEUE_ANALYTICS]: analytics,
       [QUEUE_LEAGUE]: league,
+      [QUEUE_NOTIFICATIONS]: notifications,
+      [QUEUE_MAIL]: mail,
     };
   }
 

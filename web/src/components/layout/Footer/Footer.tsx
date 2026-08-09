@@ -1,20 +1,66 @@
+import { Link } from '@tanstack/react-router';
 import './Footer.css';
 
-/**
- * The shell's footer.
- *
- * There is no version number here any more. `v0.1` was hard-coded, nothing
- * updated it, and a build number that never moves is worse than no build
- * number — it is a claim about which code is running, and it was wrong from
- * the second deploy onward.
- */
+const columns = [
+  {
+    title: 'Product',
+    links: [
+      { label: 'Courses', to: '/courses' },
+      { label: 'JLPT Prep', to: '/jlpt' },
+      { label: 'Practice Hub', to: '/practice-hub' },
+      { label: 'AI Tutor', to: '/practice' },
+      { label: 'Pricing', to: '/plans' },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { label: 'About', to: '/about' },
+      { label: 'Blog', to: '/blog' },
+      { label: 'Careers', to: '/careers' },
+      { label: 'Press Kit', to: '/press-kit' },
+      { label: 'Contact', to: '/contact' },
+    ],
+  },
+  {
+    title: 'Resources',
+    links: [
+      { label: 'Documentation', to: '/documentation' },
+      { label: 'FAQ', to: '/faq' },
+      { label: 'Roadmap', to: '/roadmap' },
+      { label: 'Changelog', to: '/changelog' },
+      { label: 'Status', to: '/status' },
+    ],
+  },
+  {
+    title: 'Legal',
+    links: [
+      { label: 'Privacy Policy', to: '/privacy' },
+      { label: 'Terms of Service', to: '/terms' },
+      { label: 'Refund Policy', to: '/refund-policy' },
+      { label: 'Cookie Policy', to: '/cookies' },
+    ],
+  },
+];
+
 export function Footer() {
   return (
     <footer className="app-footer">
-      <span className="app-footer-mark ja" aria-hidden="true">
-        日本語
-      </span>
-      <span>GENKŌ — learn Japanese with spaced repetition.</span>
+      <div className="footer-grid">
+        {columns.map((col) => (
+          <div key={col.title} className="footer-col">
+            <h4 className="footer-title">{col.title}</h4>
+            {col.links.map((link) => (
+              <Link key={link.label} className="footer-link" to={link.to}>
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="footer-bottom">
+        <p className="footer-copy">&copy; {new Date().getFullYear()} GENKŌ. All rights reserved.</p>
+      </div>
     </footer>
   );
 }

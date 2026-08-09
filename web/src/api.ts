@@ -246,7 +246,7 @@ function refresh(refreshToken: string): Promise<Tokens> {
 }
 
 /** One refresh-and-retry on 401, then the session is over. */
-async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
   const tokens = getTokens();
   if (!tokens) {
     log('auth', `no tokens — ${path} refused before it was sent`);
@@ -576,6 +576,7 @@ export type SettingsPatch = {
   tz?: string;
   dailyGoalXp?: number;
   leaderboardOptIn?: boolean;
+  fontSize?: 'small' | 'medium' | 'large';
 };
 
 export function updateSettings(patch: SettingsPatch): Promise<User> {
@@ -1274,4 +1275,288 @@ export async function createVocab(payload: CreateVocabPayload): Promise<{ id: st
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+export type NotificationType =
+  | 'achievement'
+  | 'streak'
+  | 'goal'
+  | 'community'
+  | 'course'
+  | 'system'
+  | 'reminder'
+  | 'event'
+  | 'marketing';
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  metadata: Record<string, unknown>;
+  read: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface UnreadCountResponse {
+  count: number;
+}
+
+export interface NotificationSettingsShape {
+  studyReminders: boolean;
+  achievements: boolean;
+  community: boolean;
+  eventsUpdates: boolean;
+  marketing: boolean;
+  emailDailyGoal: boolean;
+  emailWeeklyDigest: boolean;
+  emailMarketing: boolean;
+}
+
+export function fetchNotifications(params?: {
+  type?: string;
+  read?: boolean;
+  page?: number;
+  limit?: number;
+}): Promise<NotificationListResponse> {
+  const search = new URLSearchParams();
+  if (params?.type) search.set('type', params.type);
+  if (params?.read !== undefined) search.set('read', String(params.read));
+  if (params?.page) search.set('page', String(params.page));
+  if (params?.limit) search.set('limit', String(params.limit));
+  const qs = search.toString();
+  return authed<NotificationListResponse>(`/me/notifications${qs ? `?${qs}` : ''}`);
+}
+
+export function fetchUnreadCount(): Promise<UnreadCountResponse> {
+  return authed<UnreadCountResponse>('/me/notifications/unread-count');
+}
+
+export function markNotificationRead(id: string): Promise<{ success: boolean }> {
+  return authed<{ success: boolean }>(`/me/notifications/${id}/read`, { method: 'PATCH' });
+}
+
+export function markAllNotificationsRead(): Promise<{ marked: number }> {
+  return authed<{ marked: number }>('/me/notifications/mark-all-read', { method: 'POST' });
+}
+
+export function updateNotificationSettings(
+  patch: Partial<NotificationSettingsShape>,
+): Promise<User> {
+  return authed<User>('/me/settings/notifications', {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Profile
+// ---------------------------------------------------------------------------
+
+export interface UpdateProfilePatch {
+  displayName?: string;
+  bio?: string;
+  nativeLanguage?: string;
+}
+
+export interface HistoryItem {
+  type: string;
+  payload: Record<string, unknown>;
+  ts: string;
+}
+
+export interface HistoryResponse {
+  items: HistoryItem[];
+  total: number;
+  page: number;
+}
+
+export function updateProfile(patch: UpdateProfilePatch): Promise<User> {
+  return authed<User>('/me/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function uploadAvatar(file: File): Promise<User> {
+  const form = new FormData();
+  form.append('avatar', file);
+  return authed<User>('/me/avatar', {
+    method: 'POST',
+    body: form,
+  });
+}
+
+export function fetchHistory(params?: {
+  page?: number;
+  limit?: number;
+  type?: string;
+}): Promise<HistoryResponse> {
+  const search = new URLSearchParams();
+  if (params?.page) search.set('page', String(params.page));
+  if (params?.limit) search.set('limit', String(params.limit));
+  if (params?.type) search.set('type', params.type);
+  const qs = search.toString();
+  return authed<HistoryResponse>(`/me/history${qs ? `?${qs}` : ''}`);
+}
+
+// ---------------------------------------------------------------------------
+// Billing
+// ---------------------------------------------------------------------------
+
+export interface Plan {
+  id: string;
+  name: string;
+  monthlyPrice: number | null;
+  yearlyPrice: number | null;
+  features: string[];
+  highlighted?: boolean;
+}
+
+export interface GatewayInvoice {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  currency: string;
+  status: string;
+  pdfUrl?: string;
+}
+
+export interface InvoicesResponse {
+  items: GatewayInvoice[];
+  total: number;
+}
+
+export function fetchPlans(): Promise<{ plans: Plan[] }> {
+  return get<{ plans: Plan[] }>('/billing/plans');
+}
+
+export function createCheckoutSession(
+  planId: string,
+  billingCycle: 'monthly' | 'yearly',
+): Promise<{ url: string }> {
+  return authed<{ url: string }>('/me/billing/checkout', {
+    method: 'POST',
+    body: JSON.stringify({ planId, billingCycle }),
+  });
+}
+
+export function createPortalSession(): Promise<{ url: string }> {
+  return authed<{ url: string }>('/me/billing/portal', { method: 'POST' });
+}
+
+export function fetchInvoices(): Promise<InvoicesResponse> {
+  return authed<InvoicesResponse>('/me/billing/invoices');
+}
+
+export function cancelSubscription(
+  atPeriodEnd?: boolean,
+): Promise<{ message: string }> {
+  const query = atPeriodEnd === false ? '?at_period_end=false' : '';
+  return authed<{ message: string }>(`/me/billing/cancel${query}`, { method: 'POST' });
+}
+
+export function exportUserData(): Promise<Record<string, unknown>> {
+  return authed<Record<string, unknown>>('/me/export', { method: 'POST' });
+}
+
+// ---------------------------------------------------------------------------
+// Admin
+// ---------------------------------------------------------------------------
+
+export function fetchAdminStats(): Promise<any> {
+  return authed<any>('/admin/stats');
+}
+
+export function fetchAdminUsers(params?: { page?: number; limit?: number; search?: string }): Promise<any> {
+  const s = new URLSearchParams();
+  if (params?.page) s.set('page', String(params.page));
+  if (params?.limit) s.set('limit', String(params.limit));
+  if (params?.search) s.set('search', params.search);
+  return authed<any>(`/admin/users?${s.toString()}`);
+}
+
+export function updateUser(userId: string, body: { isAdmin?: boolean; suspended?: boolean }): Promise<any> {
+  return authed<any>(`/admin/users/${userId}`, { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+export function fetchAdminContentCounts(): Promise<any> {
+  return authed<any>('/admin/content/counts');
+}
+
+export function createVocabAdmin(body: any): Promise<any> {
+  return authed<any>('/admin/content/vocab', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function createGrammarAdmin(body: any): Promise<any> {
+  return authed<any>('/admin/content/grammar', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function createKanjiAdmin(body: any): Promise<any> {
+  return authed<any>('/admin/content/kanji', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function fetchContentReports(): Promise<any> {
+  return authed<any>('/admin/reports/content');
+}
+
+export function resolveContentReport(id: string, body: { status: string }): Promise<any> {
+  return authed<any>(`/admin/reports/content/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+export function fetchAdminAnalytics(): Promise<any> {
+  return authed<any>('/admin/analytics');
+}
+
+export function broadcastNotification(body: { type: string; title: string; body: string; plan?: string; userIds?: string[] }): Promise<any> {
+  return authed<any>('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function fetchCoupons(): Promise<any> {
+  return authed<any>('/admin/coupons');
+}
+
+export function createCoupon(body: any): Promise<any> {
+  return authed<any>('/admin/coupons', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function deleteCoupon(id: string): Promise<any> {
+  return authed<any>(`/admin/coupons/${id}`, { method: 'DELETE' });
+}
+
+export function fetchAuditLogs(params?: { page?: number; limit?: number; action?: string }): Promise<any> {
+  const s = new URLSearchParams();
+  if (params?.page) s.set('page', String(params.page));
+  if (params?.limit) s.set('limit', String(params.limit));
+  if (params?.action) s.set('action', params.action);
+  return authed<any>(`/admin/audit-logs?${s.toString()}`);
+}
+
+export function fetchSystemSettings(): Promise<any> {
+  return authed<any>('/admin/settings');
+}
+
+export function updateSystemSettings(body: Record<string, unknown>): Promise<any> {
+  return authed<any>('/admin/settings', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function fetchRoles(): Promise<any> {
+  return authed<any>('/admin/roles');
+}
+
+export function createRole(body: { name: string; permissions: string[] }): Promise<any> {
+  return authed<any>('/admin/roles', { method: 'POST', body: JSON.stringify(body) });
 }

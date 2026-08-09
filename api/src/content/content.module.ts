@@ -23,6 +23,9 @@ import { Lesson, LessonSchema } from './schemas/lesson.schema';
 import { VocabItem, VocabItemSchema } from './schemas/vocab-item.schema';
 import { ContentReport, ContentReportSchema } from './schemas/content-report.schema';
 import { ContentReportController } from './content-report.controller';
+import { Course, CourseSchema } from './schemas/course.schema';
+import { Quiz, QuizSchema } from './schemas/quiz.schema';
+import { ContentVersion, ContentVersionSchema } from './schemas/content-version.schema';
 import { ExercisePluginRegistry } from './exercise/plugins/exercise-plugin.registry';
 import { MultipleChoicePlugin } from './exercise/plugins/multiple-choice.plugin';
 import { WordReadingPlugin } from './exercise/plugins/word-reading.plugin';
@@ -51,6 +54,9 @@ import { CreatorController } from './creator.controller';
       { name: GrammarPoint.name, schema: GrammarPointSchema },
       { name: KanjiEntry.name, schema: KanjiEntrySchema },
       { name: ContentReport.name, schema: ContentReportSchema },
+      { name: Course.name, schema: CourseSchema },
+      { name: Quiz.name, schema: QuizSchema },
+      { name: ContentVersion.name, schema: ContentVersionSchema },
     ]),
     forwardRef(() => LearningModule),
     // Back after being removed. It was here so `ExerciseService` could charge

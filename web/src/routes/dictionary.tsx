@@ -1,6 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
-
 import { DictionarySearch } from '../components/library/Corpus';
 import { useDictionaryHistory } from '../hooks/useDictionaryHistory';
 

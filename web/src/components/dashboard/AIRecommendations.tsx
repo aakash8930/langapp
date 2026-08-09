@@ -5,7 +5,8 @@ import { inTeachingOrder, type Progress, type Unit } from '../../api';
 import { Icon } from '../ui/Icon';
 
 /**
- * What to do next, beyond the very next thing.
+ * What to do next, beyond the very next thing — surfaced as an
+ * "AI recommendations" row.
  *
  * ## These are derived, not curated
  *
@@ -17,8 +18,9 @@ import { Icon } from '../ui/Icon';
  *
  * What is derivable is genuinely useful and is what this shows: the next few
  * lessons in **teaching order** that have not been completed, skipping the one
- * the Continue card already offers. That is a real answer to "what's after
- * this", computed from the catalog and `completedLessonIds`.
+ * the Continue card already offers. The rename from "Coming up" to "AI
+ * recommendations" is cosmetic — there is still no recommendation algorithm,
+ * and the JSDoc above the function carries the same caveat.
  *
  * ## No images
  *
@@ -27,7 +29,7 @@ import { Icon } from '../ui/Icon';
  * glass panel may become a photograph — the worst-case contrast guarantee the
  * whole glass layer depends on assumes a flat ground.
  */
-export function RecommendedCard({ units, progress }: { units: Unit[]; progress: Progress }) {
+export function AIRecommendations({ units, progress }: { units: Unit[]; progress: Progress }) {
   const scroller = useRef<HTMLUListElement>(null);
 
   const unitOf = new Map<string, Unit>();
@@ -57,10 +59,13 @@ export function RecommendedCard({ units, progress }: { units: Unit[]; progress: 
   }
 
   return (
-    <section className="card recommend-card glass" aria-labelledby="recommend-heading">
+    <section className="card ai-recommendations-card glass" aria-labelledby="ai-recommendations-heading">
       <div className="card-head">
-        <h2 className="card-title" id="recommend-heading">
-          Coming up
+        <h2 className="card-title" id="ai-recommendations-heading">
+          <span className="card-title-icon" aria-hidden="true">
+            <Icon name="bot" size={18} />
+          </span>
+          AI recommendations
         </h2>
 
         {/*

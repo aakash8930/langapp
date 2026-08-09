@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AnalyticsController } from './analytics.controller';
 import { AnalyticsProcessor } from './analytics.processor';
 import { AnalyticsService } from './analytics.service';
 import { Event, EventSchema } from './schemas/event.schema';
@@ -16,6 +17,7 @@ import { Event, EventSchema } from './schemas/event.schema';
  */
 @Module({
   imports: [MongooseModule.forFeature([{ name: Event.name, schema: EventSchema }])],
+  controllers: [AnalyticsController],
   providers: [AnalyticsService, AnalyticsProcessor],
   exports: [AnalyticsService],
 })

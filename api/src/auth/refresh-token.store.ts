@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 
+export interface SessionInfo {
+  jti: string;
+  device: string;
+  ip: string;
+  createdAt: string;
+}
+
 /**
  * §10: refresh tokens are revocable in Redis. The signed JWT proves the token
  * is ours; this store decides whether it is *still* valid.
@@ -16,8 +23,27 @@ export class RefreshTokenStore {
     return `refresh:${userId}:${jti}`;
   }
 
-  async store(userId: string, jti: string, ttlSeconds: number): Promise<void> {
+  private sessionKey(userId: string, jti: string): string {
+    return `session:${userId}:${jti}`;
+  }
+
+  async store(
+    userId: string,
+    jti: string,
+    ttlSeconds: number,
+    meta?: { device?: string; ip?: string },
+  ): Promise<void> {
     await this.redis.client.set(this.key(userId, jti), '1', 'EX', ttlSeconds);
+
+    if (meta) {
+      const fields: Record<string, string> = {
+        device: meta.device || 'Unknown',
+        ip: meta.ip || 'Unknown',
+        createdAt: new Date().toISOString(),
+      };
+      await this.redis.client.hset(this.sessionKey(userId, jti), fields);
+      await this.redis.client.expire(this.sessionKey(userId, jti), ttlSeconds);
+    }
   }
 
   /**
@@ -27,6 +53,8 @@ export class RefreshTokenStore {
    */
   async consume(userId: string, jti: string): Promise<boolean> {
     const deleted = await this.redis.client.del(this.key(userId, jti));
+    // Clean up session info too
+    await this.redis.client.del(this.sessionKey(userId, jti));
     return deleted === 1;
   }
 
@@ -45,6 +73,45 @@ export class RefreshTokenStore {
       }
     } while (cursor !== '0');
 
+    // Also clean session info keys
+    const sessionPattern = this.sessionKey(userId, '*');
+    cursor = '0';
+    do {
+      const [next, keys] = await this.redis.client.scan(cursor, 'MATCH', sessionPattern, 'COUNT', 100);
+      cursor = next;
+      if (keys.length > 0) {
+        await this.redis.client.del(...keys);
+      }
+    } while (cursor !== '0');
+
     return removed;
+  }
+
+  async listSessions(userId: string): Promise<SessionInfo[]> {
+    const pattern = this.sessionKey(userId, '*');
+    const sessions: SessionInfo[] = [];
+    let cursor = '0';
+
+    do {
+      const [next, keys] = await this.redis.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = next;
+      for (const key of keys) {
+        const jti = key.slice(key.lastIndexOf(':') + 1);
+        const data = await this.redis.client.hgetall(key);
+        sessions.push({
+          jti,
+          device: data.device ?? 'Unknown',
+          ip: data.ip ?? 'Unknown',
+          createdAt: data.createdAt ?? new Date().toISOString(),
+        });
+      }
+    } while (cursor !== '0');
+
+    return sessions;
+  }
+
+  async removeSession(userId: string, jti: string): Promise<void> {
+    await this.redis.client.del(this.key(userId, jti));
+    await this.redis.client.del(this.sessionKey(userId, jti));
   }
 }

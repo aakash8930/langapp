@@ -20,7 +20,7 @@ function VocabRoute() {
       bookmarked={bmSet}
       onToggleBookmark={toggle}
       lists={lists.map((l) => ({ id: l.id, name: l.name }))}
-      onAddToList={(listId, entry) => addEntry(listId, entry)}
+      onAddToList={(listId, entry) => addEntry(listId, { ...entry, addedAt: Date.now() })}
     />
   );
 }

@@ -1,9 +1,12 @@
-import { Link, useRouterState } from '@tanstack/react-router';
+import { Link, useRouter, useRouterState } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { useSession } from '../../../useSession';
 import { CommandPalette } from '../CommandPalette';
 import { Icon } from '../../ui/Icon';
+import { fetchUnreadCount, type UnreadCountResponse } from '../../../api';
+import { queryKeys } from '../../../queryKeys';
 
 import './AppHeader.css';
 
@@ -60,11 +63,21 @@ function initials(name: string): string {
 export function Header() {
   const { session, signOut } = useSession();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const router = useRouter();
+
+  const { data: unreadData } = useQuery<UnreadCountResponse>({
+    queryKey: queryKeys.notifications.unreadCount,
+    queryFn: fetchUnreadCount,
+    refetchInterval: 30_000,
+    enabled: session.state === 'signedIn',
+  });
 
   const name = session.state === 'signedIn' ? session.user.profile.displayName : null;
   const hello = greeting(new Date().getHours());
 
   const onDashboard = useRouterState({ select: (state) => state.location.pathname === '/' });
+
+  const unreadCount = unreadData?.count ?? 0;
 
   return (
     <header className="app-header">
@@ -114,11 +127,34 @@ export function Header() {
           <kbd className="app-search-kbd">⌘K</kbd>
         </button>
 
+        {session.state === 'signedIn' && (
+          <button
+            type="button"
+            className="notif-btn"
+            onClick={() => router.navigate({ to: '/notifications' })}
+            aria-label={`Notifications${unreadCount > 0 ? ` — ${unreadCount} unread` : ''}`}
+          >
+            <Icon name="bell" size={20} />
+            {unreadCount > 0 && (
+              <span className="notif-badge" aria-hidden="true">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+        )}
+
         {session.state === 'signedIn' ? (
           <div className="app-header-user">
-            <span className="app-avatar" aria-hidden="true">
-              {initials(session.user.profile.displayName)}
-            </span>
+            <button
+              type="button"
+              className="app-avatar-btn"
+              onClick={() => router.navigate({ to: '/profile' })}
+              aria-label="Your profile"
+            >
+              <span className="app-avatar" aria-hidden="true">
+                {initials(session.user.profile.displayName)}
+              </span>
+            </button>
             <button type="button" className="btn btn-secondary btn-sm" onClick={signOut}>
               Sign out
             </button>

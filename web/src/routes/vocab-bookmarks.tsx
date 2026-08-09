@@ -10,7 +10,6 @@ export const Route = createFileRoute('/vocab-bookmarks')({
 
 function BookmarkRoute() {
   const { bookmarks, remove } = useBookmarks();
-  const [format, setFormat] = useState<'json' | 'csv'>('json');
   const [exportText, setExportText] = useState('');
 
   if (bookmarks.length === 0) {

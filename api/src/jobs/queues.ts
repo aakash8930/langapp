@@ -17,12 +17,16 @@
 
 export const QUEUE_ANALYTICS = 'analytics';
 export const QUEUE_LEAGUE = 'league';
+export const QUEUE_NOTIFICATIONS = 'notifications';
+export const QUEUE_MAIL = 'mail';
 
-export const QUEUE_NAMES = [QUEUE_ANALYTICS, QUEUE_LEAGUE] as const;
+export const QUEUE_NAMES = [QUEUE_ANALYTICS, QUEUE_LEAGUE, QUEUE_NOTIFICATIONS, QUEUE_MAIL] as const;
 export type QueueName = (typeof QUEUE_NAMES)[number];
 
 export const JOB_ANALYTICS_RECORD = 'analytics.record';
 export const JOB_LEAGUE_SETTLE = 'league.settle';
+export const JOB_CHECK_REMINDERS = 'notifications.check-reminders';
+export const JOB_MAIL_SEND = 'mail.send';
 
 export interface AnalyticsRecordPayload {
   userId: string;
@@ -47,9 +51,21 @@ export interface LeagueSettlePayload {
  * of truth; `JobName` is derived from this, so a job without a payload type
  * does not compile.
  */
+export interface CheckRemindersPayload {
+  now?: string;
+}
+
+export interface MailSendPayload {
+  to: string;
+  subject: string;
+  html: string;
+}
+
 export type JobPayloads = {
   [JOB_ANALYTICS_RECORD]: AnalyticsRecordPayload;
   [JOB_LEAGUE_SETTLE]: LeagueSettlePayload;
+  [JOB_CHECK_REMINDERS]: CheckRemindersPayload;
+  [JOB_MAIL_SEND]: MailSendPayload;
 };
 
 export type JobName = keyof JobPayloads;
@@ -62,4 +78,6 @@ export type JobName = keyof JobPayloads;
 export const JOB_QUEUE: Record<JobName, QueueName> = {
   [JOB_ANALYTICS_RECORD]: QUEUE_ANALYTICS,
   [JOB_LEAGUE_SETTLE]: QUEUE_LEAGUE,
+  [JOB_CHECK_REMINDERS]: QUEUE_NOTIFICATIONS,
+  [JOB_MAIL_SEND]: QUEUE_MAIL,
 };

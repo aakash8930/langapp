@@ -1,5 +1,5 @@
 import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
-import { THEMES, Theme } from '../schemas/user.schema';
+import { FONT_SIZES, FontSize, THEMES, Theme } from '../schemas/user.schema';
 
 /**
  * Floor and ceiling on the daily goal. A review is worth 2 XP and a first
@@ -48,4 +48,8 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsBoolean()
   leaderboardOptIn?: boolean;
+
+  @IsOptional()
+  @IsIn(FONT_SIZES)
+  fontSize?: FontSize;
 }

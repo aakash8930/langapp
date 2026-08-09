@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { Link } from '@tanstack/react-router';
+import { SpeechQuiz } from '../SpeechQuiz';
 
-import { SpeechQuiz } from '../components/SpeechQuiz';
-
-import '../components/library/vocab-browse.css';
+import '../library/vocab-browse.css';
 
 export function SpeakingPractice() {
   const [prompt, setPrompt] = useState('');
@@ -23,13 +21,6 @@ export function SpeakingPractice() {
     setPrompt(p);
     setResult(null);
     setSubmitted(false);
-  };
-
-  const handleSubmit = (text: string) => {
-    const normalized = text.replace(/[\s\u3000]+/g, '').toLowerCase();
-    const target = prompt.toLowerCase();
-    setResult(normalized.includes(target) ? 'correct' : 'wrong');
-    setSubmitted(true);
   };
 
   return (

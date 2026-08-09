@@ -1,10 +1,10 @@
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 
-import { useCorpus } from '../components/library/useCorpus';
-import { fetchMemoryModel } from '../api';
-import { useSession } from '../useSession';
-import { queryKeys } from '../queryKeys';
+import { useCorpus } from '../library/useCorpus';
+import { fetchMemoryModel } from '../../api';
+import { useSession } from '../../useSession';
+import { queryKeys } from '../../queryKeys';
 
 export function JLPTDashboard() {
   const corpus = useCorpus();

@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { NotificationService } from '../notification/notification.service';
 import { levelFromXp } from './gamification/level';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { localDateString, nextStreak } from './gamification/streak';
 import { isoWeek } from './gamification/week';
 import { User, UserDocument } from './schemas/user.schema';
@@ -20,6 +21,7 @@ export interface CreateUserInput {
 export class UserService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    private readonly notifications: NotificationService,
   ) {}
 
   /** Returns null when the email is already taken, so callers decide the error shape. */
@@ -177,6 +179,62 @@ export class UserService {
     );
   }
 
+  /** Sets the TOTP secret on the user. Pass null to clear it. */
+  async updateTotpSecret(userId: string, secret: string | null): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $set: { totpSecret: secret } },
+    );
+  }
+
+  /** Enables TOTP on the user's account. */
+  async enableTotp(userId: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $set: { totpEnabled: true } },
+    );
+  }
+
+  /** Disables TOTP — clears both the flag and the secret. */
+  async disableTotp(userId: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $set: { totpEnabled: false, totpSecret: null } },
+    );
+  }
+
+  /** Sets an email verification token on a user. */
+  async setVerificationToken(userId: string, token: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $set: { emailVerificationToken: token } },
+    );
+  }
+
+  /** Marks the email as verified and clears the token. */
+  async verifyEmail(userId: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $set: { emailVerified: true, emailVerificationToken: null } },
+    );
+  }
+
+  /** Reads the verification token for a user. */
+  async getVerificationToken(userId: string): Promise<string | null> {
+    const user = await this.userModel.findById(userId)
+      .select('+emailVerificationToken')
+      .exec();
+    return user?.emailVerificationToken ?? null;
+  }
+
+  /** Reads the TOTP secret for verification. */
+  async getTotpSecret(userId: string): Promise<string | null> {
+    const user = await this.userModel.findById(userId)
+      .select('+totpSecret')
+      .exec();
+    return user?.totpSecret ?? null;
+  }
+
   /**
    * The only way another module may change a user's XP — the learning module
    * calls this rather than reaching into `users` itself.
@@ -239,13 +297,16 @@ export class UserService {
       .exec();
 
     if (rolled) {
+      await this.fireAchievementNotifications(rolled);
       return rolled;
     }
 
     // Lost the race: another request already rolled the day. The streak and
     // date are correct as they stand, so only this award still needs applying —
     // and the winner already rolled the week too, so this must not reset it.
-    return this.incrementXp(id, amount, { resetToday: false, resetWeek: false, week });
+    const updated = await this.incrementXp(id, amount, { resetToday: false, resetWeek: false, week });
+    await this.fireAchievementNotifications(updated);
+    return updated;
   }
 
   private async incrementXp(
@@ -312,6 +373,7 @@ export class UserService {
     if (dto.leaderboardOptIn !== undefined) {
       patch['settings.leaderboardOptIn'] = dto.leaderboardOptIn;
     }
+    if (dto.fontSize !== undefined) patch['settings.fontSize'] = dto.fontSize;
     // The one field on this DTO that does not live under `settings` — the daily
     // goal is what /me/progress measures the day against, so it sits with the
     // rest of the gamification state it is compared to.
@@ -324,6 +386,73 @@ export class UserService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    return user;
+  }
+
+  async updateOnboarding(
+    id: string,
+    dto: { step?: number; nativeLanguage?: string; proficiencyLevel?: string; learningGoals?: string[]; learningStyle?: string; preferredStudyTime?: string; notificationsEnabled?: boolean; studyTimeMinutes?: number; dailyGoalXp?: number; onboardingComplete?: boolean },
+  ): Promise<UserDocument> {
+    const patch: Record<string, unknown> = {};
+    if (dto.step !== undefined) patch['onboardingState.onboardingStep'] = dto.step;
+    if (dto.nativeLanguage !== undefined) patch['profile.nativeLanguage'] = dto.nativeLanguage;
+    if (dto.proficiencyLevel !== undefined) patch['onboardingState.proficiencyLevel'] = dto.proficiencyLevel;
+    if (dto.learningGoals !== undefined) patch['onboardingState.learningGoals'] = dto.learningGoals;
+    if (dto.learningStyle !== undefined) patch['onboardingState.learningStyle'] = dto.learningStyle;
+    if (dto.preferredStudyTime !== undefined) patch['onboardingState.preferredStudyTime'] = dto.preferredStudyTime;
+    if (dto.notificationsEnabled !== undefined) patch['onboardingState.notificationsEnabled'] = dto.notificationsEnabled;
+    if (dto.studyTimeMinutes !== undefined) patch['onboardingState.studyTimeMinutes'] = dto.studyTimeMinutes;
+    if (dto.dailyGoalXp !== undefined) patch['gamification.dailyGoalXp'] = dto.dailyGoalXp;
+    if (dto.onboardingComplete !== undefined) patch['onboardingState.onboardingComplete'] = dto.onboardingComplete;
+
+    const user = await this.userModel
+      .findByIdAndUpdate(id, { $set: patch }, { new: true, runValidators: true })
+      .exec();
+
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async updateNotificationSettings(
+    id: string,
+    dto: {
+      studyReminders?: boolean; achievements?: boolean; community?: boolean;
+      eventsUpdates?: boolean; marketing?: boolean;
+      emailDailyGoal?: boolean; emailWeeklyDigest?: boolean; emailMarketing?: boolean;
+    },
+  ): Promise<UserDocument> {
+    const patch: Record<string, unknown> = {};
+    if (dto.studyReminders !== undefined) patch['notificationSettings.studyReminders'] = dto.studyReminders;
+    if (dto.achievements !== undefined) patch['notificationSettings.achievements'] = dto.achievements;
+    if (dto.community !== undefined) patch['notificationSettings.community'] = dto.community;
+    if (dto.eventsUpdates !== undefined) patch['notificationSettings.eventsUpdates'] = dto.eventsUpdates;
+    if (dto.marketing !== undefined) patch['notificationSettings.marketing'] = dto.marketing;
+    if (dto.emailDailyGoal !== undefined) patch['notificationSettings.emailDailyGoal'] = dto.emailDailyGoal;
+    if (dto.emailWeeklyDigest !== undefined) patch['notificationSettings.emailWeeklyDigest'] = dto.emailWeeklyDigest;
+    if (dto.emailMarketing !== undefined) patch['notificationSettings.emailMarketing'] = dto.emailMarketing;
+
+    const user = await this.userModel
+      .findByIdAndUpdate(id, { $set: patch }, { new: true, runValidators: true })
+      .exec();
+
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async updateProfile(
+    id: string,
+    dto: { displayName?: string; bio?: string; nativeLanguage?: string },
+  ): Promise<UserDocument> {
+    const patch: Record<string, unknown> = {};
+    if (dto.displayName !== undefined) patch['profile.displayName'] = dto.displayName;
+    if (dto.bio !== undefined) patch['profile.bio'] = dto.bio;
+    if (dto.nativeLanguage !== undefined) patch['profile.nativeLanguage'] = dto.nativeLanguage;
+
+    const user = await this.userModel
+      .findByIdAndUpdate(id, { $set: patch }, { new: true, runValidators: true })
+      .exec();
+
+    if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
@@ -375,6 +504,94 @@ export class UserService {
    */
   async deleteUser(id: string): Promise<void> {
     await this.userModel.deleteOne({ _id: id }).exec();
+  }
+
+  async exportUserData(id: string): Promise<Record<string, unknown>> {
+    const user = await this.userModel.findById(id).exec();
+    if (!user) throw new NotFoundException('User not found');
+
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: {
+        displayName: user.profile.displayName,
+        bio: user.profile.bio ?? '',
+        nativeLanguage: user.profile.nativeLanguage,
+        activeTrack: user.profile.activeTrack,
+      },
+      email: user.email,
+      createdAt: user.get('createdAt'),
+      gamification: {
+        xp: user.gamification.xp,
+        streakDays: user.gamification.streakDays,
+        dailyGoalXp: user.gamification.dailyGoalXp,
+        leagueTier: user.gamification.leagueTier,
+      },
+      settings: {
+        audioSpeed: user.settings.audioSpeed,
+        theme: user.settings.theme,
+        tz: user.settings.tz,
+        fontSize: user.settings.fontSize,
+        leaderboardOptIn: user.settings.leaderboardOptIn,
+      },
+      notificationSettings: user.notificationSettings,
+      subscription: user.subscription,
+      onboardingState: user.onboardingState,
+      learningState: user.learningState,
+    };
+  }
+
+  private async fireAchievementNotifications(user: UserDocument): Promise<void> {
+    const userId = user._id.toString();
+    const notifSettings = user.notificationSettings;
+    const streakDays = user.gamification.streakDays;
+
+    // Streak milestones
+    if (notifSettings?.achievements !== false) {
+      const STREAK_MILESTONES = [3, 7, 30];
+      for (const milestone of STREAK_MILESTONES) {
+        if (streakDays === milestone) {
+          await this.notifications.create({
+            userId,
+            type: 'achievement',
+            title: `${milestone}-Day Streak!`,
+            body: `You've studied for ${milestone} days in a row. Keep the flame alive!`,
+            metadata: { streakDays: milestone },
+          });
+        }
+      }
+
+      // Level up at tier boundaries
+      const level = levelFromXp(user.gamification.xp).level;
+      const TIER_BOUNDARIES = [5, 11, 21, 36];
+      if (TIER_BOUNDARIES.includes(level)) {
+        let tierName = 'Bronze';
+        if (level >= 36) tierName = 'Master';
+        else if (level >= 21) tierName = 'Diamond';
+        else if (level >= 11) tierName = 'Gold';
+        else if (level >= 5) tierName = 'Silver';
+
+        await this.notifications.create({
+          userId,
+          type: 'achievement',
+          title: 'New League Tier!',
+          body: `Congratulations! You've reached the ${tierName} tier at level ${level}.`,
+          metadata: { level, tier: tierName },
+        });
+      }
+    }
+
+    // Daily goal met
+    const todayXp = this.todayXpFor(user);
+    const goalXp = user.gamification.dailyGoalXp;
+    if (todayXp >= goalXp && goalXp > 0 && user.gamification.lastStudyDate === localDateString(new Date(), user.settings.tz)) {
+      await this.notifications.create({
+        userId,
+        type: 'goal',
+        title: 'Daily Goal Completed!',
+        body: `Great work! You earned ${todayXp} XP today and hit your ${goalXp} XP goal.`,
+        metadata: { xpToday: todayXp, goalXp },
+      });
+    }
   }
 }
 

@@ -1,0 +1,495 @@
+/*
+ * Onboarding wizard — Japanese Ink palette from signin.
+ *
+ * Full-page takeover with a centered card, step indicators,
+ * and soft transitions between steps.
+ */
+
+.onb-page {
+  --o-bg: #171717;
+  --o-card: #262626;
+  --o-input-bg: #1F1F1F;
+  --o-input-border: #3F3F46;
+  --o-input-border-focus: #D4A017;
+  --o-accent: #D4A017;
+  --o-accent-hover: #E6B325;
+  --o-accent-text: #171717;
+  --o-text: #F5F5F4;
+  --o-text-soft: #A1A1AA;
+  --o-border-subtle: rgba(255, 255, 255, 0.08);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--o-bg);
+  color: var(--o-text);
+  font-family: var(--font-ui);
+}
+
+.onb-card {
+  width: 100%;
+  max-width: 520px;
+  margin: var(--s-xl);
+  padding: var(--s-3xl) var(--s-2xl);
+  background: var(--o-card);
+  border: 1px solid var(--o-border-subtle);
+  border-radius: var(--radius-xl);
+}
+
+/* ---- Step indicator ---- */
+
+.onb-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-sm);
+  margin-bottom: var(--s-2xl);
+}
+
+.onb-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--o-input-border);
+  transition: background var(--t-fast) ease, transform var(--t-fast) ease;
+}
+
+.onb-dot--active {
+  background: var(--o-accent);
+  transform: scale(1.4);
+}
+
+.onb-dot--done {
+  background: #16A34A;
+}
+
+/* ---- Headings ---- */
+
+.onb-title {
+  margin: 0 0 var(--s-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+  color: var(--o-text);
+  text-align: center;
+}
+
+.onb-subtitle {
+  margin: 0 0 var(--s-2xl);
+  font-size: var(--text-body);
+  color: var(--o-text-soft);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ---- Form elements ---- */
+
+.onb-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-lg);
+}
+
+.onb-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+
+.onb-label {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--o-text);
+}
+
+.onb-select,
+.onb-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--s-md);
+  background: var(--o-input-bg);
+  border: 1px solid var(--o-input-border);
+  border-radius: var(--radius-md);
+  color: var(--o-text);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  transition: border-color var(--t-fast) ease, box-shadow var(--t-fast) ease;
+}
+
+.onb-select:focus,
+.onb-input:focus {
+  outline: none;
+  border-color: var(--o-input-border-focus);
+  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
+}
+
+/* ---- Radio cards ---- */
+
+.onb-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+
+.onb-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-md);
+  background: var(--o-input-bg);
+  border: 1px solid var(--o-input-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--t-fast) ease, background var(--t-fast) ease;
+}
+
+.onb-option:hover {
+  border-color: var(--o-input-border-focus);
+}
+
+.onb-option--selected {
+  border-color: var(--o-accent);
+  background: rgba(212, 160, 23, 0.08);
+}
+
+.onb-option-radio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--o-input-border);
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: border-color var(--t-fast) ease;
+}
+
+.onb-option--selected .onb-option-radio {
+  border-color: var(--o-accent);
+  box-shadow: inset 0 0 0 5px var(--o-accent);
+}
+
+.onb-option-text {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--o-text);
+}
+
+.onb-option-desc {
+  font-size: var(--text-caption);
+  color: var(--o-text-soft);
+}
+
+/* ---- Checkbox group ---- */
+
+.onb-checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+
+.onb-check {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-md);
+  background: var(--o-input-bg);
+  border: 1px solid var(--o-input-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--t-fast) ease, background var(--t-fast) ease;
+}
+
+.onb-check:hover {
+  border-color: var(--o-accent);
+}
+
+.onb-check--checked {
+  border-color: var(--o-accent);
+  background: rgba(212, 160, 23, 0.08);
+}
+
+.onb-check-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--o-input-border);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  color: transparent;
+  transition: all var(--t-fast) ease;
+}
+
+.onb-check--checked .onb-check-box {
+  border-color: var(--o-accent);
+  background: var(--o-accent);
+  color: var(--o-accent-text);
+}
+
+.onb-check-label {
+  flex: 1;
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--o-text);
+}
+
+/* ---- Slider ---- */
+
+.onb-slider {
+  width: 100%;
+  accent-color: var(--o-accent);
+  margin: var(--s-sm) 0;
+}
+
+.onb-slider-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-small);
+  color: var(--o-text-soft);
+}
+
+.onb-slider-value strong {
+  color: var(--o-accent);
+  font-size: var(--text-large);
+}
+
+/* ---- Toggle ---- */
+
+.onb-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+
+.onb-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-md);
+  background: var(--o-input-bg);
+  border: 1px solid var(--o-input-border);
+  border-radius: var(--radius-md);
+}
+
+.onb-toggle-label {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--o-text);
+}
+
+.onb-toggle-desc {
+  font-size: var(--text-caption);
+  color: var(--o-text-soft);
+}
+
+.onb-toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--o-input-border);
+  border: none;
+  cursor: pointer;
+  transition: background var(--t-fast) ease;
+  flex-shrink: 0;
+}
+
+.onb-toggle-switch--on {
+  background: var(--o-accent);
+}
+
+.onb-toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--t-fast) ease;
+}
+
+.onb-toggle-switch--on::after {
+  transform: translateX(20px);
+}
+
+/* ---- Summary ---- */
+
+.onb-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  margin-bottom: var(--s-xl);
+}
+
+.onb-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-sm) 0;
+  border-top: 1px solid var(--o-border-subtle);
+  font-size: var(--text-small);
+}
+
+.onb-summary-row:first-child {
+  border-top: 0;
+}
+
+.onb-summary-label {
+  color: var(--o-text-soft);
+}
+
+.onb-summary-value {
+  color: var(--o-text);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ---- Buttons ---- */
+
+.onb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-sm);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--s-md) var(--s-xl);
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform var(--t-fast) var(--spring-bounce),
+    background-color var(--t-fast) ease,
+    box-shadow var(--t-fast) ease;
+}
+
+.onb-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.onb-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.onb-btn-primary {
+  background: var(--o-accent);
+  color: var(--o-accent-text);
+}
+
+.onb-btn-primary:hover:not(:disabled) {
+  background: var(--o-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(212, 160, 23, 0.25);
+}
+
+.onb-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--o-input-border);
+  color: var(--o-text);
+}
+
+.onb-btn-ghost:hover:not(:disabled) {
+  border-color: var(--o-input-border-focus);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.onb-btn-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  margin-top: var(--s-lg);
+}
+
+.onb-link {
+  display: inline-block;
+  padding: var(--s-sm);
+  border: none;
+  background: none;
+  color: var(--o-accent);
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: color var(--t-fast) ease;
+}
+
+.onb-link:hover {
+  color: var(--o-accent-hover);
+  text-decoration: underline;
+}
+
+/* ---- Placement test intro ---- */
+
+.onb-test-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-lg);
+}
+
+.onb-test-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(212, 160, 23, 0.12);
+  color: var(--o-accent);
+  font-size: 1.5rem;
+}
+
+.onb-test-features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  width: 100%;
+  text-align: left;
+}
+
+.onb-test-feature {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  font-size: var(--text-small);
+  color: var(--o-text-soft);
+}
+
+.onb-test-feature span:first-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(22, 163, 74, 0.15);
+  color: #16A34A;
+  font-weight: 700;
+  font-size: var(--text-caption);
+  flex-shrink: 0;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 480px) {
+  .onb-card {
+    margin: var(--s-md);
+    padding: var(--s-xl);
+  }
+
+  .onb-title {
+    font-size: var(--text-large);
+  }
+}

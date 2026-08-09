@@ -142,6 +142,24 @@
   letter-spacing: 0.02em;
 }
 
+.app-avatar-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: box-shadow var(--t-fast);
+}
+
+.app-avatar-btn:hover {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 30%, transparent);
+}
+
+.app-avatar-btn:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
 /*
  * Narrow: the search field loses its label and becomes the icon alone, which
  * is why the button carries an accessible name rather than relying on the

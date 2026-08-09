@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 
-import { useCorpus } from '../components/library/useCorpus';
-import '../components/library/vocab-browse.css';
-import '../components/practice/practice.css';
+import { useCorpus } from '../library/useCorpus';
+import '../library/vocab-browse.css';
+import './practice.css';
 
 interface MixedQuestion {
   id: string;
@@ -77,7 +77,7 @@ export function MixedPracticePage() {
     return shuffle(qs);
   }, [corpus.data]);
 
-  const answer = (qIdx: number, optIdx: number) => {
+  const answer = (optIdx: number) => {
     setSelected(optIdx);
     if (optIdx === 0) setCorrect((c) => c + 1);
     setTimeout(() => {
@@ -158,7 +158,7 @@ export function MixedPracticePage() {
             if (selected !== null && oi === 0) cls += ' vocab-quiz-option-correct';
             if (selected === oi && oi !== 0) cls += ' vocab-quiz-option-wrong';
             return (
-              <button key={oi} type="button" className={cls} onClick={() => selected === null && answer(index, oi)} disabled={selected !== null}>
+              <button key={oi} type="button" className={cls} onClick={() => selected === null && answer(oi)} disabled={selected !== null}>
                 {opt}
               </button>
             );
