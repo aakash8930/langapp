@@ -32,7 +32,7 @@ export function CourseCertificate({
 
   return (
     <section
-      className="card"
+      className="card course-certificate"
       aria-labelledby="cert-heading"
       style={{
         background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 8%, transparent), color-mix(in srgb, var(--brand-secondary) 8%, transparent))',

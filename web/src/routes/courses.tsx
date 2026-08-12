@@ -78,6 +78,7 @@ function CoursesPage() {
       progress={session.state === 'signedIn' ? session.progress : null}
       signedIn={session.state === 'signedIn'}
       learnId={learn ?? null}
+      displayName={session.state === 'signedIn' ? session.user.profile.displayName : undefined}
     />
   );
 }

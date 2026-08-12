@@ -27,6 +27,20 @@ export type Load =
  */
 const CHECKPOINT_MAX_QUESTIONS = 20;
 
+type ModuleFilter = 'all' | 'available' | 'in-progress' | 'completed' | 'locked';
+
+const MODULE_FILTERS: { id: ModuleFilter; label: string }[] = [
+  { id: 'all', label: 'All modules' },
+  { id: 'available', label: 'Available' },
+  { id: 'in-progress', label: 'In progress' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'locked', label: 'Locked' },
+];
+
+function textMatches(value: string, query: string): boolean {
+  return value.toLocaleLowerCase().includes(query);
+}
+
 /**
  * The course page.
  *
@@ -96,6 +110,8 @@ export function CoursePage({
 
   const doneCount = allLessons.filter((lesson) => stateOf(lesson).completed).length;
   const percent = allLessons.length > 0 ? (doneCount / allLessons.length) * 100 : 0;
+  const [query, setQuery] = useState('');
+  const [moduleFilter, setModuleFilter] = useState<ModuleFilter>('all');
 
   const next = progress ? nextUnlearnedLesson(units, progress.completedLessonIds) : null;
   const unitOf = (lessonId: string): Unit | undefined =>
@@ -156,7 +172,60 @@ export function CoursePage({
     );
   }, [learnId, learnUnitSlug]);
 
-  const allOpen = units.length > 0 && openSlugs.size === units.length;
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+
+  function statusOf(unit: Unit): Exclude<ModuleFilter, 'all'> {
+    const done = unit.lessons.filter((lesson) => stateOf(lesson).completed).length;
+    if (unit.lessons.length > 0 && done === unit.lessons.length) return 'completed';
+    if (done > 0) return 'in-progress';
+    if (unit.lessons[0] && stateOf(unit.lessons[0]).locked) return 'locked';
+    return 'available';
+  }
+
+  function unitMatches(unit: Unit): boolean {
+    if (!normalizedQuery) return true;
+    return [unit.label, unit.ja, unit.blurb, unit.slug].some((value) => textMatches(value, normalizedQuery))
+      || unit.lessons.some((lesson) => textMatches(lesson.title, normalizedQuery));
+  }
+
+  const filterCounts = MODULE_FILTERS.reduce<Record<ModuleFilter, number>>(
+    (counts, filter) => {
+      counts[filter.id] = filter.id === 'all'
+        ? units.length
+        : units.filter((unit) => statusOf(unit) === filter.id).length;
+      return counts;
+    },
+    { all: 0, available: 0, 'in-progress': 0, completed: 0, locked: 0 },
+  );
+
+  const visibleUnits = units.filter(
+    (unit) => unitMatches(unit) && (moduleFilter === 'all' || statusOf(unit) === moduleFilter),
+  );
+  const matchingSlugFingerprint = normalizedQuery
+    ? visibleUnits.map((unit) => unit.slug).join('|')
+    : '';
+
+  useEffect(() => {
+    if (!normalizedQuery || !matchingSlugFingerprint) return;
+    const matches = matchingSlugFingerprint.split('|');
+    setOpenSlugs((current) => {
+      if (matches.every((slug) => current.has(slug))) return current;
+      return new Set([...current, ...matches]);
+    });
+  }, [matchingSlugFingerprint, normalizedQuery]);
+
+  const allVisibleOpen = visibleUnits.length > 0
+    && visibleUnits.every((unit) => openSlugs.has(unit.slug));
+
+  function focusUnit(slug: string) {
+    setOpenSlugs((current) => current.has(slug) ? current : new Set(current).add(slug));
+    window.requestAnimationFrame(() => {
+      document.getElementById(`course-module-${slug}`)?.scrollIntoView({
+        block: 'start',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    });
+  }
 
   if (load.state === 'error') {
     return (
@@ -170,7 +239,9 @@ export function CoursePage({
   }
 
   return (
-    <div className="page course">
+    <div className="page course course-reference">
+      <CoursePageHeading />
+
       <CourseHero
         units={units}
         lessons={allLessons.length}
@@ -179,6 +250,13 @@ export function CoursePage({
         percent={percent}
         next={next}
         signedIn={signedIn}
+      />
+
+      <LearningPath
+        units={units}
+        stateOf={stateOf}
+        activeLessonId={next?.id ?? null}
+        onSelect={focusUnit}
       />
 
       <div className="course-body">
@@ -193,22 +271,37 @@ export function CoursePage({
           />
         ) : null}
         <section className="course-main" aria-labelledby="curriculum-heading">
-          <div className="card glass">
-            <div className="card-head">
-              <h2 className="card-title" id="curriculum-heading">
-                Course curriculum
-              </h2>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() =>
-                  setOpenSlugs(allOpen ? new Set() : new Set(units.map((unit) => unit.slug)))
-                }
-                disabled={units.length === 0}
-              >
-                {allOpen ? 'Collapse all' : 'Expand all'}
-              </button>
+          <div className="card glass course-curriculum-card">
+            <div className="course-curriculum-head">
+              <div>
+                <p className="course-section-kicker">THE COMPLETE N5 SYLLABUS</p>
+                <h2 className="card-title" id="curriculum-heading">Course curriculum</h2>
+                <p>Search the syllabus, filter by progress, and open only the modules you need.</p>
+              </div>
+              <span className="course-result-count tabular">
+                {visibleUnits.length} of {units.length} modules
+              </span>
             </div>
+
+            <CourseTools
+              query={query}
+              onQueryChange={setQuery}
+              activeFilter={moduleFilter}
+              onFilterChange={setModuleFilter}
+              counts={filterCounts}
+              allVisibleOpen={allVisibleOpen}
+              visibleCount={visibleUnits.length}
+              onToggleVisible={() => {
+                setOpenSlugs((current) => {
+                  const nextOpen = new Set(current);
+                  for (const unit of visibleUnits) {
+                    if (allVisibleOpen) nextOpen.delete(unit.slug);
+                    else nextOpen.add(unit.slug);
+                  }
+                  return nextOpen;
+                });
+              }}
+            />
 
             {load.state === 'loading' ? (
               <p className="card-note">Loading the curriculum…</p>
@@ -217,13 +310,22 @@ export function CoursePage({
                 The server returned no lessons. That is a content problem rather than a display
                 one.
               </p>
+            ) : visibleUnits.length === 0 ? (
+              <div className="course-empty-results">
+                <span className="ja" aria-hidden="true">探</span>
+                <h3>No matching modules</h3>
+                <p>Try another lesson name or clear the progress filter.</p>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setQuery(''); setModuleFilter('all'); }}>
+                  Clear filters
+                </button>
+              </div>
             ) : (
               <ol className="module-list">
-                {units.map((unit, index) => (
+                {visibleUnits.map((unit) => (
                   <ModuleRow
                     key={unit.slug}
                     unit={unit}
-                    index={index}
+                    index={units.indexOf(unit)}
                     open={openSlugs.has(unit.slug)}
                     onToggle={(next_) =>
                       setOpenSlugs((current) => {
@@ -235,6 +337,7 @@ export function CoursePage({
                     }
                     stateOf={stateOf}
                     learnId={learnId}
+                    lessonQuery={normalizedQuery}
                   />
                 ))}
               </ol>
@@ -245,24 +348,157 @@ export function CoursePage({
         </section>
 
         <aside className="course-rail">
+          {progress ? <YourStatsCard progress={progress} doneCount={doneCount} /> : null}
+          <StudyGuideCard signedIn={signedIn} next={next} />
+          <CourseShortcuts />
           <AboutCard units={units} lessons={allLessons.length} />
           <LearnCard units={units} />
-          {progress ? <YourStatsCard progress={progress} doneCount={doneCount} /> : null}
         </aside>
       </div>
+
+      <PlacementCallout signedIn={signedIn} />
     </div>
   );
 }
 
-/**
- * The banner.
- *
- * The design's is a photograph of a pagoda under Mount Fuji with the text laid
- * over it. There is no artwork on the wire and no asset pipeline here, and
- * CLAUDE.md is explicit that nothing behind a glass panel may become a
- * photograph — the contrast guarantee the whole glass layer depends on assumes
- * a flat ground. So the banner is a flat wash with the same shape.
- */
+function CoursePageHeading() {
+  return (
+    <header className="course-page-heading">
+      <span className="course-page-mark ja" aria-hidden="true">門</span>
+      <div>
+        <p className="course-section-kicker">STRUCTURED JAPANESE</p>
+        <h1>Courses</h1>
+        <p>One complete learning path, organised from your first kana to JLPT N5.</p>
+      </div>
+      <div className="course-page-actions">
+        <Link to="/progress"><Icon name="trending-up" size={15} /> My progress</Link>
+        <Link to="/jlpt"><Icon name="graduation-cap" size={15} /> JLPT hub</Link>
+      </div>
+    </header>
+  );
+}
+
+function LearningPath({
+  units,
+  stateOf,
+  activeLessonId,
+  onSelect,
+}: {
+  units: Unit[];
+  stateOf: (lesson: LessonSummary) => LessonState;
+  activeLessonId: string | null;
+  onSelect: (slug: string) => void;
+}) {
+  if (units.length === 0) return null;
+
+  return (
+    <section className="course-path glass" aria-labelledby="learning-path-heading">
+      <div className="course-path-head">
+        <div>
+          <p className="course-section-kicker">YOUR ROADMAP</p>
+          <h2 id="learning-path-heading">Your learning path</h2>
+        </div>
+        <span>Choose a module to jump to its lessons.</span>
+      </div>
+
+      <ol className="course-path-list">
+        {units.map((unit, index) => {
+          const done = unit.lessons.filter((lesson) => stateOf(lesson).completed).length;
+          const total = unit.lessons.length;
+          const complete = total > 0 && done === total;
+          const active = activeLessonId !== null && unit.lessons.some((lesson) => lesson.id === activeLessonId);
+          const locked = unit.lessons[0] ? stateOf(unit.lessons[0]).locked : false;
+          const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+          const status = complete ? 'Complete' : active ? 'Current' : locked ? 'Locked' : done > 0 ? 'In progress' : 'Ready';
+
+          return (
+            <li key={unit.slug}>
+              <button
+                type="button"
+                className={`course-path-step${active ? ' is-current' : ''}${complete ? ' is-complete' : ''}${locked ? ' is-locked' : ''}`}
+                onClick={() => onSelect(unit.slug)}
+                aria-label={`Module ${index + 1}: ${unit.label}. ${status}. ${done} of ${total} lessons complete.`}
+              >
+                <span className="course-path-index tabular">{complete ? <Icon name="check" size={14} /> : String(index + 1).padStart(2, '0')}</span>
+                <span className="course-path-copy">
+                  <small>{status}</small>
+                  <strong>{unit.label}</strong>
+                  <span className="ja">{unit.ja}</span>
+                </span>
+                <span className="course-path-progress" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>
+                <span className="course-path-count tabular">{done}/{total}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function CourseTools({
+  query,
+  onQueryChange,
+  activeFilter,
+  onFilterChange,
+  counts,
+  allVisibleOpen,
+  visibleCount,
+  onToggleVisible,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+  activeFilter: ModuleFilter;
+  onFilterChange: (filter: ModuleFilter) => void;
+  counts: Record<ModuleFilter, number>;
+  allVisibleOpen: boolean;
+  visibleCount: number;
+  onToggleVisible: () => void;
+}) {
+  return (
+    <div className="course-tools">
+      <div className="course-search" role="search">
+        <Icon name="search" size={16} />
+        <label className="visually-hidden" htmlFor="course-curriculum-search">Search modules and lessons</label>
+        <input
+          id="course-curriculum-search"
+          type="search"
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Search modules or lesson names…"
+        />
+        {query ? <button type="button" onClick={() => onQueryChange('')} aria-label="Clear course search">×</button> : null}
+      </div>
+
+      <div className="course-filter-row" role="group" aria-label="Filter modules by progress">
+        {MODULE_FILTERS.map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            className={activeFilter === filter.id ? 'is-active' : ''}
+            onClick={() => onFilterChange(filter.id)}
+            aria-pressed={activeFilter === filter.id}
+            disabled={filter.id !== 'all' && counts[filter.id] === 0}
+          >
+            {filter.label} <span className="tabular">{counts[filter.id]}</span>
+          </button>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        className="course-expand-button"
+        onClick={onToggleVisible}
+        disabled={visibleCount === 0}
+      >
+        <Icon name="chevron-down" size={14} />
+        {allVisibleOpen ? 'Collapse visible' : 'Expand visible'}
+      </button>
+    </div>
+  );
+}
+
+/** The reference hero, translated into the dashboard's black-and-gold palette. */
 function CourseHero({
   units,
   lessons,
@@ -407,6 +643,7 @@ function ModuleRow({
   onToggle,
   stateOf,
   learnId,
+  lessonQuery,
 }: {
   unit: Unit;
   index: number;
@@ -414,10 +651,16 @@ function ModuleRow({
   onToggle: (open: boolean) => void;
   stateOf: (lesson: LessonSummary) => LessonState;
   learnId: string | null;
+  lessonQuery: string;
 }) {
   const done = unit.lessons.filter((lesson) => stateOf(lesson).completed).length;
   const total = unit.lessons.length;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+  const unitMatchesQuery = !lessonQuery
+    || [unit.label, unit.ja, unit.blurb, unit.slug].some((value) => textMatches(value, lessonQuery));
+  const visibleLessons = unitMatchesQuery
+    ? unit.lessons
+    : unit.lessons.filter((lesson) => textMatches(lesson.title, lessonQuery));
 
   // Signed out, `stateOf` reports nothing completed, so this is false and the
   // checkpoint row never appears for a visitor — which is right, since taking
@@ -432,6 +675,7 @@ function ModuleRow({
   return (
     <li>
       <details
+        id={`course-module-${unit.slug}`}
         className={`module${allDone ? ' module-done' : ''}`}
         open={open}
         onToggle={(event) => onToggle(event.currentTarget.open)}
@@ -475,12 +719,16 @@ function ModuleRow({
           </span>
         ) : null}
 
+        {lessonQuery && !unitMatchesQuery ? (
+          <p className="module-search-note tabular">{visibleLessons.length} matching {visibleLessons.length === 1 ? 'lesson' : 'lessons'}</p>
+        ) : null}
+
         <ol className="lesson-list">
-          {unit.lessons.map((lesson, lessonIndex) => (
+          {visibleLessons.map((lesson) => (
             <LessonRow
               key={lesson.id}
               lesson={lesson}
-              index={lessonIndex}
+              index={unit.lessons.indexOf(lesson)}
               state={stateOf(lesson)}
               highlight={lesson.id === learnId}
             />
@@ -509,6 +757,82 @@ function ModuleRow({
         ) : null}
       </details>
     </li>
+  );
+}
+
+function StudyGuideCard({ signedIn, next }: { signedIn: boolean; next: LessonSummary | null }) {
+  const steps = [
+    { icon: 'book-open' as const, title: 'Learn', note: 'Open the next lesson and study its items.' },
+    { icon: 'check' as const, title: 'Test', note: 'Pass the lesson quiz to record completion.' },
+    { icon: 'repeat' as const, title: 'Review', note: 'Clear due cards when FSRS schedules them.' },
+  ];
+
+  return (
+    <section className="card glass course-guide-card" aria-labelledby="course-guide-heading">
+      <div className="course-rail-heading">
+        <p className="course-section-kicker">A SIMPLE ROUTINE</p>
+        <h2 className="card-title" id="course-guide-heading">How to use this course</h2>
+      </div>
+      <ol className="course-guide-list">
+        {steps.map((step, index) => (
+          <li key={step.title}>
+            <span className="course-guide-index tabular">{index + 1}</span>
+            <Icon name={step.icon} size={16} />
+            <span><strong>{step.title}</strong><small>{step.note}</small></span>
+          </li>
+        ))}
+      </ol>
+      {signedIn && next ? (
+        <Link className="btn btn-primary course-guide-action" to="/courses" search={{ learn: next.id }}>
+          Continue next lesson <Icon name="chevron-right" size={15} />
+        </Link>
+      ) : !signedIn ? (
+        <Link className="btn btn-primary course-guide-action" to="/">Sign in to track progress</Link>
+      ) : (
+        <Link className="btn btn-primary course-guide-action" to="/review">Review completed lessons</Link>
+      )}
+    </section>
+  );
+}
+
+function CourseShortcuts() {
+  const shortcuts = [
+    { label: 'Hiragana library', note: 'Browse the full script', icon: 'languages' as const, to: '/hiragana' as const },
+    { label: 'Vocabulary', note: 'Explore N5 words', icon: 'library' as const, to: '/vocabulary' as const },
+    { label: 'Grammar guide', note: 'Review core patterns', icon: 'book-marked' as const, to: '/grammar' as const },
+    { label: 'Review queue', note: 'Study cards due now', icon: 'repeat' as const, to: '/review' as const },
+  ];
+
+  return (
+    <section className="card glass course-shortcuts" aria-labelledby="course-shortcuts-heading">
+      <div className="course-rail-heading">
+        <p className="course-section-kicker">COURSE TOOLS</p>
+        <h2 className="card-title" id="course-shortcuts-heading">Useful shortcuts</h2>
+      </div>
+      {shortcuts.map((shortcut) => (
+        <Link key={shortcut.label} to={shortcut.to}>
+          <span><Icon name={shortcut.icon} size={16} /></span>
+          <span><strong>{shortcut.label}</strong><small>{shortcut.note}</small></span>
+          <Icon name="chevron-right" size={14} />
+        </Link>
+      ))}
+    </section>
+  );
+}
+
+function PlacementCallout({ signedIn }: { signedIn: boolean }) {
+  return (
+    <section className="course-placement glass" aria-labelledby="placement-heading">
+      <span className="course-placement-mark ja" aria-hidden="true">測</span>
+      <div>
+        <p className="course-section-kicker">NOT SURE WHERE TO BEGIN?</p>
+        <h2 id="placement-heading">Check your current Japanese level</h2>
+        <p>Take the JLPT mock test, then return to the module that matches what you need to practise.</p>
+      </div>
+      <Link className="btn btn-primary" to={signedIn ? '/jlpt-mock-test' : '/'}>
+        {signedIn ? 'Take the mock test' : 'Sign in to get started'} <Icon name="chevron-right" size={16} />
+      </Link>
+    </section>
   );
 }
 
