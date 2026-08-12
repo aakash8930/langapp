@@ -1,3 +1,4 @@
+import { useLocation } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import type { AppShellProps } from '../../../types/layout';
@@ -38,6 +39,7 @@ import './AppShell.css';
  */
 export function AppShell({ children }: AppShellProps) {
   const { session } = useSession();
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches,
   );
@@ -77,7 +79,7 @@ export function AppShell({ children }: AppShellProps) {
 
         <Main>{children}</Main>
 
-        <Footer />
+        {location.pathname === '/' ? null : <Footer />}
       </div>
     </div>
   );

@@ -50,3 +50,10 @@
     padding: var(--s-lg);
   }
 }
+
+/* The dashboard reference uses the available shell width rather than the
+   article-width rhythm used by text-heavy screens. */
+.app-main:has(.dashboard-reference) {
+  max-width: none;
+  padding: 12px 18px 18px;
+}

@@ -2,35 +2,37 @@ import { Link } from '@tanstack/react-router';
 
 import { Icon } from '../ui/Icon';
 
-/**
- * Community feed — placeholder.
- *
- * ## What is and isn't there
- *
- * Friends and messaging live at `/social` today, but there is no public feed
- * endpoint to back the timeline the design asks for. The card points at the
- * live route so it is not a dead end, and the pill names the gap.
- */
+/** Live community destinations; no activity or reaction counts are fabricated. */
 export function CommunityFeed() {
   return (
     <section className="card community-card glass" aria-labelledby="community-heading">
-      <div className="placeholder-head">
-        <h2 className="card-title" id="community-heading">
-          <span className="card-title-icon" aria-hidden="true">
-            <Icon name="users" size={18} />
-          </span>
-          Community
-        </h2>
-        <span className="placeholder-pill">Coming soon</span>
+      <div className="dashboard-section-head">
+        <h2 id="community-heading">Community feed</h2>
+        <Link to="/social">View all</Link>
       </div>
-      <p className="placeholder-note">
-        The feed isn&rsquo;t built yet — friends and messages live in
-        <Link className="card-link" to="/social">
-          {' '}
-          /social
-        </Link>
-        .
-      </p>
+      <ul className="community-link-list">
+        <li>
+          <Link to="/social">
+            <span className="community-link-icon"><Icon name="users" size={17} /></span>
+            <span><strong>Friends &amp; messages</strong><small>Study together</small></span>
+            <Icon name="chevron-right" size={14} />
+          </Link>
+        </li>
+        <li>
+          <Link to="/leagues">
+            <span className="community-link-icon"><Icon name="trophy" size={17} /></span>
+            <span><strong>Weekly leaderboard</strong><small>See your league</small></span>
+            <Icon name="chevron-right" size={14} />
+          </Link>
+        </li>
+        <li>
+          <Link to="/challenges">
+            <span className="community-link-icon"><Icon name="flame" size={17} /></span>
+            <span><strong>Community challenges</strong><small>Keep your momentum</small></span>
+            <Icon name="chevron-right" size={14} />
+          </Link>
+        </li>
+      </ul>
     </section>
   );
 }

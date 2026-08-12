@@ -61,6 +61,9 @@ export function UpgradePremium() {
           Upgrade to Premium
         </h2>
       </div>
+      <p className="placeholder-note">
+        Unlock all courses, advanced AI features, and premium content.
+      </p>
       <ul className="upgrade-perks">
         <li>Unlimited lessons</li>
         <li>AI Tutor</li>
@@ -72,7 +75,7 @@ export function UpgradePremium() {
         style={{ marginTop: 'auto', fontSize: 'var(--text-small)' }}
         to="/plans"
       >
-        Upgrade to Pro — ¥980/mo
+        Upgrade now
       </Link>
     </section>
   );

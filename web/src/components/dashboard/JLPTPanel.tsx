@@ -1,32 +1,33 @@
+import { Link } from '@tanstack/react-router';
+
+import type { Progress, Unit } from '../../api';
 import { Icon } from '../ui/Icon';
 
-/**
- * JLPT readiness — placeholder.
- *
- * ## Why no readiness figure
- *
- * Every levelled item in the corpus is N5 right now (a single axis), and
- * there is no per-item mastery endpoint that would let the server say how
- * much of that level a learner has actually covered. A bar labelled
- * "JLPT N5 — 24%" would be a denominator nobody set, which is the same
- * silent-target failure the TodayCard JSDoc writes down.
- */
-export function JLPTPanel() {
+/** N5 course completion presented in the exam card slot from the reference. */
+export function JLPTPanel({ units, progress }: { units: Unit[]; progress: Progress }) {
+  const lessons = units.flatMap((unit) => unit.lessons);
+  const completed = new Set(progress.completedLessonIds);
+  const done = lessons.filter((lesson) => completed.has(lesson.id)).length;
+  const percent = lessons.length > 0 ? Math.round((done / lessons.length) * 100) : 0;
+
   return (
     <section className="card jlpt-card glass" aria-labelledby="jlpt-heading">
-      <div className="placeholder-head">
-        <h2 className="card-title" id="jlpt-heading">
-          <span className="card-title-icon" aria-hidden="true">
-            <Icon name="graduation-cap" size={18} />
-          </span>
-          JLPT readiness
-        </h2>
-        <span className="placeholder-pill">Coming soon</span>
+      <div className="dashboard-section-head">
+        <h2 id="jlpt-heading">JLPT preparation</h2>
       </div>
-      <p className="placeholder-note">
-        Every levelled item in the corpus is N5 right now, and no per-item
-        mastery endpoint exists to compute a readiness figure.
-      </p>
+      <div className="jlpt-track-row">
+        <span className="jlpt-shield" aria-hidden="true">N5</span>
+        <span className="jlpt-track-copy">
+          <strong>Beginner track</strong>
+          <small className="tabular">{done} of {lessons.length} lessons</small>
+        </span>
+        <Icon name="graduation-cap" size={24} />
+      </div>
+      <span className="jlpt-progress" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>
+      <p className="jlpt-progress-note"><span>Your progress</span><strong className="tabular">{percent}%</strong></p>
+      <Link className="dashboard-outline-action" to="/jlpt">
+        Go to JLPT hub <Icon name="chevron-right" size={14} />
+      </Link>
     </section>
   );
 }

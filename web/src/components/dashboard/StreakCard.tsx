@@ -45,24 +45,24 @@ export function StreakCard({ progress, tz }: { progress: Progress; tz: string })
 
   return (
     <section className="card streak-card glass" aria-labelledby="streak-heading">
-      <div className="streak-figure">
-        <span className="streak-flame" aria-hidden="true">
-          <Icon name="flame" size={30} />
-        </span>
-        <p className="streak-count tabular">{progress.streakDays}</p>
-      </div>
-
-      <h2 className="card-title" id="streak-heading">
-        Day streak
+      <h2 className="card-title streak-title" id="streak-heading">
+        <span className="streak-flame" aria-hidden="true"><Icon name="flame" size={20} /></span>
+        Learning streak
       </h2>
 
-      <p className="card-note">
-        {progress.streakDays === 0
-          ? 'Study anything today to start one.'
-          : todayDone
-            ? 'Today is counted. Consistency is the whole trick.'
-            : 'Not counted yet today — one review keeps it alive.'}
-      </p>
+      <div className="streak-summary">
+        <div>
+          <p className="streak-count tabular">{progress.streakDays} <span>days</span></p>
+          <p className="card-note">
+            {progress.streakDays === 0
+              ? 'Study today to start your streak.'
+              : todayDone
+                ? 'Keep it up! Today is counted.'
+                : 'One review keeps your streak alive.'}
+          </p>
+        </div>
+        <span className="streak-emblem ja" aria-hidden="true">門</span>
+      </div>
 
       <ul className="streak-week">
         {week.map((day, index) => {

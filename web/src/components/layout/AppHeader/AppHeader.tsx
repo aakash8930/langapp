@@ -116,6 +116,13 @@ export function Header() {
           <kbd className="app-search-kbd">⌘K</kbd>
         </button>
 
+        {session.state === 'signedIn' && session.progress ? (
+          <span className="app-header-streak tabular" title="Current learning streak">
+            <Icon name="flame" size={18} />
+            {session.progress.streakDays}
+          </span>
+        ) : null}
+
         {session.state === 'signedIn' && (
           <button
             type="button"
@@ -133,21 +140,23 @@ export function Header() {
         )}
 
         {session.state === 'signedIn' ? (
-          <div className="app-header-user">
-            <button
-              type="button"
-              className="app-avatar-btn"
-              onClick={() => router.navigate({ to: '/profile' })}
-              aria-label="Your profile"
-            >
+          <details className="app-user-menu">
+            <summary className="app-user-menu-trigger" aria-label="Open account menu">
               <span className="app-avatar" aria-hidden="true">
                 {initials(session.user.profile.displayName)}
               </span>
-            </button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={signOut}>
-              Sign out
-            </button>
-          </div>
+              <Icon name="chevron-down" size={15} />
+            </summary>
+            <div className="app-user-menu-popover">
+              <p>
+                <strong>{session.user.profile.displayName}</strong>
+                <span>{session.user.email}</span>
+              </p>
+              <Link to="/profile">Profile</Link>
+              <Link to="/settings">Settings</Link>
+              <button type="button" onClick={signOut}>Sign out</button>
+            </div>
+          </details>
         ) : (
           // Signed out, `/` *is* the sign-in screen — so this is a real
           // destination rather than a modal that has to be built.
