@@ -4,9 +4,8 @@ import { AnalyticsService } from './analytics.service';
 const USER_ID = '607f1f77bcf86cd799439011';
 
 /**
- * `countTodayByType` is the one piece of read logic in this service, and the
- * thing worth pinning is the *day boundary*: "today" is the user's local
- * calendar date, not a UTC one, and not a rolling 24 hours.
+ * The daily-count tests pin the important boundary: "today" is the user's
+ * local calendar date, not a UTC one, and not a rolling 24 hours.
  */
 function makeService(rows: { type: string; ts: Date }[]) {
   // The filter param is declared so `find.mock.calls[0][0]` is typed — the
@@ -123,5 +122,33 @@ describe('AnalyticsService.countTodayByType (T1.8)', () => {
 
     expect(counts).toEqual({});
     expect(find).not.toHaveBeenCalled();
+  });
+});
+
+describe('AnalyticsService.listReviewEvents', () => {
+  it('scopes and caps the newest-first append-only review log', async () => {
+    const eventId = new Types.ObjectId();
+    const row = { _id: eventId, ts: new Date('2026-08-12T10:00:00Z'), payload: { grade: 'good' } };
+    const exec = jest.fn().mockResolvedValue([row]);
+    const lean = jest.fn(() => ({ exec }));
+    const limit = jest.fn(() => ({ lean }));
+    const sort = jest.fn(() => ({ limit, lean }));
+    const select = jest.fn(() => ({ sort }));
+    const find = jest.fn(() => ({ select }));
+    const service = new AnalyticsService(
+      { find } as never,
+      { enqueue: jest.fn() } as never,
+    );
+    const since = new Date('2026-08-01T00:00:00Z');
+
+    const events = await service.listReviewEvents(USER_ID, { since, limit: 50 });
+
+    expect(find).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'review.graded',
+      ts: { $gte: since },
+    }));
+    expect(sort).toHaveBeenCalledWith({ ts: -1 });
+    expect(limit).toHaveBeenCalledWith(50);
+    expect(events).toEqual([{ id: eventId.toString(), ts: row.ts, payload: { grade: 'good' } }]);
   });
 });

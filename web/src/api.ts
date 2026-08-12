@@ -876,14 +876,18 @@ export type CardState = 'new' | 'learning' | 'review' | 'relearning';
 export type DueCard = {
   cardId: string;
   state: CardState;
+  mastery: MasteryLevel;
   /** ISO 8601 — JSON has no Date, whatever the server's DTO says. */
   due: string;
   reps: number;
   lapses: number;
+  totalReviews: number;
+  accuracyRate: number;
   item: ResolvedItem;
 };
 
 export type DueReviews = { count: number; totalDue: number; cap: number; cards: DueCard[] };
+export type DailyReviewSession = DueReviews & { localDate: string; dueCount: number; newCount: number };
 
 /**
  * Mirrors the server's `GradeReviewResponse`. The leak rule in the root
@@ -907,14 +911,19 @@ export function fetchDueReviews(): Promise<DueReviews> {
   return authed<DueReviews>('/reviews/due');
 }
 
+/** Stable daily mix: overdue/due cards first, then the server's capped new cards. */
+export function fetchReviewSession(): Promise<DailyReviewSession> {
+  return authed<DailyReviewSession>('/reviews/session');
+}
+
 /**
  * XP is due-gated server-side: grading a card that was not actually due
  * reschedules it but awards nothing, so `xpAwarded` can legitimately be 0.
  */
-export function gradeReview(cardId: string, grade: ReviewGrade): Promise<GradeResult> {
+export function gradeReview(cardId: string, grade: ReviewGrade, responseTimeMs?: number): Promise<GradeResult> {
   return authed<GradeResult>(`/reviews/${encodeURIComponent(cardId)}/grade`, {
     method: 'POST',
-    body: JSON.stringify({ grade }),
+    body: JSON.stringify({ grade, ...(responseTimeMs === undefined ? {} : { responseTimeMs }) }),
   });
 }
 
@@ -933,6 +942,93 @@ export interface ForecastEntry {
   days: number;
   due: number;
   weekLabel: string;
+}
+
+export type ReviewSummary = {
+  localDate: string;
+  dueNow: number;
+  overdue: number;
+  states: Record<CardState, number>;
+  totalCards: number;
+  estimatedMinutes: number | null;
+  timingSamples: number;
+};
+
+export type ReviewEvent = {
+  id: string;
+  reviewedAt: string;
+  cardId: string | null;
+  grade: ReviewGrade | null;
+  itemKind: string | null;
+  itemId: string | null;
+  item: ResolvedItem | null;
+  previousState: string | null;
+  newState: string | null;
+  previousDue: string | null;
+  newDue: string | null;
+  intervalMinutes: number | null;
+  responseTimeMs: number | null;
+  wasDue: boolean | null;
+};
+
+export type MissedReviews = {
+  localDate: string;
+  overdueNow: number;
+  failedToday: number;
+  failedLast7Days: number;
+  overdueCards: DueCard[];
+  cap: number;
+};
+
+export type ReviewStatistics = {
+  days: number;
+  reviewsCompleted: number;
+  successfulReviews: number;
+  observedSuccessRate: number | null;
+  averageResponseTimeMs: number | null;
+  timingSamples: number;
+  grades: Record<ReviewGrade, number>;
+  dueNow: number;
+  overdueNow: number;
+  totalCards: number;
+  states: Record<CardState, number>;
+  mastery: Record<MasteryLevel, number>;
+};
+
+export type ReviewRetention = {
+  totalCards: number;
+  reviewedCards: number;
+  predictedRetentionRate: number | null;
+  byKind: { kind: string; cards: number; predictedRetentionRate: number }[];
+  observedDays: number;
+  observedReviews: number;
+  observedSuccessRate: number | null;
+};
+
+export type DailyForecast = { date: string; due: number; isToday: boolean };
+
+export function fetchReviewSummary(): Promise<ReviewSummary> {
+  return authed<ReviewSummary>('/reviews/summary');
+}
+
+export function fetchMissedReviews(): Promise<MissedReviews> {
+  return authed<MissedReviews>('/reviews/missed');
+}
+
+export function fetchReviewEvents(limit = 50): Promise<ReviewEvent[]> {
+  return authed<ReviewEvent[]>(`/reviews/events?limit=${encodeURIComponent(limit)}`);
+}
+
+export function fetchReviewStatistics(days = 30): Promise<ReviewStatistics> {
+  return authed<ReviewStatistics>(`/reviews/statistics?days=${encodeURIComponent(days)}`);
+}
+
+export function fetchReviewRetention(days = 30): Promise<ReviewRetention> {
+  return authed<ReviewRetention>(`/reviews/retention?days=${encodeURIComponent(days)}`);
+}
+
+export function fetchDailyReviewForecast(days = 14): Promise<DailyForecast[]> {
+  return authed<DailyForecast[]>(`/reviews/forecast/daily?days=${encodeURIComponent(days)}`);
 }
 
 export function fetchReviewHistory(days?: number): Promise<ReviewHistoryEntry[]> {

@@ -13,8 +13,19 @@ export interface RecordEventInput {
 }
 
 /**
- * Owns the `events` collection. Write path only in Phase 0 (§4); reads are
- * the T1.8 daily counts and the `countForUser` test helper.
+ * Lean read model for the append-only review log. Analytics owns the event
+ * collection; learning consumes these rows through this service rather than
+ * reaching across the module boundary.
+ */
+export interface ReviewAnalyticsEvent {
+  id: string;
+  ts: Date;
+  payload: Record<string, unknown>;
+}
+
+/**
+ * Owns the `events` collection. Reads serve daily progress plus the Review
+ * System's history, heatmap, observed statistics, and retention views.
  */
 @Injectable()
 export class AnalyticsService {
@@ -116,6 +127,40 @@ export class AnalyticsService {
     }
 
     return counts;
+  }
+
+  /**
+   * Reads the real append-only review log for one learner. Callers can request
+   * every event in a window for exact aggregates or cap the newest-first list
+   * for a history screen. No scheduling state is reconstructed here.
+   */
+  async listReviewEvents(
+    userId: string,
+    options: { since?: Date; limit?: number; newestFirst?: boolean } = {},
+  ): Promise<ReviewAnalyticsEvent[]> {
+    const filter: Record<string, unknown> = {
+      userId: new Types.ObjectId(userId),
+      type: 'review.graded',
+    };
+    if (options.since) {
+      filter.ts = { $gte: options.since };
+    }
+
+    const query = this.eventModel
+      .find(filter)
+      .select('_id ts payload')
+      .sort({ ts: options.newestFirst === false ? 1 : -1 });
+    if (options.limit !== undefined) {
+      query.limit(Math.max(1, Math.min(options.limit, 500)));
+    }
+    const rows = await query
+      .lean<{ _id: Types.ObjectId; ts: Date; payload?: Record<string, unknown> }[]>()
+      .exec();
+    return rows.map((row) => ({
+      id: row._id.toString(),
+      ts: row.ts,
+      payload: row.payload ?? {},
+    }));
   }
 
   /**

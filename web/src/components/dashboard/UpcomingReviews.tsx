@@ -80,7 +80,7 @@ export function UpcomingReviews() {
             <p className="card-note tabular">and {due.data.totalDue - 3} more waiting</p>
           ) : null}
 
-          <Link className="btn btn-primary btn-sm" to="/review" style={{ alignSelf: 'flex-start', marginTop: 'var(--s-sm)' }}>
+          <Link className="btn btn-primary btn-sm" to="/review-session" style={{ alignSelf: 'flex-start', marginTop: 'var(--s-sm)' }}>
             <Icon name="refresh-cw" size={16} />
             Start reviewing
           </Link>

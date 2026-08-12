@@ -2,9 +2,11 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
 /**
- * §5: append-only, write-heavy, never updated. This is the write side of §13
- * item 3 — the read side (activation funnel, retention) is [Later].
+ * §5: append-only, write-heavy, never updated. The broad §13 activation and
+ * cohort-retention read side remains [Later].
  *
+ * The Review System reads `review.graded` rows for learner-facing history
+ * and aggregates; other event families remain write-heavy analytics inputs.
  * `payload` is deliberately unstructured: event shapes change constantly and
  * schema-ing them would make every new event a migration.
  */
@@ -27,7 +29,10 @@ export class Event {
 export type EventDocument = HydratedDocument<Event>;
 export const EventSchema = SchemaFactory.createForClass(Event);
 
-// §5: "this user's recent events, newest first" is the only read pattern.
+// §5: "this user's recent events, newest first" is the general read pattern.
 EventSchema.index({ userId: 1, ts: -1 });
+// Review history, heatmap, statistics and retention all read one learner's
+// review.graded window. Keep that filter and newest-first sort index-covered.
+EventSchema.index({ userId: 1, type: 1, ts: -1 });
 // Funnel queries ("everyone who completed a lesson") span users.
 EventSchema.index({ type: 1, ts: -1 });

@@ -55,7 +55,7 @@ export function ContinueCard({
           {progress.cardsDueNow} {progress.cardsDueNow === 1 ? 'card is' : 'cards are'} due. Spaced
           repetition only works if these get cleared before something new goes on top.
         </p>
-        <Link className="btn btn-primary" to="/review">
+        <Link className="btn btn-primary" to="/review-session">
           Start reviewing
         </Link>
       </section>

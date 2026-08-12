@@ -24,6 +24,43 @@ export class ReviewController {
     return this.reviewService.findDailySession(user.userId);
   }
 
+  @Get('summary')
+  async summary(@CurrentUser() user: AuthenticatedUser) {
+    return this.reviewService.getSummary(user.userId);
+  }
+
+  @Get('missed')
+  async missed(@CurrentUser() user: AuthenticatedUser) {
+    return this.reviewService.getMissed(user.userId);
+  }
+
+  @Get('events')
+  async events(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('limit') limit?: string,
+  ) {
+    const size = limit ? Math.min(200, Math.max(1, parseInt(limit, 10) || 50)) : 50;
+    return this.reviewService.getEvents(user.userId, size);
+  }
+
+  @Get('statistics')
+  async statistics(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('days') days?: string,
+  ) {
+    const d = days ? Math.min(365, Math.max(1, parseInt(days, 10) || 30)) : 30;
+    return this.reviewService.getStatistics(user.userId, d);
+  }
+
+  @Get('retention')
+  async retention(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('days') days?: string,
+  ) {
+    const d = days ? Math.min(365, Math.max(1, parseInt(days, 10) || 30)) : 30;
+    return this.reviewService.getRetention(user.userId, d);
+  }
+
   @Get('history')
   async history(
     @CurrentUser() user: AuthenticatedUser,
@@ -40,6 +77,15 @@ export class ReviewController {
   ) {
     const d = days ? Math.min(365, Math.max(7, parseInt(days, 10) || 84)) : 84;
     return this.reviewService.getHeatmap(user.userId, d);
+  }
+
+  @Get('forecast/daily')
+  async dailyForecast(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('days') days?: string,
+  ) {
+    const d = days ? Math.min(31, Math.max(1, parseInt(days, 10) || 14)) : 14;
+    return this.reviewService.getDailyForecast(user.userId, d);
   }
 
   @Get('forecast')

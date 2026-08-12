@@ -33,8 +33,18 @@ export const queryKeys = {
       ['me', 'history', params ?? {}] as const,
   },
   reviews: {
-    /** `GET /reviews/due` — the cards the review session consumes. */
+    /** `GET /reviews/due` — every card due at request time, capped for display. */
     due: ['reviews', 'due'] as const,
+    /** `GET /reviews/session` — today's persisted due + new review set. */
+    session: ['reviews', 'session'] as const,
+    summary: ['reviews', 'summary'] as const,
+    missed: ['reviews', 'missed'] as const,
+    events: (limit: number) => ['reviews', 'events', limit] as const,
+    history: (days: number) => ['reviews', 'history', days] as const,
+    statistics: (days: number) => ['reviews', 'statistics', days] as const,
+    heatmap: (days: number) => ['reviews', 'heatmap', days] as const,
+    retention: (days: number) => ['reviews', 'retention', days] as const,
+    forecast: (days: number) => ['reviews', 'forecast', days] as const,
   },
   reading: {
     /** `GET /vocab/by-known-kana` — server-filtered, character-safe vocabulary. */

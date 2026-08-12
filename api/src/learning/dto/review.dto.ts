@@ -63,3 +63,72 @@ export interface GradeReviewResponse {
   xpAwarded: number;
   totalXp: number;
 }
+
+/** Exact queue counts at request time. "Overdue" means due before local today. */
+export interface ReviewSummaryResponse {
+  localDate: string;
+  dueNow: number;
+  overdue: number;
+  states: { new: number; learning: number; review: number; relearning: number };
+  totalCards: number;
+  estimatedMinutes: number | null;
+  timingSamples: number;
+}
+
+/** One persisted review. FSRS internals deliberately remain server-only. */
+export interface ReviewEventResponse {
+  id: string;
+  reviewedAt: Date;
+  cardId: string | null;
+  grade: ReviewGrade | null;
+  itemKind: string | null;
+  itemId: string | null;
+  item: ResolvedItem | null;
+  previousState: string | null;
+  newState: string | null;
+  previousDue: Date | null;
+  newDue: Date | null;
+  intervalMinutes: number | null;
+  responseTimeMs: number | null;
+  wasDue: boolean | null;
+}
+
+export interface MissedReviewsResponse {
+  localDate: string;
+  overdueNow: number;
+  failedToday: number;
+  failedLast7Days: number;
+  overdueCards: DueCard[];
+  cap: number;
+}
+
+export interface ReviewStatisticsResponse {
+  days: number;
+  reviewsCompleted: number;
+  successfulReviews: number;
+  observedSuccessRate: number | null;
+  averageResponseTimeMs: number | null;
+  timingSamples: number;
+  grades: Record<ReviewGrade, number>;
+  dueNow: number;
+  overdueNow: number;
+  totalCards: number;
+  states: { new: number; learning: number; review: number; relearning: number };
+  mastery: Record<MasteryLevel, number>;
+}
+
+export interface ReviewRetentionResponse {
+  totalCards: number;
+  reviewedCards: number;
+  predictedRetentionRate: number | null;
+  byKind: { kind: string; cards: number; predictedRetentionRate: number }[];
+  observedDays: number;
+  observedReviews: number;
+  observedSuccessRate: number | null;
+}
+
+export interface DailyForecastEntry {
+  date: string;
+  due: number;
+  isToday: boolean;
+}

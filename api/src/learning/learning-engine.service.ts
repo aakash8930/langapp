@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { ContentService } from '../content/content.service';
+import { UserService } from '../user/user.service';
+import { localDateString } from '../user/gamification/streak';
 import { computeMastery, MasteryLevel, SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
-import { ExerciseAttempt, ExerciseAttemptDocument } from './schemas/exercise-attempt.schema';
 
 export interface ReadinessResponse {
   lessonId: string;
@@ -37,8 +39,9 @@ export interface ReviewAnalyticsResponse {
 export class LearningEngineService {
   constructor(
     @InjectModel(SrsCard.name) private readonly srsCardModel: Model<SrsCardDocument>,
-    @InjectModel(ExerciseAttempt.name) private readonly attemptModel: Model<ExerciseAttemptDocument>,
     private readonly contentService: ContentService,
+    private readonly analyticsService: AnalyticsService,
+    private readonly userService: UserService,
   ) {}
 
   /**
@@ -213,46 +216,37 @@ export class LearningEngineService {
   }
 
   /**
-   * Aggregates review session performance metrics for the learner.
+   * Today's real review-event metrics. Earlier this method returned lifetime
+   * card counters under a "today" label and used lesson exercise timings; both
+   * were plausible-looking but described different datasets.
    */
   async getReviewAnalytics(userId: string): Promise<ReviewAnalyticsResponse> {
     const userObjectId = new Types.ObjectId(userId);
-    const cards = await this.srsCardModel.find({ userId: userObjectId }).exec();
-
-    let totalReviews = 0;
-    let correctReviews = 0;
-    let masteredCount = 0;
-
-    for (const card of cards) {
-      totalReviews += card.totalReviews || 0;
-      correctReviews += card.correctReviews || 0;
-      if (computeMastery(card) === 'mastered') {
-        masteredCount++;
-      }
-    }
-
-    const accuracyRateToday = totalReviews > 0 ? Number((correctReviews / totalReviews).toFixed(2)) : 0;
-
-    // Calculate average response time from exercise attempts
-    const attempts = await this.attemptModel
-      .find({ userId: userObjectId, responseTimeMs: { $ne: null } })
-      .select('responseTimeMs')
-      .exec();
-
-    const validTimes = attempts
-      .map((a) => a.responseTimeMs)
-      .filter((t): t is number => typeof t === 'number');
-
-    const averageResponseTimeMs =
-      validTimes.length > 0
-        ? Math.round(validTimes.reduce((a, b) => a + b, 0) / validTimes.length)
-        : 0;
-
+    const [cards, user, eventWindow] = await Promise.all([
+      this.srsCardModel.find({ userId: userObjectId }).exec(),
+      this.userService.findById(userId),
+      this.analyticsService.listReviewEvents(userId, {
+        since: new Date(Date.now() - 48 * 60 * 60 * 1000),
+      }),
+    ]);
+    if (!user) throw new NotFoundException('User not found');
+    const today = localDateString(new Date(), user.settings.tz);
+    const events = eventWindow.filter(
+      (event) => localDateString(event.ts, user.settings.tz) === today,
+    );
+    const successful = events.filter(
+      (event) => event.payload.grade === 'good' || event.payload.grade === 'easy',
+    ).length;
+    const validTimes = events
+      .map((event) => event.payload.responseTimeMs)
+      .filter((value): value is number => typeof value === 'number' && value > 0);
     return {
-      totalReviewsToday: totalReviews,
-      accuracyRateToday,
-      averageResponseTimeMs,
-      masteredCount,
+      totalReviewsToday: events.length,
+      accuracyRateToday: events.length > 0 ? Number((successful / events.length).toFixed(2)) : 0,
+      averageResponseTimeMs: validTimes.length > 0
+        ? Math.round(validTimes.reduce((sum, value) => sum + value, 0) / validTimes.length)
+        : 0,
+      masteredCount: cards.filter((card) => computeMastery(card) === 'mastered').length,
     };
   }
 }
