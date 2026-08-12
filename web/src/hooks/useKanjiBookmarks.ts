@@ -16,7 +16,8 @@ function readAll(): KanjiBookmark[] {
   if (raw === cachedRaw) return cachedValue;
   cachedRaw = raw;
   try {
-    cachedValue = raw ? (JSON.parse(raw) as KanjiBookmark[]) : [];
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    cachedValue = Array.isArray(parsed) ? parsed as KanjiBookmark[] : [];
   } catch {
     cachedValue = [];
   }
@@ -45,13 +46,13 @@ export function useKanjiBookmarks() {
 
   const toggle = useCallback((char: string, meaning: string) => {
     const current = readAll();
-    const existing = current.findIndex((b) => b.char === char);
-    if (existing >= 0) {
-      current.splice(existing, 1);
-    } else {
-      current.push({ char, meaning, addedAt: Date.now() });
-    }
-    writeAll(current);
+    const exists = current.some((bookmark) => bookmark.char === char);
+    const next = exists
+      ? current.filter((bookmark) => bookmark.char !== char)
+      : [...current, { char, meaning, addedAt: Date.now() }];
+    // useSyncExternalStore publishes by reference. Mutating the cached array in
+    // place makes a working bookmark write look static until the next page load.
+    writeAll(next);
     notify();
   }, []);
 
@@ -61,5 +62,10 @@ export function useKanjiBookmarks() {
     notify();
   }, []);
 
-  return { bookmarks, isBookmarked, toggle, remove };
+  const clear = useCallback(() => {
+    writeAll([]);
+    notify();
+  }, []);
+
+  return { bookmarks, isBookmarked, toggle, remove, clear };
 }
