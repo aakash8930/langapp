@@ -138,10 +138,9 @@ export class ChatService {
       .lean()
       .exec();
 
-    const scenario = this.orchestrator.requireScenario(DEFAULT_SCENARIO_ID);
-
     const result: ChatSessionListItem[] = [];
     for (const s of sessions) {
+      const scenario = this.orchestrator.requireScenario(s.scenario);
       const msgCount = await this.messageModel.countDocuments({ sessionId: s._id }).exec();
       const lastMsg = await this.messageModel
         .findOne({ sessionId: s._id })

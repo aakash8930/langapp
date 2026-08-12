@@ -58,21 +58,18 @@ export function AIToolsHub() {
           </span>
         </div>
 
-        <div className="glass panel" style={{ padding: 'var(--s-xl)', opacity: 0.6 }}>
+        <Link className="glass panel" to="/writing-feedback" style={{ padding: 'var(--s-xl)', textDecoration: 'none' }}>
           <div style={{ fontSize: '2rem', marginBottom: 'var(--s-sm)' }}>✍️</div>
           <strong style={{ display: 'block', marginBottom: 'var(--s-xs)', fontSize: 'var(--text-large)' }}>Writing Feedback</strong>
           <span style={{ color: 'var(--ink-soft)', fontSize: 'var(--text-small)' }}>
-            Write sentences in Japanese and the AI corrects your grammar, word choice, and style.
+            Submit saved Japanese writing for teaching-focused feedback and exact corrections without a synthetic score.
           </span>
-          <span className="placeholder-pill" style={{ display: 'inline-block', marginTop: 'var(--s-sm)', fontSize: 'var(--text-caption)', color: 'var(--ink-soft)' }}>
-            Available in Chat
-          </span>
-        </div>
+        </Link>
       </div>
 
       <div className="glass panel" style={{ marginTop: 'var(--s-xl)', padding: 'var(--s-lg)', textAlign: 'center', maxWidth: '600px', margin: 'var(--s-xl) auto 0' }}>
         <p className="card-note" style={{ margin: 0 }}>
-          All AI tools are powered by the same conversation engine. Start a chat to access grammar checking, translation, sentence explanation, and writing feedback — just ask!
+          Conversation tools use the tutor chat. Writing Feedback uses the same correction pipeline through a dedicated review scenario, so matching corrected course words can feed the existing review system.
         </p>
         <Link className="btn btn-primary" to="/speaking-conversation" search={{ session: undefined }} style={{ marginTop: 'var(--s-md)' }}>
           Start AI Chat

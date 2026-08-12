@@ -27,7 +27,8 @@ import type { SidebarGroup } from '../../types/layout';
  * Two rows use routes whose historical names are easy to misread:
  *
  *   - **AI Tutor** remains `/practice`, now the shared Speaking conversation UI.
- *   - **Reading** is `/read`, the known-kana vocabulary feed.
+ *   - **Reading** is `/read`, the course-backed interactive reader.
+ *   - **Writing** is `/writing`, the guided editor and writing workflow.
  *
  * ## The kana rows use glyphs, not icons
  *
@@ -69,7 +70,7 @@ export const sidebarGroups: SidebarGroup[] = [
       { kind: 'link', id: 'listening', label: 'Listening', icon: 'headphones', to: '/listening' },
       { kind: 'link', id: 'speaking', label: 'Speaking', icon: 'mic', to: '/speaking' },
       { kind: 'link', id: 'reading', label: 'Reading', icon: 'languages', to: '/read' },
-      { kind: 'link', id: 'writing', label: 'Writing', icon: 'pen-tool', to: '/hiragana-writing' },
+      { kind: 'link', id: 'writing', label: 'Writing', icon: 'pen-tool', to: '/writing' },
       { kind: 'link', id: 'jlpt', label: 'JLPT', icon: 'graduation-cap', to: '/jlpt' },
     ],
   },
