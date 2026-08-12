@@ -628,6 +628,22 @@ export function fetchReadableVocab(cap = 30): Promise<ReadableVocab[]> {
   return authed<ReadableVocab[]>(`/vocab/by-known-kana?cap=${Math.max(0, Math.min(cap, 200))}`);
 }
 
+/** A stored grammar example whose kana are all in the learner's known set. */
+export type ReadableSentence = {
+  id: string;
+  grammarPointId: string;
+  exampleIndex: number;
+  sentence: string;
+  answer: string;
+  romaji: string | null;
+  gloss: string;
+  constituentKana: string[];
+};
+
+export function fetchReadableSentences(cap = 200): Promise<ReadableSentence[]> {
+  return authed<ReadableSentence[]>(`/content/grammar/by-known-kana?cap=${Math.max(0, Math.min(cap, 200))}`);
+}
+
 export type ExerciseOption = { id: string; value: string };
 export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
 

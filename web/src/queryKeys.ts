@@ -39,6 +39,10 @@ export const queryKeys = {
   reading: {
     /** `GET /vocab/by-known-kana` — server-filtered, character-safe vocabulary. */
     feed: ['reading', 'by-known-kana'] as const,
+    /** The larger personalised vocabulary set used by Reading Library. */
+    readableVocab: ['reading', 'readable-vocab'] as const,
+    /** `GET /content/grammar/by-known-kana` — personalised grammar examples. */
+    readableSentences: ['reading', 'readable-sentences'] as const,
   },
   learning: {
     /** `GET /learning/memory-model` — mastery bands and the forgetting curve. */
