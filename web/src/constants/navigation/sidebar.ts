@@ -86,7 +86,7 @@ export const sidebarGroups: SidebarGroup[] = [
         to: '/review',
         badge: 'due',
       },
-      { kind: 'link', id: 'flashcards', label: 'Flashcards', icon: 'layers', to: '/hiragana-flashcards' },
+      { kind: 'link', id: 'flashcards', label: 'Flashcards', icon: 'layers', to: '/flashcards' },
       { kind: 'planned', id: 'quizzes', label: 'Quizzes', icon: 'grid' },
       { kind: 'link', id: 'practice-hub', label: 'Practice Hub', icon: 'pen-square', to: '/practice-hub' },
     ],
