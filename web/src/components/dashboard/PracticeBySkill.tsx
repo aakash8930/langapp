@@ -11,7 +11,7 @@ const SKILLS: {
   to: RoutePath;
 }[] = [
   { id: 'reading', label: 'Reading', note: 'Strengthen comprehension', icon: 'book-open', to: '/read' },
-  { id: 'listening', label: 'Listening', note: 'Train your ear', icon: 'headphones', to: '/hiragana-listening' },
+  { id: 'listening', label: 'Listening', note: 'Train your ear', icon: 'headphones', to: '/listening' },
   { id: 'speaking', label: 'Speaking', note: 'Practise confidently', icon: 'mic', to: '/speaking' },
   { id: 'writing', label: 'Writing', note: 'Build muscle memory', icon: 'pen-tool', to: '/hiragana-writing' },
 ];

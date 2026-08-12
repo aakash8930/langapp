@@ -19,9 +19,10 @@ import type { SidebarGroup } from '../../types/layout';
  *   - **Flashcards, Quizzes, Practice Hub** — `GET /reviews/session` returns a
  *     stable daily set (due cards first, then up to five new ones) and would
  *     back all three. Not blocked; simply not built yet.
- *   - **Listening, Speaking** — the endpoints exist (the two
- *     `/content/…/audio` routes) and `SpeechQuiz` exists, but no audio is
- *     seeded in this database, so both screens would be silent.
+ *   - **Speaking** — `SpeechQuiz` exists, but there is no dedicated speaking
+ *     curriculum or pronunciation assessment model behind a full lesson hub.
+ *     Listening is live: it tries the course audio routes first and explicitly
+ *     falls back to the browser's Japanese voice when stored audio is missing.
  *   - **Writing** — `TraceCanvas` and `StrokeOrder` are written and
  *     `/content/strokes/:codepoint` is live, but it 404s for every character
  *     tried, kana and kanji alike. Nothing is seeded, which also means the
@@ -85,7 +86,7 @@ export const sidebarGroups: SidebarGroup[] = [
       { kind: 'link', id: 'vocabulary', label: 'Vocabulary', icon: 'library', to: '/vocabulary' },
       { kind: 'link', id: 'kanji', label: 'Kanji', glyph: '漢', to: '/kanji' },
       { kind: 'link', id: 'grammar', label: 'Grammar', icon: 'book-marked', to: '/grammar' },
-      { kind: 'link', id: 'listening', label: 'Listening', icon: 'headphones', to: '/hiragana-listening' },
+      { kind: 'link', id: 'listening', label: 'Listening', icon: 'headphones', to: '/listening' },
       { kind: 'link', id: 'speaking', label: 'Speaking', icon: 'mic', to: '/speaking' },
       { kind: 'link', id: 'reading', label: 'Reading', icon: 'languages', to: '/read' },
       { kind: 'link', id: 'writing', label: 'Writing', icon: 'pen-tool', to: '/hiragana-writing' },
