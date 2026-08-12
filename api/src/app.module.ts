@@ -25,6 +25,7 @@ import { AccountDeletionModule } from './user/account-deletion.module';
 import { LegalModule } from './legal/legal.module';
 import { SocialModule } from './social/social.module';
 import { UserModule } from './user/user.module';
+import { PracticeModule } from './practice/practice.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { UserModule } from './user/user.module';
     AdminModule,
     ChatModule,
     SocialModule,
+    PracticeModule,
     // Account deletion — must come after all owning modules it depends on.
     AccountDeletionModule,
     LegalModule,

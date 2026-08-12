@@ -153,7 +153,7 @@ function palette(): string[] {
 
   // Never return empty: an unstyled burst of nothing looks like a bug, and this
   // runs before anyone would notice a missing token.
-  confettiPalette = colours.length > 0 ? colours : ['#7c3aed'];
+  confettiPalette = colours.length > 0 ? colours : ['#d6ad60'];
   return confettiPalette;
 }
 

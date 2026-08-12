@@ -3,18 +3,25 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, isValidObjectId } from 'mongoose';
 import { BadRequestException } from '@nestjs/common';
 import { FSRS, fsrs, generatorParameters } from 'ts-fsrs';
-import { AnalyticsService } from '../analytics/analytics.service';
+import { AnalyticsService, ReviewAnalyticsEvent } from '../analytics/analytics.service';
 import { ContentService } from '../content/content.service';
+import { CONTENT_KINDS, ContentKind } from '../knowledge-graph/schemas/knowledge-node.schema';
 import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
 import { localDateString } from '../user/gamification/streak';
 import {
+  DailyForecastEntry,
+  DailyStudySessionResponse,
   DueCard,
   DueReviewsResponse,
   GradeReviewResponse,
-  DailyStudySessionResponse,
+  MissedReviewsResponse,
+  ReviewEventResponse,
+  ReviewRetentionResponse,
+  ReviewStatisticsResponse,
+  ReviewSummaryResponse,
 } from './dto/review.dto';
-import { fromFsrsCard, gradeToRating, ReviewGrade, toFsrsCard } from './fsrs-card.mapper';
+import { fromFsrsCard, gradeToRating, REVIEW_GRADES, ReviewGrade, toFsrsCard } from './fsrs-card.mapper';
 import { LearnerItemStateService } from './learner-item-state.service';
 import {
   computeMastery,
@@ -37,6 +44,48 @@ export const REVIEW_SESSION_CAP = 20;
  */
 export const XP_PER_REVIEW = 2;
 export const DAILY_NEW_CARD_CAP = 5;
+
+function payloadString(event: ReviewAnalyticsEvent, key: string): string | null {
+  const value = event.payload[key];
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function payloadNumber(event: ReviewAnalyticsEvent, key: string): number | null {
+  const value = event.payload[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function payloadBoolean(event: ReviewAnalyticsEvent, key: string): boolean | null {
+  const value = event.payload[key];
+  return typeof value === 'boolean' ? value : null;
+}
+
+function payloadDate(event: ReviewAnalyticsEvent, key: string): Date | null {
+  const value = payloadString(event, key);
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function payloadGrade(event: ReviewAnalyticsEvent): ReviewGrade | null {
+  const value = payloadString(event, 'grade');
+  return REVIEW_GRADES.includes(value as ReviewGrade) ? value as ReviewGrade : null;
+}
+
+function isContentKind(value: string | null): value is ContentKind {
+  return value !== null && CONTENT_KINDS.includes(value as ContentKind);
+}
+
+function localDateRange(endDate: string, days: number): string[] {
+  const [year, month, day] = endDate.split('-').map(Number);
+  const cursor = new Date(Date.UTC(year, month - 1, day));
+  cursor.setUTCDate(cursor.getUTCDate() - (days - 1));
+  return Array.from({ length: days }, () => {
+    const value = cursor.toISOString().slice(0, 10);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    return value;
+  });
+}
 
 /**
  * The review loop (§6). All scheduling math belongs to ts-fsrs — this class
@@ -182,9 +231,14 @@ export class ReviewService {
     localDate: string,
   ): Promise<DailyStudySessionResponse> {
     const byId = new Map(cards.map((card) => [card._id.toString(), card]));
+    const now = new Date();
     const ordered = session.cardIds
       .map((id) => byId.get(id.toString()))
-      .filter((card): card is SrsCardDocument => card !== undefined);
+      .filter((card): card is SrsCardDocument => card !== undefined)
+      // A persisted daily session is a stable selection, not permission to
+      // repeat cards already rescheduled into the future. Learning-step cards
+      // naturally re-enter once their server due time arrives again.
+      .filter((card) => card.due.getTime() <= now.getTime());
     const items = await this.contentService.resolveItemRefs(
       ordered.map((card) => ({ kind: card.itemRef.kind, id: card.itemRef.id })),
     );
@@ -206,12 +260,14 @@ export class ReviewService {
         item,
       }];
     });
+    const newCount = ordered.filter((card) => card.state === 'new').length;
+    const dueCount = ordered.length - newCount;
     return {
       localDate,
-      dueCount: session.dueCount,
-      newCount: session.newCount,
+      dueCount,
+      newCount,
       count: due.length,
-      totalDue: session.dueCount + session.newCount,
+      totalDue: due.length,
       cap: REVIEW_SESSION_CAP,
       cards: due,
     };
@@ -255,6 +311,8 @@ export class ReviewService {
     // Read before the card is rescheduled — afterwards `due` is in the future by
     // construction, so this is the only moment the answer is available.
     const wasDue = card.due.getTime() <= now.getTime();
+    const previousState = card.state;
+    const previousDue = card.due;
 
     // The whole of the scheduling decision, delegated. Nothing below this line
     // recomputes an interval.
@@ -264,6 +322,7 @@ export class ReviewService {
       gradeToRating(grade),
     );
     const fields = fromFsrsCard(scheduled);
+    const intervalMinutes = Math.round((fields.due.getTime() - now.getTime()) / 60_000);
 
     card.set(fields);
     card.totalReviews = (card.totalReviews ?? 0) + 1;
@@ -317,8 +376,11 @@ export class ReviewService {
           itemKind: card.itemRef.kind,
           itemId: card.itemRef.id.toString(),
           grade,
+          previousState,
           state: fields.state,
+          previousDue: previousDue.toISOString(),
           due: fields.due.toISOString(),
+          intervalMinutes,
           reps: fields.reps,
           lapses: fields.lapses,
           xpAwarded,
@@ -344,7 +406,7 @@ export class ReviewService {
       state: fields.state,
       mastery: computeMastery(card),
       due: fields.due,
-      intervalMinutes: Math.round((fields.due.getTime() - now.getTime()) / 60_000),
+      intervalMinutes,
       reps: fields.reps,
       lapses: fields.lapses,
       totalReviews,
@@ -366,70 +428,259 @@ export class ReviewService {
     return user;
   }
 
-  async getHistory(userId: string, days: number): Promise<{ date: string; count: number; recalled: number }[]> {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-
-    const cards = await this.srsCardModel
-      .find({ userId: new Types.ObjectId(userId) })
-      .select('totalReviews correctReviews')
-      .lean()
-      .exec();
-
+  /** Queue counts without resolving content. All four state counts are subsets of dueNow. */
+  async getSummary(userId: string): Promise<ReviewSummaryResponse> {
+    const user = await this.requireUser(userId);
     const now = new Date();
-    const result: { date: string; count: number; recalled: number }[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const ds = d.toISOString().slice(0, 10);
-      // Approximate: total reviews across all cards represents activity level
-      const count = cards.reduce((sum, c) => sum + (c.totalReviews ?? 0), 0);
-      const recalled = cards.reduce((sum, c) => sum + (c.correctReviews ?? 0), 0);
-      result.push({ date: ds, count: Math.min(count, 50), recalled: Math.min(recalled, count) });
+    const localDate = localDateString(now, user.settings.tz);
+    const [dueCards, totalCards, recentEvents] = await Promise.all([
+      this.srsCardModel
+        .find({ userId: new Types.ObjectId(userId), due: { $lte: now } })
+        .select('due state')
+        .exec(),
+      this.srsCardModel.countDocuments({ userId: new Types.ObjectId(userId) }).exec(),
+      this.analyticsService.listReviewEvents(userId, { limit: 100 }),
+    ]);
+    const states = { new: 0, learning: 0, review: 0, relearning: 0 };
+    for (const card of dueCards) {
+      if (card.state in states) states[card.state as keyof typeof states] += 1;
     }
-    return result;
+    const overdue = dueCards.filter(
+      (card) => localDateString(card.due, user.settings.tz) < localDate,
+    ).length;
+    const timings = recentEvents
+      .map((event) => payloadNumber(event, 'responseTimeMs'))
+      .filter((value): value is number => value !== null && value > 0);
+    const averageMs = timings.length > 0
+      ? timings.reduce((sum, value) => sum + value, 0) / timings.length
+      : null;
+    return {
+      localDate,
+      dueNow: dueCards.length,
+      overdue,
+      states,
+      totalCards,
+      estimatedMinutes: averageMs === null || dueCards.length === 0
+        ? null
+        : Math.max(1, Math.ceil((averageMs * dueCards.length) / 60_000)),
+      timingSamples: timings.length,
+    };
   }
 
+  /** Exact per-day review totals from persisted review.graded events. */
+  async getHistory(userId: string, days: number): Promise<{ date: string; count: number; recalled: number }[]> {
+    const user = await this.requireUser(userId);
+    const now = new Date();
+    const dates = localDateRange(localDateString(now, user.settings.tz), days);
+    const byDate = new Map(dates.map((date) => [date, { count: 0, recalled: 0 }]));
+    const since = new Date(now.getTime() - (days + 2) * 24 * 60 * 60 * 1000);
+    const events = await this.analyticsService.listReviewEvents(userId, { since, newestFirst: false });
+    for (const event of events) {
+      const date = localDateString(event.ts, user.settings.tz);
+      const bucket = byDate.get(date);
+      if (!bucket) continue;
+      bucket.count += 1;
+      const grade = payloadGrade(event);
+      if (grade === 'good' || grade === 'easy') bucket.recalled += 1;
+    }
+    return dates.map((date) => ({ date, ...byDate.get(date)! }));
+  }
+
+  /** Same underlying review events as history, shaped for a contribution graph. */
   async getHeatmap(userId: string, days: number): Promise<{ date: string; count: number }[]> {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    const start = new Date(today);
-    start.setDate(start.getDate() - days);
-    start.setHours(0, 0, 0, 0);
+    const history = await this.getHistory(userId, days);
+    return history.map(({ date, count }) => ({ date, count }));
+  }
 
-    // Use daily sessions to build the heatmap
-    if (!this.dailySessionModel) {
-      const result: { date: string; count: number }[] = [];
-      for (let i = days - 1; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        result.push({ date: d.toISOString().slice(0, 10), count: 0 });
-      }
-      return result;
-    }
+  async getEvents(userId: string, limit: number): Promise<ReviewEventResponse[]> {
+    const events = await this.analyticsService.listReviewEvents(userId, { limit });
+    const refs = events.flatMap((event) => {
+      const kind = payloadString(event, 'itemKind');
+      const id = payloadString(event, 'itemId');
+      return isContentKind(kind) && id && isValidObjectId(id)
+        ? [{ kind, id: new Types.ObjectId(id) }]
+        : [];
+    });
+    const items = await this.contentService.resolveItemRefs(refs);
+    const itemsById = new Map(items.map((item) => [item.id, item]));
+    return events.map((event) => {
+      const itemId = payloadString(event, 'itemId');
+      return {
+        id: event.id,
+        reviewedAt: event.ts,
+        cardId: payloadString(event, 'cardId'),
+        grade: payloadGrade(event),
+        itemKind: payloadString(event, 'itemKind'),
+        itemId,
+        item: itemId ? itemsById.get(itemId) ?? null : null,
+        previousState: payloadString(event, 'previousState'),
+        newState: payloadString(event, 'state'),
+        previousDue: payloadDate(event, 'previousDue'),
+        newDue: payloadDate(event, 'due'),
+        intervalMinutes: payloadNumber(event, 'intervalMinutes'),
+        responseTimeMs: payloadNumber(event, 'responseTimeMs'),
+        wasDue: payloadBoolean(event, 'wasDue'),
+      };
+    });
+  }
 
-    const sessions = await this.dailySessionModel
-      .find({
-        userId: new Types.ObjectId(userId),
-        localDate: { $gte: start.toISOString().slice(0, 10), $lte: today.toISOString().slice(0, 10) },
-      })
-      .select('localDate dueCount')
-      .lean()
+  async getMissed(userId: string): Promise<MissedReviewsResponse> {
+    const user = await this.requireUser(userId);
+    const now = new Date();
+    const localDate = localDateString(now, user.settings.tz);
+    const dates = localDateRange(localDate, 7);
+    const dueCards = await this.srsCardModel
+      .find({ userId: new Types.ObjectId(userId), due: { $lte: now } })
+      .sort({ due: 1 })
       .exec();
+    const overdue = dueCards.filter(
+      (card) => localDateString(card.due, user.settings.tz) < localDate,
+    );
+    const selected = overdue.slice(0, REVIEW_SESSION_CAP);
+    const items = await this.contentService.resolveItemRefs(
+      selected.map((card) => ({ kind: card.itemRef.kind, id: card.itemRef.id })),
+    );
+    const itemsById = new Map(items.map((item) => [item.id, item]));
+    const overdueCards = selected.flatMap((card) => {
+      const item = itemsById.get(card.itemRef.id.toString());
+      if (!item) return [];
+      const totalReviews = card.totalReviews ?? 0;
+      const correctReviews = card.correctReviews ?? 0;
+      return [{
+        cardId: card._id.toString(),
+        state: card.state,
+        mastery: computeMastery(card),
+        due: card.due,
+        reps: card.reps,
+        lapses: card.lapses,
+        totalReviews,
+        accuracyRate: totalReviews > 0 ? Number((correctReviews / totalReviews).toFixed(2)) : 0,
+        item,
+      }];
+    });
+    const since = new Date(now.getTime() - 9 * 24 * 60 * 60 * 1000);
+    const events = await this.analyticsService.listReviewEvents(userId, { since });
+    const failures = events.filter((event) => payloadGrade(event) === 'again');
+    return {
+      localDate,
+      overdueNow: overdue.length,
+      failedToday: failures.filter(
+        (event) => localDateString(event.ts, user.settings.tz) === localDate,
+      ).length,
+      failedLast7Days: failures.filter(
+        (event) => dates.includes(localDateString(event.ts, user.settings.tz)),
+      ).length,
+      overdueCards,
+      cap: REVIEW_SESSION_CAP,
+    };
+  }
 
-    const countByDate = new Map<string, number>();
-    for (const s of sessions) {
-      countByDate.set(s.localDate, (countByDate.get(s.localDate) ?? 0) + (s.dueCount ?? 0));
+  async getStatistics(userId: string, days: number): Promise<ReviewStatisticsResponse> {
+    const user = await this.requireUser(userId);
+    const now = new Date();
+    const dates = localDateRange(localDateString(now, user.settings.tz), days);
+    const since = new Date(now.getTime() - (days + 2) * 24 * 60 * 60 * 1000);
+    const [eventsInWindow, summary, cards] = await Promise.all([
+      this.analyticsService.listReviewEvents(userId, { since }),
+      this.getSummary(userId),
+      this.srsCardModel.find({ userId: new Types.ObjectId(userId) }).exec(),
+    ]);
+    const events = eventsInWindow.filter(
+      (event) => dates.includes(localDateString(event.ts, user.settings.tz)),
+    );
+    const grades: Record<ReviewGrade, number> = { again: 0, hard: 0, good: 0, easy: 0 };
+    for (const event of events) {
+      const grade = payloadGrade(event);
+      if (grade) grades[grade] += 1;
     }
+    const timings = events
+      .map((event) => payloadNumber(event, 'responseTimeMs'))
+      .filter((value): value is number => value !== null && value > 0);
+    const states = { new: 0, learning: 0, review: 0, relearning: 0 };
+    const mastery = { new: 0, learning: 0, familiar: 0, mastered: 0 };
+    for (const card of cards) {
+      states[card.state] += 1;
+      mastery[computeMastery(card)] += 1;
+    }
+    const successfulReviews = grades.good + grades.easy;
+    return {
+      days,
+      reviewsCompleted: events.length,
+      successfulReviews,
+      observedSuccessRate: events.length > 0
+        ? Number((successfulReviews / events.length).toFixed(3))
+        : null,
+      averageResponseTimeMs: timings.length > 0
+        ? Math.round(timings.reduce((sum, value) => sum + value, 0) / timings.length)
+        : null,
+      timingSamples: timings.length,
+      grades,
+      dueNow: summary.dueNow,
+      overdueNow: summary.overdue,
+      totalCards: cards.length,
+      states,
+      mastery,
+    };
+  }
 
-    const result: { date: string; count: number }[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const ds = d.toISOString().slice(0, 10);
-      result.push({ date: ds, count: countByDate.get(ds) ?? 0 });
+  async getRetention(userId: string, observedDays: number): Promise<ReviewRetentionResponse> {
+    const now = new Date();
+    const cards = await this.srsCardModel.find({ userId: new Types.ObjectId(userId) }).exec();
+    const reviewed = cards.filter((card) => card.reps > 0 && card.lastReview !== null);
+    const retentionFor = (card: SrsCardDocument) => {
+      const elapsedDays = Math.max(0, (now.getTime() - card.lastReview!.getTime()) / 86_400_000);
+      return Math.exp(-elapsedDays / Math.max(0.1, card.stability));
+    };
+    const byKindMap = new Map<string, { cards: number; total: number }>();
+    for (const card of reviewed) {
+      const row = byKindMap.get(card.itemRef.kind) ?? { cards: 0, total: 0 };
+      row.cards += 1;
+      row.total += retentionFor(card);
+      byKindMap.set(card.itemRef.kind, row);
     }
-    return result;
+    const user = await this.requireUser(userId);
+    const dates = localDateRange(localDateString(now, user.settings.tz), observedDays);
+    const since = new Date(now.getTime() - (observedDays + 2) * 86_400_000);
+    const eventRows = await this.analyticsService.listReviewEvents(userId, { since });
+    const events = eventRows.filter(
+      (event) => dates.includes(localDateString(event.ts, user.settings.tz)),
+    );
+    const successful = events.filter((event) => {
+      const grade = payloadGrade(event);
+      return grade === 'good' || grade === 'easy';
+    }).length;
+    return {
+      totalCards: cards.length,
+      reviewedCards: reviewed.length,
+      predictedRetentionRate: reviewed.length > 0
+        ? Number((reviewed.reduce((sum, card) => sum + retentionFor(card), 0) / reviewed.length * 100).toFixed(1))
+        : null,
+      byKind: [...byKindMap.entries()].map(([kind, row]) => ({
+        kind,
+        cards: row.cards,
+        predictedRetentionRate: Number((row.total / row.cards * 100).toFixed(1)),
+      })),
+      observedDays,
+      observedReviews: events.length,
+      observedSuccessRate: events.length > 0 ? Number((successful / events.length).toFixed(3)) : null,
+    };
+  }
+
+  async getDailyForecast(userId: string, days: number): Promise<DailyForecastEntry[]> {
+    const user = await this.requireUser(userId);
+    const today = localDateString(new Date(), user.settings.tz);
+    const dates = localDateRange(today, days);
+    const counts = new Map(dates.map((date) => [date, 0]));
+    const cards = await this.srsCardModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .select('due')
+      .exec();
+    for (const card of cards) {
+      const dueDate = localDateString(card.due, user.settings.tz);
+      const bucket = dueDate < today ? today : dueDate;
+      if (counts.has(bucket)) counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
+    }
+    return dates.map((date) => ({ date, due: counts.get(date) ?? 0, isToday: date === today }));
   }
 
   async getForecast(userId: string): Promise<{ days: number; due: number; weekLabel: string }[]> {

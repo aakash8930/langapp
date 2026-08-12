@@ -175,7 +175,13 @@ export class ExerciseService {
     lessonId: string,
     exerciseId: string,
     userId: string,
-    body: { optionId?: string; text?: string; responseTimeMs?: number },
+    body: {
+      optionId?: string;
+      text?: string;
+      responseTimeMs?: number;
+      /** Internal caller context. Public lesson answers always use `lesson`. */
+      sourceContext?: 'lesson' | 'practice';
+    },
   ): Promise<AnswerResult> {
     const { attempt, index } = parseExerciseId(exerciseId);
 
@@ -208,6 +214,7 @@ export class ExerciseService {
         gradeResult.correct,
         question,
         body.responseTimeMs,
+        body.sourceContext ?? 'lesson',
       );
 
       return {
@@ -237,6 +244,7 @@ export class ExerciseService {
         attempt,
         body.text,
         body.responseTimeMs,
+        body.sourceContext ?? 'lesson',
       );
     }
 
@@ -274,6 +282,7 @@ export class ExerciseService {
       correct,
       question,
       body.responseTimeMs,
+      body.sourceContext ?? 'lesson',
     );
 
     return {
@@ -290,11 +299,11 @@ export class ExerciseService {
   /**
    * The side effect every answer has: record the attempt.
    *
-   * On a wrong answer there is a second side-effect: pull the SRS card for this
-   * item due immediately so the learner will see it in their next review
-   * session. This closes the gap where exercise mistakes were recorded in
-   * `exerciseAttempts` but never fed back into the SRS schedule (OPEN-ITEMS #26
-   * exercise-answer path).
+   * On a wrong **lesson** answer there is a second side-effect: pull the SRS
+   * card for this item due immediately so the learner will see it in their next
+   * review session. Practice callers explicitly opt out: they write confidence
+   * evidence and their own durable session result, but scheduling remains the
+   * sole responsibility of real Review/lesson events.
    *
    * **Neither can fail the answer.** The attempt record's only expected failure
    * is a duplicate key (the same learner re-answering the same question in the
@@ -311,6 +320,7 @@ export class ExerciseService {
     correct: boolean,
     question?: GeneratedQuestion,
     responseTimeMs?: number,
+    sourceContext: 'lesson' | 'practice' = 'lesson',
   ): Promise<void> {
     // The `(itemId, itemKind, exerciseType)` tuple the persistence layer
     // needs. `question.itemId` is a string on the DTO and an ObjectId on the
@@ -352,7 +362,7 @@ export class ExerciseService {
           itemRef: { kind: item.itemKind, id: item.itemId },
           outcome: { correct, responseTimeMs },
           exerciseType: item.exerciseType,
-          sourceContext: 'lesson',
+          sourceContext,
         })
         .catch((err: unknown) => {
           this.logger.warn(
@@ -374,12 +384,19 @@ export class ExerciseService {
     // word-shaped prompts. This is intentionally best-effort like the other
     // learning-model writes: feedback to the learner must never become a 500.
     if (question && (question.promptKind === 'vocab' || question.promptKind === 'wordReading')) {
-      await this.recordCharacterMistakes(userId, question.prompt, responseTimeMs);
+      await this.recordCharacterMistakes(userId, question.prompt, responseTimeMs, sourceContext);
     }
 
-    // Wrong answer: pull this item's SRS card due immediately so it surfaces in
-    // the learner's next review. Fire-and-forget — `scheduleItemDue` never
-    // throws, so this cannot fail the answer response.
+    // Practice is application evidence, not FSRS scheduling input. A mistake
+    // still updates LearnerItemState above, but must never pull a card due or
+    // otherwise become a disguised Review queue.
+    if (sourceContext === 'practice') {
+      return;
+    }
+
+    // Wrong lesson answer: pull this item's SRS card due immediately so it
+    // surfaces in the learner's next review. Fire-and-forget —
+    // `scheduleItemDue` never throws, so this cannot fail the answer response.
     if (question?.itemId && question.promptKind) {
       const kind = promptKindToSrsKind(question.promptKind);
       this.learningService
@@ -399,6 +416,7 @@ export class ExerciseService {
     userId: string,
     prompt: string,
     responseTimeMs?: number,
+    sourceContext: 'lesson' | 'practice' = 'lesson',
   ): Promise<void> {
     try {
       const kana = await this.contentService.findKanaByCharacters(decomposeIntoKana(prompt));
@@ -409,7 +427,7 @@ export class ExerciseService {
             itemRef: { kind: 'kana', id: item._id },
             outcome: { correct: false, responseTimeMs },
             exerciseType: 'wordReading',
-            sourceContext: 'reading',
+            sourceContext: sourceContext === 'practice' ? 'practice' : 'reading',
           }),
         ),
       );
@@ -443,6 +461,7 @@ export class ExerciseService {
     attempt: number,
     text: string,
     responseTimeMs?: number,
+    sourceContext: 'lesson' | 'practice' = 'lesson',
   ): Promise<AnswerResult> {
     const normalized = normaliseAnswer(text);
     const correct = normalized === normaliseAnswer(question.correctValue);
@@ -455,6 +474,7 @@ export class ExerciseService {
       correct,
       question,
       responseTimeMs,
+      sourceContext,
     );
 
     return {

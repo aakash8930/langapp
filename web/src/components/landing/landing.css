@@ -95,7 +95,7 @@
   height: 40px;
   border-radius: var(--radius-full);
   background: var(--brand-primary);
-  color: #fff;
+  color: var(--paper);
   font-weight: 700;
   font-size: var(--text-lg);
   display: flex;
@@ -242,7 +242,7 @@
   height: 48px;
   border-radius: var(--radius-full);
   background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
-  color: #fff;
+  color: var(--paper);
   display: flex;
   align-items: center;
   justify-content: center;

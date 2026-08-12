@@ -12,6 +12,14 @@
 
 import { emitSessionExpired, getTokens, setTokens, type Tokens, type User } from './auth';
 import { log, logError } from './debug';
+import type {
+  PracticeAnswerResponse,
+  PracticeLevel,
+  PracticeMode,
+  PracticeOverview,
+  PracticeSession,
+  PracticeSkill,
+} from './components/practice/practiceTypes';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '');
 
@@ -135,7 +143,12 @@ async function send<T>(path: string, init: RequestInit = {}, accessToken?: strin
 
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
-  if (init.body !== undefined) headers.set('Content-Type', 'application/json');
+  // Let the browser add the multipart boundary for file uploads. Setting a
+  // bare application/json header on FormData makes `/me/avatar` unreadable to
+  // Multer even though the request body itself is otherwise valid.
+  if (init.body !== undefined && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
 
   const started = performance.now();
@@ -623,6 +636,22 @@ export function fetchReadableVocab(cap = 30): Promise<ReadableVocab[]> {
   return authed<ReadableVocab[]>(`/vocab/by-known-kana?cap=${Math.max(0, Math.min(cap, 200))}`);
 }
 
+/** A stored grammar example whose kana are all in the learner's known set. */
+export type ReadableSentence = {
+  id: string;
+  grammarPointId: string;
+  exampleIndex: number;
+  sentence: string;
+  answer: string;
+  romaji: string | null;
+  gloss: string;
+  constituentKana: string[];
+};
+
+export function fetchReadableSentences(cap = 200): Promise<ReadableSentence[]> {
+  return authed<ReadableSentence[]>(`/content/grammar/by-known-kana?cap=${Math.max(0, Math.min(cap, 200))}`);
+}
+
 export type ExerciseOption = { id: string; value: string };
 export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
 
@@ -745,6 +774,49 @@ export function completeLesson(lessonId: string): Promise<CompleteResult> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Practice — generated application exercises, intentionally separate from FSRS
+// ---------------------------------------------------------------------------
+
+export function fetchPracticeOverview(): Promise<PracticeOverview> {
+  return authed<PracticeOverview>('/practice/overview');
+}
+
+export function createPracticeSession(input: {
+  mode: PracticeMode;
+  questionCount?: number;
+  skills?: PracticeSkill[];
+  level?: PracticeLevel;
+  timeLimitMinutes?: number;
+}): Promise<PracticeSession> {
+  return authed<PracticeSession>('/practice/sessions', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchPracticeSession(sessionId: string): Promise<PracticeSession> {
+  return authed<PracticeSession>(`/practice/sessions/${encodeURIComponent(sessionId)}`);
+}
+
+export function answerPracticeQuestion(
+  sessionId: string,
+  questionId: string,
+  body: ({ optionId: string } | { text: string }) & { responseTimeMs: number },
+): Promise<PracticeAnswerResponse> {
+  return authed<PracticeAnswerResponse>(
+    `/practice/sessions/${encodeURIComponent(sessionId)}/questions/${encodeURIComponent(questionId)}/answer`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function completePracticeSession(sessionId: string): Promise<PracticeSession> {
+  return authed<PracticeSession>(
+    `/practice/sessions/${encodeURIComponent(sessionId)}/complete`,
+    { method: 'POST' },
+  );
+}
+
 /**
  * A checkpoint question. Structurally the same as a lesson `Question` — same
  * fields, same names — so the quiz card renders either without branching.
@@ -855,14 +927,18 @@ export type CardState = 'new' | 'learning' | 'review' | 'relearning';
 export type DueCard = {
   cardId: string;
   state: CardState;
+  mastery: MasteryLevel;
   /** ISO 8601 — JSON has no Date, whatever the server's DTO says. */
   due: string;
   reps: number;
   lapses: number;
+  totalReviews: number;
+  accuracyRate: number;
   item: ResolvedItem;
 };
 
 export type DueReviews = { count: number; totalDue: number; cap: number; cards: DueCard[] };
+export type DailyReviewSession = DueReviews & { localDate: string; dueCount: number; newCount: number };
 
 /**
  * Mirrors the server's `GradeReviewResponse`. The leak rule in the root
@@ -886,14 +962,19 @@ export function fetchDueReviews(): Promise<DueReviews> {
   return authed<DueReviews>('/reviews/due');
 }
 
+/** Stable daily mix: overdue/due cards first, then the server's capped new cards. */
+export function fetchReviewSession(): Promise<DailyReviewSession> {
+  return authed<DailyReviewSession>('/reviews/session');
+}
+
 /**
  * XP is due-gated server-side: grading a card that was not actually due
  * reschedules it but awards nothing, so `xpAwarded` can legitimately be 0.
  */
-export function gradeReview(cardId: string, grade: ReviewGrade): Promise<GradeResult> {
+export function gradeReview(cardId: string, grade: ReviewGrade, responseTimeMs?: number): Promise<GradeResult> {
   return authed<GradeResult>(`/reviews/${encodeURIComponent(cardId)}/grade`, {
     method: 'POST',
-    body: JSON.stringify({ grade }),
+    body: JSON.stringify({ grade, ...(responseTimeMs === undefined ? {} : { responseTimeMs }) }),
   });
 }
 
@@ -912,6 +993,93 @@ export interface ForecastEntry {
   days: number;
   due: number;
   weekLabel: string;
+}
+
+export type ReviewSummary = {
+  localDate: string;
+  dueNow: number;
+  overdue: number;
+  states: Record<CardState, number>;
+  totalCards: number;
+  estimatedMinutes: number | null;
+  timingSamples: number;
+};
+
+export type ReviewEvent = {
+  id: string;
+  reviewedAt: string;
+  cardId: string | null;
+  grade: ReviewGrade | null;
+  itemKind: string | null;
+  itemId: string | null;
+  item: ResolvedItem | null;
+  previousState: string | null;
+  newState: string | null;
+  previousDue: string | null;
+  newDue: string | null;
+  intervalMinutes: number | null;
+  responseTimeMs: number | null;
+  wasDue: boolean | null;
+};
+
+export type MissedReviews = {
+  localDate: string;
+  overdueNow: number;
+  failedToday: number;
+  failedLast7Days: number;
+  overdueCards: DueCard[];
+  cap: number;
+};
+
+export type ReviewStatistics = {
+  days: number;
+  reviewsCompleted: number;
+  successfulReviews: number;
+  observedSuccessRate: number | null;
+  averageResponseTimeMs: number | null;
+  timingSamples: number;
+  grades: Record<ReviewGrade, number>;
+  dueNow: number;
+  overdueNow: number;
+  totalCards: number;
+  states: Record<CardState, number>;
+  mastery: Record<MasteryLevel, number>;
+};
+
+export type ReviewRetention = {
+  totalCards: number;
+  reviewedCards: number;
+  predictedRetentionRate: number | null;
+  byKind: { kind: string; cards: number; predictedRetentionRate: number }[];
+  observedDays: number;
+  observedReviews: number;
+  observedSuccessRate: number | null;
+};
+
+export type DailyForecast = { date: string; due: number; isToday: boolean };
+
+export function fetchReviewSummary(): Promise<ReviewSummary> {
+  return authed<ReviewSummary>('/reviews/summary');
+}
+
+export function fetchMissedReviews(): Promise<MissedReviews> {
+  return authed<MissedReviews>('/reviews/missed');
+}
+
+export function fetchReviewEvents(limit = 50): Promise<ReviewEvent[]> {
+  return authed<ReviewEvent[]>(`/reviews/events?limit=${encodeURIComponent(limit)}`);
+}
+
+export function fetchReviewStatistics(days = 30): Promise<ReviewStatistics> {
+  return authed<ReviewStatistics>(`/reviews/statistics?days=${encodeURIComponent(days)}`);
+}
+
+export function fetchReviewRetention(days = 30): Promise<ReviewRetention> {
+  return authed<ReviewRetention>(`/reviews/retention?days=${encodeURIComponent(days)}`);
+}
+
+export function fetchDailyReviewForecast(days = 14): Promise<DailyForecast[]> {
+  return authed<DailyForecast[]>(`/reviews/forecast/daily?days=${encodeURIComponent(days)}`);
 }
 
 export function fetchReviewHistory(days?: number): Promise<ReviewHistoryEntry[]> {

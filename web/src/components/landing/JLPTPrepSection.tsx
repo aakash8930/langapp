@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router';
 
 const LEVELS = [
-  { level: 'N5', label: 'Beginner', color: '#10b981' },
-  { level: 'N4', label: 'Elementary', color: '#3b82f6' },
-  { level: 'N3', label: 'Intermediate', color: '#8b5cf6' },
-  { level: 'N2', label: 'Pre-Advanced', color: '#f59e0b' },
-  { level: 'N1', label: 'Advanced', color: '#ef4444' },
+  { level: 'N5', label: 'Beginner', color: 'var(--brand-success)' },
+  { level: 'N4', label: 'Elementary', color: 'var(--brand-tertiary)' },
+  { level: 'N3', label: 'Intermediate', color: 'var(--brand-primary)' },
+  { level: 'N2', label: 'Pre-Advanced', color: 'var(--brand-secondary)' },
+  { level: 'N1', label: 'Advanced', color: 'var(--shu)' },
 ];
 
 export function JLPTPrepSection() {

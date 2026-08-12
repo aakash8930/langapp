@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import { sidebarGroups } from '../../../constants/navigation';
 import type { SidebarItem, SidebarProps } from '../../../types/layout';
@@ -6,6 +7,15 @@ import { useSession } from '../../../useSession';
 import { Icon } from '../../ui/Icon';
 
 import './Sidebar.css';
+
+function initials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
 
 /**
  * The primary navigation.
@@ -36,15 +46,19 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const progress = session.state === 'signedIn' ? session.progress : null;
   const isAdmin = session.state === 'signedIn' && session.user.isAdmin === true;
   const due = progress?.cardsDueNow ?? 0;
+  const [openGroups, setOpenGroups] = useState(
+    () => new Set(sidebarGroups.filter((group) => group.title).map((group) => group.id)),
+  );
 
   return (
     <aside className={`app-sidebar${collapsed ? ' app-sidebar-collapsed' : ''}`}>
       <div className="sidebar-brand">
         <Link className="sidebar-mark" to="/" aria-label="GENKŌ — dashboard">
-          <span className="sidebar-mark-glyph" aria-hidden="true">
-            ✿
+          <span className="sidebar-mark-glyph" aria-hidden="true">✿</span>
+          <span className="sidebar-mark-copy">
+            <span className="sidebar-mark-word">GENKŌ</span>
+            <small>Learn. Practice. Master.</small>
           </span>
-          <span className="sidebar-mark-word">GENKŌ</span>
         </Link>
 
         {/*
@@ -71,51 +85,59 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           );
           if (items.length === 0) return null;
 
-          return (
-            <div className="sidebar-group" key={group.id}>
-              {group.title ? (
-                <p className="sidebar-group-title" id={`nav-${group.id}`}>
-                  {group.title}
-                </p>
-              ) : null}
+          const list = (
+            <ul className="sidebar-list" aria-label={group.title}>
+              {items.map((item) => (
+                <li key={item.id}>
+                  <Row item={item} due={due} collapsed={collapsed} />
+                </li>
+              ))}
+            </ul>
+          );
 
-              <ul
-                className="sidebar-list"
-                {...(group.title ? { 'aria-labelledby': `nav-${group.id}` } : {})}
-              >
-                {items.map((item) => (
-                  <li key={item.id}>
-                    <Row item={item} due={due} collapsed={collapsed} />
-                  </li>
-                ))}
-              </ul>
-            </div>
+          if (!group.title || collapsed) {
+            return <div className="sidebar-group" key={group.id}>{list}</div>;
+          }
+
+          return (
+            <details
+              className="sidebar-group sidebar-dropdown"
+              key={group.id}
+              open={openGroups.has(group.id)}
+              onToggle={(event) => {
+                const isOpen = event.currentTarget.open;
+                setOpenGroups((current) => {
+                  if (current.has(group.id) === isOpen) return current;
+                  const next = new Set(current);
+                  if (isOpen) next.add(group.id);
+                  else next.delete(group.id);
+                  return next;
+                });
+              }}
+            >
+              <summary className="sidebar-group-title">
+                <span>{group.title}</span>
+                <Icon name="chevron-down" size={13} className="sidebar-group-chevron" />
+              </summary>
+              {list}
+            </details>
           );
         })}
       </nav>
 
-      {/*
-        The design puts an upgrade card here. There is no billing in this
-        product — no plans, no entitlements, nothing on the wire to upgrade to —
-        so the slot holds the thing a learner actually needs at a glance
-        instead: today's goal, straight off `progress.daily`.
-      */}
-      {progress ? (
-        <div className="sidebar-goal glass">
-          <p className="sidebar-goal-title">Today&rsquo;s goal</p>
-          <p className="sidebar-goal-figure tabular">
-            {progress.daily.xpToday} <span>/ {progress.daily.goalXp} XP</span>
-          </p>
-          <span className="sidebar-goal-bar" aria-hidden="true">
-            <span
-              className="sidebar-goal-fill"
-              style={{ width: `${Math.min(progress.daily.percentOfGoal, 100)}%` }}
-            />
+      {session.state === 'signedIn' ? (
+        <Link className="sidebar-profile" to="/profile">
+          <span className="sidebar-profile-avatar" aria-hidden="true">
+            {initials(session.user.profile.displayName)}
           </span>
-          <p className="sidebar-goal-note">
-            {progress.daily.goalMet ? 'Done for today. Anything more is a bonus.' : 'Keep going.'}
-          </p>
-        </div>
+          {collapsed ? null : (
+            <span className="sidebar-profile-copy">
+              <strong>{session.user.profile.displayName}</strong>
+              <small>Level {progress?.level ?? 1}</small>
+            </span>
+          )}
+          {collapsed ? null : <Icon name="chevron-right" size={15} />}
+        </Link>
       ) : null}
     </aside>
   );

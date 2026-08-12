@@ -27,7 +27,7 @@ export function BadgesCard({ progress }: { progress: Progress }) {
   const earned = badges.filter((badge) => badge.unlocked).length;
 
   return (
-    <section className="card glass" aria-labelledby="badges-heading">
+    <section className="card achievements-card glass" aria-labelledby="badges-heading">
       <div className="card-head">
         <h2 className="card-title" id="badges-heading">
           Achievements
@@ -43,7 +43,7 @@ export function BadgesCard({ progress }: { progress: Progress }) {
       </div>
 
       <ul className="badge-grid">
-        {badges.slice(0, 6).map((badge) => (
+        {badges.slice(0, 4).map((badge) => (
           <li
             className={`badge${badge.unlocked ? ' badge-earned' : ''}`}
             key={badge.id}

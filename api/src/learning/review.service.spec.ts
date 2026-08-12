@@ -361,6 +361,71 @@ describe('ReviewService.findDue', () => {
   });
 });
 
+describe('ReviewService review-event read models', () => {
+  function readService(options: { dueCards?: SrsCardDocument[]; events?: { id: string; ts: Date; payload: Record<string, unknown> }[] } = {}) {
+    const dueCards = options.dueCards ?? [];
+    const srsCardModel = {
+      find: () => ({ select: () => ({ exec: () => Promise.resolve(dueCards) }) }),
+      countDocuments: () => ({ exec: () => Promise.resolve(dueCards.length) }),
+    };
+    const analytics = {
+      record: jest.fn(),
+      listReviewEvents: jest.fn().mockResolvedValue(options.events ?? []),
+    };
+    return new ReviewService(
+      srsCardModel as never,
+      { resolveItemRefs: jest.fn().mockResolvedValue([]) } as unknown as ContentService,
+      { findById: jest.fn().mockResolvedValue({ settings: { tz: 'UTC' }, gamification: { xp: 0 } }) } as unknown as UserService,
+      analytics as unknown as AnalyticsService,
+      { record: jest.fn() } as unknown as LearnerItemStateService,
+    );
+  }
+
+  it('groups persisted grade events by real local day and emits zero days', async () => {
+    jest.useFakeTimers();
+    try {
+      jest.setSystemTime(new Date('2026-08-12T12:00:00Z'));
+      const service = readService({ events: [
+        { id: 'event-1', ts: new Date('2026-08-10T09:00:00Z'), payload: { grade: 'good' } },
+        { id: 'event-2', ts: new Date('2026-08-12T10:00:00Z'), payload: { grade: 'again' } },
+      ] });
+
+      await expect(service.getHistory(USER_ID, 3)).resolves.toEqual([
+        { date: '2026-08-10', count: 1, recalled: 1 },
+        { date: '2026-08-11', count: 0, recalled: 0 },
+        { date: '2026-08-12', count: 1, recalled: 0 },
+      ]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('reports due-state and overdue counts without resolving display content', async () => {
+    jest.useFakeTimers();
+    try {
+      jest.setSystemTime(new Date('2026-08-12T12:00:00Z'));
+      const service = readService({
+        dueCards: [
+          makeCard({ state: 'new', due: new Date('2026-08-12T10:00:00Z') }),
+          makeCard({ state: 'relearning', due: new Date('2026-08-11T10:00:00Z') }),
+        ],
+        events: [{ id: 'timed', ts: new Date(), payload: { responseTimeMs: 30_000 } }],
+      });
+
+      await expect(service.getSummary(USER_ID)).resolves.toMatchObject({
+        localDate: '2026-08-12',
+        dueNow: 2,
+        overdue: 1,
+        states: { new: 1, learning: 0, review: 0, relearning: 1 },
+        estimatedMinutes: 1,
+        timingSamples: 1,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
 describe('ReviewService — Mastery & Weakness Model', () => {
   it('includes mastery level, totalReviews, and accuracyRate in findDue', async () => {
     const card = makeCard({ state: 'review', stability: 12, reps: 5, totalReviews: 4, correctReviews: 3 });
@@ -580,12 +645,13 @@ describe('ReviewService.findDailySession (Phase 2 #11)', () => {
       jest.setSystemTime(new Date('2026-07-18T12:00:00Z'));
       const realDue = Array.from({ length: 15 }, (_, i) =>
         makeCard({
+          _id: new Types.ObjectId(),
           state: 'review',
           due: new Date(Date.now() - (15 - i) * 60_000),
         }),
       );
       const realNew = Array.from({ length: 10 }, () => {
-        const card = makeCard({ state: 'new', due: new Date() });
+        const card = makeCard({ _id: new Types.ObjectId(), state: 'new', due: new Date() });
         return card;
       });
       const { service } = buildSession({ dueCards: realDue, newCards: realNew });
@@ -621,6 +687,25 @@ describe('ReviewService.findDailySession (Phase 2 #11)', () => {
     expect(createSession).not.toHaveBeenCalled();
     expect(response.count).toBe(1);
     expect(response.cards[0].cardId).toBe(card._id.toString());
+  });
+
+  it('does not repeat a persisted card after its grade reschedules it into the future', async () => {
+    const card = makeCard({ state: 'review', due: new Date(Date.now() + 60 * 60_000) });
+    const { service } = buildSession({
+      dueCards: [card],
+      existingSession: {
+        userId: new Types.ObjectId(USER_ID),
+        localDate: new Date().toISOString().slice(0, 10),
+        cardIds: [card._id],
+        dueCount: 1,
+        newCount: 0,
+      } as Partial<DailyStudySessionDocument>,
+    });
+
+    const response = await service.findDailySession(USER_ID);
+
+    expect(response.count).toBe(0);
+    expect(response.cards).toEqual([]);
   });
 
   it('renders the session in the order it was persisted, not in DB order', async () => {

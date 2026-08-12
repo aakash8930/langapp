@@ -27,7 +27,8 @@ function readAll(): VocabList[] {
   if (raw === cachedRaw) return cachedValue;
   cachedRaw = raw;
   try {
-    cachedValue = raw ? (JSON.parse(raw) as VocabList[]) : [];
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    cachedValue = Array.isArray(parsed) ? parsed as VocabList[] : [];
   } catch {
     cachedValue = [];
   }
@@ -58,8 +59,7 @@ export function useVocabLists() {
 
   const create = useCallback((name: string) => {
     const current = readAll();
-    current.push({ id: genId(), name, createdAt: Date.now(), entries: [] });
-    writeAll(current);
+    writeAll([...current, { id: genId(), name, createdAt: Date.now(), entries: [] }]);
     notify();
   }, []);
 
@@ -70,20 +70,20 @@ export function useVocabLists() {
 
   const addEntry = useCallback((listId: string, entry: ListEntry) => {
     const current = readAll();
-    const list = current.find((l) => l.id === listId);
-    if (!list) return;
-    if (list.entries.some((e) => e.id === entry.id)) return;
-    list.entries.push(entry);
-    writeAll(current);
+    const list = current.find((candidate) => candidate.id === listId);
+    if (!list || list.entries.some((candidate) => candidate.id === entry.id)) return;
+    writeAll(current.map((candidate) => candidate.id === listId
+      ? { ...candidate, entries: [...candidate.entries, entry] }
+      : candidate));
     notify();
   }, []);
 
   const removeEntry = useCallback((listId: string, entryId: string) => {
     const current = readAll();
-    const list = current.find((l) => l.id === listId);
-    if (!list) return;
-    list.entries = list.entries.filter((e) => e.id !== entryId);
-    writeAll(current);
+    if (!current.some((candidate) => candidate.id === listId)) return;
+    writeAll(current.map((candidate) => candidate.id === listId
+      ? { ...candidate, entries: candidate.entries.filter((entry) => entry.id !== entryId) }
+      : candidate));
     notify();
   }, []);
 

@@ -50,9 +50,17 @@ export function TodaysGoalWidget({ progress }: { progress: Progress }) {
           </p>
         </div>
         <p className="todays-goal-meta tabular">
-          <strong>{daily.xpToday}</strong> / {daily.goalXp} XP
+          <span>Daily goal</span>
+          <strong>{daily.xpToday} <small>/ {daily.goalXp} XP</small></strong>
+          <em>{daily.goalMet ? 'Goal complete!' : 'Keep going — you are getting closer.'}</em>
         </p>
       </div>
+      <span className="goal-accent-bar" aria-hidden="true"><span style={{ width: `${Math.min(daily.percentOfGoal, 100)}%` }} /></span>
+      <dl className="goal-mini-stats">
+        <div><dt>Lessons</dt><dd className="tabular">{daily.lessonsDone}</dd></div>
+        <div><dt>Reviews</dt><dd className="tabular">{daily.reviewsDone}</dd></div>
+        <div><dt>Due now</dt><dd className="tabular">{progress.cardsDueNow}</dd></div>
+      </dl>
     </section>
   );
 }

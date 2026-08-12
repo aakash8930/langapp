@@ -111,7 +111,7 @@ export function ReviewsCard() {
             </p>
           ) : null}
 
-          <Link className="btn btn-primary btn-sm reviews-go" to="/review">
+          <Link className="btn btn-primary btn-sm reviews-go" to="/review-session">
             Review {due.data.count}
           </Link>
         </>

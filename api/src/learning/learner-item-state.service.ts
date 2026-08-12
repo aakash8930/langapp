@@ -24,6 +24,19 @@ export interface BackfillReport {
   skipped: number;
 }
 
+/** A read-only, scheduler-independent weakness signal for Practice. */
+export interface WeakItemEvidence {
+  kind: ContentKind;
+  id: Types.ObjectId;
+  confidence: number;
+  exposures: number;
+  correct: number;
+  incorrect: number;
+  masteryLevel: 'new' | 'learning' | 'familiar' | 'mastered';
+  lastSeenAt: Date | null;
+  exerciseTypes: { type: string; seen: number; correct: number }[];
+}
+
 /**
  * One call to `record()`. Carries the minimum the service needs to mutate the
  * right row and recompute the derived fields. `exerciseType` is the value the
@@ -385,6 +398,51 @@ export class LearnerItemStateService {
         },
       )
       .exec();
+  }
+
+  /**
+   * Lowest-confidence items with real exposures, used by the Practice engine.
+   * This is deliberately learner evidence only: it does not read or mutate an
+   * SRS card, and therefore cannot turn Practice into a second due queue.
+   */
+  async findWeakestForUser(
+    userId: string,
+    limit = 40,
+    kinds?: ContentKind[],
+  ): Promise<WeakItemEvidence[]> {
+    const filter: Record<string, unknown> = {
+      userId: new Types.ObjectId(userId),
+      exposures: { $gt: 0 },
+      ...(kinds?.length ? { 'itemRef.kind': { $in: kinds } } : {}),
+    };
+    const rows = await this.stateModel
+      .find(filter)
+      .sort({ confidence: 1, incorrect: -1, lastSeenAt: 1 })
+      .limit(Math.max(1, Math.min(limit, 100)))
+      .lean()
+      .exec();
+
+    return rows.map((row) => {
+      const rawStats = row.byExerciseType as unknown;
+      const entries = rawStats instanceof Map
+        ? [...rawStats.entries()]
+        : Object.entries((rawStats ?? {}) as Record<string, { seen?: number; correct?: number }>);
+      return {
+        kind: row.itemRef.kind,
+        id: row.itemRef.id,
+        confidence: row.confidence,
+        exposures: row.exposures,
+        correct: row.correct,
+        incorrect: row.incorrect,
+        masteryLevel: row.masteryLevel,
+        lastSeenAt: row.lastSeenAt ?? null,
+        exerciseTypes: entries.map(([type, stats]) => ({
+          type,
+          seen: Number(stats?.seen ?? 0),
+          correct: Number(stats?.correct ?? 0),
+        })),
+      };
+    });
   }
 
   /** How many states exist — for migration verification. */

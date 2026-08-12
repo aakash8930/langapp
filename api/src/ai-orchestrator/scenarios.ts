@@ -16,6 +16,8 @@ export interface TargetWord {
 
 export interface ChatScenario {
   id: string;
+  /** Conversation keeps a scene moving; writing-review teaches from one text. */
+  mode?: 'conversation' | 'writing-review';
   title: string;
   titleJa: string;
   /** One sentence the client can show on the scenario picker. */
@@ -35,6 +37,7 @@ export const DEFAULT_SCENARIO_ID = 'first-meeting';
 const SCENARIOS: readonly ChatScenario[] = [
   {
     id: 'first-meeting',
+    mode: 'conversation',
     title: 'First meeting',
     titleJa: 'はじめまして',
     description: 'Introduce yourself at a Tokyo language exchange — names, where you are from, one thing you like.',
@@ -56,6 +59,18 @@ const SCENARIOS: readonly ChatScenario[] = [
       { lemma: 'すき', reading: 'suki', gloss: 'liked / favourite' },
       { lemma: 'よろしく おねがいします', reading: 'yoroshiku onegaishimasu', gloss: 'pleased to meet you' },
     ],
+  },
+  {
+    id: 'writing-review',
+    mode: 'writing-review',
+    title: 'Writing review',
+    titleJa: '作文の添削',
+    description: 'Submit one Japanese passage for teaching-focused corrections without a synthetic score.',
+    opening: '日本語の文章を送ってください。文法や言葉の使い方を一緒に確認しましょう。',
+    setting:
+      'You are reviewing one Japanese writing submission. Teach from the learner’s own wording. ' +
+      'Identify only clear, actionable issues and preserve correct text.',
+    targetWords: [],
   },
 ];
 

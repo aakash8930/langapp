@@ -5,48 +5,30 @@ import type { SidebarGroup } from '../../types/layout';
  *
  * ## Why some of this is still `planned`
  *
- * The design this is built from lists twenty-four destinations. Nine existed
- * when this file was written; eighteen do now. Rather than trim the menu to
- * what is built — which would have hidden the shape of the product — the rest
- * are declared `planned`: visible, described, locked, and impossible to click.
- * The union in `types/layout/sidebar.ts` enforces that a planned row cannot
- * carry a route, so "looks live, goes nowhere" is not a state this file can
- * express.
+ * The design this is built from lists twenty-four destinations. Most now have
+ * real routes. Rather than silently trim the two that remain, they are declared
+ * `planned`: visible, described, locked, and impossible to click. The union in
+ * `types/layout/sidebar.ts` enforces that a planned row cannot carry a route, so
+ * "looks live, goes nowhere" is not a state this file can express.
  *
- * **What is still locked is locked on data, not on effort.** Each remaining
- * row needs something that does not exist yet:
+ * **What is still locked is locked on missing product behaviour:**
  *
- *   - **Flashcards, Quizzes, Practice Hub** — `GET /reviews/session` returns a
- *     stable daily set (due cards first, then up to five new ones) and would
- *     back all three. Not blocked; simply not built yet.
- *   - **Listening, Speaking** — the endpoints exist (the two
- *     `/content/…/audio` routes) and `SpeechQuiz` exists, but no audio is
- *     seeded in this database, so both screens would be silent.
- *   - **Writing** — `TraceCanvas` and `StrokeOrder` are written and
- *     `/content/strokes/:codepoint` is live, but it 404s for every character
- *     tried, kana and kanji alike. Nothing is seeded, which also means the
- *     Study screen's tracing box has had no target for its whole life.
- *   - **JLPT** — every one of the 814 levelled items in the corpus is N5. A
- *     screen whose only axis has one value on it is a filter that filters
- *     nothing, and there is no per-item mastery endpoint to turn it into a
- *     readiness figure instead.
+ *   - **Quizzes** — individual kana, vocabulary, kanji, grammar, listening, and
+ *     speaking challenges are live, but there is no single cross-skill quiz
+ *     destination behind this umbrella row.
  *   - **Study Groups** — no API at all. `/social` covers friends and messages;
  *     groups are not modelled anywhere.
  *
- * (The `/content/…/audio` paths above are written without a glob on purpose: a
- * `*` followed by a slash inside a block comment closes it, and the parse
- * errors that follow point at a line a hundred rows below the real cause.)
+ * Speaking and Listening are live. Both use the real course corpus and audio
+ * routes with explicit browser fallbacks. Speaking adds local voice recording,
+ * browser transcription, and the account-backed AI conversation API without
+ * pretending transcription is a pronunciation score.
  *
- * Two of the mock's rows turned out to exist already under different names, and
- * finding that was worth the audit:
+ * Two rows use routes whose historical names are easy to misread:
  *
- *   - **AI Tutor** is `/practice`. That route is the chat screen —
- *     `createChatSession` and `sendChatMessage` — not a practice hub, whatever
- *     the path says.
- *   - **Reading** is `/read`, the known-kana vocabulary feed.
- *
- * So "Practice Hub" is the planned one and "AI Tutor" is live, which is the
- * reverse of what the path names suggest. Don't swap them back.
+ *   - **AI Tutor** remains `/practice`, now the shared Speaking conversation UI.
+ *   - **Reading** is `/read`, the course-backed interactive reader.
+ *   - **Writing** is `/writing`, the guided editor and writing workflow.
  *
  * ## The kana rows use glyphs, not icons
  *
@@ -85,10 +67,10 @@ export const sidebarGroups: SidebarGroup[] = [
       { kind: 'link', id: 'vocabulary', label: 'Vocabulary', icon: 'library', to: '/vocabulary' },
       { kind: 'link', id: 'kanji', label: 'Kanji', glyph: '漢', to: '/kanji' },
       { kind: 'link', id: 'grammar', label: 'Grammar', icon: 'book-marked', to: '/grammar' },
-      { kind: 'link', id: 'listening', label: 'Listening', icon: 'headphones', to: '/hiragana-listening' },
+      { kind: 'link', id: 'listening', label: 'Listening', icon: 'headphones', to: '/listening' },
       { kind: 'link', id: 'speaking', label: 'Speaking', icon: 'mic', to: '/speaking' },
       { kind: 'link', id: 'reading', label: 'Reading', icon: 'languages', to: '/read' },
-      { kind: 'link', id: 'writing', label: 'Writing', icon: 'pen-tool', to: '/hiragana-writing' },
+      { kind: 'link', id: 'writing', label: 'Writing', icon: 'pen-tool', to: '/writing' },
       { kind: 'link', id: 'jlpt', label: 'JLPT', icon: 'graduation-cap', to: '/jlpt' },
     ],
   },
@@ -104,7 +86,7 @@ export const sidebarGroups: SidebarGroup[] = [
         to: '/review',
         badge: 'due',
       },
-      { kind: 'link', id: 'flashcards', label: 'Flashcards', icon: 'layers', to: '/hiragana-flashcards' },
+      { kind: 'link', id: 'flashcards', label: 'Flashcards', icon: 'layers', to: '/flashcards' },
       { kind: 'planned', id: 'quizzes', label: 'Quizzes', icon: 'grid' },
       { kind: 'link', id: 'practice-hub', label: 'Practice Hub', icon: 'pen-square', to: '/practice-hub' },
     ],

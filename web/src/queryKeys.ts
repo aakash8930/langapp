@@ -33,12 +33,30 @@ export const queryKeys = {
       ['me', 'history', params ?? {}] as const,
   },
   reviews: {
-    /** `GET /reviews/due` — the cards the review session consumes. */
+    /** `GET /reviews/due` — every card due at request time, capped for display. */
     due: ['reviews', 'due'] as const,
+    /** `GET /reviews/session` — today's persisted due + new review set. */
+    session: ['reviews', 'session'] as const,
+    summary: ['reviews', 'summary'] as const,
+    missed: ['reviews', 'missed'] as const,
+    events: (limit: number) => ['reviews', 'events', limit] as const,
+    history: (days: number) => ['reviews', 'history', days] as const,
+    statistics: (days: number) => ['reviews', 'statistics', days] as const,
+    heatmap: (days: number) => ['reviews', 'heatmap', days] as const,
+    retention: (days: number) => ['reviews', 'retention', days] as const,
+    forecast: (days: number) => ['reviews', 'forecast', days] as const,
+  },
+  practice: {
+    overview: ['practice', 'overview'] as const,
+    session: (sessionId: string) => ['practice', 'session', sessionId] as const,
   },
   reading: {
     /** `GET /vocab/by-known-kana` — server-filtered, character-safe vocabulary. */
     feed: ['reading', 'by-known-kana'] as const,
+    /** The larger personalised vocabulary set used by Reading Library. */
+    readableVocab: ['reading', 'readable-vocab'] as const,
+    /** `GET /content/grammar/by-known-kana` — personalised grammar examples. */
+    readableSentences: ['reading', 'readable-sentences'] as const,
   },
   learning: {
     /** `GET /learning/memory-model` — mastery bands and the forgetting curve. */

@@ -97,6 +97,25 @@ export class ContentService {
   }
 
   /**
+   * Resolve learner-evidence item refs back to the lessons that can exercise
+   * them. Practice owns the selection policy; Content owns knowledge of the
+   * Lesson collection shape.
+   */
+  async findLessonsContainingItems(refs: ItemRef[]): Promise<LessonSummary[]> {
+    if (refs.length === 0) return [];
+    const lessons = await this.lessonModel
+      .find({
+        lang: 'ja',
+        $or: refs.map((ref) => ({
+          itemRefs: { $elemMatch: { kind: ref.kind, id: ref.id } },
+        })),
+      })
+      .sort({ unit: 1, order: 1 })
+      .exec();
+    return lessons.map(toLessonSummary);
+  }
+
+  /**
    * Phase 0 — Data foundation. The canonical kana curriculum.
    *
    * Reads every kana item in teaching order `(script, taughtInLesson, order)`

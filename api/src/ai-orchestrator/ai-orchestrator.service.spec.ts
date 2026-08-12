@@ -35,6 +35,17 @@ describe('AiOrchestratorService.converse — prompt assembly', () => {
     }
   });
 
+  it('uses teaching-focused rules for writing review without inventing a score', async () => {
+    const { service, generateJson } = build();
+
+    await service.converse('writing-review', [], '私は映画を見ます。');
+
+    const input = generateJson.mock.calls[0][0];
+    expect(input.system).toContain('writing tutor');
+    expect(input.system).toContain('Do not assign a numeric score');
+    expect(input.system).toContain('span must be an exact substring');
+  });
+
   it('maps roles (assistant→model) and appends the new user text last', async () => {
     const { service, generateJson } = build();
     const history: ChatTurn[] = [

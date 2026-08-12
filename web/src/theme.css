@@ -1,70 +1,51 @@
 /*
- * langapp web — modern premium design tokens.
+ * GENKŌ's shared "Japanese ink" theme.
  *
- * Re-designed to feature a vibrant color palette, dynamic glassmorphism,
- * and high-end typography while maintaining a clean aesthetic.
+ * The UI references in UI/japanese/web use one consistent visual language:
+ * sumi black surfaces, warm gold controls, vermilion highlights, and quiet
+ * warm-white type. The app is intentionally dark in every system appearance;
+ * letting prefers-color-scheme swap this palette back to white or violet makes
+ * adjacent screens look like different products.
  */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  /* ---- Premium Palette ---- */
-  --brand-primary: #7c3aed; /* Vibrant Violet */
-  --brand-secondary: #ec4899; /* Pink */
-  --brand-tertiary: #3b82f6; /* Blue */
-  --brand-success: #10b981; /* Emerald */
-  
-  --paper: #f8fafc;
-  --surface: #ffffff;
-  --ink: #0f172a;
-  /*
-   * Was #64748b (slate-500). Darkened when the photographic ground landed, and
-   * the reason is measured rather than aesthetic: on a glass panel over the old
-   * flat ground it scored 4.70:1 — over AA by 0.2 — and with the photo showing
-   * through it fell to 4.40:1, i.e. under. #5b6b81 scores 4.89:1 in the same
-   * worst case and 5.43:1 on an opaque surface.
-   *
-   * The lesson worth keeping: secondary text in the light scheme had no
-   * headroom at all, so any change to the ground was going to break it. Check
-   * this number before touching the scrim.
-   */
-  --ink-soft: #5b6b81;
-  --hairline: #e2e8f0;
-  
-  --shu: #f43f5e; /* Rose / Vermilion */
-  --ai: #8b5cf6;
-  --danger: #ef4444;
+  /* ---- Japanese ink palette ---- */
+  --brand-primary: #d6ad60;   /* antique gold */
+  --brand-secondary: #df6254; /* vermilion */
+  --brand-tertiary: #e3c990;  /* parchment */
+  --brand-success: #79a96b;   /* muted matcha */
 
-  /* Mesh tints. The full-page blobs are gone (see the ground below), but these
-     still tint the small washes on cards — the hero banner, the lesson plates,
-     an earned badge. */
-  --mesh-1: rgba(124, 58, 237, 0.15); /* Primary */
-  --mesh-2: rgba(236, 72, 153, 0.15); /* Secondary */
-  --mesh-3: rgba(59, 130, 246, 0.15); /* Tertiary */
-  --mesh-bg: #f8fafc;
+  --paper: #090c0b;
+  --surface: #121614;
+  --surface-raised: #181d1a;
+  --ink: #f2ede4;
+  --ink-soft: #aaa398;
+  --hairline: #2c322f;
 
-  /*
-   * The scrim over the background photograph. **This is a contrast control, not
-   * a styling knob** — see the ground rules below before changing it.
-   *
-   * The colour is exactly `--mesh-bg`, so the composited ground stays a near
-   * neighbour of the flat ground every `--glass-*` value was computed against.
-   * 0.86 is the measured floor with headroom; lowering it shows more photo and
-   * costs contrast on every glass panel at once.
-   */
-  --ground-scrim: rgba(248, 250, 252, 0.86);
+  --shu: #ee6b5f;
+  --ai: #d6ad60;
+  --danger: #ef746b;
 
-  /*
-   * Rich Glassmorphism
-   */
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-solid: #ffffff;
-  --glass-border: rgba(255, 255, 255, 0.8);
-  --glass-edge: rgba(15, 23, 42, 0.05);
-  --glass-blur: 24px;
-  
-  /* Text on glass */
-  --shu-glass: #e11d48;
+  /* Warm washes used by cards, progress plates and earned states. */
+  --mesh-1: rgba(214, 173, 96, 0.16);
+  --mesh-2: rgba(223, 98, 84, 0.14);
+  --mesh-3: rgba(227, 201, 144, 0.1);
+  --mesh-bg: #090c0b;
+
+  /* The dashboard artwork remains atmosphere, never the reading surface. */
+  --ground-scrim: rgba(9, 12, 11, 0.9);
+
+  /* Dense, almost-opaque panels match the dashboard reference and keep text
+     contrast stable over the photographic ground. */
+  --glass-bg: rgba(18, 22, 20, 0.92);
+  --glass-solid: #121614;
+  --glass-border: rgba(214, 173, 96, 0.18);
+  --glass-edge: rgba(0, 0, 0, 0.62);
+  --glass-blur: 18px;
+
+  --shu-glass: #f07b70;
 
   /* ---- Type ---- */
   --font-ja: 'Zen Kaku Gothic New', system-ui, sans-serif;
@@ -79,6 +60,12 @@
   --text-heading: 2rem;
   --text-display: clamp(2.5rem, 6vw, 4.5rem);
 
+  /* Aliases used by the newer reference-driven screens. */
+  --text-base: var(--text-body);
+  --text-lg: var(--text-large);
+  --text-xl: var(--text-title);
+  --text-2xl: var(--text-heading);
+
   /* ---- Space ---- */
   --s-xs: 4px;
   --s-sm: 8px;
@@ -89,63 +76,18 @@
   --s-3xl: 48px;
   --s-4xl: 72px;
 
-  /* Referenced by `.flip-container` since it landed; adding it here rather
-     than rewriting that rule, because a small radius is a reasonable step to
-     have. Without it the declaration dropped and the corner was square. */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  /* The dashboard is crisp and architectural rather than pillowy. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 9999px;
 
   /* Motion budget */
   --t-fast: 150ms;
   --t-base: 250ms;
   --t-slow: 400ms;
-  
   --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --brand-primary: #8b5cf6;
-    --brand-secondary: #f472b6;
-    --brand-tertiary: #60a5fa;
-    --brand-success: #34d399;
-
-    /*
-     * Deeper than the original slate-900 to match the new dashboard's
-     * indigo / sumi-black mood. `--ink-soft` and `--ground-scrim` are kept
-     * because they were measured against the photographic ground; changing
-     * either is the failure mode the body::before comment documents.
-     */
-    --paper: #0b1220; /* Deeper indigo for the dark-primary mood */
-    --surface: #1e293b; /* Slate 800 */
-    --ink: #f8fafc;
-    --ink-soft: #94a3b8;
-    --hairline: #334155;
-
-    --shu: #fb7185;
-    --ai: #a78bfa;
-    --danger: #f87171;
-
-    /* Mesh Gradient Background Colors (Dark) — the tints land on top of the
-       deeper ground, so they are nudged slightly stronger to stay readable. */
-    --mesh-1: rgba(139, 92, 246, 0.22);
-    --mesh-2: rgba(244, 114, 182, 0.18);
-    --mesh-3: rgba(96, 165, 250, 0.18);
-    --mesh-bg: #0b1220;
-
-    /* Same alpha as the light scheme and for the same measured reason. The
-       photo is a night scene, so this scheme is the one it was made for. */
-    --ground-scrim: rgba(15, 23, 42, 0.86);
-
-    --glass-bg: rgba(30, 41, 59, 0.6);
-    --glass-solid: #1e293b;
-    --glass-border: rgba(248, 250, 252, 0.08);
-    --glass-edge: rgba(0, 0, 0, 0.4);
-    --shu-glass: #fb7185;
-  }
 }
 
 *,
@@ -156,6 +98,18 @@
 
 html {
   scroll-behavior: smooth;
+  scrollbar-color: color-mix(in srgb, var(--brand-primary) 42%, var(--hairline)) var(--paper);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brand-primary) 72%, var(--paper));
+  color: var(--ink);
+}
+
+:where(input, select, textarea) {
+  color-scheme: dark;
+  accent-color: var(--brand-primary);
+  caret-color: var(--brand-primary);
 }
 
 body {
@@ -386,13 +340,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
-  color: white;
-  box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.39);
+  background: var(--brand-primary);
+  color: var(--paper);
+  box-shadow: 0 8px 22px rgba(214, 173, 96, 0.16);
 }
 
 .btn-primary:hover:not(:disabled) {
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+  background: var(--brand-tertiary);
+  box-shadow: 0 10px 28px rgba(214, 173, 96, 0.24);
   transform: translateY(-2px);
 }
 
@@ -404,6 +359,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--paper);
+  border-color: color-mix(in srgb, var(--brand-primary) 48%, var(--hairline));
+  background: var(--surface-raised);
+  color: var(--brand-primary);
   transform: translateY(-2px);
 }

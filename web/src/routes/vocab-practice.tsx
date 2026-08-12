@@ -22,14 +22,19 @@ export const Route = createFileRoute('/vocab-practice')({
   component: VocabPracticeRoute,
 });
 
-function VocabPracticeRoute() {
+export function VocabPracticeRoute() {
   const corpus = useCorpus();
   const { bookmarks } = useBookmarks();
   const { lists } = useVocabLists();
 
-  const allItems = (corpus.data?.items.filter((i): i is VocabItem => i.kind === 'vocab') ?? []);
+  const corpusItems = corpus.data?.items;
+  const allItems = useMemo(
+    () => corpusItems?.filter((item): item is VocabItem => item.kind === 'vocab') ?? [],
+    [corpusItems],
+  );
 
   const [pool, setPool] = useState<Pool>('all');
+  const [run, setRun] = useState(0);
   const [index, setIndex] = useState(0);
   const [sessionOver, setSessionOver] = useState(false);
   const [correct, setCorrect] = useState(0);
@@ -37,32 +42,48 @@ function VocabPracticeRoute() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<'waiting' | 'right' | 'wrong'>('waiting');
 
-  const getItems = (): VocabItem[] => {
+  const source = useMemo(() => {
     if (pool === 'bookmarks') {
-      const bmIds = new Set(bookmarks.map((b) => b.id));
-      return allItems.filter((i) => bmIds.has(i.id));
+      const bookmarkIds = new Set(bookmarks.map((bookmark) => bookmark.id));
+      return allItems.filter((item) => bookmarkIds.has(item.id));
     }
     if (pool !== 'all') {
-      const list = lists.find((l) => l.id === pool);
+      const list = lists.find((candidate) => candidate.id === pool);
       if (list) {
-        const entryIds = new Set(list.entries.map((e) => e.id));
-        return allItems.filter((i) => entryIds.has(i.id));
+        const entryIds = new Set(list.entries.map((entry) => entry.id));
+        return allItems.filter((item) => entryIds.has(item.id));
       }
     }
     return allItems;
-  };
+  }, [allItems, bookmarks, lists, pool]);
 
-  const source = getItems();
-  const shuffled = useMemo(() => shuffle(source), [source, pool]);
+  // A focused session is ten stable questions. The old implementation rebuilt
+  // and reshuffled `source` on every answer render, so the question could change
+  // underneath the selected result and an all-words run lasted 802 questions.
+  const shuffled = useMemo(() => {
+    const mixed = shuffle(source);
+    if (mixed.length === 0) return [];
+    // `run` is the explicit new-session signal. Rotating after the shuffle also
+    // makes the signal part of the resulting order rather than a dummy dep.
+    const offset = run % mixed.length;
+    return [...mixed.slice(offset), ...mixed.slice(0, offset)].slice(0, 10);
+  }, [run, source]);
   const current = shuffled[index];
 
-  // Pick 4 options per question
+  // Distractors come from the full corpus so a one-word saved set still tests
+  // recognition instead of showing a single self-evident option.
   const options = useMemo(() => {
     if (!current) return [];
-    const others = source.filter((i) => i.id !== current.id);
-    const picked = shuffle(others).slice(0, 3);
-    return shuffle([current, ...picked]);
-  }, [current, source]);
+    const usedMeanings = new Set([current.gloss.trim().toLocaleLowerCase()]);
+    const others = shuffle(allItems).filter((item) => {
+      if (item.id === current.id) return false;
+      const meaning = item.gloss.trim().toLocaleLowerCase();
+      if (usedMeanings.has(meaning)) return false;
+      usedMeanings.add(meaning);
+      return true;
+    });
+    return shuffle([current, ...others.slice(0, 3)]);
+  }, [allItems, current]);
 
   const choose = (item: VocabItem) => {
     if (status !== 'waiting') return;
@@ -87,6 +108,7 @@ function VocabPracticeRoute() {
   };
 
   const restart = () => {
+    setRun((currentRun) => currentRun + 1);
     setIndex(0);
     setCorrect(0);
     setMissed([]);
@@ -101,12 +123,22 @@ function VocabPracticeRoute() {
         <header className="page-head">
           <h1 className="page-title">Vocab Practice</h1>
         </header>
-        <p className="card-note">Loading…</p>
+        <p className="card-note">Building a practice set…</p>
       </div>
     );
   }
 
-  const listNames = lists.map((l) => ({ id: l.id, name: l.name }));
+  if (corpus.isError) {
+    return (
+      <div className="page">
+        <header className="page-head"><h1 className="page-title">Vocab Practice</h1></header>
+        <p className="note note-error"><strong>The vocabulary could not be loaded.</strong><span>The API may be asleep. Try again when it is available.</span></p>
+        <Link className="btn btn-secondary" to="/vocabulary">Back to vocabulary</Link>
+      </div>
+    );
+  }
+
+  const listNames = lists.map((list) => ({ id: list.id, name: list.name }));
   const poolLabel =
     pool === 'all' ? 'All words' :
     pool === 'bookmarks' ? 'Bookmarks' :
@@ -153,9 +185,12 @@ function VocabPracticeRoute() {
           <h1 className="page-title">Vocab Practice</h1>
         </header>
         <div className="glass panel quiz-summary">
-          <h2>Nothing to practice</h2>
-          <p className="summary-note">No words in this set.</p>
-          <Link className="btn btn-primary" to="/vocabulary">Browse vocabulary</Link>
+          <h2>Nothing in {poolLabel}</h2>
+          <p className="summary-note">Save a word or add one to this collection before practising it.</p>
+          <div className="vocab-empty-actions">
+            {pool !== 'all' && allItems.length > 0 ? <button type="button" className="btn btn-primary" onClick={() => { setPool('all'); restart(); }}>Use all course words</button> : null}
+            <Link className="btn btn-secondary" to="/vocabulary">Browse vocabulary</Link>
+          </div>
         </div>
       </div>
     );

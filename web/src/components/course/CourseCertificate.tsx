@@ -32,7 +32,7 @@ export function CourseCertificate({
 
   return (
     <section
-      className="card"
+      className="card course-certificate"
       aria-labelledby="cert-heading"
       style={{
         background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 8%, transparent), color-mix(in srgb, var(--brand-secondary) 8%, transparent))',
@@ -155,7 +155,7 @@ export function CourseCertificate({
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--s-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
-        <Link className="btn btn-primary" to="/review">
+        <Link className="btn btn-primary" to="/review-session">
           <Icon name="refresh-cw" size={18} />
           Keep reviewing
         </Link>

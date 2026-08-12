@@ -196,18 +196,14 @@ function DashboardSkeleton() {
       <span className="visually-hidden">Loading your dashboard…</span>
 
       <section className="dashboard-main" aria-label="Loading learning dashboard">
-        <div className="dashboard-main-header">
-          <span className="skeleton-line skeleton-line-kicker" />
-          <span className="skeleton-line skeleton-line-title" />
-          <span className="skeleton-line skeleton-line-subtitle" />
+        <span className="skeleton-card skeleton-card-wide" />
+        <div className="dashboard-action-grid">
+          <span className="skeleton-card skeleton-card-tall" />
+          <span className="skeleton-card" />
         </div>
         <span className="skeleton-card skeleton-card-wide" />
         <div className="dashboard-progress-grid">
           <span className="skeleton-card" />
-          <span className="skeleton-card" />
-        </div>
-        <div className="dashboard-action-grid">
-          <span className="skeleton-card skeleton-card-tall" />
           <span className="skeleton-card" />
         </div>
         <span className="skeleton-card skeleton-card-wide" />

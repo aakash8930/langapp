@@ -27,7 +27,7 @@ export function RecentLessons({ units, progress }: { units: Unit[]; progress: Pr
     <section className="card glass" aria-labelledby="recent-lessons-heading">
       <div className="card-head">
         <h2 className="card-title" id="recent-lessons-heading">
-          Recent lessons
+          Recent activity
         </h2>
         <Link className="card-link" to="/courses">
           View all

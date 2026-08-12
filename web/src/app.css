@@ -275,7 +275,7 @@
   font-size: var(--text-body);
   font-weight: 700;
   color: var(--brand-primary);
-  background: rgba(124, 58, 237, 0.1);
+  background: rgba(214, 173, 96, 0.1);
   padding: var(--s-xs) var(--s-md);
   border-radius: var(--radius-full);
   flex: none;
@@ -340,7 +340,7 @@
 .lesson:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px var(--glass-edge);
-  border-color: rgba(124, 58, 237, 0.3);
+  border-color: rgba(214, 173, 96, 0.3);
 }
 
 .lesson summary {
@@ -362,7 +362,7 @@
   font-size: var(--text-body);
   flex: none;
   transition: transform var(--t-base) var(--spring-bounce);
-  background: rgba(124, 58, 237, 0.1);
+  background: rgba(214, 173, 96, 0.1);
   width: 28px;
   height: 28px;
   display: flex;
@@ -425,7 +425,7 @@
 }
 .item:hover {
   border-color: var(--brand-tertiary);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 4px 12px rgba(227, 201, 144, 0.1);
 }
 
 .items-kana .item,
@@ -472,7 +472,7 @@
   gap: 4px;
   padding-left: var(--s-md);
   border-left: 3px solid var(--brand-secondary);
-  background: rgba(236, 72, 153, 0.05);
+  background: rgba(223, 98, 84, 0.05);
   padding: var(--s-sm) var(--s-md);
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
@@ -560,15 +560,15 @@
 }
 .nav-link:hover {
   color: var(--ink);
-  background: rgba(124, 58, 237, 0.08);
+  background: rgba(214, 173, 96, 0.08);
 }
 .nav-admin {
   color: var(--brand-primary);
-  background: rgba(124, 58, 237, 0.1);
+  background: rgba(214, 173, 96, 0.1);
   font-weight: 700;
 }
 .nav-admin:hover {
-  background: rgba(124, 58, 237, 0.18);
+  background: rgba(214, 173, 96, 0.18);
   color: var(--brand-primary);
 }
 
@@ -686,11 +686,11 @@
 .level-gold { background: rgba(255, 215, 0, 0.1); }
 .level-gold .level-number { background: linear-gradient(135deg, #ffd700, #daa520); }
 
-.level-diamond { background: rgba(59, 130, 246, 0.1); }
+.level-diamond { background: rgba(227, 201, 144, 0.1); }
 .level-diamond .level-number { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
 
-.level-master { background: rgba(124, 58, 237, 0.1); }
-.level-master .level-number { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
+.level-master { background: rgba(214, 173, 96, 0.1); }
+.level-master .level-number { background: linear-gradient(135deg, #d6ad60, #df6254); }
 
 .header-inner > .link-button:last-child {
   margin-left: var(--s-sm);
@@ -764,7 +764,7 @@
   transition: background var(--t-fast) ease;
 }
 .link-button:hover {
-  background: rgba(124, 58, 237, 0.1);
+  background: rgba(214, 173, 96, 0.1);
 }
 
 .section-tight {
@@ -816,7 +816,7 @@
 .field input:focus {
   outline: none;
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 0 0 3px rgba(214, 173, 96, 0.2);
 }
 .form-error {
   margin: 0;
@@ -949,7 +949,7 @@
 .option:hover:not(:disabled) {
   border-color: var(--brand-tertiary);
   transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 6px 16px rgba(227, 201, 144, 0.2);
 }
 .option:active:not(:disabled) {
   transform: scale(0.97);
@@ -1002,7 +1002,7 @@
 .typing-input:focus {
   outline: none;
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 0 0 4px rgba(214, 173, 96, 0.2);
 }
 
 .verdict {
@@ -1161,10 +1161,10 @@
 .grade-again:hover:not(:disabled) { background: rgba(239, 68, 68, 0.1); }
 
 .grade-hard { border-color: var(--brand-secondary); color: var(--brand-secondary); }
-.grade-hard:hover:not(:disabled) { background: rgba(236, 72, 153, 0.1); }
+.grade-hard:hover:not(:disabled) { background: rgba(223, 98, 84, 0.1); }
 
 .grade-good { border-color: var(--brand-tertiary); color: var(--brand-tertiary); }
-.grade-good:hover:not(:disabled) { background: rgba(59, 130, 246, 0.1); }
+.grade-good:hover:not(:disabled) { background: rgba(227, 201, 144, 0.1); }
 
 .grade-easy { border-color: var(--brand-success); color: var(--brand-success); }
 .grade-easy:hover:not(:disabled) { background: rgba(16, 185, 129, 0.1); }
@@ -1388,7 +1388,7 @@
   padding: var(--s-sm) var(--s-md);
   border-left: 3px solid var(--brand-primary);
   border-radius: var(--radius-sm);
-  background: rgba(124, 58, 237, 0.06);
+  background: rgba(214, 173, 96, 0.06);
   text-align: left;
 }
 .verdict-remember-kicker {
@@ -1568,7 +1568,7 @@
   gap: var(--s-xs);
   padding: 4px 10px;
   border-radius: var(--radius-full);
-  background: rgba(124, 58, 237, 0.07);
+  background: rgba(214, 173, 96, 0.07);
 }
 .seen-in-word {
   font-weight: 700;

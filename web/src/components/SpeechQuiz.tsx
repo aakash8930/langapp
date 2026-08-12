@@ -1,12 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect } from 'react';
 
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
-}
+import { useSpeechRecognition } from './speaking/useSpeechRecognition';
+import { Icon } from './ui/Icon';
 
+import './speaking/speaking.css';
+
+/** Japanese browser transcription used by speech questions in course lessons. */
 export function SpeechQuiz({
   disabled,
   onSubmit,
@@ -14,122 +13,17 @@ export function SpeechQuiz({
   disabled: boolean;
   onSubmit: (text: string) => void;
 }) {
-  const [listening, setListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [unsupported, setUnsupported] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const speech = useSpeechRecognition(onSubmit);
+  const listening = speech.listening;
+  const stop = speech.stop;
 
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setUnsupported(true);
-      return;
-    }
+    if (disabled && listening) stop();
+  }, [disabled, listening, stop]);
 
-    recognitionRef.current = new SpeechRecognition();
-    recognitionRef.current.continuous = false;
-    recognitionRef.current.lang = 'ja-JP';
-    recognitionRef.current.interimResults = true;
-
-    recognitionRef.current.onresult = (event: any) => {
-      let currentTranscript = '';
-      let isFinal = false;
-
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          currentTranscript += event.results[i][0].transcript;
-          isFinal = true;
-        } else {
-          currentTranscript += event.results[i][0].transcript;
-        }
-      }
-      
-      setTranscript(currentTranscript);
-
-      if (isFinal) {
-        setListening(false);
-        // Wait briefly so the user can see what they said before it vanishes/grades
-        setTimeout(() => {
-          onSubmit(currentTranscript);
-        }, 500);
-      }
-    };
-
-    recognitionRef.current.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setListening(false);
-    };
-
-    recognitionRef.current.onend = () => {
-      setListening(false);
-    };
-  }, [onSubmit]);
-
-  const handleToggle = () => {
-    if (disabled || unsupported) return;
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-    } else {
-      setTranscript('');
-      try {
-        recognitionRef.current?.start();
-        setListening(true);
-      } catch (err) {
-        // Handle case where it might already be started
-        console.error('Could not start recognition', err);
-      }
-    }
-  };
-
-  if (unsupported) {
-    return (
-      <div className="speech-quiz-unsupported" style={{ textAlign: 'center', padding: '16px' }}>
-        <p>Your browser does not support the Web Speech API.</p>
-        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--ink-soft)' }}>Please use Chrome, Edge, or Safari.</p>
-        <button 
-          className="btn btn-primary"
-          onClick={() => onSubmit('skipped')}
-          disabled={disabled}
-        >
-          Skip Question
-        </button>
-      </div>
-    );
+  if (!speech.supported) {
+    return <div className="speech-quiz-unsupported speaking-recorder-unavailable"><Icon name="mic" size={22} /><div><strong>Your browser does not support Japanese speech recognition.</strong><p>Chrome, Edge, and Safari generally expose this browser service.</p><button type="button" className="btn btn-secondary btn-sm" onClick={() => onSubmit('skipped')} disabled={disabled}>Skip question</button></div></div>;
   }
 
-  return (
-    <div className="speech-quiz" style={{ textAlign: 'center', margin: '20px 0' }}>
-      <div 
-        className="transcript-box" 
-        style={{ 
-          minHeight: '60px', 
-          border: '2px dashed var(--hairline)',
-          borderRadius: '8px',
-          padding: '16px',
-          marginBottom: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '18px',
-          backgroundColor: listening ? 'var(--surface)' : 'transparent',
-          transition: 'background-color 0.2s'
-        }}
-      >
-        {transcript || <span style={{ color: 'var(--ink-soft)' }}>{listening ? 'Listening...' : 'Tap the microphone and speak Japanese.'}</span>}
-      </div>
-      <button 
-        type="button" 
-        className={`btn btn-primary ${listening ? 'listening' : ''}`}
-        onClick={handleToggle}
-        disabled={disabled}
-        style={{
-          backgroundColor: listening ? 'var(--danger)' : 'var(--brand-primary)',
-          transition: 'background-color 0.2s'
-        }}
-      >
-        {listening ? '⏹ Stop' : '🎤 Tap to Speak'}
-      </button>
-    </div>
-  );
+  return <div className="speech-quiz speaking-transcription"><div className={`transcript-box speaking-transcript-box${speech.listening ? ' is-listening' : ''}`} aria-live="polite"><Icon name="mic" size={20} /><div><small>{speech.listening ? 'LISTENING…' : speech.transcript ? 'YOUR BROWSER HEARD' : 'SPEECH QUESTION'}</small><p className={speech.transcript ? 'ja' : ''} lang={speech.transcript ? 'ja' : undefined}>{speech.transcript || 'Start the microphone and speak Japanese.'}</p></div></div><div className="speaking-control-actions"><button type="button" className={`btn ${speech.listening ? 'btn-secondary' : 'btn-primary'}`} onClick={speech.listening ? speech.stop : speech.start} disabled={disabled}><Icon name={speech.listening ? 'square' : 'mic'} size={15} /> {speech.listening ? 'Stop listening' : speech.transcript ? 'Try again' : 'Tap to speak'}</button>{speech.transcript ? <button type="button" className="btn btn-secondary" onClick={speech.clear} disabled={disabled}><Icon name="refresh-cw" size={15} /> Clear</button> : null}</div>{speech.error ? <p className="speaking-control-error" role="alert">{speech.error}</p> : <p className="speaking-privacy-note">The app receives the transcript returned by your browser&rsquo;s speech service.</p>}</div>;
 }

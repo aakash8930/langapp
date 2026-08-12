@@ -11,15 +11,20 @@ export const Route = createFileRoute('/vocabulary')({
 
 function VocabRoute() {
   const { bookmarks, toggle } = useBookmarks();
-  const { lists, addEntry } = useVocabLists();
-
-  const bmSet = useMemo(() => new Set(bookmarks.map((b) => b.id)), [bookmarks]);
+  const { lists, addEntry, create } = useVocabLists();
+  const bookmarkedIds = useMemo(() => new Set(bookmarks.map((bookmark) => bookmark.id)), [bookmarks]);
 
   return (
     <VocabBrowse
-      bookmarked={bmSet}
+      bookmarked={bookmarkedIds}
+      bookmarks={bookmarks}
       onToggleBookmark={toggle}
-      lists={lists.map((l) => ({ id: l.id, name: l.name }))}
+      lists={lists.map((list) => ({
+        id: list.id,
+        name: list.name,
+        entries: list.entries.map((entry) => ({ id: entry.id })),
+      }))}
+      onCreateList={create}
       onAddToList={(listId, entry) => addEntry(listId, { ...entry, addedAt: Date.now() })}
     />
   );

@@ -1,0 +1,23 @@
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useState } from 'react';
+
+import { Icon } from '../ui/Icon';
+import { FlashcardTabs } from './FlashcardTabs';
+import { useFlashcardCatalog } from './useFlashcardCatalog';
+
+import './flashcards.css';
+
+export function MyDecks() {
+  const navigate = useNavigate();
+  const catalog = useFlashcardCatalog();
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLocaleLowerCase();
+  const decks = catalog.local.decks.filter((deck) => !needle || `${deck.name} ${deck.description} ${deck.tags.join(' ')}`.toLocaleLowerCase().includes(needle));
+
+  function duplicate(id: string) {
+    const copyId = catalog.local.duplicateDeck(id);
+    if (copyId) void navigate({ to: '/flashcards-edit/$deckId', params: { deckId: copyId } });
+  }
+
+  return <div className="page flashcard-reference"><FlashcardTabs active="mine" /><header className="flashcard-page-header"><div><p className="flashcard-kicker">BROWSER-LOCAL COLLECTIONS</p><h1>My Decks</h1><p>Create and edit personal card collections. Their content and unscheduled study history stay in this browser.</p></div><Link className="btn btn-primary" to="/flashcards-create"><Icon name="pen-square" size={15} /> Create deck</Link></header><section className="flashcard-my-summary"><article className="glass"><span>Custom decks</span><strong className="tabular">{catalog.local.decks.length}</strong><small>Created in this browser</small></article><article className="glass"><span>Custom cards</span><strong className="tabular">{catalog.local.decks.reduce((total, deck) => total + deck.cards.length, 0)}</strong><small>Manual or imported</small></article><article className="glass"><span>Local study sessions</span><strong className="tabular">{catalog.local.summary.sessions}</strong><small>Latest 1,000 retained</small></article></section>{catalog.local.decks.length > 0 ? <section className="flashcard-my-toolbar glass"><label><Icon name="search" size={15} /><span className="visually-hidden">Search my decks</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, description, or tag…" /></label><span className="tabular">{decks.length} shown</span></section> : null}{catalog.local.decks.length === 0 ? <section className="flashcard-empty glass"><Icon name="layers" size={42} /><h2>No custom decks yet</h2><p>Create a deck manually or import the vocabulary and writing corrections already saved by connected modules.</p><Link className="btn btn-primary" to="/flashcards-create">Create your first deck</Link></section> : decks.length === 0 ? <section className="flashcard-empty glass"><Icon name="search" size={38} /><h2>No deck matches</h2><button type="button" className="btn btn-secondary" onClick={() => setQuery('')}>Clear search</button></section> : <section className="flashcard-my-grid">{decks.map((deck) => { const last = catalog.local.lastStudied(deck.id); const sessions = catalog.local.sessions.filter((session) => session.deckId === deck.id); const studied = sessions.reduce((total, session) => total + session.studied, 0); return <article className="glass" key={deck.id}><div className="flashcard-my-card-top"><span className="flashcard-deck-glyph ja">札</span><span className="flashcard-origin is-custom">custom</span></div><h2>{deck.name}</h2><p>{deck.description || 'No description added.'}</p>{deck.tags.length > 0 ? <div className="flashcard-tag-list">{deck.tags.map((tag) => <span key={tag}>{tag}</span>)}</div> : null}<dl><div><dt>Cards</dt><dd className="tabular">{deck.cards.length}</dd></div><div><dt>Cards studied</dt><dd className="tabular">{studied}</dd></div><div><dt>Last studied</dt><dd>{last ? new Date(last).toLocaleDateString() : 'Never'}</dd></div></dl><div className="flashcard-my-actions">{deck.cards.length > 0 ? <Link className="btn btn-primary btn-sm" to="/flashcards-study/$deckId" params={{ deckId: deck.id }}>Study</Link> : null}<Link className="btn btn-secondary btn-sm" to="/flashcards-edit/$deckId" params={{ deckId: deck.id }}>Edit</Link><button type="button" onClick={() => duplicate(deck.id)} aria-label={`Duplicate ${deck.name}`}><Icon name="layers" size={14} /></button></div></article>; })}</section>}<section className="flashcard-boundary-note glass"><Icon name="info" size={18} /><div><h2>Personal deck counts are not scheduling states</h2><p>The deck store has no New, Learning, Mastered, or Due fields. Those labels belong to the account&rsquo;s existing SRS cards and are shown only where the API provides them.</p></div><Link className="btn btn-secondary btn-sm" to="/flashcards-review-queue">Review queue</Link></section></div>;
+}

@@ -1,5 +1,7 @@
 import { LearningEngineService } from './learning-engine.service';
 import { ContentService } from '../content/content.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { UserService } from '../user/user.service';
 import { Types } from 'mongoose';
 
 const USER_ID = '607f1f77bcf86cd799439011';
@@ -8,24 +10,29 @@ const LESSON_ID = '507f1f77bcf86cd799439011';
 describe('LearningEngineService', () => {
   let service: LearningEngineService;
   let srsCardModel: { findOne: jest.Mock; find: jest.Mock };
-  let attemptModel: { find: jest.Mock };
   let contentService: { findLessonById: jest.Mock };
+  let analyticsService: { listReviewEvents: jest.Mock };
+  let userService: { findById: jest.Mock };
 
   beforeEach(() => {
     srsCardModel = {
       findOne: jest.fn(),
       find: jest.fn(),
     };
-    attemptModel = {
-      find: jest.fn(),
-    };
     contentService = {
       findLessonById: jest.fn(),
     };
+    analyticsService = {
+      listReviewEvents: jest.fn().mockResolvedValue([]),
+    };
+    userService = {
+      findById: jest.fn().mockResolvedValue({ settings: { tz: 'UTC' } }),
+    };
     service = new LearningEngineService(
       srsCardModel as never,
-      attemptModel as never,
       contentService as unknown as ContentService,
+      analyticsService as unknown as AnalyticsService,
+      userService as unknown as UserService,
     );
   });
 
@@ -215,23 +222,22 @@ describe('LearningEngineService', () => {
   });
 
   describe('getReviewAnalytics', () => {
-    it('aggregates total reviews, accuracy rate, average response time, and mastered count', async () => {
+    it('uses today’s review events for accuracy and timing, not lifetime card counters', async () => {
       srsCardModel.find.mockReturnValue({
         exec: jest.fn().mockResolvedValue([
           { state: 'review', stability: 35, reps: 8, totalReviews: 10, correctReviews: 8 },
         ]),
       });
-
-      attemptModel.find.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue([{ responseTimeMs: 1200 }, { responseTimeMs: 1800 }]),
-        }),
-      });
+      const now = new Date();
+      analyticsService.listReviewEvents.mockResolvedValue([
+        { id: 'event-1', ts: now, payload: { grade: 'good', responseTimeMs: 1200 } },
+        { id: 'event-2', ts: now, payload: { grade: 'again', responseTimeMs: 1800 } },
+      ]);
 
       const result = await service.getReviewAnalytics(USER_ID);
 
-      expect(result.totalReviewsToday).toBe(10);
-      expect(result.accuracyRateToday).toBe(0.8);
+      expect(result.totalReviewsToday).toBe(2);
+      expect(result.accuracyRateToday).toBe(0.5);
       expect(result.averageResponseTimeMs).toBe(1500);
       expect(result.masteredCount).toBe(1);
     });
