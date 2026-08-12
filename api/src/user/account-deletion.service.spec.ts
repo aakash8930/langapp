@@ -5,6 +5,7 @@ import { LearningService } from '../learning/learning.service';
 import { ChatService } from '../chat/chat.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { SocialService } from '../social/social.service';
+import { PracticeService } from '../practice/practice.service';
 
 const USER_ID = '607f1f77bcf86cd799439011';
 
@@ -15,6 +16,7 @@ describe('AccountDeletionService', () => {
   let chatService: { deleteAllForUser: jest.Mock };
   let analyticsService: { deleteAllForUser: jest.Mock };
   let socialService: { deleteAllForUser: jest.Mock };
+  let practiceService: { deleteAllForUser: jest.Mock };
 
   beforeEach(() => {
     userService = {
@@ -33,6 +35,9 @@ describe('AccountDeletionService', () => {
     socialService = {
       deleteAllForUser: jest.fn().mockResolvedValue(undefined),
     };
+    practiceService = {
+      deleteAllForUser: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new AccountDeletionService(
       userService as unknown as UserService,
@@ -40,6 +45,7 @@ describe('AccountDeletionService', () => {
       chatService as unknown as ChatService,
       analyticsService as unknown as AnalyticsService,
       socialService as unknown as SocialService,
+      practiceService as unknown as PracticeService,
     );
   });
 
@@ -53,6 +59,7 @@ describe('AccountDeletionService', () => {
     expect(chatService.deleteAllForUser).toHaveBeenCalledWith(USER_ID);
     expect(analyticsService.deleteAllForUser).toHaveBeenCalledWith(USER_ID);
     expect(socialService.deleteAllForUser).toHaveBeenCalledWith(USER_ID);
+    expect(practiceService.deleteAllForUser).toHaveBeenCalledWith(USER_ID);
     expect(userService.deleteUser).toHaveBeenCalledWith(USER_ID);
   });
 
@@ -65,6 +72,7 @@ describe('AccountDeletionService', () => {
     expect(chatService.deleteAllForUser).not.toHaveBeenCalled();
     expect(analyticsService.deleteAllForUser).not.toHaveBeenCalled();
     expect(socialService.deleteAllForUser).not.toHaveBeenCalled();
+    expect(practiceService.deleteAllForUser).not.toHaveBeenCalled();
     expect(userService.deleteUser).not.toHaveBeenCalled();
   });
 });

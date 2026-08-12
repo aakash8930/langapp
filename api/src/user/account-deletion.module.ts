@@ -3,6 +3,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { ChatModule } from '../chat/chat.module';
 import { LearningModule } from '../learning/learning.module';
 import { SocialModule } from '../social/social.module';
+import { PracticeModule } from '../practice/practice.module';
 import { UserModule } from '../user/user.module';
 import { AccountDeletionController } from '../user/account-deletion.controller';
 import { AccountDeletionService } from '../user/account-deletion.service';
@@ -26,7 +27,7 @@ import { AccountDeletionService } from '../user/account-deletion.service';
  * `/me` prefix across both controllers.
  */
 @Module({
-  imports: [UserModule, LearningModule, ChatModule, AnalyticsModule, SocialModule],
+  imports: [UserModule, LearningModule, ChatModule, AnalyticsModule, SocialModule, PracticeModule],
   controllers: [AccountDeletionController],
   providers: [AccountDeletionService],
   exports: [AccountDeletionService],

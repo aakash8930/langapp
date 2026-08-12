@@ -46,6 +46,10 @@ export const queryKeys = {
     retention: (days: number) => ['reviews', 'retention', days] as const,
     forecast: (days: number) => ['reviews', 'forecast', days] as const,
   },
+  practice: {
+    overview: ['practice', 'overview'] as const,
+    session: (sessionId: string) => ['practice', 'session', sessionId] as const,
+  },
   reading: {
     /** `GET /vocab/by-known-kana` — server-filtered, character-safe vocabulary. */
     feed: ['reading', 'by-known-kana'] as const,

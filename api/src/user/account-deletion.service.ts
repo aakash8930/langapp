@@ -3,6 +3,7 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import { ChatService } from '../chat/chat.service';
 import { LearningService } from '../learning/learning.service';
 import { SocialService } from '../social/social.service';
+import { PracticeService } from '../practice/practice.service';
 import { UserService } from './user.service';
 
 /**
@@ -24,6 +25,7 @@ import { UserService } from './user.service';
  * - `chatSessions`, `chatMessages` — owned by ChatService
  * - `events` (analytics) — owned by AnalyticsService
  * - `friendships`, `blocks`, `directMessages` — owned by SocialService
+ * - `practiceSessions` — owned by PracticeService
  *
  * ## What is NOT deleted
  *
@@ -49,6 +51,7 @@ export class AccountDeletionService {
     private readonly chatService: ChatService,
     private readonly analyticsService: AnalyticsService,
     private readonly socialService: SocialService,
+    private readonly practiceService: PracticeService,
   ) {}
 
   /**
@@ -95,6 +98,14 @@ export class AccountDeletionService {
       this.socialService.deleteAllForUser(userId).catch((err: unknown) => {
         this.logger.error(
           `Social data deletion failed for user ${userId}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        throw err;
+      }),
+      this.practiceService.deleteAllForUser(userId).catch((err: unknown) => {
+        this.logger.error(
+          `Practice data deletion failed for user ${userId}: ${
             err instanceof Error ? err.message : String(err)
           }`,
         );

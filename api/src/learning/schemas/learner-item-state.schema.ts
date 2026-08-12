@@ -13,9 +13,10 @@ export const ITEM_MASTERY_LEVELS: ItemMasteryLevel[] = [
 /**
  * Where the learner has been seen practising an item. §5.2's provenance field.
  *
- * `lesson`, `review`, `chat` and `checkpoint` are written today; `reading` is
- * reserved for §6.7. `combined` is the across-units test. Recorded so that
- * "weak on へ" can eventually distinguish weak *in a quiz* from weak *in
+ * `lesson`, `review`, `chat`, `reading`, `checkpoint`, `combined`, and
+ * `practice` are written today. Practice remains separate because generated
+ * application evidence must never be mistaken for an FSRS Review event.
+ * Recorded so that "weak on へ" can distinguish weak *in a quiz* from weak *in
  * conversation*.
  *
  * `checkpoint` is deliberately not folded into `lesson`, even though both come
@@ -33,6 +34,10 @@ export const SOURCE_CONTEXTS = [
   'reading',
   'checkpoint',
   'combined',
+  // Generated Practice sessions contribute confidence evidence but never write
+  // FSRS scheduling state. Keeping the provenance separate lets Weak Areas
+  // distinguish application practice from lesson completion and Review.
+  'practice',
 ] as const;
 export type SourceContext = (typeof SOURCE_CONTEXTS)[number];
 

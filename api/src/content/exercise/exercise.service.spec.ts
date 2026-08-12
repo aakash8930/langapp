@@ -131,7 +131,8 @@ function makeServiceWithAttempts(
   recordAttempt: jest.Mock = jest.fn(() => Promise.resolve(true)),
   recordLearnerItem: jest.Mock = jest.fn(() => Promise.resolve()),
   characterKana: { id: string; kana: string }[] = [],
-): { service: ExerciseService; recordAttempt: jest.Mock; recordLearnerItem: jest.Mock } {
+  scheduleItemDue: jest.Mock = jest.fn(() => Promise.resolve({ cardCreated: false, cardAdvanced: false })),
+): { service: ExerciseService; recordAttempt: jest.Mock; recordLearnerItem: jest.Mock; scheduleItemDue: jest.Mock } {
   const contentService = {
     findLessonById: () => Promise.resolve(lesson),
     findUnitKanaPool: () =>
@@ -155,10 +156,10 @@ function makeServiceWithAttempts(
   const service = new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
-    fakeLearningService(),
+    { scheduleItemDue } as unknown as LearningService,
     learnerItemStateService,
   );
-  return { service, recordAttempt, recordLearnerItem };
+  return { service, recordAttempt, recordLearnerItem, scheduleItemDue };
 }
 
 /**
@@ -672,6 +673,33 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
         sourceContext: 'reading',
       }));
     }
+  });
+
+  it('records Practice evidence without changing an FSRS due date', async () => {
+    const scheduleItemDue = jest.fn(() => Promise.resolve({ cardCreated: false, cardAdvanced: false }));
+    const { service, recordLearnerItem } = makeServiceWithAttempts(
+      LEARNER_VOWEL_LESSON,
+      LEARNER_VOWEL_POOL,
+      undefined,
+      undefined,
+      undefined,
+      [],
+      scheduleItemDue,
+    );
+    const set = await service.generate(LESSON_ID, USER_A, 0);
+    const question = asMultipleChoice(set.questions[0]);
+    const expected = LEARNER_VOWELS.find((v) => v.kana === question.prompt)!.romaji;
+    const wrongOption = question.options.find((option) => option.value !== expected)!;
+
+    await service.answer(LESSON_ID, question.exerciseId, USER_A, {
+      optionId: wrongOption.id,
+      sourceContext: 'practice',
+    });
+
+    expect(recordLearnerItem).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceContext: 'practice', outcome: { correct: false, responseTimeMs: undefined } }),
+    );
+    expect(scheduleItemDue).not.toHaveBeenCalled();
   });
 
   it('does not fail the answer when the learner-model write throws', async () => {

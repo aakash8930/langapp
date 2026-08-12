@@ -12,6 +12,14 @@
 
 import { emitSessionExpired, getTokens, setTokens, type Tokens, type User } from './auth';
 import { log, logError } from './debug';
+import type {
+  PracticeAnswerResponse,
+  PracticeLevel,
+  PracticeMode,
+  PracticeOverview,
+  PracticeSession,
+  PracticeSkill,
+} from './components/practice/practiceTypes';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '');
 
@@ -764,6 +772,49 @@ export function completeLesson(lessonId: string): Promise<CompleteResult> {
   return authed<CompleteResult>(`/lessons/${encodeURIComponent(lessonId)}/complete`, {
     method: 'POST',
   });
+}
+
+// ---------------------------------------------------------------------------
+// Practice — generated application exercises, intentionally separate from FSRS
+// ---------------------------------------------------------------------------
+
+export function fetchPracticeOverview(): Promise<PracticeOverview> {
+  return authed<PracticeOverview>('/practice/overview');
+}
+
+export function createPracticeSession(input: {
+  mode: PracticeMode;
+  questionCount?: number;
+  skills?: PracticeSkill[];
+  level?: PracticeLevel;
+  timeLimitMinutes?: number;
+}): Promise<PracticeSession> {
+  return authed<PracticeSession>('/practice/sessions', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchPracticeSession(sessionId: string): Promise<PracticeSession> {
+  return authed<PracticeSession>(`/practice/sessions/${encodeURIComponent(sessionId)}`);
+}
+
+export function answerPracticeQuestion(
+  sessionId: string,
+  questionId: string,
+  body: ({ optionId: string } | { text: string }) & { responseTimeMs: number },
+): Promise<PracticeAnswerResponse> {
+  return authed<PracticeAnswerResponse>(
+    `/practice/sessions/${encodeURIComponent(sessionId)}/questions/${encodeURIComponent(questionId)}/answer`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function completePracticeSession(sessionId: string): Promise<PracticeSession> {
+  return authed<PracticeSession>(
+    `/practice/sessions/${encodeURIComponent(sessionId)}/complete`,
+    { method: 'POST' },
+  );
 }
 
 /**
