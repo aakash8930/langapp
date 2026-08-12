@@ -2,7 +2,7 @@
   margin-top: auto;
   border-top: 1px solid var(--hairline);
   padding: var(--s-2xl) var(--s-xl) var(--s-xl);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
 }
 
 .footer-grid {

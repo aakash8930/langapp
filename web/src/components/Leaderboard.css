@@ -38,7 +38,7 @@
 .time-remaining {
   display: inline-block;
   padding: var(--s-sm) var(--s-lg);
-  background: rgba(124, 58, 237, 0.1);
+  background: rgba(214, 173, 96, 0.1);
   border-radius: var(--radius-full);
   font-size: var(--text-small);
   font-weight: 700;
@@ -69,9 +69,9 @@
 }
 
 .leaderboard-row.is-you {
-  background: linear-gradient(to right, rgba(124, 58, 237, 0.1), rgba(59, 130, 246, 0.1));
+  background: linear-gradient(to right, rgba(214, 173, 96, 0.1), rgba(227, 201, 144, 0.1));
   border-color: var(--brand-primary);
-  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 4px 15px rgba(214, 173, 96, 0.2);
 }
 
 .leaderboard-row.promotion-zone {
@@ -114,14 +114,14 @@
   height: 48px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--brand-secondary), var(--brand-primary));
-  color: white;
+  color: var(--paper);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
   font-size: var(--text-large);
   margin: 0 var(--s-lg);
-  box-shadow: 0 4px 10px rgba(236, 72, 153, 0.3);
+  box-shadow: 0 4px 10px rgba(223, 98, 84, 0.3);
 }
 
 .row-name {

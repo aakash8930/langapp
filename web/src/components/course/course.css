@@ -1,15 +1,10 @@
 /*
  * The course page.
  *
- * The design this follows is black and gold. This is not: the palette stays the
- * dashboard's violet/pink on slate, straight out of `theme.css`, because the
- * two screens sit one click apart behind the same sidebar and a course page in
- * a different colour scheme reads as a different product. Only the *structure*
- * is taken from the mock — the banner, the progress dial, the module accordion,
- * the right rail, the feature strip.
- *
- * No colour literals here. Every value is a token, which is what makes the
- * above a property of the file rather than a promise in a comment.
+ * It shares the dashboard's sumi-black, antique-gold and vermilion palette so
+ * moving between screens feels like one product. The reference supplies the
+ * structure too: banner, progress dial, module accordion, right rail and the
+ * feature strip. All colours remain token-driven here.
  */
 
 .course {

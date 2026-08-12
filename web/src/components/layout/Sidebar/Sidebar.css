@@ -31,7 +31,7 @@
 
   border-right: 1px solid var(--hairline);
 
-  background: var(--surface);
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
 
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -281,7 +281,7 @@ a.sidebar-item:hover {
   border-radius: var(--radius-full);
 
   background: var(--brand-primary);
-  color: #fff;
+  color: var(--paper);
 
   font-size: var(--text-caption);
   font-weight: 700;

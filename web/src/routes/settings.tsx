@@ -5,14 +5,12 @@ import { useState, useEffect } from 'react';
 import {
   MAX_DAILY_GOAL_XP,
   MIN_DAILY_GOAL_XP,
-  THEMES,
   exportUserData,
   updateNotificationSettings,
   updateProfile,
   updateSettings,
   type NotificationSettingsShape,
   type SettingsPatch,
-  type Theme,
 } from '../api';
 import type { User } from '../auth';
 import { logError } from '../debug';
@@ -208,9 +206,6 @@ function AppearanceSection({ user, goalXp }: { user: User; goalXp: number | null
   const queryClient = useQueryClient();
 
   const [audioSpeed, setAudioSpeed] = useState(user.settings.audioSpeed);
-  const [theme, setTheme] = useState<Theme>(
-    (THEMES as readonly string[]).includes(user.settings.theme) ? user.settings.theme as Theme : 'system',
-  );
   const [tz, setTz] = useState(user.settings.tz);
   const [dailyGoalXp, setDailyGoalXp] = useState(goalXp ?? user.gamification.dailyGoalXp);
   const [fontSize, setFontSize] = useState(user.settings.fontSize ?? 'medium');
@@ -228,7 +223,6 @@ function AppearanceSection({ user, goalXp }: { user: User; goalXp: number | null
 
   const patch: SettingsPatch = {};
   if (audioSpeed !== user.settings.audioSpeed) patch.audioSpeed = audioSpeed;
-  if (theme !== user.settings.theme) patch.theme = theme;
   if (tz !== user.settings.tz) patch.tz = tz;
   if (dailyGoalXp !== (goalXp ?? user.gamification.dailyGoalXp)) patch.dailyGoalXp = dailyGoalXp;
   if (fontSize !== (user.settings.fontSize ?? 'medium')) patch.fontSize = fontSize as SettingsPatch['fontSize'];
@@ -259,14 +253,10 @@ function AppearanceSection({ user, goalXp }: { user: User; goalXp: number | null
 
         <div className="field">
           <span className="field-label">Theme</span>
-          <div className="radio-row">
-            {THEMES.map((o) => (
-              <label className="radio" key={o}>
-                <input type="radio" name="theme" value={o} checked={theme === o} onChange={() => setTheme(o)} />
-                <span>{o[0]?.toUpperCase() + o.slice(1)}</span>
-              </label>
-            ))}
-          </div>
+          <p className="field-value">Japanese Ink — dark</p>
+          <p className="field-note">
+            GENKŌ uses the same sumi-black, gold and vermilion theme on every screen.
+          </p>
         </div>
 
         <div className="field">

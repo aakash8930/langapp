@@ -23,7 +23,8 @@ export default defineConfig({
         name: 'LangApp',
         short_name: 'LangApp',
         description: 'Super-App Language Learning Platform',
-        theme_color: '#ffffff',
+        theme_color: '#090c0b',
+        background_color: '#090c0b',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -49,11 +50,13 @@ export default defineConfig({
   // request URL (`/learn/...`), so Funnel still strips `/learn` and serves
   // the right files upstream.
   base: './',
-  // Tailscale Funnel preserves the public Host header when it forwards the
-  // request, so `vite preview` needs to allow the public hostname explicitly —
-  // otherwise it 403s every load with "this host is not allowed". localhost /
-  // 127.0.0.1 are allowed by default; only the Funnel hostname needs listing.
+  // Dev previews arrive through Arena's generated e2b.app host; production
+  // preview also keeps the public Funnel host. Neither surface should reject
+  // the Host header before the app can render.
+  server: {
+    allowedHosts: ['.e2b.app'],
+  },
   preview: {
-    allowedHosts: ['aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net'],
+    allowedHosts: ['.e2b.app', 'aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net'],
   },
 })

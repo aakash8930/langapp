@@ -68,12 +68,12 @@
 
 .notif-tab--active {
   background: var(--brand-primary);
-  color: #fff;
+  color: var(--paper);
 }
 
 .notif-tab--active:hover {
   background: var(--brand-primary);
-  color: #fff;
+  color: var(--paper);
 }
 
 .notif-mark-all {

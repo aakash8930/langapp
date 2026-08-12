@@ -108,7 +108,7 @@
   transform: translateX(-50%);
   padding: var(--s-xs) var(--s-lg);
   background: var(--brand-primary);
-  color: #fff;
+  color: var(--paper);
   font-size: 11px;
   font-weight: 700;
   border-radius: var(--radius-full);
@@ -201,7 +201,7 @@
 
 .plan-cta.btn-primary {
   background: var(--brand-primary);
-  color: #fff;
+  color: var(--paper);
 }
 
 .plan-cta.btn-secondary {

@@ -62,10 +62,11 @@ export function Dashboard({
   return (
     <div className="dashboard">
       <section className="dashboard-main" aria-label="Learning dashboard">
-        <div className="dashboard-main-header">
-          <p className="dashboard-kicker">Your learning space</p>
-          <h1 className="dashboard-title">Keep your Japanese moving.</h1>
-          <p className="dashboard-subtitle">A clear next step, your daily progress, and the reviews that matter now.</p>
+        <QuickActionsRow />
+
+        <div className="dashboard-action-grid">
+          <ContinueCard units={units} progress={progress} />
+          <ReviewsCard />
         </div>
 
         <AIRecommendations units={units} progress={progress} />
@@ -75,12 +76,6 @@ export function Dashboard({
           <TodayCard progress={progress} />
         </div>
 
-        <div className="dashboard-action-grid">
-          <ContinueCard units={units} progress={progress} />
-          <ReviewsCard />
-        </div>
-
-        <QuickActionsRow />
         <RecentLessons units={units} progress={progress} />
         <PathCard units={units} progress={progress} />
       </section>

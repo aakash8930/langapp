@@ -11,22 +11,13 @@ import { queryKeys } from '../../../queryKeys';
 import './AppHeader.css';
 
 /**
- * Time-of-day greeting, in Japanese, because the product is.
- *
- * The boundaries are the conventional ones — おはようございます until 11,
- * こんにちは until 18, こんばんは after — and they read off the *browser's*
- * clock rather than `settings.tz`. That is deliberate: the greeting describes
- * where the learner is sitting right now, and a traveller whose account still
- * says Asia/Kolkata should still be told good evening when it is evening.
- *
- * Anything the *server* counts as "today" — the streak, the daily goal — uses
- * the account timezone instead, and that split is why this is a local helper
- * rather than something shared.
+ * The browser clock is deliberate: the greeting describes where the learner
+ * is sitting, while server-counted streaks and goals use the account timezone.
  */
-function greeting(hour: number): { ja: string; romaji: string } {
-  if (hour < 11) return { ja: 'おはようございます', romaji: 'Ohayō gozaimasu' };
-  if (hour < 18) return { ja: 'こんにちは', romaji: "Kon'nichiwa" };
-  return { ja: 'こんばんは', romaji: 'Konbanwa' };
+function greeting(hour: number): string {
+  if (hour < 11) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
 }
 
 /** First letters of the display name, for the avatar. Two at most. */
@@ -85,20 +76,18 @@ export function Header() {
         {!onDashboard ? null : name ? (
           <>
             <h1 className="app-header-hello">
-              <span className="ja">{hello.ja}</span>
-              <span className="app-header-name">, {name}!</span>{' '}
+              <span>{hello}, </span>
+              <span className="app-header-name">{name}!</span>{' '}
               <span aria-hidden="true">👋</span>
-              {/* The romaji is for the learner who cannot read the greeting
-                  yet, which on day one is every learner. */}
-              <span className="visually-hidden"> ({hello.romaji})</span>
             </h1>
-            <p className="app-header-sub">Let&rsquo;s continue your Japanese learning journey.</p>
+            <p className="app-header-sub">
+              <span className="app-header-proverb-ja ja">小さな一歩が、大きな未来をつくる。</span>
+              <span>Small steps every day lead to big results.</span>
+            </p>
           </>
         ) : (
           <>
-            <h1 className="app-header-hello">
-              <span className="ja">{hello.ja}</span>
-            </h1>
+            <h1 className="app-header-hello">Welcome to GENKŌ</h1>
             <p className="app-header-sub">Sign in to pick up where you left off.</p>
           </>
         )}
