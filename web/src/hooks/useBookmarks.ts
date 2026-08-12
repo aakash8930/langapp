@@ -18,7 +18,8 @@ function readAll(): Bookmark[] {
   if (raw === cachedRaw) return cachedValue;
   cachedRaw = raw;
   try {
-    cachedValue = raw ? (JSON.parse(raw) as Bookmark[]) : [];
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    cachedValue = Array.isArray(parsed) ? parsed as Bookmark[] : [];
   } catch {
     cachedValue = [];
   }
@@ -47,13 +48,13 @@ export function useBookmarks() {
 
   const toggle = useCallback((id: string, lemma: string, reading: string, gloss: string) => {
     const current = readAll();
-    const existing = current.findIndex((b) => b.id === id);
-    if (existing >= 0) {
-      current.splice(existing, 1);
-    } else {
-      current.push({ id, lemma, reading, gloss, addedAt: Date.now() });
-    }
-    writeAll(current);
+    const existing = current.some((bookmark) => bookmark.id === id);
+    const next = existing
+      ? current.filter((bookmark) => bookmark.id !== id)
+      : [...current, { id, lemma, reading, gloss, addedAt: Date.now() }];
+    // useSyncExternalStore compares snapshots by reference. Never mutate the
+    // cached array in place or the bookmark button will appear to do nothing.
+    writeAll(next);
     notify();
   }, []);
 
