@@ -9,19 +9,19 @@ export function AIToolsHub() {
       </header>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 'var(--s-lg)' }}>
-        <Link className="glass panel" to="/practice" style={{ padding: 'var(--s-xl)', textDecoration: 'none' }}>
+        <Link className="glass panel" to="/speaking-conversation" search={{ session: undefined }} style={{ padding: 'var(--s-xl)', textDecoration: 'none' }}>
           <div style={{ fontSize: '2rem', marginBottom: 'var(--s-sm)' }}>🤖</div>
           <strong style={{ display: 'block', marginBottom: 'var(--s-xs)', fontSize: 'var(--text-large)' }}>AI Conversation</strong>
           <span style={{ color: 'var(--ink-soft)', fontSize: 'var(--text-small)' }}>
-            Chat with an AI shopkeeper in Japanese. Get real-time corrections on your grammar and vocabulary.
+            Meet an AI conversation partner in the real first-meeting scenario and receive grammar and vocabulary corrections.
           </span>
         </Link>
 
-        <Link className="glass panel" to="/speaking" style={{ padding: 'var(--s-xl)', textDecoration: 'none' }}>
+        <Link className="glass panel" to="/speaking-pronunciation" style={{ padding: 'var(--s-xl)', textDecoration: 'none' }}>
           <div style={{ fontSize: '2rem', marginBottom: 'var(--s-sm)' }}>🎤</div>
           <strong style={{ display: 'block', marginBottom: 'var(--s-xs)', fontSize: 'var(--text-large)' }}>Pronunciation Practice</strong>
           <span style={{ color: 'var(--ink-soft)', fontSize: 'var(--text-small)' }}>
-            Read words aloud and get speech recognition feedback. Practice your accent.
+            Hear course readings, record your voice, and compare the browser transcript without a fabricated accent score.
           </span>
         </Link>
 
@@ -74,7 +74,7 @@ export function AIToolsHub() {
         <p className="card-note" style={{ margin: 0 }}>
           All AI tools are powered by the same conversation engine. Start a chat to access grammar checking, translation, sentence explanation, and writing feedback — just ask!
         </p>
-        <Link className="btn btn-primary" to="/practice" style={{ marginTop: 'var(--s-md)' }}>
+        <Link className="btn btn-primary" to="/speaking-conversation" search={{ session: undefined }} style={{ marginTop: 'var(--s-md)' }}>
           Start AI Chat
         </Link>
       </div>
