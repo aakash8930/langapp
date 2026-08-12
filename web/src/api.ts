@@ -135,7 +135,12 @@ async function send<T>(path: string, init: RequestInit = {}, accessToken?: strin
 
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
-  if (init.body !== undefined) headers.set('Content-Type', 'application/json');
+  // Let the browser add the multipart boundary for file uploads. Setting a
+  // bare application/json header on FormData makes `/me/avatar` unreadable to
+  // Multer even though the request body itself is otherwise valid.
+  if (init.body !== undefined && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
 
   const started = performance.now();
