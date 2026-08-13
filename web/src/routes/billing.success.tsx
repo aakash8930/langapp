@@ -13,12 +13,12 @@ function PaymentSuccess() {
         <div className="success-icon">
           <Icon name="check" size={48} />
         </div>
-        <h1 className="success-heading">Payment Successful!</h1>
+        <h1 className="success-heading">Payment received</h1>
         <p className="success-message">
-          Welcome to Pro! You now have full access to all premium features.
+          We are confirming your payment and updating your subscription securely.
         </p>
         <p className="success-note">
-          A confirmation email has been sent to your registered email address.
+          Premium access is activated only after the billing provider and LangApp backend confirm the transaction. Check Manage Subscription for the current status.
         </p>
         <div className="success-actions">
           <Link className="btn btn-primary" to="/">

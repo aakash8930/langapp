@@ -11,7 +11,7 @@ function DictPage() {
 
   return (
     <div>
-      <DictionarySearch />
+      <DictionarySearch onSearch={addQuery} />
 
       {history.length > 0 && (
         <div style={{ maxWidth: '600px', margin: 'var(--s-lg) auto 0' }}>

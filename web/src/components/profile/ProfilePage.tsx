@@ -128,9 +128,9 @@ export function ProfilePage() {
   return (
     <div className="profile-page">
       <header className="profile-page-head">
-        <p className="profile-eyebrow">ACCOUNT OVERVIEW</p>
+        <p className="profile-eyebrow">LEARNER IDENTITY & PORTFOLIO</p>
         <h1>My profile <Icon name="users-round" size={24} /></h1>
-        <p>Manage your profile and follow the progress you have actually made.</p>
+        <p>Your identity, learning milestones, achievements, saved material, and recorded activity—without mixing in account security settings.</p>
       </header>
 
       <div className="profile-summary-grid">
@@ -378,6 +378,7 @@ function ProfileNav() {
     { label: 'Overview', icon: 'grid' as const, to: '/profile' as const, current: true },
     { label: 'Achievements', icon: 'award' as const, to: '/achievements' as const },
     { label: 'Study stats', icon: 'trending-up' as const, to: '/progress' as const },
+    { label: 'Certificates', icon: 'award' as const, to: '/courses' as const },
     { label: 'Bookmarks', icon: 'book-marked' as const, to: '/vocab-bookmarks' as const },
     { label: 'Settings', icon: 'settings' as const, to: '/settings' as const },
   ];

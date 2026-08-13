@@ -42,6 +42,7 @@ function LibraryFrame({
   placeholder,
   items,
   render,
+  onSearch,
 }: {
   title: string;
   glyph: string;
@@ -50,6 +51,7 @@ function LibraryFrame({
   /** Already narrowed to one kind by the caller. */
   items: ResolvedItem[] | null;
   render: (matched: ResolvedItem[]) => React.ReactNode;
+  onSearch?: (query: string) => void;
 }) {
   const corpus = useCorpus();
   const [query, setQuery] = useState('');
@@ -75,7 +77,7 @@ function LibraryFrame({
         <p className="page-sub">{blurb}</p>
       </header>
 
-      <div className="library-search">
+      <form className="library-search" onSubmit={(event) => { event.preventDefault(); onSearch?.(query); }}>
         <Icon name="search" size={16} />
         <input
           className="library-search-input"
@@ -83,9 +85,10 @@ function LibraryFrame({
           placeholder={placeholder}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onBlur={() => { if (query.trim()) onSearch?.(query); }}
           aria-label={`Search ${title.toLowerCase()}`}
         />
-      </div>
+      </form>
 
       {corpus.isPending ? (
         <p className="card-note">Loading the syllabus…</p>
@@ -307,7 +310,7 @@ export function GrammarLibrary() {
  * and pretending otherwise would have a learner conclude a word does not exist
  * in Japanese when it merely is not in the syllabus yet.
  */
-export function DictionarySearch() {
+export function DictionarySearch({ onSearch }: { onSearch?: (query: string) => void }) {
   const corpus = useCorpus();
   const items = corpus.data?.items ?? null;
 
@@ -318,20 +321,20 @@ export function DictionarySearch() {
       blurb="Everything in the syllabus — words, characters, kana and grammar — in one search. This is the course's content, not the whole language."
       placeholder="Search anything in the course…"
       items={items}
+      onSearch={onSearch}
       render={(matched) => (
         <ul className="dict-list">
           {matched.map((item) => {
             const face = dictFace(item);
+            const destination = item.kind === 'kanji' ? `/kanji/${item.id}` : item.kind === 'grammar' ? `/grammar/${item.id}` : item.kind === 'vocab' ? '/vocabulary' : item.kind === 'kana' ? `/${item.script}` : '/dictionary';
             return (
               <li className="dict-row" key={`${item.kind}-${item.id}`}>
-                <span className="dict-glyph ja" lang="ja">
-                  {face.glyph}
-                </span>
-                <span className="dict-body">
-                  <span className="dict-label">{face.label}</span>
-                  <span className="dict-note">{face.note}</span>
-                </span>
-                <span className={`vocab-tag dict-kind dict-kind-${item.kind}`}>{item.kind}</span>
+                <a href={destination} className="dict-entry-link">
+                  <span className="dict-glyph ja" lang="ja">{face.glyph}</span>
+                  <span className="dict-body"><span className="dict-label">{face.label}</span><span className="dict-note">{face.note}</span></span>
+                  <span className={`vocab-tag dict-kind dict-kind-${item.kind}`}>{item.kind}</span>
+                  <span className="dict-details">Details →</span>
+                </a>
               </li>
             );
           })}

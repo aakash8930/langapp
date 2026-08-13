@@ -47,8 +47,6 @@ export function NotificationCenter() {
   const { session } = useSession();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>('all');
-  const [dnd, setDnd] = useState(false);
-
   const user = session.state === 'signedIn' ? session.user : null;
   const notifSettings = user?.notificationSettings as NotificationSettingsShape | undefined;
 
@@ -241,18 +239,12 @@ export function NotificationCenter() {
           </div>
         </div>
 
-        <label className="notif-setting-row">
-          <div className="notif-setting-info">
-            <span className="notif-setting-label">Do Not Disturb</span>
-            <span className="notif-setting-desc">Hide the notification badge</span>
-          </div>
-          <input
-            type="checkbox"
-            className="notif-toggle"
-            checked={dnd}
-            onChange={(e) => setDnd(e.target.checked)}
-          />
-        </label>
+        <div className="notif-delivery-note">
+          <p className="notif-setting-section">Delivery channels</p>
+          <p><strong>In-app notifications</strong> are available through this center.</p>
+          <p><strong>Push reminders and quiet hours</strong> need device registration, permission handling, timezone-aware scheduling, and a server delivery worker. They are not simulated with a browser-only toggle.</p>
+          <p>Every delivery channel should be decided centrally from user preferences, priority, quiet hours, and recent sends—not independently by each learning feature.</p>
+        </div>
       </div>
     </div>
   );

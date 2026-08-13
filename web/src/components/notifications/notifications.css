@@ -367,3 +367,6 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+.notif-delivery-note { margin-top: var(--s-lg); padding: var(--s-md); border-top: 1px solid var(--hairline); color: var(--ink-soft); font-size: var(--text-caption); line-height: 1.5; }
+.notif-delivery-note p { margin: var(--s-xs) 0; }.notif-delivery-note strong { color: var(--ink); }
