@@ -102,9 +102,10 @@ export function BillingPage() {
                   Cancel at period end
                 </button>
               ) : (
-                <p className="billing-note">
-                  Subscription will end on {dateLabel(sub.currentPeriodEnd)}.
-                </p>
+                <div className="billing-actions">
+                  <p className="billing-note">Subscription will end on {dateLabel(sub.currentPeriodEnd)}.</p>
+                  <button className="btn btn-primary" onClick={() => portalMutation.mutate()} disabled={portalMutation.isPending}>Reactivate in billing portal</button>
+                </div>
               )}
             </>
           )}
