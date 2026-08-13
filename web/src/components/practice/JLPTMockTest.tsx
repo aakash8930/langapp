@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 
 import '../library/vocab-browse.css';
 import './practice.css';
+import { saveJlptResult, type JLPTSection } from './jlptData';
 
 const MOCK_QUESTIONS = [
   { question: '「わたし＿せんせいです。」に入るのは？', options: ['は', 'を', 'に', 'で'], answer: 0, topic: 'Grammar' },
@@ -27,6 +28,27 @@ export function JLPTMockTestPage() {
   const [finished, setFinished] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [timer, setTimer] = useState<ReturnType<typeof setInterval> | null>(null);
+  const [resultSaved, setResultSaved] = useState(false);
+
+  useEffect(() => {
+    if (!finished || resultSaved) return;
+    const sections: Record<JLPTSection, { correct: number; total: number }> = {
+      Vocabulary: { correct: 0, total: 0 },
+      'Grammar & Reading': { correct: 0, total: 0 },
+      Listening: { correct: 0, total: 0 },
+    };
+    MOCK_QUESTIONS.forEach((question, questionIndex) => {
+      const section: JLPTSection = question.topic === 'Grammar' ? 'Grammar & Reading' : 'Vocabulary';
+      sections[section].total += 1;
+      if (answers[questionIndex] === question.answer) sections[section].correct += 1;
+    });
+    const correct = answers.filter((answer, questionIndex) => answer === MOCK_QUESTIONS[questionIndex].answer).length;
+    saveJlptResult({
+      id: `${Date.now()}`, date: new Date().toISOString(), score: Math.round((correct / MOCK_QUESTIONS.length) * 100),
+      total: MOCK_QUESTIONS.length, passed: correct / MOCK_QUESTIONS.length >= 0.6, level: 'N5', sections,
+    });
+    setResultSaved(true);
+  }, [answers, finished, resultSaved]);
 
   const start = () => {
     setStarted(true);
@@ -129,7 +151,7 @@ export function JLPTMockTestPage() {
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--s-md)', marginTop: 'var(--s-lg)', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={() => { setStarted(false); setIndex(0); setAnswers([]); setFinished(false); setSelected(null); setTimeLeft(0); }}>
+          <button className="btn btn-primary" onClick={() => { setStarted(false); setIndex(0); setAnswers([]); setFinished(false); setSelected(null); setTimeLeft(0); setResultSaved(false); }}>
             Retake test
           </button>
           <Link className="btn btn-secondary" to="/jlpt">Back to JLPT</Link>

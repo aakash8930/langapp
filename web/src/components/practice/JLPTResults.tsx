@@ -1,23 +1,10 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 
-interface TestResult {
-  date: string;
-  score: number;
-  total: number;
-  passed: boolean;
-  level: string;
-}
-
-function loadResults(): TestResult[] {
-  try {
-    const raw = localStorage.getItem('jlpt_results');
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
+import { loadJlptResults, type JLPTResult } from './jlptData';
 
 export function JLPTResults() {
-  const [results] = useState<TestResult[]>(() => loadResults());
+  const [results] = useState<JLPTResult[]>(() => loadJlptResults());
 
   if (results.length === 0) {
     return (
@@ -67,6 +54,20 @@ export function JLPTResults() {
           </p>
         </div>
       </section>
+
+      {results.at(-1)?.sections && (() => {
+        const latest = results.at(-1)!;
+        const weakest = (Object.entries(latest.sections) as [string, { correct: number; total: number }][])
+          .filter(([, section]) => section.total > 0)
+          .sort((a, b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total))[0];
+        return weakest ? (
+          <div className="glass panel" style={{ padding: 'var(--s-lg)', marginBottom: 'var(--s-lg)', borderLeft: '3px solid var(--brand-primary)' }}>
+            <p style={{ color: 'var(--brand-primary)', fontSize: 'var(--text-caption)', fontWeight: 800, letterSpacing: '.08em', margin: 0 }}>RECOMMENDED NEXT ACTION</p>
+            <h2 style={{ margin: 'var(--s-xs) 0' }}>Strengthen {weakest[0]}</h2>
+            <p className="card-note" style={{ margin: 0 }}>Your latest mock: {weakest[1].correct} of {weakest[1].total} correct. A focused practice set will be added to your review loop.</p>
+          </div>
+        ) : null;
+      })()}
 
       <div className="glass panel" style={{ padding: 'var(--s-xl)' }}>
         <h2 style={{ color: 'var(--ink-soft)', fontSize: 'var(--text-caption)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--s-md)' }}>
