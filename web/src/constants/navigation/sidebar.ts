@@ -13,9 +13,6 @@ import type { SidebarGroup } from '../../types/layout';
  *
  * **What is still locked is locked on missing product behaviour:**
  *
- *   - **Quizzes** — individual kana, vocabulary, kanji, grammar, listening, and
- *     speaking challenges are live, but there is no single cross-skill quiz
- *     destination behind this umbrella row.
  *   - **Study Groups** — no API at all. `/social` covers friends and messages;
  *     groups are not modelled anywhere.
  *
@@ -87,7 +84,7 @@ export const sidebarGroups: SidebarGroup[] = [
         badge: 'due',
       },
       { kind: 'link', id: 'flashcards', label: 'Flashcards', icon: 'layers', to: '/flashcards' },
-      { kind: 'planned', id: 'quizzes', label: 'Quizzes', icon: 'grid' },
+      { kind: 'link', id: 'quizzes', label: 'Quizzes', icon: 'grid', to: '/quizzes' },
       { kind: 'link', id: 'practice-hub', label: 'Practice Hub', icon: 'pen-square', to: '/practice-hub' },
     ],
   },
