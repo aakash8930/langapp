@@ -67,6 +67,17 @@ export function CommunityPage() {
         </Link>
       </div>
 
+      <section className="glass panel" style={{ padding: 'var(--s-xl)', marginBottom: 'var(--s-lg)' }}>
+        <p style={{ color: 'var(--brand-primary)', fontSize: 'var(--text-caption)', fontWeight: 800, letterSpacing: '.08em', margin: 0 }}>LEARNING COMMUNITY</p>
+        <h2 style={{ margin: 'var(--s-xs) 0' }}>Social features should be safe, learning-first, and consent-based.</h2>
+        <p className="card-note" style={{ margin: 0 }}>Friends and direct messages are available. Feed posts, groups, forums, events, and live study rooms require server-backed content, privacy controls, reporting, and moderation records before launch.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 'var(--s-sm)', marginTop: 'var(--s-lg)' }}>
+          {[
+            ['✓', 'Friends', 'Search and requests'], ['✓', 'Messages', 'Direct conversations'], ['○', 'Feed & Forums', 'Moderated posts and replies'], ['○', 'Groups & Events', 'Members, RSVPs, reminders'], ['○', 'Study Together', 'Real-time rooms and presence'],
+          ].map(([state, title, note]) => <div key={title} style={{ padding: 'var(--s-sm)', border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)' }}><strong style={{ color: state === '✓' ? 'var(--brand-success)' : 'var(--ink-soft)' }}>{state} {title}</strong><small style={{ display: 'block', color: 'var(--ink-soft)', marginTop: 3 }}>{note}</small></div>)}
+        </div>
+      </section>
+
       {friends.data && (
         <div className="glass panel" style={{ padding: 'var(--s-lg)', marginBottom: 'var(--s-lg)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--s-md)' }}>
