@@ -13,6 +13,7 @@ import { CombinedTestCallout } from '@/components/CombinedTestCallout';
 import { ContinueCard, CourseComplete } from '@/components/ContinueCard';
 import { FriendsCallout } from '@/components/FriendsCallout';
 import { ErrorState } from '@/components/ErrorState';
+import { ExploreLink } from '@/components/ExploreLink';
 import {
   CalloutSkeleton,
   LessonPathSkeleton,
@@ -161,7 +162,10 @@ export default function Home() {
         >
           {user ? user.profile.displayName : 'Signed in'}
         </Text>
-        <SettingsLink onPress={() => router.push('/settings')} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+          <ExploreLink onPress={() => router.push('/explore')} />
+          <SettingsLink onPress={() => router.push('/settings')} />
+        </View>
       </View>
 
       {progress.isPending ? (
