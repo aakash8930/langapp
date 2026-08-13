@@ -83,7 +83,13 @@ function ProgressPage() {
       </section>
 
       {progress && (
-        <div className="progress-grid" style={{ marginBottom: 'var(--s-xl)' }}>
+        <>
+          <section className="glass progress-level-card" aria-label="Platform level progress">
+            <div><p className="progress-kicker">PLATFORM LEVEL</p><h2>Level {progress.level}</h2><p>{progress.xpIntoLevel.toLocaleString()} of {progress.xpForNextLevel.toLocaleString()} XP toward the next level</p></div>
+            <div className="progress-level-meter"><span style={{ width: `${Math.min(100, progress.xpForNextLevel ? progress.xpIntoLevel / progress.xpForNextLevel * 100 : 0)}%` }} /></div>
+            <small>Platform level reflects LangApp activity, not a JLPT proficiency level.</small>
+          </section>
+          <div className="progress-grid" style={{ marginBottom: 'var(--s-xl)' }}>
           <section className="card glass" aria-labelledby="daily-heading">
             <h2 className="card-title" id="daily-heading">Daily Goal</h2>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s-sm)', marginBottom: 'var(--s-md)' }}>
@@ -100,16 +106,9 @@ function ProgressPage() {
 
           <section className="card glass" aria-labelledby="weekly-heading">
             <h2 className="card-title" id="weekly-heading">Weekly Goal</h2>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--s-sm)', marginBottom: 'var(--s-md)' }}>
-              <span className="stat-tile-value tabular" style={{ fontSize: 'var(--text-heading)' }}>{progress.daily.xpToday * 7}</span>
-              <span style={{ color: 'var(--ink-soft)' }}>/ {progress.daily.goalXp * 7} XP</span>
-            </div>
-            <div className="band-bar" style={{ height: '12px' }}>
-              <span className="band-bar-fill" style={{ width: `${Math.min(100, (progress.daily.xpToday * 7) / (progress.daily.goalXp * 7) * 100)}%`, background: 'var(--brand-tertiary)' }} />
-            </div>
-            <p className="band-note" style={{ marginTop: 'var(--s-sm)' }}>
-              {progress.daily.lessonsDone} lessons · {progress.daily.reviewsDone} reviews today
-            </p>
+            <p className="stat-tile-value" style={{ fontSize: 'var(--text-title)' }}>Coming soon</p>
+            <p className="band-note">Weekly aggregation needs dated learning events. We do not project today's XP across seven days and present it as progress.</p>
+            <p className="band-note" style={{ marginTop: 'var(--s-sm)' }}>{progress.daily.lessonsDone} lessons · {progress.daily.reviewsDone} reviews completed today</p>
           </section>
 
           <section className="card glass" aria-labelledby="monthly-heading">
@@ -131,8 +130,11 @@ function ProgressPage() {
               </div>
             </div>
           </section>
-        </div>
+          </div>
+        </>
       )}
+
+      <section className="progress-analytics-note glass"><div><p className="progress-kicker">LEARNING ANALYTICS</p><h2>Activity is the source of truth</h2><p>Progress reports account activity, review history, and learning records from the systems that create them. It does not create separate counters or estimate activity that has not been recorded.</p></div><div><b>Courses · Practice · Reviews · Reading · Writing · JLPT · Exams</b><span> → Learning events → Progress views</span></div></section>
 
       <div className="progress-grid">
         <section className="card glass" aria-labelledby="bands-heading">
