@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { Achievements } from '../components/Achievements';
+import { GamificationHub } from '../components/GamificationHub';
 import { achievementsFor } from '../gamification';
 import { useSession } from '../useSession';
 
@@ -34,7 +34,7 @@ function AchievementsPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <h1 className="page-title">Achievements</h1>
+        <h1 className="page-title">Gamification</h1>
         <p className="page-sub">
           {session.state === 'signedOut'
             ? 'Sign in to see which of these you have earned.'
@@ -45,7 +45,7 @@ function AchievementsPage() {
       </header>
 
       {progress ? (
-        <Achievements progress={progress} />
+        <GamificationHub progress={progress} />
       ) : session.state === 'signedOut' ? (
         <p className="card-note">
           Badges are worked out from your XP, streak and completed lessons — there is nothing to
