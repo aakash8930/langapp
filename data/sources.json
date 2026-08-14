@@ -1,0 +1,50 @@
+[
+  {
+    "id": "edrdg-jmdict",
+    "name": "JMdict Japanese-Multilingual Dictionary File",
+    "purpose": ["vocabulary", "readings", "meanings", "parts_of_speech"],
+    "homepage": "https://www.edrdg.org/wiki/Main_Page.html",
+    "download": "http://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz",
+    "license": "CC BY-SA 3.0",
+    "attribution": "JMdict/EDICT data, Electronic Dictionary Research and Development Group",
+    "automaticDownload": true
+  },
+  {
+    "id": "edrdg-kanjidic2",
+    "name": "KANJIDIC2",
+    "purpose": ["kanji", "readings", "meanings", "radicals", "stroke_counts"],
+    "homepage": "https://www.edrdg.org/wiki/Main_Page.html",
+    "download": "http://ftp.edrdg.org/pub/Nihongo/kanjidic2.xml.gz",
+    "license": "CC BY-SA 3.0",
+    "attribution": "KANJIDIC2 data, Electronic Dictionary Research and Development Group",
+    "automaticDownload": true
+  },
+  {
+    "id": "kanjivg",
+    "name": "KanjiVG",
+    "purpose": ["stroke_order", "character_structure"],
+    "homepage": "https://kanjivg.tagaini.net/",
+    "download": "https://github.com/KanjiVG/kanjivg/releases/download/r20220427/kanjivg-20220427.xml.gz",
+    "license": "CC BY-SA 3.0",
+    "attribution": "KanjiVG by Ulrich Apel and contributors",
+    "automaticDownload": true
+  },
+  {
+    "id": "tatoeba",
+    "name": "Tatoeba Japanese example sentences",
+    "purpose": ["examples", "translations"],
+    "homepage": "https://tatoeba.org/en/downloads",
+    "license": "Varies by sentence/audio; preserve item-level attribution and license",
+    "attribution": "Tatoeba Project and individual contributors",
+    "automaticDownload": false
+  },
+  {
+    "id": "ninjal-bccwj-frequency",
+    "name": "BCCWJ word frequency list",
+    "purpose": ["frequency_ranking"],
+    "homepage": "https://clrd.ninjal.ac.jp/bccwj/en/freq-list.html",
+    "license": "Review NINJAL terms for the selected export and commercial use",
+    "attribution": "National Institute for Japanese Language and Linguistics (NINJAL)",
+    "automaticDownload": false
+  }
+]

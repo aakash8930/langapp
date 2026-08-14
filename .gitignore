@@ -33,3 +33,7 @@ tools/voices/
 # and it's only a shape + palette reference (text labels / icons / typography are not in
 # the image). If a higher-fidelity export lands, replace the file in place.
 docs/design-reference/platform-dashboard-layout.jpg
+
+# Local language-data downloads and normalized staging output
+data/raw/
+data/processed/
