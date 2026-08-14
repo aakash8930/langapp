@@ -5,6 +5,8 @@ import { ApiError, OfflineError } from '@/api/client';
  * them in step matters: a rule that is looser here shows the user a raw
  * class-validator string, and one that is stricter locks them out of an
  * account the server would have accepted.
+ *
+ * `PASSWORD_RULES` below is the one deliberate exception — see its own comment.
  */
 
 export const PASSWORD_MIN_LENGTH = 8;
@@ -32,14 +34,69 @@ export function validateLoginPassword(value: string): string | undefined {
   return undefined;
 }
 
+export interface PasswordRule {
+  id: string;
+  label: string;
+  test: (password: string) => boolean;
+}
+
+/**
+ * The web client's signup form (`web/src/validation/signup.schema.ts`) asks
+ * for all five of these, which is stricter than the server's `@MinLength(8)`
+ * on `RegisterDto` — the one deliberate exception to the rule at the top of
+ * this file. A password the server would accept ("watashi1", say) can still
+ * be rejected here. Kept anyway, to match web rather than diverge from it:
+ * the two surfaces asking different things of the same account is a worse
+ * inconsistency than either being stricter than the server alone would be.
+ */
+export const PASSWORD_RULES: readonly PasswordRule[] = [
+  { id: 'length', label: `At least ${PASSWORD_MIN_LENGTH} characters`, test: (p) => p.length >= PASSWORD_MIN_LENGTH },
+  { id: 'upper', label: 'An uppercase letter', test: (p) => /[A-Z]/.test(p) },
+  { id: 'lower', label: 'A lowercase letter', test: (p) => /[a-z]/.test(p) },
+  { id: 'number', label: 'A number', test: (p) => /[0-9]/.test(p) },
+  { id: 'special', label: 'A special character', test: (p) => /[^a-zA-Z0-9]/.test(p) },
+];
+
+export type PasswordLevel = 'none' | 'weak' | 'fair' | 'strong';
+
+export interface PasswordScore {
+  level: PasswordLevel;
+  label: string;
+  passed: number;
+  total: number;
+}
+
+const PASSWORD_LEVEL_LABELS: Record<PasswordLevel, string> = {
+  none: '',
+  weak: 'Weak',
+  fair: 'Moderate',
+  strong: 'Strong',
+};
+
+/** Mirrors `passwordScore` in web's `signup.schema.ts` — same thresholds, same labels. */
+export function passwordScore(password: string): PasswordScore {
+  const total = PASSWORD_RULES.length;
+  if (!password) return { level: 'none', label: '', passed: 0, total };
+
+  const passed = PASSWORD_RULES.filter((rule) => rule.test(password)).length;
+  const level: PasswordLevel = passed <= 2 ? 'weak' : passed < total ? 'fair' : 'strong';
+  return { level, label: PASSWORD_LEVEL_LABELS[level], passed, total };
+}
+
 export function validateNewPassword(value: string): string | undefined {
   if (!value) return 'Choose a password.';
-  if (value.length < PASSWORD_MIN_LENGTH) {
-    return `Use at least ${PASSWORD_MIN_LENGTH} characters. That one has ${value.length}.`;
-  }
   if (value.length > PASSWORD_MAX_LENGTH) {
     return `Use at most ${PASSWORD_MAX_LENGTH} characters.`;
   }
+  if (PASSWORD_RULES.some((rule) => !rule.test(value))) {
+    return `Use at least ${PASSWORD_MIN_LENGTH} characters, with an uppercase letter, a lowercase letter, a number and a special character.`;
+  }
+  return undefined;
+}
+
+export function validateConfirmPassword(password: string, confirm: string): string | undefined {
+  if (!confirm) return 'Re-enter your password.';
+  if (confirm !== password) return 'Passwords don’t match.';
   return undefined;
 }
 
