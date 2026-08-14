@@ -1,4 +1,5 @@
 import { BLANK, GRAMMAR_GROUPS } from './grammar';
+import { GRAMMAR_N4_GROUPS } from './grammar-n4';
 import { HIRAGANA_ROWS } from './hiragana';
 import { HIRAGANA_MARKS_ROWS } from './hiragana-marks';
 import { KATAKANA_ROWS } from './katakana';
@@ -6,6 +7,7 @@ import { KATAKANA_MARKS_ROWS } from './katakana-marks';
 import { MARKS_GROUPS } from './marks-words';
 import { VOCAB_GROUPS } from './vocab';
 import { VOCAB_EVERYDAY_GROUPS } from './vocab-everyday';
+import { VOCAB_N4_GROUPS } from './vocab-n4';
 import { VOCAB_N5_GROUPS } from './vocab-n5';
 
 /**
@@ -140,10 +142,12 @@ const ALL_WORDS = [
   ...Object.values(MARKS_GROUPS).flat(),
   ...Object.values(VOCAB_EVERYDAY_GROUPS).flat(),
   ...Object.values(VOCAB_N5_GROUPS).flat(),
+  ...Object.values(VOCAB_N4_GROUPS).flat(),
 ];
-const ALL_EXAMPLES = Object.values(GRAMMAR_GROUPS)
-  .flat()
-  .flatMap((point) => point.examples);
+const ALL_EXAMPLES = [
+  ...Object.values(GRAMMAR_GROUPS).flat(),
+  ...Object.values(GRAMMAR_N4_GROUPS).flat(),
+].flatMap((point) => point.examples);
 
 describe('every N5 item carries romaji', () => {
   it.each(ALL_WORDS.map((w) => [w.lemma, w.romaji] as const))(

@@ -3,13 +3,18 @@ import { Types } from 'mongoose';
 import { decomposeIntoKana } from '../common/kana/decompose';
 import { ContentService, LessonGraphRow } from '../content/content.service';
 import { ItemRef } from '../content/schemas/lesson.schema';
+import { JlptLevel } from '../content/schemas/vocab-item.schema';
 import { KnowledgeGraphService } from '../knowledge-graph/knowledge-graph.service';
 import { ContentKind } from '../knowledge-graph/schemas/knowledge-node.schema';
 import { CONTRASTS, ContrastRef, rowConcepts } from './japanese/concepts';
+import type { GrammarLessonSeed, GrammarSeed } from './japanese/grammar';
 import { GRAMMAR_GROUPS, GRAMMAR_LESSONS, GRAMMAR_UNIT } from './japanese/grammar';
+import { GRAMMAR_N4_GROUPS, GRAMMAR_N4_LESSONS, GRAMMAR_N4_UNIT } from './japanese/grammar-n4';
 import { HIRAGANA_PACK } from './japanese/hiragana';
 import { HIRAGANA_MARKS_PACK } from './japanese/hiragana-marks';
+import type { KanjiLessonSeed, KanjiSeed } from './japanese/kanji';
 import { KANJI_GROUPS, KANJI_LESSONS, KANJI_UNIT } from './japanese/kanji';
+import { KANJI_N4_GROUPS, KANJI_N4_LESSONS, KANJI_N4_UNIT } from './japanese/kanji-n4';
 import type { KanaPack } from './japanese/kana-pack';
 import { KATAKANA_PACK } from './japanese/katakana';
 import { KATAKANA_MARKS_PACK } from './japanese/katakana-marks';
@@ -22,6 +27,7 @@ import {
 } from './japanese/marks-words';
 import type { VocabLessonSeed } from './japanese/vocab';
 import { VOCAB_GROUPS, VOCAB_LESSONS, VOCAB_UNIT } from './japanese/vocab';
+import { VOCAB_N4_GROUPS, VOCAB_N4_LESSONS, VOCAB_N4_UNIT } from './japanese/vocab-n4';
 import { VOCAB_N5_GROUPS, VOCAB_N5_LESSONS, VOCAB_N5_UNIT } from './japanese/vocab-n5';
 import {
   VOCAB_EVERYDAY_GROUPS,
@@ -53,12 +59,14 @@ const MARKS_PACKS: KanaPack[] = [HIRAGANA_MARKS_PACK, KATAKANA_MARKS_PACK];
  */
 interface VocabPack {
   unit: string;
+  jlpt: JlptLevel;
   groups: Record<string, { lemma: string; reading: string; romaji: string; gloss: string; pos: string }[]>;
   lessons: VocabLessonSeed[];
 }
 
 const HIRAGANA_MARKS_EXTRA_PACK: VocabPack = {
   unit: HIRAGANA_MARKS_EXTRA_UNIT,
+  jlpt: 'N5',
   // The "hiragana" key is meaningful here: it matches the `groups` key on
   // the lesson seed below, and `seedVocabPack` expects a single-key object
   // to keep tagging simple.
@@ -68,6 +76,7 @@ const HIRAGANA_MARKS_EXTRA_PACK: VocabPack = {
 
 const KATAKANA_MARKS_EXTRA_PACK: VocabPack = {
   unit: KATAKANA_MARKS_EXTRA_UNIT,
+  jlpt: 'N5',
   groups: { katakana: MARKS_GROUPS.katakana },
   lessons: KATAKANA_MARKS_EXTRA_LESSONS,
 };
@@ -90,15 +99,74 @@ const KATAKANA_MARKS_EXTRA_PACK: VocabPack = {
  */
 const VOCAB_N5_PACK: VocabPack = {
   unit: VOCAB_N5_UNIT,
+  jlpt: 'N5',
   groups: VOCAB_N5_GROUPS,
   lessons: VOCAB_N5_LESSONS,
 };
 
 const VOCAB_EVERYDAY_PACK: VocabPack = {
   unit: VOCAB_EVERYDAY_UNIT,
+  jlpt: 'N5',
   groups: VOCAB_EVERYDAY_GROUPS,
   lessons: VOCAB_EVERYDAY_LESSONS,
 };
+
+/**
+ * The first N4 vocabulary pack, chained onto the very end of the course —
+ * after N5's own closing `vocab-n5` unit, so a learner finishes the whole
+ * of N5 before N4 content appears at all.
+ */
+const VOCAB_N4_PACK: VocabPack = {
+  unit: VOCAB_N4_UNIT,
+  jlpt: 'N4',
+  groups: VOCAB_N4_GROUPS,
+  lessons: VOCAB_N4_LESSONS,
+};
+
+interface GrammarPack {
+  unit: string;
+  jlpt: JlptLevel;
+  groups: Record<string, GrammarSeed[]>;
+  lessons: GrammarLessonSeed[];
+}
+
+interface KanjiPack {
+  unit: string;
+  jlpt: JlptLevel;
+  groups: Record<string, KanjiSeed[]>;
+  lessons: KanjiLessonSeed[];
+}
+
+const GRAMMAR_N5_PACK: GrammarPack = {
+  unit: GRAMMAR_UNIT,
+  jlpt: 'N5',
+  groups: GRAMMAR_GROUPS,
+  lessons: GRAMMAR_LESSONS,
+};
+
+const GRAMMAR_N4_PACK: GrammarPack = {
+  unit: GRAMMAR_N4_UNIT,
+  jlpt: 'N4',
+  groups: GRAMMAR_N4_GROUPS,
+  lessons: GRAMMAR_N4_LESSONS,
+};
+
+const KANJI_N5_PACK: KanjiPack = {
+  unit: KANJI_UNIT,
+  jlpt: 'N5',
+  groups: KANJI_GROUPS,
+  lessons: KANJI_LESSONS,
+};
+
+const KANJI_N4_PACK: KanjiPack = {
+  unit: KANJI_N4_UNIT,
+  jlpt: 'N4',
+  groups: KANJI_N4_GROUPS,
+  lessons: KANJI_N4_LESSONS,
+};
+
+/** All kanji packs, for `syncUsesKanji`, which needs every character's `writes` regardless of level. */
+const KANJI_PACKS: KanjiPack[] = [KANJI_N5_PACK, KANJI_N4_PACK];
 
 /**
  * A pack-with-exercise-type union. `seed.run` walks this in order, so the
@@ -127,7 +195,7 @@ interface OrderedPack {
  */
 const ORDERED_PACKS: OrderedPack[] = [
   ...BASE_PACKS.map((p) => ({ kind: 'kana' as const, kana: p })),
-  { kind: 'vocab', vocab: { unit: VOCAB_UNIT, groups: VOCAB_GROUPS, lessons: VOCAB_LESSONS } },
+  { kind: 'vocab', vocab: { unit: VOCAB_UNIT, jlpt: 'N5', groups: VOCAB_GROUPS, lessons: VOCAB_LESSONS } },
   ...MARKS_PACKS.map((p) => ({ kind: 'kana' as const, kana: p })),
   { kind: 'vocab', vocab: HIRAGANA_MARKS_EXTRA_PACK },
   { kind: 'vocab', vocab: KATAKANA_MARKS_EXTRA_PACK },
@@ -195,10 +263,20 @@ export class SeedService {
       }
     }
 
-    previousLessonId = await this.seedGrammar(previousLessonId);
-    previousLessonId = await this.seedKanji(previousLessonId);
-    await this.seedVocabPack(VOCAB_N5_PACK, previousLessonId);
+    previousLessonId = await this.seedGrammar(GRAMMAR_N5_PACK, previousLessonId);
+    previousLessonId = await this.seedKanji(KANJI_N5_PACK, previousLessonId);
+    previousLessonId = await this.seedVocabPack(VOCAB_N5_PACK, previousLessonId);
     this.logger.log(`Seeded ${VOCAB_N5_UNIT}: ${countWordsIn(VOCAB_N5_PACK)} words`);
+
+    // N4 starts here — chained after the *whole* of N5 (vocab, grammar and
+    // kanji), so a learner finishes N5 before any N4 content appears. Same
+    // three-pass shape as N5: vocabulary first (grammar's examples need
+    // words to build sentences from), then grammar, then kanji (a
+    // re-reading of vocabulary already taught in kana — see `kanji-n4.ts`).
+    previousLessonId = await this.seedVocabPack(VOCAB_N4_PACK, previousLessonId);
+    this.logger.log(`Seeded ${VOCAB_N4_UNIT}: ${countWordsIn(VOCAB_N4_PACK)} words`);
+    previousLessonId = await this.seedGrammar(GRAMMAR_N4_PACK, previousLessonId);
+    previousLessonId = await this.seedKanji(KANJI_N4_PACK, previousLessonId);
 
     // Enrich vocab with examples, synonyms, antonyms
     let enriched = 0;
@@ -496,25 +574,27 @@ export class SeedService {
     // one word can be written by several characters (かざん by 火 and 山).
     const kanjiNodesByVocabNode = new Map<string, Map<string, Types.ObjectId>>();
 
-    for (const group of Object.values(KANJI_GROUPS)) {
-      for (const entry of group) {
-        const kanjiRefId = kanjiIdByChar.get(entry.char);
-        const kanjiNodeId = kanjiRefId
-          ? kanjiNodeIdByRefId.get(kanjiRefId.toString())
-          : undefined;
-        if (!kanjiNodeId) continue;
-
-        for (const lemma of entry.writes) {
-          const vocabRefId = vocabIdByLemma.get(lemma);
-          const vocabNodeId = vocabRefId
-            ? vocabNodeIdByRefId.get(vocabRefId.toString())
+    for (const pack of KANJI_PACKS) {
+      for (const group of Object.values(pack.groups)) {
+        for (const entry of group) {
+          const kanjiRefId = kanjiIdByChar.get(entry.char);
+          const kanjiNodeId = kanjiRefId
+            ? kanjiNodeIdByRefId.get(kanjiRefId.toString())
             : undefined;
-          if (!vocabNodeId) continue;
+          if (!kanjiNodeId) continue;
 
-          const key = vocabNodeId.toString();
-          const targets = kanjiNodesByVocabNode.get(key) ?? new Map<string, Types.ObjectId>();
-          targets.set(kanjiNodeId.toString(), kanjiNodeId);
-          kanjiNodesByVocabNode.set(key, targets);
+          for (const lemma of entry.writes) {
+            const vocabRefId = vocabIdByLemma.get(lemma);
+            const vocabNodeId = vocabRefId
+              ? vocabNodeIdByRefId.get(vocabRefId.toString())
+              : undefined;
+            if (!vocabNodeId) continue;
+
+            const key = vocabNodeId.toString();
+            const targets = kanjiNodesByVocabNode.get(key) ?? new Map<string, Types.ObjectId>();
+            targets.set(kanjiNodeId.toString(), kanjiNodeId);
+            kanjiNodesByVocabNode.set(key, targets);
+          }
         }
       }
     }
@@ -682,7 +762,7 @@ export class SeedService {
           romaji: word.romaji,
           gloss: word.gloss,
           pos: word.pos,
-          jlpt: 'N5',
+          jlpt: pack.jlpt,
           tags: [group],
         });
 
@@ -726,11 +806,12 @@ export class SeedService {
    * none — は does not require です, they are simply taught together.
    */
   private async seedGrammar(
+    pack: GrammarPack,
     carriedLessonId: Types.ObjectId | null,
   ): Promise<Types.ObjectId | null> {
     const idsByGroup = new Map<string, Types.ObjectId[]>();
 
-    for (const [group, points] of Object.entries(GRAMMAR_GROUPS)) {
+    for (const [group, points] of Object.entries(pack.groups)) {
       const ids: Types.ObjectId[] = [];
 
       for (const point of points) {
@@ -748,10 +829,10 @@ export class SeedService {
         const grammar = await this.contentService.upsertGrammar({
           title: point.title,
           explanation: point.explanation,
-          jlpt: 'N5',
+          jlpt: pack.jlpt,
           examples,
-          usage: (point as any).usage,
-          commonMistakes: (point as any).commonMistakes,
+          usage: point.usage,
+          commonMistakes: point.commonMistakes,
         });
 
         const node = await this.knowledgeGraph.upsertNode({
@@ -769,11 +850,11 @@ export class SeedService {
 
     let previousLessonId = carriedLessonId;
 
-    for (const seed of GRAMMAR_LESSONS) {
+    for (const seed of pack.lessons) {
       const grammarIds = seed.groups.flatMap((group) => idsByGroup.get(group) ?? []);
 
       const lesson = await this.contentService.upsertLesson({
-        unit: GRAMMAR_UNIT,
+        unit: pack.unit,
         order: seed.order,
         title: seed.title,
         itemRefs: grammarIds.map((id) => ({ kind: 'grammar', id })),
@@ -784,7 +865,7 @@ export class SeedService {
       previousLessonId = lesson._id;
     }
 
-    this.logger.log(`Seeded ${GRAMMAR_UNIT}: ${countGrammarPoints()} points`);
+    this.logger.log(`Seeded ${pack.unit}: ${countPointsIn(pack)} points`);
 
     return previousLessonId;
   }
@@ -805,11 +886,12 @@ export class SeedService {
    * a seeding one.
    */
   private async seedKanji(
+    pack: KanjiPack,
     carriedLessonId: Types.ObjectId | null,
   ): Promise<Types.ObjectId | null> {
     const idsByGroup = new Map<string, Types.ObjectId[]>();
 
-    for (const [group, entries] of Object.entries(KANJI_GROUPS)) {
+    for (const [group, entries] of Object.entries(pack.groups)) {
       const ids: Types.ObjectId[] = [];
 
       for (const entry of entries) {
@@ -820,7 +902,7 @@ export class SeedService {
           meanings: entry.meanings,
           strokes: entry.strokes,
           radical: entry.radical,
-          jlpt: 'N5',
+          jlpt: pack.jlpt,
         });
 
         const node = await this.knowledgeGraph.upsertNode({
@@ -838,11 +920,11 @@ export class SeedService {
 
     let previousLessonId = carriedLessonId;
 
-    for (const seed of KANJI_LESSONS) {
+    for (const seed of pack.lessons) {
       const kanjiIds = seed.groups.flatMap((group) => idsByGroup.get(group) ?? []);
 
       const lesson = await this.contentService.upsertLesson({
-        unit: KANJI_UNIT,
+        unit: pack.unit,
         order: seed.order,
         title: seed.title,
         itemRefs: kanjiIds.map((id) => ({ kind: 'kanji', id })),
@@ -853,7 +935,7 @@ export class SeedService {
       previousLessonId = lesson._id;
     }
 
-    this.logger.log(`Seeded ${KANJI_UNIT}: ${countKanji()} kanji`);
+    this.logger.log(`Seeded ${pack.unit}: ${countKanjiIn(pack)} kanji`);
 
     return previousLessonId;
   }
@@ -865,12 +947,12 @@ function countCharacters(pack: KanaPack): number {
   return Object.values(pack.rows).reduce((total, row) => total + row.length, 0);
 }
 
-function countGrammarPoints(): number {
-  return Object.values(GRAMMAR_GROUPS).reduce((total, group) => total + group.length, 0);
+function countPointsIn(pack: GrammarPack): number {
+  return Object.values(pack.groups).reduce((total, group) => total + group.length, 0);
 }
 
-function countKanji(): number {
-  return Object.values(KANJI_GROUPS).reduce((total, group) => total + group.length, 0);
+function countKanjiIn(pack: KanjiPack): number {
+  return Object.values(pack.groups).reduce((total, group) => total + group.length, 0);
 }
 
 function countWordsIn(pack: VocabPack): number {
