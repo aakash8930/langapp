@@ -17,6 +17,7 @@ import { Event, EventSchema } from '../analytics/schemas/event.schema';
 import { ContentReport, ContentReportSchema } from '../content/schemas/content-report.schema';
 import { Report, ReportSchema } from '../social/schemas/report.schema';
 import { NotificationModule } from '../notification/notification.module';
+import { Notification, NotificationSchema } from '../notification/schemas/notification.schema';
 import { ContentModule } from '../content/content.module';
 import { Course, CourseSchema } from '../content/schemas/course.schema';
 import { Quiz, QuizSchema } from '../content/schemas/quiz.schema';
@@ -46,6 +47,7 @@ import { KanaItem, KanaItemSchema } from '../content/schemas/kana-item.schema';
       { name: KanjiEntry.name, schema: KanjiEntrySchema },
       { name: GrammarPoint.name, schema: GrammarPointSchema },
       { name: KanaItem.name, schema: KanaItemSchema },
+      { name: Notification.name, schema: NotificationSchema },
     ]),
     NotificationModule,
     ContentModule,
