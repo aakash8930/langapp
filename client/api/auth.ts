@@ -38,6 +38,29 @@ export type User = {
      */
     leaderboardOptIn: boolean;
   };
+  /** Mirrors `OnboardingState` in `api/src/user/schemas/user.schema.ts`. */
+  onboardingState: {
+    onboardingComplete: boolean;
+    /** Index into the wizard's step list — see `app/(app)/onboarding.tsx`. */
+    onboardingStep: number;
+    targetLanguage: string;
+    proficiencyLevel: string;
+    learningGoals: string[];
+    learningStyle: string;
+    preferredStudyTime: string;
+    notificationsEnabled: boolean;
+    studyTimeMinutes: number;
+    /**
+     * All three placement-test fields exist on the schema with nowhere that
+     * writes them yet — no placement test exists to take, on this client or
+     * web's. `onboarding.tsx`'s placement-test step is an intro screen with a
+     * "Skip for now" button, matching what web actually ships rather than
+     * what the field names imply is coming.
+     */
+    placementTestCompleted: boolean;
+    placementTestScore: number | null;
+    placementTestLevel: string;
+  };
 };
 
 type AuthResponse = {
