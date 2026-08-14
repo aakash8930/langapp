@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchLessons } from '@/api/lessons';
+import { fetchUnreadCount } from '@/api/notifications';
 import { fetchProgress } from '@/api/progress';
 import { fetchRequests } from '@/api/social';
 import { useAuth } from '@/components/AuthProvider';
@@ -19,6 +20,7 @@ import {
   LessonPathSkeleton,
   ProgressSkeleton,
 } from '@/components/HomeSkeletons';
+import { NotificationsLink } from '@/components/NotificationsLink';
 import { ProgressSummary } from '@/components/ProgressSummary';
 import { ReviewCallout, ReviewEmptyState } from '@/components/ReviewCallout';
 import { UnitChapter } from '@/components/UnitChapter';
@@ -87,6 +89,13 @@ export default function Home() {
   const requests = useQuery({
     queryKey: ['friendRequests'],
     queryFn: fetchRequests,
+    staleTime: 30_000,
+  });
+
+  /** Same non-blocking treatment as the friend-request badge above. */
+  const unread = useQuery({
+    queryKey: ['notificationsUnread'],
+    queryFn: fetchUnreadCount,
     staleTime: 30_000,
   });
 
@@ -163,6 +172,7 @@ export default function Home() {
           {user ? user.profile.displayName : 'Signed in'}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+          <NotificationsLink unreadCount={unread.data?.count ?? 0} onPress={() => router.push('/notifications')} />
           <ExploreLink onPress={() => router.push('/explore')} />
           <SettingsLink onPress={() => router.push('/settings')} />
         </View>

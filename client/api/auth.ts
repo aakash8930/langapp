@@ -61,6 +61,23 @@ export type User = {
     placementTestScore: number | null;
     placementTestLevel: string;
   };
+  /**
+   * Mirrors `UpdateNotificationSettingsDto` / `toUserResponse`'s
+   * `notificationSettings` block. `studyReminders` is the one the server's
+   * `ReminderProcessor` actually reads (`'notificationSettings.studyReminders': true`
+   * is its query filter) — `onboardingState.notificationsEnabled` above is a
+   * separate field the onboarding wizard writes and nothing reads back.
+   */
+  notificationSettings: {
+    studyReminders: boolean;
+    achievements: boolean;
+    community: boolean;
+    eventsUpdates: boolean;
+    marketing: boolean;
+    emailDailyGoal: boolean;
+    emailWeeklyDigest: boolean;
+    emailMarketing: boolean;
+  };
 };
 
 type AuthResponse = {

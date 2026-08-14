@@ -23,6 +23,13 @@
             "backgroundColor": "#141310"
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#BC3E28"
+        }
       ]
     ],
     "ios": {

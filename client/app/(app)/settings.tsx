@@ -5,6 +5,7 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { User } from '@/api/auth';
+import { updateNotificationSettings, type NotificationSettingsPatch } from '@/api/notifications';
 import { updateSettings, type SettingsPatch } from '@/api/settings';
 import { fetchBlocked, unblockUser, type PublicProfile } from '@/api/social';
 import { useAuth } from '@/components/AuthProvider';
@@ -13,6 +14,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { FormError } from '@/components/FormError';
 import { SegmentedControl, type Segment } from '@/components/SegmentedControl';
 import { errorText } from '@/lib/errors';
+import { cancelStudyReminder, requestNotificationPermission, scheduleStudyReminder } from '@/lib/notifications';
 import { useTheme, type ThemePreference } from '@/theme';
 
 const THEME_OPTIONS: readonly Segment<ThemePreference>[] = [
@@ -42,6 +44,11 @@ const GOAL_OPTIONS: readonly Segment<number>[] = [
  * existed"; the second is why opt-in settings routinely end up not opted in.
  */
 const LEADERBOARD_OPTIONS: readonly Segment<boolean>[] = [
+  { value: false, label: 'Off' },
+  { value: true, label: 'On' },
+];
+
+const TOGGLE_OPTIONS: readonly Segment<boolean>[] = [
   { value: false, label: 'Off' },
   { value: true, label: 'On' },
 ];
@@ -85,6 +92,48 @@ export default function Settings() {
       // The daily goal is the denominator of the progress ring on home.
       if (patch.dailyGoalXp !== undefined) {
         void queryClient.invalidateQueries({ queryKey: ['progress'] });
+      }
+    } catch (failure) {
+      applyUser(previous);
+      setError(failure);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /**
+   * Same optimistic shape as `save` above, plus a side effect `save` never
+   * has: `studyReminders` is the one field this app actually schedules a
+   * device notification for (see `lib/notifications.ts`), so toggling it
+   * on requests OS permission and toggling it off cancels the pending one.
+   * A denial rolls the toggle back — a switch reading "on" while no
+   * notification can ever fire is a lie the settings screen would be telling.
+   */
+  async function saveNotifications(patch: NotificationSettingsPatch) {
+    if (!user || saving) return;
+
+    const previous = user;
+    applyUser(withNotificationsPatch(user, patch));
+    setError(null);
+    setSaving(true);
+
+    try {
+      applyUser(await updateNotificationSettings(patch));
+
+      if (patch.studyReminders === true) {
+        const granted = await requestNotificationPermission();
+        if (granted) {
+          await scheduleStudyReminder(user.onboardingState.preferredStudyTime || 'evening');
+        } else {
+          applyUser(await updateNotificationSettings({ studyReminders: false }));
+          setError(
+            new Error(
+              'Notifications are turned off for this app in your phone’s settings. Turn them on there, then try again.',
+            ),
+          );
+        }
+      } else if (patch.studyReminders === false) {
+        await cancelStudyReminder();
       }
     } catch (failure) {
       applyUser(previous);
@@ -237,6 +286,46 @@ export default function Settings() {
         />
       </Section>
 
+      <Section
+        title="Study reminders"
+        hint="A daily notification around the time you set during setup, if you haven’t studied yet that day."
+      >
+        <SegmentedControl
+          label="Study reminders"
+          options={TOGGLE_OPTIONS}
+          value={user.notificationSettings.studyReminders}
+          onChange={(next) => void saveNotifications({ studyReminders: next })}
+          disabled={saving}
+        />
+      </Section>
+
+      <Section title="Other notifications">
+        <NotificationToggleRow
+          label="Achievements"
+          value={user.notificationSettings.achievements}
+          onChange={(next) => void saveNotifications({ achievements: next })}
+          disabled={saving}
+        />
+        <NotificationToggleRow
+          label="Friends & messages"
+          value={user.notificationSettings.community}
+          onChange={(next) => void saveNotifications({ community: next })}
+          disabled={saving}
+        />
+        <NotificationToggleRow
+          label="Product updates"
+          value={user.notificationSettings.eventsUpdates}
+          onChange={(next) => void saveNotifications({ eventsUpdates: next })}
+          disabled={saving}
+        />
+        <NotificationToggleRow
+          label="Marketing"
+          value={user.notificationSettings.marketing}
+          onChange={(next) => void saveNotifications({ marketing: next })}
+          disabled={saving}
+        />
+      </Section>
+
       <Section title="Blocked people">
         <BlockedList />
       </Section>
@@ -271,6 +360,43 @@ export default function Settings() {
 
       <Button label="Back to home" variant="secondary" onPress={() => router.back()} />
     </ScrollView>
+  );
+}
+
+/**
+ * A compact label + on/off row, for the four lower-stakes notification
+ * categories that don't each need their own full-width control and hint the
+ * way "Study reminders" above does — that one gets the space because it's
+ * the one this app actually schedules a device notification for.
+ */
+function NotificationToggleRow({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+  disabled?: boolean;
+}) {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing.lg,
+        paddingVertical: theme.spacing.sm,
+      }}
+    >
+      <Text style={{ flex: 1, fontFamily: theme.families.ui, fontSize: theme.fontSize.body, color: theme.colors.ink }}>
+        {label}
+      </Text>
+      <SegmentedControl label={label} options={TOGGLE_OPTIONS} value={value} onChange={onChange} disabled={disabled} />
+    </View>
   );
 }
 
@@ -374,6 +500,14 @@ function withPatch(user: User, patch: SettingsPatch): User {
         ? {}
         : { leaderboardOptIn: patch.leaderboardOptIn }),
     },
+  };
+}
+
+/** The locally-applied version of a notification-settings patch, same shape as `withPatch`. */
+function withNotificationsPatch(user: User, patch: NotificationSettingsPatch): User {
+  return {
+    ...user,
+    notificationSettings: { ...user.notificationSettings, ...patch },
   };
 }
 

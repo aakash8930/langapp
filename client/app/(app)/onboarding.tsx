@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { OnboardingPatch } from '@/api/onboarding';
 import { updateOnboarding } from '@/api/onboarding';
+import { updateNotificationSettings } from '@/api/notifications';
 import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/Button';
 import { ChoiceCard } from '@/components/ChoiceCard';
@@ -12,6 +13,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { FormError } from '@/components/FormError';
 import { SegmentedControl, type Segment } from '@/components/SegmentedControl';
 import { errorText } from '@/lib/errors';
+import { requestNotificationPermission, scheduleStudyReminder } from '@/lib/notifications';
 import { useTheme } from '@/theme';
 
 /**
@@ -208,9 +210,28 @@ export default function Onboarding() {
   }
 
   async function finish() {
-    if (await persist({ ...currentAnswers(), onboardingComplete: true })) {
-      router.replace('/');
+    if (!(await persist({ ...currentAnswers(), onboardingComplete: true }))) return;
+
+    // `onboardingState.notificationsEnabled` (just written above) is a record
+    // of what this step asked — nothing reads it back. `notificationSettings.studyReminders`
+    // is what `ReminderProcessor` actually checks server-side, and what this
+    // client schedules a device notification for (see `lib/notifications.ts`).
+    // A "yes" here has to reach both, or the toggle the learner just set was
+    // a formality. A denied permission is not treated as a failure of setup —
+    // it just leaves the reminder off, silently, the same as declining on any
+    // other app's first-run prompt.
+    if (form.notificationsEnabled) {
+      try {
+        const granted = await requestNotificationPermission();
+        await updateNotificationSettings({ studyReminders: granted });
+        if (granted) await scheduleStudyReminder(form.preferredStudyTime);
+      } catch {
+        // Setup is still complete without reminders — do not block finishing
+        // the wizard over a notification permission round trip.
+      }
     }
+
+    router.replace('/');
   }
 
   return (
