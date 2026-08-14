@@ -37,7 +37,7 @@ export interface GrammarLessonSeed {
 }
 
 /**
- * The first grammar unit — 12 points that turn a pile of words into sentences.
+ * The first grammar unit — 16 points that turn a pile of words into sentences.
  *
  * ## How these are quizzed, and what that required
  *
@@ -111,6 +111,16 @@ export const GRAMMAR_GROUPS: Record<string, GrammarSeed[]> = {
       ],
       examples: [{ sentence: 'あなたはせんせいです＿。', answer: 'か', romaji: 'anata wa sensei desu ka.', gloss: 'Are you a teacher?' }],
     },
+    {
+      title: 'ではありません — noun negative (polite)',
+      explanation:
+        'Negates a noun predicate. It replaces です outright — ではありません is the whole ending, not です with something bolted on.',
+      usage: '[noun] + ではありません. Do not add です before or after it — ではありません already carries the politeness.',
+      commonMistakes: [
+        { mistake: 'せんせいですではありません', correction: 'せんせいではありません', note: 'ではありません replaces です completely; the two never appear together.' },
+      ],
+      examples: [{ sentence: 'あなたはせんせい＿。', answer: 'ではありません', romaji: 'anata wa sensei dewa arimasen.', gloss: 'You are not a teacher.' }],
+    },
   ],
   verbs: [
     {
@@ -142,6 +152,16 @@ export const GRAMMAR_GROUPS: Record<string, GrammarSeed[]> = {
         { mistake: 'いきますでした', correction: 'いきました', note: 'Don\'t add でした after ます — directly replace ます with ました.' },
       ],
       examples: [{ sentence: 'わたしはうみにいき＿。', answer: 'ました', romaji: 'watashi wa umi ni ikimashita.', gloss: 'I went to the sea.' }],
+    },
+    {
+      title: 'ませんでした — polite past negative',
+      explanation:
+        'The past of ません. Attach it to the same verb stem — でした comes after ません, not after ました, which is the mistake this ending invites.',
+      usage: '[stem] + ませんでした. Contrast with ません (did not / will not) and ました (did).',
+      commonMistakes: [
+        { mistake: 'いきませんました', correction: 'いきませんでした', note: 'The ending is ませんでした — でした, not ました, follows ません.' },
+      ],
+      examples: [{ sentence: 'わたしはうみにいき＿。', answer: 'ませんでした', romaji: 'watashi wa umi ni ikimasen deshita.', gloss: 'I did not go to the sea.' }],
     },
   ],
   particles: [
@@ -200,6 +220,34 @@ export const GRAMMAR_GROUPS: Record<string, GrammarSeed[]> = {
       ],
     },
   ],
+  /**
+   * い-adjectives conjugate on their own ending — unlike nouns and な-adjectives,
+   * they never touch です/ではありません for grammar, only for politeness. Ten
+   * adjectives were seeded in `vocab.ts` and never used by a single grammar
+   * point until now.
+   */
+  adjectives: [
+    {
+      title: 'くありません — い-adjective negative (polite)',
+      explanation:
+        'Negates an い-adjective. Drop the final い and add くありません — a completely different pattern from the ではありません a noun takes.',
+      usage: '[adjective stem]+く + ありません. たかい → たかくありません. Never negate an い-adjective with ではありません — that pattern is for nouns only.',
+      commonMistakes: [
+        { mistake: 'たかいではありません', correction: 'たかくありません', note: 'い-adjectives drop い and take くありません, not ではありません — that ending is for nouns.' },
+      ],
+      examples: [{ sentence: 'くるまはたか＿。', answer: 'くありません', romaji: 'kuruma wa takaku arimasen.', gloss: 'The car is not expensive.' }],
+    },
+    {
+      title: 'かったです — い-adjective past (polite)',
+      explanation:
+        'Puts an い-adjective in the past. Drop the final い and add かったです — the adjective itself carries the tense, not です.',
+      usage: '[adjective stem]+かった + です. さむい → さむかったです. です here only adds politeness; かった alone is the casual past.',
+      commonMistakes: [
+        { mistake: 'さむいでした', correction: 'さむかったです', note: 'です does not carry past tense for an い-adjective — the adjective itself changes to かった.' },
+      ],
+      examples: [{ sentence: 'やまはさむ＿。', answer: 'かったです', romaji: 'yama wa samukatta desu.', gloss: 'The mountain was cold.' }],
+    },
+  ],
 };
 
 export const GRAMMAR_UNIT = 'grammar-basics';
@@ -227,6 +275,12 @@ export const GRAMMAR_LESSONS: GrammarLessonSeed[] = [
     order: 3,
     title: 'Grammar: joining nouns',
     groups: ['linking'],
+    exerciseTypes: ['multipleChoice'],
+  },
+  {
+    order: 4,
+    title: 'Grammar: describing things with adjectives',
+    groups: ['adjectives'],
     exerciseTypes: ['multipleChoice'],
   },
 ];
