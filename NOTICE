@@ -1,0 +1,28 @@
+langapp — third-party data attribution
+
+This file records attribution obligations for imported reference data served
+by the API. See data/sources.json for full provenance (source, license,
+version, download date) of every dataset in the import pipeline; this file
+covers only the sources whose license requires a standing attribution notice
+and that are actually live in the running app today.
+
+## KanjiVG — stroke-order data
+
+Served at GET /content/strokes/:codepoint (api/src/content/strokes.controller.ts),
+imported by api/src/import/kanjivg.importer.ts.
+
+Copyright (C) Ulrich Apel.
+Licensed under the Creative Commons Attribution-Share Alike 3.0 licence:
+https://creativecommons.org/licenses/by-sa/3.0/
+Project: https://kanjivg.tagaini.net/
+
+The share-alike term applies to this stroke-order data only — it does not
+extend to the rest of the API or app. Any surface that renders stroke-order
+diagrams or animations from this endpoint must show the KanjiVG credit above.
+
+---
+
+Other sources in data/sources.json (JMdict, KANJIDIC2, KRADFILE/RADKFILE,
+BCCWJ, Tatoeba) are imported into the database but, as of this writing, are
+not yet served by any endpoint — add an entry here in the same commit that
+wires each one up, not after.
