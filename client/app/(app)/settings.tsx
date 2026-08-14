@@ -243,7 +243,17 @@ export default function Settings() {
 
       <Section title="Account">
         <Row label="Signed in as" value={user.email} />
+        <Button
+          label="Change password"
+          variant="secondary"
+          onPress={() => router.push('/settings/change-password')}
+        />
         <Button label="Log out" variant="secondary" onPress={confirmLogout} />
+        <Button
+          label="Delete account"
+          variant="secondary"
+          onPress={() => router.push('/settings/delete-account')}
+        />
       </Section>
 
       <Button label="Back to home" variant="secondary" onPress={() => router.back()} />

@@ -90,3 +90,42 @@ export function fetchMe(): Promise<User> {
 export async function logout(): Promise<void> {
   await clearTokens();
 }
+
+/**
+ * Always resolves with the same generic message, registered address or not —
+ * the server burns no distinguishing work either. Never throws for "unknown
+ * email"; there is no such error to catch.
+ */
+export function forgotPassword(email: string): Promise<{ message: string }> {
+  return api.post('/auth/forgot-password', { email });
+}
+
+/**
+ * A wrong code, an expired one and an unknown email are one indistinguishable
+ * 401 from the server — do not try to tell them apart in the caller either.
+ */
+export function resetPassword(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<{ message: string }> {
+  return api.post('/auth/reset-password', { email, code, newPassword });
+}
+
+/** Changing the password revokes every session server-side, this one included. */
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ message: string }> {
+  return api.post('/auth/change-password', { currentPassword, newPassword });
+}
+
+/**
+ * Deletes the account outright — there is no undo and no confirmation email.
+ * The server already revokes every session before returning; the caller still
+ * has to drop the local tokens itself (`useAuth().logout()` does exactly that
+ * with no extra request, since logout is local-only — see above).
+ */
+export function deleteAccount(password: string): Promise<{ message: string }> {
+  return api.post('/auth/delete-account', { password });
+}

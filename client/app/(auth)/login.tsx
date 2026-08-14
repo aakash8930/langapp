@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,10 @@ export default function Login() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
   const passwordRef = useRef<TextInput>(null);
+  // Set by `forgot-password.tsx` on `router.replace` after a successful reset
+  // — that endpoint returns no session, so landing back here signed-out is
+  // the whole flow, and this is the only place its outcome is still visible.
+  const { resetSuccess } = useLocalSearchParams<{ resetSuccess?: string }>();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -80,7 +84,7 @@ export default function Login() {
               color: theme.colors.inkSoft,
             }}
           >
-            Pick up where you left off.
+            {resetSuccess ? 'Password reset. Sign in with your new password.' : 'Pick up where you left off.'}
           </Text>
         </View>
 
@@ -120,6 +124,23 @@ export default function Login() {
             onSubmitEditing={() => void submit()}
             editable={!submitting}
           />
+
+          <Link href="/forgot-password" asChild>
+            <Text
+              accessibilityRole="link"
+              style={{
+                fontFamily: theme.families.ui,
+                fontSize: theme.fontSize.small,
+                color: theme.colors.ai,
+                alignSelf: 'flex-end',
+                // Padding takes this past a 44pt target the same way the
+                // "Create an account" link below does.
+                paddingVertical: theme.spacing.sm,
+              }}
+            >
+              Forgot password?
+            </Text>
+          </Link>
 
           {formError ? <FormError message={formError} /> : null}
         </View>

@@ -17,7 +17,16 @@ import {
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 /** Endpoints that must not carry a bearer token or trigger a refresh. */
-const PUBLIC_PATHS = ['/auth/register', '/auth/login', '/auth/refresh'];
+const PUBLIC_PATHS = [
+  '/auth/register',
+  '/auth/login',
+  '/auth/refresh',
+  // Both run before there is a session — a signed-out phone has no tokens to
+  // attach, and without this list `apiFetch` would read that as an expired
+  // session and reject before the request is even sent.
+  '/auth/forgot-password',
+  '/auth/reset-password',
+];
 
 export class ApiError extends Error {
   constructor(

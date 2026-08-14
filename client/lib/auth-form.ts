@@ -43,6 +43,14 @@ export function validateNewPassword(value: string): string | undefined {
   return undefined;
 }
 
+/** Mirrors `ResetPasswordDto.code` — six digits, as issued by `/auth/forgot-password`. */
+export function validateResetCode(value: string): string | undefined {
+  const code = value.trim();
+  if (!code) return 'Enter the code from your email.';
+  if (!/^\d{6}$/.test(code)) return 'The code is 6 digits, exactly as sent.';
+  return undefined;
+}
+
 export function validateDisplayName(value: string): string | undefined {
   const name = value.trim();
   if (!name) return 'Enter a display name.';
@@ -121,6 +129,26 @@ export function authErrorMessage(error: unknown, action: 'login' | 'register'): 
       default:
         return error.message;
     }
+  }
+
+  if (error instanceof Error && error.message) return error.message;
+  return 'That didn’t go through. Try again.';
+}
+
+/**
+ * The account-management flows — forgot/reset password, change password,
+ * delete account — differ from `authErrorMessage` in one way that matters:
+ * their 401s are already good, specific sentences from the server ("Current
+ * password is incorrect.", "Invalid or expired reset code."), not the deliberately
+ * vague pair-mismatch copy `login` needs for anti-enumeration. Passing those
+ * through is more honest than writing a second vague sentence over them.
+ */
+export function accountActionErrorMessage(error: unknown): string {
+  if (error instanceof OfflineError) return error.message;
+
+  if (error instanceof ApiError) {
+    if (error.status === 429) return 'Too many attempts. Wait a minute, then try again.';
+    return error.message;
   }
 
   if (error instanceof Error && error.message) return error.message;
