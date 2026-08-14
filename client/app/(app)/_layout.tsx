@@ -7,7 +7,7 @@ export default function AppLayout() {
   const theme = useTheme();
   const { status } = useAuth();
 
-  if (status === 'unauthenticated') return <Redirect href="/login" />;
+  if (status === 'unauthenticated') return <Redirect href="/welcome" />;
 
   return (
     <Stack
