@@ -19,7 +19,7 @@ const PRIVACY_POLICY = `# Privacy Policy
 
 ## 3. Data Ownership & Deletion (GDPR / DPDP Compliance)
 - You own your learning data.
-- You can permanently delete your account and all associated data at any time via the \`DELETE /me\` API endpoint. An in-app control for this is not yet available; contact us at the address below if you cannot call the API yourself.
+- You can permanently delete your account and all associated data at any time from Settings → Account → Delete account in the app, or by contacting us at the address below.
 - Account deletion immediately and permanently erases your account profile, SRS cards, exercise history, chat sessions, direct messages, and social connections. Deleting direct messages removes them for the other participant as well.
 - **One exception:** safety reports filed by you or about you are retained after deletion. They are kept as evidence for moderation review — a report about harmful behaviour would otherwise be erasable by the person reported — and cannot be used to reconstruct your account.
 

@@ -26,6 +26,10 @@ const PUBLIC_PATHS = [
   // session and reject before the request is even sent.
   '/auth/forgot-password',
   '/auth/reset-password',
+  // Reachable from the register screen, before any account exists — same
+  // reason as the two above. The server has no guard on either route either.
+  '/legal/privacy',
+  '/legal/terms',
 ];
 
 export class ApiError extends Error {

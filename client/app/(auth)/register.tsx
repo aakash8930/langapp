@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ import { useTheme } from '@/theme';
 export default function Register() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { register } = useAuth();
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
@@ -184,6 +185,34 @@ export default function Register() {
         </View>
 
         <View style={{ gap: theme.spacing.lg }}>
+          <Text
+            style={{
+              fontFamily: theme.families.ui,
+              fontSize: theme.fontSize.small,
+              lineHeight: theme.lineHeight.small,
+              color: theme.colors.inkSoft,
+              textAlign: 'center',
+            }}
+          >
+            {'By creating an account, you agree to our '}
+            <Text
+              accessibilityRole="link"
+              onPress={() => router.push('/legal/terms')}
+              style={{ color: theme.colors.ai }}
+            >
+              Terms of Service
+            </Text>
+            {' and '}
+            <Text
+              accessibilityRole="link"
+              onPress={() => router.push('/legal/privacy')}
+              style={{ color: theme.colors.ai }}
+            >
+              Privacy Policy
+            </Text>
+            {'.'}
+          </Text>
+
           <Button label="Create account" onPress={() => void submit()} loading={submitting} />
 
           <Link href="/login" asChild>

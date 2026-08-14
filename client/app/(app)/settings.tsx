@@ -241,6 +241,19 @@ export default function Settings() {
         <BlockedList />
       </Section>
 
+      <Section title="Legal">
+        <Button
+          label="Privacy policy"
+          variant="secondary"
+          onPress={() => router.push('/legal/privacy')}
+        />
+        <Button
+          label="Terms of service"
+          variant="secondary"
+          onPress={() => router.push('/legal/terms')}
+        />
+      </Section>
+
       <Section title="Account">
         <Row label="Signed in as" value={user.email} />
         <Button
