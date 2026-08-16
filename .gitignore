@@ -9,8 +9,8 @@ dist
 *.tsbuildinfo
 
 # Local object storage written at runtime by LocalStorageService. The immutable
-# KanjiVG subset is a build input and is intentionally versioned; everything
-# else under storage remains runtime-only.
+# normalized KanjiVG pack is a build input and is intentionally versioned;
+# everything else under storage remains runtime-only.
 /api/storage/*
 !/api/storage/strokes/
 !/api/storage/strokes/*.json

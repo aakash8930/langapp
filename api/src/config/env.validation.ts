@@ -72,7 +72,7 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     throw new Error('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different values');
   }
 
-  return {
+  const config: EnvConfig = {
     NODE_ENV: optional(raw, 'NODE_ENV', 'development'),
     PORT: positiveInt(raw, 'PORT', 3000),
     MONGO_URI: required(raw, 'MONGO_URI'),
@@ -111,4 +111,21 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     // makes POST /contact return 503 rather than claiming to deliver nowhere.
     CONTACT_TO: optional(raw, 'CONTACT_TO', ''),
   };
+
+  // A public production process must not boot into a state where registration
+  // succeeds but verification cannot arrive, support forms discard messages,
+  // the advertised AI tutor always returns 503, or browser requests are denied.
+  // Local development keeps all four optional.
+  if (config.NODE_ENV === 'production') {
+    const hasMail = config.RESEND_API_KEY !== ''
+      || (config.SMTP_USER !== '' && config.SMTP_PASS !== '');
+    if (!hasMail) {
+      throw new Error('Production requires RESEND_API_KEY or both SMTP_USER and SMTP_PASS');
+    }
+    for (const key of ['MAIL_SMOKE_TO', 'CONTACT_TO', 'GEMINI_API_KEY', 'CORS_ORIGINS'] as const) {
+      if (config[key] === '') throw new Error(`Production requires ${key}`);
+    }
+  }
+
+  return config;
 }

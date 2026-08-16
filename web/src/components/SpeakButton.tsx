@@ -2,62 +2,50 @@ import { useEffect, useRef, useState } from 'react';
 
 import { audioUrlForKana, audioUrlForVocab } from '../audio';
 
-/**
- * Plays a word aloud.
- *
- * ## Failure is silence, not an error
- *
- * A word whose audio has not been generated yet 404s, and the API being asleep
- * fails the same way. Neither is worth an error banner in the middle of a quiz:
- * the button supplements a written word that is already on screen, so a dead
- * press costs the learner nothing. The button marks itself unavailable and
- * stops offering — quieter than a message, and it stops a second press
- * producing the same nothing.
- *
- * ## One element per button, created once
- *
- * `new Audio(url)` rather than a rendered `<audio>` tag: nothing here needs
- * controls, and a hidden media element in the markup is a thing screen readers
- * and browser media sessions can find. The element is reused so a rapid second
- * press replays from the start rather than layering a second voice over the
- * first.
- */
+function canSpeak(text?: string): boolean {
+  return Boolean(text)
+    && typeof window !== 'undefined'
+    && 'speechSynthesis' in window
+    && 'SpeechSynthesisUtterance' in window;
+}
+
+/** Plays immutable course audio with an explicit Japanese browser-voice fallback. */
 export function SpeakButton({
   vocabId,
   kanaId,
+  text,
   label = 'Play',
   speed = 1,
 }: {
-  /** A vocabulary item. Exactly one of this and `kanaId` is given. */
   vocabId?: string;
-  /** A kana item — same bytes, different route. */
   kanaId?: string;
+  /** Japanese reading used only when the stored course recording cannot load. */
+  text?: string;
   label?: string;
-  /** The learner's `settings.audioSpeed`, 0.5–2.0. */
   speed?: number;
 }) {
   const src = vocabId ? audioUrlForVocab(vocabId) : kanaId ? audioUrlForKana(kanaId) : null;
   const elementRef = useRef<HTMLAudioElement | null>(null);
-  const [dead, setDead] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const [recordingFailed, setRecordingFailed] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const unavailable = (!src || recordingFailed) && !canSpeak(text);
 
-  // Rebuild when the word changes — the same button instance is reused as the
-  // quiz moves from question to question.
   useEffect(() => {
     if (!src) {
-      setDead(true);
+      setRecordingFailed(true);
       return;
     }
 
     const element = new Audio(src);
     element.preload = 'none';
     elementRef.current = element;
-    setDead(false);
+    setRecordingFailed(false);
     setPlaying(false);
 
     const onEnded = () => setPlaying(false);
     const onError = () => {
-      setDead(true);
+      setRecordingFailed(true);
       setPlaying(false);
     };
     element.addEventListener('ended', onEnded);
@@ -68,25 +56,47 @@ export function SpeakButton({
       element.removeEventListener('error', onError);
       element.pause();
       elementRef.current = null;
+      if (utteranceRef.current) {
+        utteranceRef.current.onend = null;
+        utteranceRef.current.onerror = null;
+      }
+      window.speechSynthesis?.cancel();
+      utteranceRef.current = null;
     };
   }, [src]);
 
   useEffect(() => {
     if (elementRef.current) elementRef.current.playbackRate = speed;
+    if (utteranceRef.current) utteranceRef.current.rate = speed;
   }, [speed, src]);
 
-  function play() {
-    const element = elementRef.current;
-    if (!element || dead) return;
+  function browserVoice() {
+    if (!text || !canSpeak(text)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ja-JP';
+    utterance.rate = speed;
+    utterance.onend = () => setPlaying(false);
+    utterance.onerror = () => setPlaying(false);
+    utteranceRef.current = utterance;
+    setPlaying(true);
+    window.speechSynthesis.speak(utterance);
+  }
 
-    // Rewind first: pressing twice should replay from the start, not resume
-    // from wherever the previous play ended.
+  function play() {
+    if (unavailable) return;
+    if (recordingFailed || !elementRef.current) {
+      browserVoice();
+      return;
+    }
+
+    const element = elementRef.current;
     element.currentTime = 0;
     setPlaying(true);
     void element.play().catch(() => {
-      // Autoplay policy or a missing file — both are silence, not an error.
-      setDead(true);
+      setRecordingFailed(true);
       setPlaying(false);
+      browserVoice();
     });
   }
 
@@ -95,14 +105,12 @@ export function SpeakButton({
       type="button"
       className={`speak${playing ? ' speak-playing' : ''}`}
       onClick={play}
-      disabled={dead}
-      aria-label={dead ? 'No audio for this' : 'Play this'}
-      title={dead ? 'No audio for this' : undefined}
+      disabled={unavailable}
+      aria-label={unavailable ? 'No audio for this' : 'Play Japanese pronunciation'}
+      title={unavailable ? 'No Japanese audio is available on this device' : recordingFailed ? 'Using browser Japanese voice' : 'Course recording'}
     >
-      {/* A text glyph rather than an icon font — one less dependency, and it
-          takes the palette colour, which an emoji speaker would not. */}
-      <span aria-hidden="true">{dead ? '×' : '▶'}</span>
-      <span>{dead ? 'No audio' : label}</span>
+      <span aria-hidden="true">{unavailable ? '×' : '▶'}</span>
+      <span>{unavailable ? 'No audio' : label}</span>
     </button>
   );
 }

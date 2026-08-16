@@ -1,49 +1,19 @@
 export const PLANS = [
   {
     id: 'free',
-    name: 'Free',
+    name: 'Public MVP',
     monthlyPrice: 0,
     yearlyPrice: 0,
     features: [
-      'Basic lessons',
-      'Limited vocabulary',
-      'Grammar exercises',
-      'Basic progress tracking',
-      'Community forum',
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    monthlyPrice: 980,
-    yearlyPrice: 9800,
-    features: [
-      'Unlimited lessons',
-      'Advanced vocabulary',
-      'Grammar exercises',
-      'AI Tutor',
-      'Advanced analytics',
-      'Offline mode',
-      'Speech recognition',
-      'Cultural notes',
-      'Email support',
-    ],
-    highlighted: true,
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    monthlyPrice: null,
-    yearlyPrice: null,
-    features: [
-      'Everything in Pro',
-      'Team dashboard',
-      'Admin controls',
-      'SSO integration',
-      'Dedicated support',
-      'Custom integrations',
+      'Complete Japanese course',
+      'Vocabulary, grammar, kana, and kanji libraries',
+      'Lesson quizzes and spaced review',
+      'Progress, XP, streaks, and social practice',
+      'AI tutor and Japanese audio when configured',
+      'No payment method required',
     ],
   },
 ] as const;
 
+/** Public MVP accepts no paid checkout. Historical account values remain in the user schema. */
 export type PlanId = (typeof PLANS)[number]['id'];

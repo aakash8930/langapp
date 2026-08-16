@@ -34,10 +34,13 @@ export class BillingService {
     planId: PlanId,
     billingCycle: 'monthly' | 'yearly',
   ): Promise<{ url: string }> {
-    const user = await this.getUser(userId);
     const plan = PLANS.find((p) => p.id === planId);
     if (!plan) throw new BadRequestException('Invalid plan');
+    if (plan.monthlyPrice === 0 && plan.yearlyPrice === 0) {
+      throw new BadRequestException('GENKŌ is free during the public MVP; checkout is disabled.');
+    }
 
+    const user = await this.getUser(userId);
     const price = billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
     if (price === null) throw new BadRequestException('This plan requires contacting sales.');
 

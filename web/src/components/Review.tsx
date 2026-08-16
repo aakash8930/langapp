@@ -122,7 +122,14 @@ function CardFront({ item }: { item: ResolvedItem }) {
 
 function CardBack({ item, audioSpeed }: { item: ResolvedItem; audioSpeed: number }) {
   const lines = backLines(item);
-  return <div className="review-card-back">{lines.map((line, position) => <p key={`${position}-${line}`} className={position === 0 ? 'review-card-answer ja' : 'review-card-detail'}>{line}</p>)}{item.kind === 'vocab' ? <SpeakButton vocabId={item.id} speed={audioSpeed} label="Hear it" /> : null}</div>;
+  return <div className="review-card-back">{lines.map((line, position) => <p key={`${position}-${line}`} className={position === 0 ? 'review-card-answer ja' : 'review-card-detail'}>{line}</p>)}{item.kind === 'vocab' ? (
+    <SpeakButton
+      vocabId={item.id}
+      text={item.reading || item.lemma}
+      speed={audioSpeed}
+      label="Hear it"
+    />
+  ) : null}</div>;
 }
 
 function backLines(item: ResolvedItem): string[] {

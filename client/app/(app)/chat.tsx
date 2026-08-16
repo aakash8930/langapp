@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/Button';
 import { ChatBubble, CorrectionNote } from '@/components/ChatBubble';
 import { ChatComposer } from '@/components/ChatComposer';
+import { JapaneseSpeechButton } from '@/components/JapaneseSpeechButton';
 import { ChatStartSkeleton, PendingReplySkeleton } from '@/components/ChatSkeletons';
 import { ErrorState } from '@/components/ErrorState';
 import { FormError } from '@/components/FormError';
@@ -226,6 +227,9 @@ export default function Chat() {
                   pending={message.id === pendingId}
                 />
                 <CorrectionNote corrections={message.corrections} />
+                {message.role === 'assistant' ? (
+                  <JapaneseSpeechButton text={message.text} />
+                ) : null}
               </View>
             ))}
 

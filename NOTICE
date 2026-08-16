@@ -6,8 +6,9 @@ license, immutable version, transformation, and inventory) of each dataset.
 
 ## KanjiVG — stroke-order data
 
-A 336-character KanjiVG-derived subset is distributed in
-`api/storage/strokes/` and served at `GET /content/strokes/:codepoint`.
+A 6,703-character normalized KanjiVG-derived pack is distributed in
+`api/storage/strokes/` and served at `GET /content/strokes/:codepoint`. The
+current curriculum guarantees coverage for its 336 taught characters.
 It was generated from the per-character SVG files at immutable revision:
 
 https://github.com/KanjiVG/kanjivg/tree/61e39cfc29724132a6f8823b166296932985a0ff/kanji
@@ -21,7 +22,7 @@ GENKŌ's derived payloads preserve each source SVG viewBox and stroke path
 geometry, sort paths by KanjiVG's numbered stroke IDs, and omit SVG grouping
 and annotation metadata. The manifest records the source revision and a SHA-256
 hash for every packaged payload. These transformations and the packaged
-stroke-order subset are made available under the same CC BY-SA 3.0 terms.
+stroke-order pack are made available under the same CC BY-SA 3.0 terms.
 
 The share-alike term applies to this stroke-order data only; it does not extend
 to the rest of the API or app. Any surface that renders diagrams or animations

@@ -180,7 +180,7 @@ function KanaDetail({
         <p className="kana-detail-glyph ja" lang="ja">{entry.kana}</p>
         <div>
           <p className="kana-detail-romaji">{entry.romaji}</p>
-          <SpeakButton kanaId={entry.id} label="Hear the sound" speed={audioSpeed} />
+          <SpeakButton kanaId={entry.id} text={entry.kana} label="Hear the sound" speed={audioSpeed} />
         </div>
       </div>
 
@@ -549,7 +549,7 @@ function VowelGuide({
                 <span className="ja" lang="ja">{entry.kana}</span>
                 <span><strong>{entry.romaji}</strong><small>as in “{vowel.sound}”</small></span>
               </button>
-              <SpeakButton kanaId={entry.id} label={`Hear ${vowel.romaji}`} speed={audioSpeed} />
+              <SpeakButton kanaId={entry.id} text={entry.kana} label={`Hear ${vowel.romaji}`} speed={audioSpeed} />
             </div>
           );
         })}
