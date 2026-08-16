@@ -226,7 +226,9 @@ export const OnboardingStateSchema = SchemaFactory.createForClass(OnboardingStat
 
 @Schema({ _id: false })
 export class NotificationSettings {
-  @Prop({ type: Boolean, default: true })
+  // Reminders are opt-in during onboarding. A new account must not receive
+  // scheduled nudges before the learner has made that choice.
+  @Prop({ type: Boolean, default: false })
   studyReminders: boolean;
 
   @Prop({ type: Boolean, default: true })

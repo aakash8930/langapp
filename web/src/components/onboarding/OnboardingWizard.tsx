@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { Check, GraduationCap, Target, BookOpen, Brain, Clock, Bell, ClipboardList, Sparkles } from 'lucide-react';
 
 import { useSession } from '../../useSession';
 import { updateOnboarding, type OnboardingPatch } from '../../api';
+import { queryKeys } from '../../queryKeys';
 
 const TOTAL_STEPS = 10;
 
@@ -83,8 +85,11 @@ export function OnboardingWizard() {
 
 function Wizard({ user }: { user: ReturnType<typeof useSession> extends { session: infer S } ? S extends { state: 'signedIn'; user: infer U } ? U : never : never }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const os = user.onboardingState;
   const [step, setStep] = useState(os?.onboardingStep ?? 0);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>({
     nativeLanguage: user.profile.nativeLanguage ?? 'en',
     proficiencyLevel: os?.proficiencyLevel ?? '',
@@ -96,7 +101,7 @@ function Wizard({ user }: { user: ReturnType<typeof useSession> extends { sessio
     dailyGoalXp: user.gamification?.dailyGoalXp ?? 50,
   });
 
-  async function save(overrides: Partial<OnboardingPatch>) {
+  async function save(overrides: Partial<OnboardingPatch>): Promise<boolean> {
     const body: OnboardingPatch = { step: step + 1, ...overrides };
     if (form.nativeLanguage !== user.profile.nativeLanguage) body.nativeLanguage = form.nativeLanguage;
     if (form.proficiencyLevel !== (os?.proficiencyLevel ?? '')) body.proficiencyLevel = form.proficiencyLevel;
@@ -106,15 +111,37 @@ function Wizard({ user }: { user: ReturnType<typeof useSession> extends { sessio
     if (form.notificationsEnabled !== (os?.notificationsEnabled ?? false)) body.notificationsEnabled = form.notificationsEnabled;
     if (form.studyTimeMinutes !== (os?.studyTimeMinutes ?? 15)) body.studyTimeMinutes = form.studyTimeMinutes;
     if (form.dailyGoalXp !== (user.gamification?.dailyGoalXp ?? 50)) body.dailyGoalXp = form.dailyGoalXp;
-    await updateOnboarding(body);
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updatedUser = await updateOnboarding(body);
+      queryClient.setQueryData(queryKeys.session.me, updatedUser);
+      return true;
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Your answers could not be saved. Try again.');
+      return false;
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function next() { save({ step: step + 1 }).then(() => setStep((s) => s + 1)).catch(() => {}); }
-  function back() { save({ step: step - 1 }).then(() => setStep((s) => s - 1)).catch(() => {}); }
+  function next() {
+    void save({ step: step + 1 }).then((saved) => {
+      if (saved) setStep((current) => current + 1);
+    });
+  }
 
-  async function finish() {
-    await updateOnboarding({ onboardingComplete: true });
-    navigate({ to: '/' });
+  function back() {
+    void save({ step: Math.max(0, step - 1) }).then((saved) => {
+      if (saved) setStep((current) => Math.max(0, current - 1));
+    });
+  }
+
+  function finish() {
+    void save({ onboardingComplete: true }).then((saved) => {
+      if (saved) navigate({ to: '/', replace: true });
+    });
   }
 
   const dots = Array.from({ length: TOTAL_STEPS }, (_, i) => <Dot key={i} index={i} step={step} />);
@@ -124,16 +151,19 @@ function Wizard({ user }: { user: ReturnType<typeof useSession> extends { sessio
       <div className="onb-card">
         <div className="onb-steps">{dots}</div>
 
-        {step === 0 && <Welcome next={next} />}
-        {step === 1 && <LanguageStep form={form} setForm={setForm} next={next} back={back} />}
-        {step === 2 && <LevelStep form={form} setForm={setForm} next={next} back={back} />}
-        {step === 3 && <GoalsStep form={form} setForm={setForm} next={next} back={back} />}
-        {step === 4 && <DailyGoalStep form={form} setForm={setForm} next={next} back={back} />}
-        {step === 5 && <StyleStep form={form} setForm={setForm} next={next} back={back} />}
-        {step === 6 && <StudyTimeStep form={form} setForm={setForm} next={next} back={back} />}
-        {step === 7 && <NotificationsStep form={form} setForm={setForm} next={next} back={back} />}
-        {step === 8 && <PlacementTestIntro next={next} back={back} />}
-        {step === 9 && <CompleteStep form={form} finish={finish} back={back} />}
+        {saveError ? <p className="onb-error" role="alert">{saveError}</p> : null}
+        <fieldset className="onb-step-content" disabled={saving} aria-busy={saving}>
+          {step === 0 && <Welcome next={next} />}
+          {step === 1 && <LanguageStep form={form} setForm={setForm} next={next} back={back} />}
+          {step === 2 && <LevelStep form={form} setForm={setForm} next={next} back={back} />}
+          {step === 3 && <GoalsStep form={form} setForm={setForm} next={next} back={back} />}
+          {step === 4 && <DailyGoalStep form={form} setForm={setForm} next={next} back={back} />}
+          {step === 5 && <StyleStep form={form} setForm={setForm} next={next} back={back} />}
+          {step === 6 && <StudyTimeStep form={form} setForm={setForm} next={next} back={back} />}
+          {step === 7 && <NotificationsStep form={form} setForm={setForm} next={next} back={back} />}
+          {step === 8 && <PlacementTestIntro next={next} back={back} />}
+          {step === 9 && <CompleteStep form={form} finish={finish} back={back} />}
+        </fieldset>
       </div>
     </div>
   );

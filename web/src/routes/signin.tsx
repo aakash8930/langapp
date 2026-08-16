@@ -6,8 +6,8 @@ import '../styles/signin.css';
 /**
  * Full-screen signin takeover — no AppShell (no header, sidebar, or footer).
  *
- * The form supports sign in, sign up, forgot password, and reset password
- * modes, plus OAuth redirects for Google and GitHub.
+ * The form supports sign in, forgot password, and reset password. Account
+ * creation stays on `/signup` so there is one registration contract.
  */
 export const Route = createFileRoute('/signin')({
   component: SigninPage,

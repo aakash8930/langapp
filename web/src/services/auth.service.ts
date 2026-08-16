@@ -25,7 +25,7 @@ export async function registerAccount(form: SignupForm): Promise<SignupResult> {
   return register({
     email: form.email.trim(),
     password: form.password,
-    displayName: form.fullName.trim(),
+    displayName: form.displayName.trim(),
     dateOfBirth: form.dateOfBirth,
     // The server needs a zone to decide what "today" means for the streak;
     // the browser is the only thing that knows it.

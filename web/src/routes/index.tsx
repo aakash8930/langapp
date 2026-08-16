@@ -74,7 +74,7 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   const data = Route.useLoaderData();
-  const { session, signIn, signUp } = useSession();
+  const { session, signIn } = useSession();
 
   const units: Unit[] = data.state === 'ready' ? data.units : [];
 
@@ -83,7 +83,7 @@ function HomePage() {
   }
 
   if (session.state === 'signedOut') {
-    return <ShopWindow onSignIn={signIn} onSignUp={signUp} units={units} />;
+    return <ShopWindow onSignIn={signIn} units={units} />;
   }
 
   /*
@@ -134,16 +134,9 @@ function HomePage() {
 function ShopWindow({
   units,
   onSignIn,
-  onSignUp,
 }: {
   units: Unit[];
   onSignIn: (email: string, password: string) => Promise<void>;
-  onSignUp: (
-    email: string,
-    password: string,
-    displayName: string,
-    dateOfBirth: string,
-  ) => Promise<void>;
 }) {
   const heroRef = useRef<HTMLElement>(null);
 
@@ -172,7 +165,7 @@ function ShopWindow({
 
       <section className="section section-tight" id="start">
         <div className="wrap">
-          <SignIn onSignIn={onSignIn} onSignUp={onSignUp} />
+          <SignIn onSignIn={onSignIn} />
         </div>
       </section>
 

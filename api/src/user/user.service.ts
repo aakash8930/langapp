@@ -400,7 +400,12 @@ export class UserService {
     if (dto.learningGoals !== undefined) patch['onboardingState.learningGoals'] = dto.learningGoals;
     if (dto.learningStyle !== undefined) patch['onboardingState.learningStyle'] = dto.learningStyle;
     if (dto.preferredStudyTime !== undefined) patch['onboardingState.preferredStudyTime'] = dto.preferredStudyTime;
-    if (dto.notificationsEnabled !== undefined) patch['onboardingState.notificationsEnabled'] = dto.notificationsEnabled;
+    if (dto.notificationsEnabled !== undefined) {
+      patch['onboardingState.notificationsEnabled'] = dto.notificationsEnabled;
+      // The reminder worker reads notificationSettings.studyReminders. Keeping
+      // only the onboarding answer made the visible opt-in a no-op.
+      patch['notificationSettings.studyReminders'] = dto.notificationsEnabled;
+    }
     if (dto.studyTimeMinutes !== undefined) patch['onboardingState.studyTimeMinutes'] = dto.studyTimeMinutes;
     if (dto.dailyGoalXp !== undefined) patch['gamification.dailyGoalXp'] = dto.dailyGoalXp;
     if (dto.onboardingComplete !== undefined) patch['onboardingState.onboardingComplete'] = dto.onboardingComplete;

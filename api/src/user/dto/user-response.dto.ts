@@ -122,7 +122,7 @@ export function toUserResponse(user: UserDocument): UserResponse {
       placementTestLevel: user.onboardingState?.placementTestLevel ?? '',
     },
     notificationSettings: {
-      studyReminders: user.notificationSettings?.studyReminders ?? true,
+      studyReminders: user.notificationSettings?.studyReminders ?? false,
       achievements: user.notificationSettings?.achievements ?? true,
       community: user.notificationSettings?.community ?? true,
       eventsUpdates: user.notificationSettings?.eventsUpdates ?? true,

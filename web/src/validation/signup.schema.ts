@@ -1,16 +1,11 @@
 /**
- * Signup form validation, kept dependency-free (no Zod) to match the manual
- * validation style already used across the app's forms.
- *
- * The server's `RegisterDto` is the authority — email length, password length,
- * and the age gate are all re-enforced there — so these checks exist only to
- * fail fast and give the learner immediate, per-field feedback before a round
- * trip. A 400 from the server is still surfaced as a submit error; the client
- * never claims to have validated something the server didn't.
+ * Signup validation mirrors the public registration contract. These checks are
+ * intentionally no stricter than `RegisterDto`: client-side validation should
+ * explain a rejected value, not invent an extra account requirement.
  */
 
 export interface SignupForm {
-  fullName: string;
+  displayName: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -18,7 +13,7 @@ export interface SignupForm {
 }
 
 export const INITIAL_SIGNUP_FORM: SignupForm = {
-  fullName: '',
+  displayName: '',
   email: '',
   password: '',
   confirmPassword: '',
@@ -27,13 +22,15 @@ export const INITIAL_SIGNUP_FORM: SignupForm = {
 
 export type SignupErrors = Partial<Record<keyof SignupForm, string>>;
 
-/** A practical RFC-5322 subset. The server's `@IsEmail` is the real check. */
+/** A practical RFC-5322 subset. The server's `@IsEmail` remains authoritative. */
 const EMAIL_REGEX =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export const MIN_AGE_TO_REGISTER = 13;
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 128;
 
 export interface PasswordRule {
   id: string;
@@ -42,15 +39,15 @@ export interface PasswordRule {
 }
 
 /**
- * The password contract from the design spec, stated as data so the strength
- * indicator and the submit validator read from one source.
+ * Signals used by the strength meter, not registration requirements. A long
+ * passphrase is valid even when it does not contain every character category.
  */
 export const PASSWORD_RULES: readonly PasswordRule[] = [
-  { id: 'length', label: 'At least 8 characters', test: (p) => p.length >= 8 },
-  { id: 'upper', label: 'An uppercase letter', test: (p) => /[A-Z]/.test(p) },
-  { id: 'lower', label: 'A lowercase letter', test: (p) => /[a-z]/.test(p) },
+  { id: 'length', label: '8+ characters', test: (p) => p.length >= PASSWORD_MIN_LENGTH },
+  { id: 'long', label: '12+ is stronger', test: (p) => p.length >= 12 },
+  { id: 'upper-lower', label: 'Mixed letter case', test: (p) => /[A-Z]/.test(p) && /[a-z]/.test(p) },
   { id: 'number', label: 'A number', test: (p) => /[0-9]/.test(p) },
-  { id: 'special', label: 'A special character', test: (p) => /[^a-zA-Z0-9]/.test(p) },
+  { id: 'special', label: 'A symbol', test: (p) => /[^a-zA-Z0-9]/.test(p) },
 ];
 
 export type PasswordLevel = 'none' | 'weak' | 'fair' | 'strong';
@@ -65,15 +62,14 @@ export interface PasswordScore {
 const PASSWORD_LEVEL_LABELS: Record<PasswordLevel, string> = {
   none: '',
   weak: 'Weak',
-  fair: 'Moderate',
+  fair: 'Good',
   strong: 'Strong',
 };
 
 export function passwordScore(password: string): PasswordScore {
   const total = PASSWORD_RULES.length;
-  if (!password) {
-    return { level: 'none', label: '', passed: 0, total };
-  }
+  if (!password) return { level: 'none', label: '', passed: 0, total };
+
   const passed = PASSWORD_RULES.filter((rule) => rule.test(password)).length;
   let level: PasswordLevel;
   if (passed <= 2) level = 'weak';
@@ -82,125 +78,105 @@ export function passwordScore(password: string): PasswordScore {
   return { level, label: PASSWORD_LEVEL_LABELS[level], passed, total };
 }
 
-/**
- * `display` lets the strength bar colour itself without a switch at the call
- * site; the CSS reads `--signup-strength-level` and paints the track.
- */
-export const PASSWORD_LEVEL_DISPLAY: Record<PasswordLevel, string> = {
-  none: 'idle',
-  weak: 'weak',
-  fair: 'fair',
-  strong: 'strong',
-};
-
 function parseDateOfBirth(iso: string): Date | null {
-  if (!DATE_REGEX.test(iso)) return null;
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d;
+  const match = DATE_REGEX.exec(iso);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  // `Date` normalises impossible values such as 2024-02-31. Compare the
+  // resulting calendar parts so those values are rejected instead.
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
 }
 
 function ageFromIso(iso: string): number {
   const born = parseDateOfBirth(iso);
   if (!born) return -1;
+
   const now = new Date();
-  let years = now.getFullYear() - born.getFullYear();
-  const months = now.getMonth() - born.getMonth();
-  if (months < 0 || (months === 0 && now.getDate() < born.getDate())) years -= 1;
+  let years = now.getUTCFullYear() - born.getUTCFullYear();
+  const monthDelta = now.getUTCMonth() - born.getUTCMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getUTCDate() < born.getUTCDate())) {
+    years -= 1;
+  }
   return years;
 }
 
 function validateEmail(value: string): string | undefined {
-  if (!value.trim()) return undefined; // "required" handled as the field error
-  return EMAIL_REGEX.test(value.trim()) ? undefined : 'Enter a valid email address.';
+  const email = value.trim();
+  if (!email) return 'Email is required.';
+  if (email.length > 254) return 'Use an email address under 255 characters.';
+  return EMAIL_REGEX.test(email) ? undefined : 'Enter a valid email address.';
 }
 
 function validatePassword(value: string): string | undefined {
-  if (!value) return undefined;
-  const failed = PASSWORD_RULES.find((rule) => !rule.test(value));
-  if (!failed) return undefined;
-  return 'Password must be at least 8 characters with an uppercase letter, a lowercase letter, a number, and a special character.';
+  if (!value) return 'Password is required.';
+  if (value.length < PASSWORD_MIN_LENGTH) {
+    return `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
+  }
+  if (value.length > PASSWORD_MAX_LENGTH) {
+    return `Use at most ${PASSWORD_MAX_LENGTH} characters.`;
+  }
+  return undefined;
 }
 
 function validateDateOfBirth(value: string): string | undefined {
-  if (!value) return undefined;
+  if (!value) return 'Date of birth is required.';
+  const born = parseDateOfBirth(value);
+  if (!born || born.getTime() > Date.now()) return 'Enter a valid date of birth.';
+
   const age = ageFromIso(value);
-  if (age < 0) return 'Enter a valid date of birth.';
   if (age < MIN_AGE_TO_REGISTER) {
     return `You must be at least ${MIN_AGE_TO_REGISTER} to create an account.`;
   }
   return undefined;
 }
 
-function validateConfirmPassword(
-  confirm: string,
-  password: string,
-): string | undefined {
-  if (!confirm) return undefined;
+function validateConfirmPassword(confirm: string, password: string): string | undefined {
+  if (!confirm) return 'Please confirm your password.';
   return confirm === password ? undefined : 'Passwords do not match.';
 }
 
-/**
- * Real-time validator for a single field while the user is typing. Returns
- * `undefined` for empty required fields — the "required" message is only shown
- * after the field is blurred or the user hits submit, so a pristine form does
- * not light up with red the instant it mounts.
- */
+/** Validate one field after blur or while correcting a visible error. */
 export function validateSignupField(
   field: keyof SignupForm,
   value: string,
   all: SignupForm,
 ): string | undefined {
   switch (field) {
-    case 'fullName':
-      return value.trim() ? undefined : 'Full name is required.';
+    case 'displayName':
+      if (!value.trim()) return 'Display name is required.';
+      return value.trim().length > 60 ? 'Use at most 60 characters.' : undefined;
     case 'email':
-      return validateEmail(value) ?? (value.trim() ? undefined : 'Email is required.');
+      return validateEmail(value);
     case 'password':
-      return validatePassword(value) ?? (value ? undefined : 'Password is required.');
+      return validatePassword(value);
     case 'confirmPassword':
       return validateConfirmPassword(value, all.password);
     case 'dateOfBirth':
-      return validateDateOfBirth(value) ?? (value ? undefined : 'Date of birth is required.');
+      return validateDateOfBirth(value);
   }
 }
 
-/** Validate every field at once — the submit gate and the source of truth. */
+/** Validate every field at once — the submit gate and source of truth. */
 export function validateSignup(form: SignupForm): SignupErrors {
   const errors: SignupErrors = {};
 
-  if (!form.fullName.trim()) errors.fullName = 'Full name is required.';
-
-  if (!form.email.trim()) {
-    errors.email = 'Email is required.';
-  } else if (!EMAIL_REGEX.test(form.email.trim())) {
-    errors.email = 'Enter a valid email address.';
-  }
-
-  if (!form.password) {
-    errors.password = 'Password is required.';
-  } else {
-    const failed = PASSWORD_RULES.find((rule) => !rule.test(form.password));
-    if (failed) {
-      errors.password =
-        'Password must be at least 8 characters with an uppercase letter, a lowercase letter, a number, and a special character.';
-    }
-  }
-
-  if (!form.confirmPassword) {
-    errors.confirmPassword = 'Please confirm your password.';
-  } else if (form.password !== form.confirmPassword) {
-    errors.confirmPassword = 'Passwords do not match.';
-  }
-
-  if (!form.dateOfBirth) {
-    errors.dateOfBirth = 'Date of birth is required.';
-  } else {
-    const age = ageFromIso(form.dateOfBirth);
-    if (age < 0) errors.dateOfBirth = 'Enter a valid date of birth.';
-    else if (age < MIN_AGE_TO_REGISTER) {
-      errors.dateOfBirth = `You must be at least ${MIN_AGE_TO_REGISTER} to create an account.`;
-    }
-  }
+  (Object.keys(form) as Array<keyof SignupForm>).forEach((field) => {
+    const error = validateSignupField(field, form[field], form);
+    if (error) errors[field] = error;
+  });
 
   return errors;
 }

@@ -24,15 +24,9 @@ import { useTheme } from '@/theme';
  * signup flows read as one product asking the same things in the same order,
  * not two forms that happen to end at the same account.
  *
- * Two things web has that this screen deliberately does not:
- *
- *   - **OAuth (Google/GitHub).** Web's own `OAuthButtons` comment says the
- *     backend routes 404 until a provider is configured — matching a stub is
- *     worse than omitting it, and a native OAuth flow needs `expo-auth-session`
- *     as a new dependency regardless, which this repo asks about first.
- *   - **The `/onboarding` wizard.** It exists on web but nothing navigates
- *     there after signup — not even web's own `SignupForm`, which goes
- *     straight to `/`. It is unwired, not part of "the signup flow."
+ * OAuth is omitted on both clients until the API has a real provider flow.
+ * Advertising a button whose backend route does not exist is worse than
+ * offering email signup clearly.
  */
 export default function Register() {
   const theme = useTheme();

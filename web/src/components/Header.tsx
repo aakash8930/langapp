@@ -1,7 +1,5 @@
 import { Link } from '@tanstack/react-router';
 
-import { logError } from '../debug';
-import { scrollToSection } from '../motion';
 import type { Session } from '../useSession';
 
 /**
@@ -75,21 +73,9 @@ export function Header({ session, onSignOut }: { session: Session; onSignOut: ()
             </button>
           </>
         ) : session.state === 'signedOut' ? (
-          /* An in-page jump to the sign-in card, not a route. Writing `#start`
-             into the hash makes the router read `start` as a path and render
-             not-found over the section — see `scrollToSection`. */
-          <a
-            className="btn btn-primary btn-sm"
-            href="#start"
-            onClick={(event) => {
-              event.preventDefault();
-              if (!scrollToSection('start')) {
-                logError('ui', 'no #start section on this page to scroll to');
-              }
-            }}
-          >
+          <Link className="btn btn-primary btn-sm" to="/signin">
             Sign in
-          </a>
+          </Link>
         ) : null}
       </div>
     </div>

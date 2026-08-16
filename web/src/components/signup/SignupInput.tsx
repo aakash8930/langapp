@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react';
 import { useEffect, useRef } from 'react';
-import { Eye, EyeOff, Lock } from 'lucide-react';
+import { CalendarDays, Eye, EyeOff, Lock, Mail, UserRound } from 'lucide-react';
 
 import { shakeInput } from '../../animations/signup.motion';
 import { cn } from '../../lib';
@@ -13,6 +13,7 @@ export interface SignupInputProps {
   onChange: (value: string) => void;
   error?: string;
   hint?: string;
+  placeholder?: string;
   autoComplete?: string;
   required?: boolean;
   maxLength?: number;
@@ -21,15 +22,25 @@ export interface SignupInputProps {
   passwordVisible?: boolean;
   onTogglePassword?: () => void;
   onBlur?: () => void;
+  disabled?: boolean;
 }
 
-/**
- * A reusable, accessible signup input.
- *
- * Wraps a label, the native input, an optional show/hide toggle for password
- * fields, hint text, and an error message. Error state is announced to screen
- * readers and also triggers a small shake on the input.
- */
+function FieldIcon({ name, type }: { name: string; type: SignupInputProps['type'] }) {
+  const props = {
+    className: 'signup-input-icon',
+    'aria-hidden': true as const,
+    size: 18,
+    strokeWidth: 1.75,
+  };
+
+  if (type === 'password') return <Lock {...props} />;
+  if (type === 'email') return <Mail {...props} />;
+  if (type === 'date') return <CalendarDays {...props} />;
+  if (name === 'displayName') return <UserRound {...props} />;
+  return null;
+}
+
+/** Labelled account field with a stable hint/error relationship. */
 export function SignupInput({
   label,
   name,
@@ -38,6 +49,7 @@ export function SignupInput({
   onChange,
   error,
   hint,
+  placeholder,
   autoComplete,
   required,
   maxLength,
@@ -46,6 +58,7 @@ export function SignupInput({
   passwordVisible,
   onTogglePassword,
   onBlur,
+  disabled,
 }: SignupInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -55,9 +68,12 @@ export function SignupInput({
 
   const isPassword = type === 'password';
   const inputType = isPassword && passwordVisible ? 'text' : type;
+  const describedBy = [hint ? `${name}-hint` : null, error ? `${name}-error` : null]
+    .filter(Boolean)
+    .join(' ') || undefined;
 
-  function handleChange(e: ChangeEvent<HTMLInputElement>) {
-    onChange(e.target.value);
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    onChange(event.target.value);
   }
 
   return (
@@ -67,14 +83,7 @@ export function SignupInput({
         {required ? <span className="signup-required" aria-hidden="true" /> : null}
       </label>
       <div className="signup-input-wrap">
-        {isPassword ? (
-          <Lock
-            className="signup-input-icon signup-input-icon--left"
-            aria-hidden="true"
-            size={18}
-            strokeWidth={1.75}
-          />
-        ) : null}
+        <FieldIcon name={name} type={type} />
         <input
           ref={inputRef}
           id={name}
@@ -84,23 +93,24 @@ export function SignupInput({
           value={value}
           onChange={handleChange}
           onBlur={onBlur}
+          placeholder={placeholder}
           autoComplete={autoComplete}
           required={required}
           maxLength={maxLength}
           min={min}
           max={max}
-          aria-invalid={!!error}
-          aria-describedby={
-            error ? `${name}-error` : hint ? `${name}-hint` : undefined
-          }
+          disabled={disabled}
+          aria-invalid={error ? 'true' : 'false'}
+          aria-describedby={describedBy}
         />
         {isPassword && onTogglePassword ? (
           <button
             type="button"
             className="signup-input-toggle"
             onClick={onTogglePassword}
-            aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+            aria-label={passwordVisible ? 'Hide passwords' : 'Show passwords'}
             aria-pressed={passwordVisible}
+            disabled={disabled}
           >
             {passwordVisible ? (
               <EyeOff size={18} strokeWidth={1.75} aria-hidden="true" />
@@ -110,17 +120,13 @@ export function SignupInput({
           </button>
         ) : null}
       </div>
-      {hint && !error ? (
+      {hint ? (
         <span className="signup-field-hint" id={`${name}-hint`}>
           {hint}
         </span>
       ) : null}
       {error ? (
-        <span
-          className="signup-field-error"
-          id={`${name}-error`}
-          role="alert"
-        >
+        <span className="signup-field-error" id={`${name}-error`} role="alert">
           {error}
         </span>
       ) : null}

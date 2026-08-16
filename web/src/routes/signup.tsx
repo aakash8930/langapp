@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { SignupPage } from '../components/signup';
+import '../styles/signup.css';
 
 /**
  * Full-screen signup takeover — no AppShell (no header, sidebar, or footer).

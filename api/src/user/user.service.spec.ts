@@ -319,6 +319,30 @@ describe('UserService.updateSettings', () => {
   });
 });
 
+describe('UserService.updateOnboarding', () => {
+  it('makes the reminder opt-in effective for the worker-facing setting', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await service.updateOnboarding(USER_ID, { notificationsEnabled: true });
+
+    expect(updateArg(findByIdAndUpdate).$set).toEqual({
+      'onboardingState.notificationsEnabled': true,
+      'notificationSettings.studyReminders': true,
+    });
+  });
+
+  it('keeps reminders off when the learner declines', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await service.updateOnboarding(USER_ID, { notificationsEnabled: false });
+
+    expect(updateArg(findByIdAndUpdate).$set).toEqual({
+      'onboardingState.notificationsEnabled': false,
+      'notificationSettings.studyReminders': false,
+    });
+  });
+});
+
 describe('UserService.weeklyXpFor', () => {
   const doc = (weeklyXpWeek: string | null, weeklyXp: number): UserDocument =>
     ({ gamification: { weeklyXpWeek, weeklyXp } }) as unknown as UserDocument;

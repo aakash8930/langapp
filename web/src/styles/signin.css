@@ -69,7 +69,16 @@
   display: flex;
   align-items: center;
   gap: var(--s-sm);
+  width: fit-content;
   margin-bottom: var(--s-3xl);
+  color: inherit;
+  text-decoration: none;
+}
+
+.signin-brand:focus-visible {
+  outline: 2px solid var(--si-accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .signin-logo-mark {
@@ -170,6 +179,10 @@
   color: var(--si-placeholder);
 }
 
+.signin-input--plain {
+  padding-inline: var(--s-xl);
+}
+
 .signin-input:hover:not(:focus) {
   border-color: var(--si-input-border-hover);
 }
@@ -249,7 +262,7 @@
 .signin-options {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 
 .signin-remember {
@@ -269,16 +282,44 @@
 }
 
 .signin-forgot {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--si-accent);
+  font-family: var(--font-ui);
   font-size: var(--text-small);
   font-weight: 600;
-  color: var(--si-accent);
   text-decoration: none;
+  cursor: pointer;
   transition: color var(--t-fast) ease;
 }
 
 .signin-forgot:hover {
   color: var(--si-accent-hover);
   text-decoration: underline;
+}
+
+.signin-back {
+  align-self: center;
+  padding: var(--s-xs) var(--s-sm);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--si-accent);
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.signin-back:hover {
+  color: var(--si-accent-hover);
+  background: rgba(212, 160, 23, 0.08);
+}
+
+.signin-back:focus-visible {
+  outline: 2px solid var(--si-accent);
+  outline-offset: 2px;
 }
 
 /* ---- Server error ---- */

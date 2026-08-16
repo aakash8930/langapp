@@ -1,13 +1,16 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Loader2, Mail } from 'lucide-react';
 
 import { useSession } from '../../useSession';
 import { verifyEmail, resendVerification } from '../../api';
+import { queryKeys } from '../../queryKeys';
 
 export function VerifyEmailPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { session } = useSession();
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
@@ -23,7 +26,8 @@ export function VerifyEmailPage() {
     try {
       const result = await verifyEmail(token);
       setSuccess(result.message);
-      setTimeout(() => navigate({ to: '/' }), 1500);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session.me });
+      setTimeout(() => navigate({ to: '/onboarding', replace: true }), 1000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Verification failed.');
     } finally {
@@ -54,6 +58,7 @@ export function VerifyEmailPage() {
           <p className="vem-subtitle">
             {session.state === 'loading' ? 'Loading…' : 'Sign in to verify your email address.'}
           </p>
+          {session.state === 'signedOut' ? <Link className="vem-btn vem-btn-primary" to="/signin">Sign in</Link> : null}
         </div>
       </div>
     );
@@ -69,15 +74,23 @@ export function VerifyEmailPage() {
         {session.user.emailVerified ? (
           <>
             <p className="vem-subtitle vem-success">Your email is already verified.</p>
-            <button className="vem-btn vem-btn-primary" onClick={() => navigate({ to: '/' })}>
-              Go to dashboard
+            <button
+              className="vem-btn vem-btn-primary"
+              onClick={() => {
+                if (session.user.onboardingState?.onboardingComplete) {
+                  navigate({ to: '/', replace: true });
+                } else {
+                  navigate({ to: '/onboarding', replace: true });
+                }
+              }}
+            >
+              {session.user.onboardingState?.onboardingComplete ? 'Go to dashboard' : 'Continue setup'}
             </button>
           </>
         ) : (
           <>
             <p className="vem-subtitle">
-              A six-digit code was written to the API server log when you created your account.
-              Enter it below to verify your email address.
+              We sent a six-digit code to {session.user.email}. Enter it below to verify your email address.
             </p>
 
             <form className="vem-form" onSubmit={handleVerify}>

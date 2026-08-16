@@ -96,12 +96,13 @@ function RootShell() {
 function ShellContent() {
   const location = useLocation();
 
-  // The signup and signin flows are full-page takeovers — no site header,
-  // sidebar, or footer. Render them straight into the query client and motion
-  // shell.
+  // Account creation, verification, sign in, and onboarding are full-page
+  // takeovers — no site header, sidebar, or footer. Render them straight into
+  // the query client and motion shell.
   if (
     location.pathname === '/signup' ||
     location.pathname === '/signin' ||
+    location.pathname === '/verify-email' ||
     location.pathname === '/onboarding' ||
     location.pathname.startsWith('/error/')
   ) {

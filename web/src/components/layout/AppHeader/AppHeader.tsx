@@ -160,7 +160,7 @@ export function Header() {
         ) : (
           // Signed out, `/` *is* the sign-in screen — so this is a real
           // destination rather than a modal that has to be built.
-          <Link className="btn btn-primary btn-sm" to="/">
+          <Link className="btn btn-primary btn-sm" to="/signin">
             Sign in
           </Link>
         )}

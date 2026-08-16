@@ -37,6 +37,28 @@
   border-radius: var(--radius-xl);
 }
 
+.onb-step-content {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.onb-step-content:disabled {
+  opacity: 0.72;
+}
+
+.onb-error {
+  margin: 0 0 var(--s-lg);
+  padding: var(--s-sm) var(--s-md);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-md);
+  background: rgba(220, 38, 38, 0.1);
+  color: #f87171;
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+
 /* ---- Step indicator ---- */
 
 .onb-steps {

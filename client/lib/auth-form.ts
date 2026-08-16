@@ -6,7 +6,6 @@ import { ApiError, OfflineError } from '@/api/client';
  * class-validator string, and one that is stricter locks them out of an
  * account the server would have accepted.
  *
- * `PASSWORD_RULES` below is the one deliberate exception — see its own comment.
  */
 
 export const PASSWORD_MIN_LENGTH = 8;
@@ -40,21 +39,13 @@ export interface PasswordRule {
   test: (password: string) => boolean;
 }
 
-/**
- * The web client's signup form (`web/src/validation/signup.schema.ts`) asks
- * for all five of these, which is stricter than the server's `@MinLength(8)`
- * on `RegisterDto` — the one deliberate exception to the rule at the top of
- * this file. A password the server would accept ("watashi1", say) can still
- * be rejected here. Kept anyway, to match web rather than diverge from it:
- * the two surfaces asking different things of the same account is a worse
- * inconsistency than either being stricter than the server alone would be.
- */
+/** Strength suggestions only; registration itself mirrors the API's length bounds. */
 export const PASSWORD_RULES: readonly PasswordRule[] = [
-  { id: 'length', label: `At least ${PASSWORD_MIN_LENGTH} characters`, test: (p) => p.length >= PASSWORD_MIN_LENGTH },
-  { id: 'upper', label: 'An uppercase letter', test: (p) => /[A-Z]/.test(p) },
-  { id: 'lower', label: 'A lowercase letter', test: (p) => /[a-z]/.test(p) },
+  { id: 'length', label: `${PASSWORD_MIN_LENGTH}+ characters`, test: (p) => p.length >= PASSWORD_MIN_LENGTH },
+  { id: 'long', label: '12+ is stronger', test: (p) => p.length >= 12 },
+  { id: 'upper-lower', label: 'Mixed letter case', test: (p) => /[A-Z]/.test(p) && /[a-z]/.test(p) },
   { id: 'number', label: 'A number', test: (p) => /[0-9]/.test(p) },
-  { id: 'special', label: 'A special character', test: (p) => /[^a-zA-Z0-9]/.test(p) },
+  { id: 'special', label: 'A symbol', test: (p) => /[^a-zA-Z0-9]/.test(p) },
 ];
 
 export type PasswordLevel = 'none' | 'weak' | 'fair' | 'strong';
@@ -69,7 +60,7 @@ export interface PasswordScore {
 const PASSWORD_LEVEL_LABELS: Record<PasswordLevel, string> = {
   none: '',
   weak: 'Weak',
-  fair: 'Moderate',
+  fair: 'Good',
   strong: 'Strong',
 };
 
@@ -85,11 +76,11 @@ export function passwordScore(password: string): PasswordScore {
 
 export function validateNewPassword(value: string): string | undefined {
   if (!value) return 'Choose a password.';
+  if (value.length < PASSWORD_MIN_LENGTH) {
+    return `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
+  }
   if (value.length > PASSWORD_MAX_LENGTH) {
     return `Use at most ${PASSWORD_MAX_LENGTH} characters.`;
-  }
-  if (PASSWORD_RULES.some((rule) => !rule.test(value))) {
-    return `Use at least ${PASSWORD_MIN_LENGTH} characters, with an uppercase letter, a lowercase letter, a number and a special character.`;
   }
   return undefined;
 }

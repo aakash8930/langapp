@@ -4,14 +4,8 @@ import { PASSWORD_RULES, passwordScore, type PasswordLevel } from '@/lib/auth-fo
 import { useTheme } from '@/theme';
 
 /**
- * Live password strength — a bar plus the five-rule checklist, matching
- * web's `PasswordStrength` (`web/src/components/signup/PasswordStrength.tsx`)
- * in content and behaviour. The visual language does not match web's: this
- * app has no glass, no gradients and no dedicated "success" hue (`theme/colors.ts`
- * defines exactly `danger`, `shu` and `ai`, and `shu` is reserved for active
- * state and the grade scale — see the comment on `Button`), so the bar and
- * checkmarks are built from tokens this app already has rather than adding a
- * green nothing else here uses.
+ * Live password-strength suggestions matching the web signup. These checks do
+ * not gate registration; the API contract requires only 8–128 characters.
  */
 export function PasswordStrength({ password }: { password: string }) {
   const theme = useTheme();
@@ -77,6 +71,15 @@ export function PasswordStrength({ password }: { password: string }) {
           );
         })}
       </View>
+      <Text
+        style={{
+          fontFamily: theme.families.ui,
+          fontSize: theme.fontSize.small,
+          color: theme.colors.inkSoft,
+        }}
+      >
+        Suggestions improve strength; only the 8-character minimum is required.
+      </Text>
     </View>
   );
 }
