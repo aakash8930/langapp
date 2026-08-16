@@ -1,65 +1,58 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Check, GraduationCap, Target, BookOpen, Brain, Clock, Bell, ClipboardList, Sparkles } from 'lucide-react';
 
 import { useSession } from '../../useSession';
 import { updateOnboarding, type OnboardingPatch } from '../../api';
 import { queryKeys } from '../../queryKeys';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 3;
+
+const LEVELS = [
+  { value: 'beginner', label: 'New to Japanese', desc: 'Start with scripts, sounds, and first phrases' },
+  { value: 'n5', label: 'Early beginner · N5', desc: 'I know kana and some basic vocabulary' },
+  { value: 'n4', label: 'Beginner · N4', desc: 'I can handle simple everyday Japanese' },
+  { value: 'n3', label: 'Intermediate · N3', desc: 'I can follow familiar conversations and texts' },
+  { value: 'n2', label: 'Upper intermediate · N2', desc: 'I can read and discuss a broad range of topics' },
+  { value: 'n1', label: 'Advanced · N1', desc: 'I am working toward near-native comprehension' },
+] as const;
+
+const GOALS = [
+  { value: 'conversation', label: 'Speak with confidence', desc: 'Everyday conversation and listening' },
+  { value: 'reading', label: 'Read Japanese', desc: 'Manga, books, articles, and signs' },
+  { value: 'travel', label: 'Prepare for travel', desc: 'Useful Japanese for real situations' },
+  { value: 'jlpt', label: 'Pass the JLPT', desc: 'Build toward an exam level' },
+  { value: 'work', label: 'Use Japanese at work', desc: 'Professional vocabulary and comprehension' },
+] as const;
+
+const COMMITMENTS = [
+  { minutes: 5, xp: 20, label: '5 minutes', desc: 'A quick daily check-in · 20 XP goal' },
+  { minutes: 15, xp: 50, label: '15 minutes', desc: 'A steady daily habit · 50 XP goal' },
+  { minutes: 30, xp: 100, label: '30 minutes', desc: 'A focused session · 100 XP goal' },
+  { minutes: 60, xp: 200, label: '60 minutes', desc: 'An intensive routine · 200 XP goal' },
+] as const;
 
 type FormState = {
-  nativeLanguage: string;
   proficiencyLevel: string;
-  learningGoals: string[];
-  learningStyle: string;
-  preferredStudyTime: string;
-  notificationsEnabled: boolean;
+  primaryGoal: string;
   studyTimeMinutes: number;
   dailyGoalXp: number;
 };
 
-const LEVELS = [
-  { value: 'beginner', label: 'Absolute Beginner', desc: 'I know nothing or just a few words' },
-  { value: 'n5', label: 'JLPT N5', desc: 'I know hiragana, katakana, and basic phrases' },
-  { value: 'n4', label: 'JLPT N4', desc: 'I can handle everyday conversations' },
-  { value: 'n3', label: 'JLPT N3', desc: 'I can read simple articles and manga' },
-  { value: 'n2', label: 'JLPT N2', desc: 'I can read newspapers and engage in discussions' },
-  { value: 'n1', label: 'JLPT N1', desc: 'I am near-native or already fluent' },
-];
+type SignedInUser = ReturnType<typeof useSession> extends { session: infer S }
+  ? S extends { state: 'signedIn'; user: infer U }
+    ? U
+    : never
+  : never;
 
-const GOALS = [
-  { value: 'conversation', label: 'Conversation' },
-  { value: 'reading', label: 'Reading manga / books' },
-  { value: 'travel', label: 'Travel' },
-  { value: 'jlpt', label: 'JLPT exam' },
-  { value: 'work', label: 'Work / business' },
-];
-
-const STYLES = [
-  { value: 'visual', label: 'Visual', desc: 'Kanji, charts, and imagery' },
-  { value: 'auditory', label: 'Auditory', desc: 'Listening and pronunciation' },
-  { value: 'reading', label: 'Reading', desc: 'Text and grammar study' },
-  { value: 'mixed', label: 'Mixed', desc: 'A bit of everything' },
-];
-
-const STUDY_TIMES = [
-  { value: 'morning', label: 'Morning' },
-  { value: 'afternoon', label: 'Afternoon' },
-  { value: 'evening', label: 'Evening' },
-  { value: 'any', label: 'Anytime' },
-];
-
-const LANGUAGES = [
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' },
-  { value: 'pt', label: 'Portuguese' },
-  { value: 'zh', label: 'Chinese' },
-  { value: 'ko', label: 'Korean' },
-];
+function initialStep(user: SignedInUser): number {
+  const onboarding = user.onboardingState;
+  if (!onboarding?.proficiencyLevel) return 0;
+  const persisted = Math.min(Math.max(onboarding.onboardingStep ?? 0, 0), TOTAL_STEPS - 1);
+  if (persisted === 0) return 0;
+  if (!onboarding.learningGoals?.length) return 1;
+  return persisted;
+}
 
 function Dot({ index, step }: { index: number; step: number }) {
   const cls = index < step ? 'onb-dot--done' : index === step ? 'onb-dot--active' : '';
@@ -73,11 +66,9 @@ export function OnboardingWizard() {
     return (
       <div className="onb-page">
         <div className="onb-card">
-          <h1 className="onb-title">Welcome to GENKŌ</h1>
-          <p className="onb-subtitle">Sign in to set up your learning experience.</p>
-          <Link className="onb-btn onb-btn-primary" to="/signin">
-            Sign in
-          </Link>
+          <h1 className="onb-title">Personalize your start</h1>
+          <p className="onb-subtitle">Sign in to choose where your Japanese practice begins.</p>
+          <Link className="onb-btn onb-btn-primary" to="/signin">Sign in</Link>
         </div>
       </div>
     );
@@ -86,458 +77,245 @@ export function OnboardingWizard() {
   return <Wizard user={session.user} signOut={signOut} />;
 }
 
-type SignedInUser = ReturnType<typeof useSession> extends { session: infer S }
-  ? S extends { state: 'signedIn'; user: infer U }
-    ? U
-    : never
-  : never;
-
 function Wizard({ user, signOut }: { user: SignedInUser; signOut: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const os = user.onboardingState;
-  const [step, setStep] = useState(os?.onboardingStep ?? 0);
+  const onboarding = user.onboardingState;
+  const [step, setStep] = useState(() => initialStep(user));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>({
-    nativeLanguage: user.profile.nativeLanguage ?? 'en',
-    proficiencyLevel: os?.proficiencyLevel ?? '',
-    learningGoals: os?.learningGoals ?? [],
-    learningStyle: os?.learningStyle ?? '',
-    preferredStudyTime: os?.preferredStudyTime ?? '',
-    notificationsEnabled: os?.notificationsEnabled ?? false,
-    studyTimeMinutes: os?.studyTimeMinutes ?? 15,
+    proficiencyLevel: onboarding?.proficiencyLevel ?? '',
+    primaryGoal: onboarding?.learningGoals?.[0] ?? '',
+    studyTimeMinutes: onboarding?.studyTimeMinutes ?? 15,
     dailyGoalXp: user.gamification?.dailyGoalXp ?? 50,
   });
 
-  async function save(overrides: Partial<OnboardingPatch>): Promise<boolean> {
-    const body: OnboardingPatch = { step: step + 1, ...overrides };
-    if (form.nativeLanguage !== user.profile.nativeLanguage) body.nativeLanguage = form.nativeLanguage;
-    if (form.proficiencyLevel !== (os?.proficiencyLevel ?? '')) body.proficiencyLevel = form.proficiencyLevel;
-    if (JSON.stringify(form.learningGoals) !== JSON.stringify(os?.learningGoals ?? [])) body.learningGoals = form.learningGoals;
-    if (form.learningStyle !== (os?.learningStyle ?? '')) body.learningStyle = form.learningStyle;
-    if (form.preferredStudyTime !== (os?.preferredStudyTime ?? '')) body.preferredStudyTime = form.preferredStudyTime;
-    if (form.notificationsEnabled !== (os?.notificationsEnabled ?? false)) body.notificationsEnabled = form.notificationsEnabled;
-    if (form.studyTimeMinutes !== (os?.studyTimeMinutes ?? 15)) body.studyTimeMinutes = form.studyTimeMinutes;
-    if (form.dailyGoalXp !== (user.gamification?.dailyGoalXp ?? 50)) body.dailyGoalXp = form.dailyGoalXp;
+  function answers(): OnboardingPatch {
+    return {
+      proficiencyLevel: form.proficiencyLevel,
+      learningGoals: form.primaryGoal ? [form.primaryGoal] : [],
+      studyTimeMinutes: form.studyTimeMinutes,
+      dailyGoalXp: form.dailyGoalXp,
+    };
+  }
 
+  async function save(patch: OnboardingPatch): Promise<boolean> {
     setSaving(true);
     setSaveError(null);
     try {
-      const updatedUser = await updateOnboarding(body);
+      const updatedUser = await updateOnboarding(patch);
       queryClient.setQueryData(queryKeys.session.me, updatedUser);
       return true;
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Your answers could not be saved. Try again.');
+      setSaveError(error instanceof Error ? error.message : 'Your choice could not be saved. Try again.');
       return false;
     } finally {
       setSaving(false);
     }
   }
 
-  function next() {
-    void save({ step: step + 1 }).then((saved) => {
-      if (saved) setStep((current) => current + 1);
-    });
+  async function next() {
+    const target = Math.min(step + 1, TOTAL_STEPS - 1);
+    if (await save({ ...answers(), step: target })) setStep(target);
   }
 
-  function back() {
-    void save({ step: Math.max(0, step - 1) }).then((saved) => {
-      if (saved) setStep((current) => Math.max(0, current - 1));
-    });
+  async function back() {
+    const target = Math.max(0, step - 1);
+    if (await save({ step: target })) setStep(target);
   }
 
-  function finish() {
-    void save({ onboardingComplete: true }).then((saved) => {
-      if (saved) navigate({ to: '/', replace: true });
-    });
+  async function finish() {
+    if (!(await save({ ...answers(), step: TOTAL_STEPS, onboardingComplete: true }))) return;
+    navigate({ to: '/', replace: true });
   }
-
-  const dots = Array.from({ length: TOTAL_STEPS }, (_, i) => <Dot key={i} index={i} step={step} />);
 
   return (
     <div className="onb-page">
       <div className="onb-card">
-        <div className="onb-steps">{dots}</div>
+        <div
+          className="onb-steps"
+          role="progressbar"
+          aria-label={`Choice ${step + 1} of ${TOTAL_STEPS}`}
+          aria-valuemin={1}
+          aria-valuemax={TOTAL_STEPS}
+          aria-valuenow={step + 1}
+        >
+          {Array.from({ length: TOTAL_STEPS }, (_, index) => (
+            <Dot key={index} index={index} step={step} />
+          ))}
+        </div>
 
         {saveError ? <p className="onb-error" role="alert">{saveError}</p> : null}
         <fieldset className="onb-step-content" disabled={saving} aria-busy={saving}>
-          {step === 0 && <Welcome next={next} />}
-          {step === 1 && <LanguageStep form={form} setForm={setForm} next={next} back={back} />}
-          {step === 2 && <LevelStep form={form} setForm={setForm} next={next} back={back} />}
-          {step === 3 && <GoalsStep form={form} setForm={setForm} next={next} back={back} />}
-          {step === 4 && <DailyGoalStep form={form} setForm={setForm} next={next} back={back} />}
-          {step === 5 && <StyleStep form={form} setForm={setForm} next={next} back={back} />}
-          {step === 6 && <StudyTimeStep form={form} setForm={setForm} next={next} back={back} />}
-          {step === 7 && <NotificationsStep form={form} setForm={setForm} next={next} back={back} />}
-          {step === 8 && <PlacementTestIntro next={next} back={back} />}
-          {step === 9 && <CompleteStep form={form} finish={finish} back={back} />}
+          {step === 0 ? (
+            <ChoiceStep
+              title="Where should you start?"
+              subtitle="Choose the closest fit. This records your starting level without locking any course content."
+              groupLabel="Japanese starting level"
+              options={LEVELS}
+              value={form.proficiencyLevel}
+              onChange={(proficiencyLevel) => setForm((current) => ({ ...current, proficiencyLevel }))}
+              onNext={() => void next()}
+              nextDisabled={!form.proficiencyLevel}
+              saving={saving}
+            />
+          ) : null}
+
+          {step === 1 ? (
+            <ChoiceStep
+              title="What matters most right now?"
+              subtitle="Pick one focus for your profile. You can still use every kind of practice."
+              groupLabel="Primary learning goal"
+              options={GOALS}
+              value={form.primaryGoal}
+              onChange={(primaryGoal) => setForm((current) => ({ ...current, primaryGoal }))}
+              onNext={() => void next()}
+              onBack={back}
+              nextDisabled={!form.primaryGoal}
+              saving={saving}
+            />
+          ) : null}
+
+          {step === 2 ? (
+            <CommitmentStep
+              form={form}
+              setForm={setForm}
+              onBack={back}
+              onFinish={() => void finish()}
+              saving={saving}
+            />
+          ) : null}
         </fieldset>
-        <button className="onb-link" type="button" onClick={signOut} disabled={saving}>
-          Sign out
-        </button>
+
+        <button className="onb-link" type="button" onClick={signOut} disabled={saving}>Sign out</button>
       </div>
     </div>
   );
 }
 
-/* ---- Step 0: Welcome ---- */
+type Choice = { value: string; label: string; desc: string };
 
-function Welcome({ next }: { next: () => void }) {
+function ChoiceStep({
+  title,
+  subtitle,
+  groupLabel,
+  options,
+  value,
+  onChange,
+  onNext,
+  onBack,
+  nextDisabled,
+  saving,
+}: {
+  title: string;
+  subtitle: string;
+  groupLabel: string;
+  options: readonly Choice[];
+  value: string;
+  onChange: (value: string) => void;
+  onNext: () => void;
+  onBack?: () => void;
+  nextDisabled: boolean;
+  saving: boolean;
+}) {
   return (
     <>
-      <div style={{ textAlign: 'center', marginBottom: 'var(--s-xl)' }}>
-        <Sparkles size={40} color="var(--o-accent)" style={{ marginBottom: 'var(--s-md)' }} />
-        <h1 className="onb-title">Welcome to GENKŌ</h1>
-        <p className="onb-subtitle">
-          Let's personalize your learning experience. A few quick questions so we can
-          tailor your journey to Japanese fluency.
-        </p>
-      </div>
-      <button className="onb-btn onb-btn-primary" onClick={next}>
-        Get Started
-      </button>
-    </>
-  );
-}
-
-/* ---- Step 1: Language ---- */
-
-function LanguageStep({ form, setForm, next, back }: StepProps) {
-  return (
-    <>
-      <h1 className="onb-title">What's your native language?</h1>
-      <p className="onb-subtitle">This helps us show translations and explanations you understand.</p>
-      <div className="onb-form">
-        <div className="onb-field">
-          <label className="onb-label">Native language</label>
-          <select className="onb-select" value={form.nativeLanguage} onChange={(e) => setForm({ ...form, nativeLanguage: e.target.value })}>
-            {LANGUAGES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
-          </select>
-        </div>
-        <div className="onb-field">
-          <label className="onb-label">Learning</label>
-          <div className="onb-select" style={{ color: 'var(--o-text-soft)', display: 'flex', alignItems: 'center' }}>
-            Japanese 🇯🇵
-          </div>
-          <p className="onb-subtitle" style={{ margin: 0, textAlign: 'left', fontSize: 'var(--text-caption)' }}>
-            More languages coming soon.
-          </p>
-        </div>
-      </div>
-      <StepButtons next={next} back={back} />
-    </>
-  );
-}
-
-/* ---- Step 2: Level ---- */
-
-function LevelStep({ form, setForm, next, back }: StepProps) {
-  return (
-    <>
-      <h1 className="onb-title">How much Japanese do you know?</h1>
-      <p className="onb-subtitle">Don't worry — you can always change this later.</p>
-      <div className="onb-options">
-        {LEVELS.map((level) => (
-          <div
-            key={level.value}
-            className={`onb-option ${form.proficiencyLevel === level.value ? 'onb-option--selected' : ''}`}
-            onClick={() => setForm({ ...form, proficiencyLevel: level.value })}
+      <h1 className="onb-title">{title}</h1>
+      <p className="onb-subtitle">{subtitle}</p>
+      <div className="onb-options" role="radiogroup" aria-label={groupLabel}>
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={`onb-option ${value === option.value ? 'onb-option--selected' : ''}`}
             role="radio"
-            aria-checked={form.proficiencyLevel === level.value}
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && setForm({ ...form, proficiencyLevel: level.value })}
+            aria-checked={value === option.value}
+            onClick={() => onChange(option.value)}
           >
-            <span className="onb-option-radio" />
-            <div>
-              <div className="onb-option-text">{level.label}</div>
-              <div className="onb-option-desc">{level.desc}</div>
-            </div>
-          </div>
+            <span className="onb-option-radio" aria-hidden="true" />
+            <span>
+              <span className="onb-option-text">{option.label}</span>
+              <span className="onb-option-desc">{option.desc}</span>
+            </span>
+          </button>
         ))}
       </div>
-      <StepButtons next={next} back={back} disabled={!form.proficiencyLevel} />
+      <StepButtons onNext={onNext} onBack={onBack} disabled={nextDisabled} saving={saving} />
     </>
   );
 }
 
-/* ---- Step 3: Goals ---- */
-
-function GoalsStep({ form, setForm, next, back }: StepProps) {
-  const toggle = (goal: string) => {
-    const goals = form.learningGoals.includes(goal)
-      ? form.learningGoals.filter((g) => g !== goal)
-      : [...form.learningGoals, goal];
-    setForm({ ...form, learningGoals: goals });
-  };
-
+function CommitmentStep({
+  form,
+  setForm,
+  onBack,
+  onFinish,
+  saving,
+}: {
+  form: FormState;
+  setForm: (updater: (current: FormState) => FormState) => void;
+  onBack: () => void;
+  onFinish: () => void;
+  saving: boolean;
+}) {
   return (
     <>
-      <h1 className="onb-title"><Target size={24} style={{ verticalAlign: -4, marginRight: 8 }} aria-hidden="true" />What are your goals?</h1>
-      <p className="onb-subtitle">Select all that apply. We'll tailor your path accordingly.</p>
-      <div className="onb-checks">
-        {GOALS.map((goal) => {
-          const checked = form.learningGoals.includes(goal.value);
+      <h1 className="onb-title">What can you sustain each day?</h1>
+      <p className="onb-subtitle">
+        This sets your study-time target and daily XP goal. Start small—you can change both in settings.
+      </p>
+      <div className="onb-options" role="radiogroup" aria-label="Daily commitment">
+        {COMMITMENTS.map((commitment) => {
+          const selected = form.studyTimeMinutes === commitment.minutes && form.dailyGoalXp === commitment.xp;
           return (
-            <div key={goal.value} className={`onb-check ${checked ? 'onb-check--checked' : ''}`} onClick={() => toggle(goal.value)}>
-              <span className="onb-check-box">{checked ? <Check size={14} strokeWidth={3} /> : null}</span>
-              <span className="onb-check-label">{goal.label}</span>
-            </div>
+            <button
+              key={commitment.minutes}
+              type="button"
+              className={`onb-option ${selected ? 'onb-option--selected' : ''}`}
+              role="radio"
+              aria-checked={selected}
+              onClick={() =>
+                setForm((current) => ({
+                  ...current,
+                  studyTimeMinutes: commitment.minutes,
+                  dailyGoalXp: commitment.xp,
+                }))
+              }
+            >
+              <span className="onb-option-radio" aria-hidden="true" />
+              <span>
+                <span className="onb-option-text">{commitment.label}</span>
+                <span className="onb-option-desc">{commitment.desc}</span>
+              </span>
+            </button>
           );
         })}
       </div>
-      <StepButtons next={next} back={back} disabled={form.learningGoals.length === 0} />
+      <StepButtons onNext={onFinish} onBack={onBack} nextLabel="Save and start learning" saving={saving} />
     </>
   );
 }
 
-/* ---- Step 4: Daily Goal ---- */
-
-function DailyGoalStep({ form, setForm, next, back }: StepProps) {
-  const xpTime = Math.round(form.dailyGoalXp / 5);
-  return (
-    <>
-      <h1 className="onb-title">Set your daily goal</h1>
-      <p className="onb-subtitle">How much do you want to study each day?</p>
-      <div className="onb-form">
-        <div className="onb-field">
-          <label className="onb-label">Daily XP goal</label>
-          <div className="onb-slider-value">
-            <span>Light</span>
-            <strong>{form.dailyGoalXp} XP</strong>
-            <span>Intense</span>
-          </div>
-          <input
-            className="onb-slider"
-            type="range"
-            min={10}
-            max={200}
-            step={10}
-            value={form.dailyGoalXp}
-            onChange={(e) => setForm({ ...form, dailyGoalXp: Number(e.target.value) })}
-          />
-        </div>
-        <div className="onb-field">
-          <label className="onb-label">Study time per day</label>
-          <div className="onb-slider-value">
-            <span>5 min</span>
-            <strong>{form.studyTimeMinutes} min</strong>
-            <span>60 min</span>
-          </div>
-          <input
-            className="onb-slider"
-            type="range"
-            min={5}
-            max={60}
-            step={5}
-            value={form.studyTimeMinutes}
-            onChange={(e) => setForm({ ...form, studyTimeMinutes: Number(e.target.value) })}
-          />
-          <p className="onb-subtitle" style={{ margin: 0, textAlign: 'center', fontSize: 'var(--text-caption)' }}>
-            ~{xpTime} questions per session
-          </p>
-        </div>
-      </div>
-      <StepButtons next={next} back={back} />
-    </>
-  );
-}
-
-/* ---- Step 5: Learning Style ---- */
-
-function StyleStep({ form, setForm, next, back }: StepProps) {
-  return (
-    <>
-      <h1 className="onb-title"><Brain size={24} style={{ verticalAlign: -4, marginRight: 8 }} aria-hidden="true" />How do you learn best?</h1>
-      <p className="onb-subtitle">We'll emphasize the methods that work for you.</p>
-      <div className="onb-options">
-        {STYLES.map((style) => (
-          <div
-            key={style.value}
-            className={`onb-option ${form.learningStyle === style.value ? 'onb-option--selected' : ''}`}
-            onClick={() => setForm({ ...form, learningStyle: style.value })}
-            role="radio"
-            aria-checked={form.learningStyle === style.value}
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && setForm({ ...form, learningStyle: style.value })}
-          >
-            <span className="onb-option-radio" />
-            <div>
-              <div className="onb-option-text">{style.label}</div>
-              <div className="onb-option-desc">{style.desc}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <StepButtons next={next} back={back} disabled={!form.learningStyle} />
-    </>
-  );
-}
-
-/* ---- Step 6: Study Time ---- */
-
-function StudyTimeStep({ form, setForm, next, back }: StepProps) {
-  return (
-    <>
-      <h1 className="onb-title"><Clock size={24} style={{ verticalAlign: -4, marginRight: 8 }} aria-hidden="true" />When do you prefer to study?</h1>
-      <p className="onb-subtitle">We'll schedule reminders at the right time.</p>
-      <div className="onb-options">
-        {STUDY_TIMES.map((t) => (
-          <div
-            key={t.value}
-            className={`onb-option ${form.preferredStudyTime === t.value ? 'onb-option--selected' : ''}`}
-            onClick={() => setForm({ ...form, preferredStudyTime: t.value })}
-            role="radio"
-            aria-checked={form.preferredStudyTime === t.value}
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && setForm({ ...form, preferredStudyTime: t.value })}
-          >
-            <span className="onb-option-radio" />
-            <div className="onb-option-text">{t.label}</div>
-          </div>
-        ))}
-      </div>
-      <StepButtons next={next} back={back} disabled={!form.preferredStudyTime} />
-    </>
-  );
-}
-
-/* ---- Step 7: Notifications ---- */
-
-function NotificationsStep({ form, setForm, next, back }: StepProps) {
-  return (
-    <>
-      <h1 className="onb-title"><Bell size={24} style={{ verticalAlign: -4, marginRight: 8 }} aria-hidden="true" />Stay on track</h1>
-      <p className="onb-subtitle">We'll send gentle reminders to help you build a consistent habit.</p>
-      <div className="onb-toggles">
-        <div className="onb-toggle">
-          <div>
-            <div className="onb-toggle-label">Study reminders</div>
-            <div className="onb-toggle-desc">Get notified when it's time to review</div>
-          </div>
-          <button
-            type="button"
-            className={`onb-toggle-switch ${form.notificationsEnabled ? 'onb-toggle-switch--on' : ''}`}
-            onClick={() => setForm({ ...form, notificationsEnabled: !form.notificationsEnabled })}
-            aria-label={form.notificationsEnabled ? 'Disable notifications' : 'Enable notifications'}
-          />
-        </div>
-      </div>
-      <StepButtons next={next} back={back} />
-    </>
-  );
-}
-
-/* ---- Step 8: Placement Test Intro ---- */
-
-function PlacementTestIntro({ next, back }: { next: () => void; back: () => void }) {
-  return (
-    <>
-      <div className="onb-test-intro">
-        <div className="onb-test-icon">
-          <GraduationCap size={36} />
-        </div>
-        <h1 className="onb-title">Find Your Starting Point</h1>
-        <p className="onb-subtitle">
-          A quick assessment to place you at the right level so you don't waste time on
-          what you already know.
-        </p>
-        <div className="onb-test-features">
-          {['15 quick questions', 'Adaptive difficulty', 'Covers vocabulary & grammar'].map((f, i) => (
-            <div key={i} className="onb-test-feature">
-              <span>{i + 1}</span>
-              <span>{f}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="onb-btn-row">
-        <button className="onb-btn onb-btn-primary" onClick={next}>
-          Skip for now
-        </button>
-        <button className="onb-link" onClick={back}>Go back</button>
-      </div>
-    </>
-  );
-}
-
-/* ---- Step 9: Complete ---- */
-
-function CompleteStep({ form, finish, back }: { form: FormState; finish: () => void; back: () => void }) {
-  const levelLabel = LEVELS.find((l) => l.value === form.proficiencyLevel)?.label ?? 'Not set';
-  const styleLabel = STYLES.find((s) => s.value === form.learningStyle)?.label ?? 'Not set';
-  const timeLabel = STUDY_TIMES.find((t) => t.value === form.preferredStudyTime)?.label ?? 'Not set';
-  const goalLabels = form.learningGoals.map((g) => GOALS.find((x) => x.value === g)?.label).filter(Boolean).join(', ') || 'None';
-  const langLabel = LANGUAGES.find((l) => l.value === form.nativeLanguage)?.label ?? 'English';
-
-  return (
-    <>
-      <div style={{ textAlign: 'center', marginBottom: 'var(--s-lg)' }}>
-        <ClipboardList size={36} color="var(--o-accent)" style={{ marginBottom: 'var(--s-sm)' }} />
-        <h1 className="onb-title">You're all set!</h1>
-        <p className="onb-subtitle">Here's a summary of your preferences. You can change these anytime in Settings.</p>
-      </div>
-
-      <div className="onb-summary">
-        <div className="onb-summary-row">
-          <span className="onb-summary-label">Native language</span>
-          <span className="onb-summary-value">{langLabel}</span>
-        </div>
-        <div className="onb-summary-row">
-          <span className="onb-summary-label">Japanese level</span>
-          <span className="onb-summary-value">{levelLabel}</span>
-        </div>
-        <div className="onb-summary-row">
-          <span className="onb-summary-label">Goals</span>
-          <span className="onb-summary-value">{goalLabels}</span>
-        </div>
-        <div className="onb-summary-row">
-          <span className="onb-summary-label">Daily XP</span>
-          <span className="onb-summary-value">{form.dailyGoalXp} XP</span>
-        </div>
-        <div className="onb-summary-row">
-          <span className="onb-summary-label">Study time</span>
-          <span className="onb-summary-value">{form.studyTimeMinutes} min/day</span>
-        </div>
-        <div className="onb-summary-row">
-          <span className="onb-summary-label">Learning style</span>
-          <span className="onb-summary-value">{styleLabel}</span>
-        </div>
-        <div className="onb-summary-row">
-          <span className="onb-summary-label">Study time</span>
-          <span className="onb-summary-value">{timeLabel}</span>
-        </div>
-        <div className="onb-summary-row">
-          <span className="onb-summary-label">Notifications</span>
-          <span className="onb-summary-value">{form.notificationsEnabled ? 'Enabled' : 'Disabled'}</span>
-        </div>
-      </div>
-
-      <div className="onb-btn-row">
-        <button className="onb-btn onb-btn-primary" onClick={finish}>
-          <BookOpen size={20} aria-hidden="true" />
-          Start Learning
-        </button>
-        <button className="onb-link" onClick={back}>Go back</button>
-      </div>
-    </>
-  );
-}
-
-/* ---- Shared ---- */
-
-type StepProps = {
-  form: FormState;
-  setForm: (f: FormState) => void;
-  next: () => void;
-  back: () => void;
-};
-
-function StepButtons({ next, back, disabled }: { next: () => void; back: () => void; disabled?: boolean }) {
+function StepButtons({
+  onNext,
+  onBack,
+  disabled,
+  saving,
+  nextLabel = 'Continue',
+}: {
+  onNext: () => void;
+  onBack?: () => void;
+  disabled?: boolean;
+  saving: boolean;
+  nextLabel?: string;
+}) {
   return (
     <div className="onb-btn-row" style={{ flexDirection: 'row' }}>
-      <button className="onb-btn onb-btn-ghost" onClick={back}>Back</button>
-      <button className="onb-btn onb-btn-primary" onClick={next} disabled={disabled}>Continue</button>
+      {onBack ? <button className="onb-btn onb-btn-ghost" type="button" onClick={onBack}>Back</button> : null}
+      <button className="onb-btn onb-btn-primary" type="button" onClick={onNext} disabled={disabled || saving}>
+        {saving ? 'Saving…' : nextLabel}
+      </button>
     </div>
   );
 }

@@ -346,16 +346,16 @@ describe('UserService.updateOnboarding', () => {
     await service.updateOnboarding(USER_ID, {
       proficiencyLevel: 'beginner',
       learningGoals: ['conversation'],
-      learningStyle: 'mixed',
-      preferredStudyTime: 'evening',
+      studyTimeMinutes: 15,
+      dailyGoalXp: 50,
       onboardingComplete: true,
     });
 
     expect(updateArg(findByIdAndUpdate).$set).toMatchObject({
       'onboardingState.proficiencyLevel': 'beginner',
       'onboardingState.learningGoals': ['conversation'],
-      'onboardingState.learningStyle': 'mixed',
-      'onboardingState.preferredStudyTime': 'evening',
+      'onboardingState.studyTimeMinutes': 15,
+      'gamification.dailyGoalXp': 50,
       'onboardingState.onboardingComplete': true,
     });
   });

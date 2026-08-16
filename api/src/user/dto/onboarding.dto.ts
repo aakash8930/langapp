@@ -1,4 +1,15 @@
-import { IsArray, IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class OnboardingDto {
   @IsOptional()
@@ -12,10 +23,14 @@ export class OnboardingDto {
 
   @IsOptional()
   @IsString()
+  @IsIn(['beginner', 'n5', 'n4', 'n3', 'n2', 'n1'])
   proficiencyLevel?: string;
 
   @IsOptional()
   @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(1)
+  @IsIn(['conversation', 'reading', 'travel', 'jlpt', 'work'], { each: true })
   learningGoals?: string[];
 
   @IsOptional()

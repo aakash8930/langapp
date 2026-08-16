@@ -6,9 +6,8 @@ import { useTheme } from '@/theme';
  * One selectable card — a full-width row with a title, an optional
  * description, and a leading indicator. `variant="radio"` for
  * pick-exactly-one lists (a filled ring), `variant="checkbox"` for
- * pick-any lists (a check mark), same visual weight either way so a screen
- * with both kinds in sequence (as onboarding's step list does) doesn't read
- * as two different controls pretending to be one.
+ * pick-any lists (a check mark), with the same visual weight either way so
+ * settings and first-run choices remain one coherent control family.
  *
  * Selected state is an ink border and a filled indicator — no vermilion.
  * `shu` is reserved for active learning state and the grade scale (see

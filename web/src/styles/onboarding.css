@@ -1,21 +1,15 @@
-/*
- * Onboarding wizard — Japanese Ink palette from signin.
- *
- * Full-page takeover with a centered card, step indicators,
- * and soft transitions between steps.
- */
-
+/* Three-choice first-run flow. Full-page takeover using the auth ink palette. */
 .onb-page {
   --o-bg: #171717;
   --o-card: #262626;
-  --o-input-bg: #1F1F1F;
-  --o-input-border: #3F3F46;
-  --o-input-border-focus: #D4A017;
-  --o-accent: #D4A017;
-  --o-accent-hover: #E6B325;
+  --o-input-bg: #1f1f1f;
+  --o-input-border: #3f3f46;
+  --o-input-border-focus: #d4a017;
+  --o-accent: #d4a017;
+  --o-accent-hover: #e6b325;
   --o-accent-text: #171717;
-  --o-text: #F5F5F4;
-  --o-text-soft: #A1A1AA;
+  --o-text: #f5f5f4;
+  --o-text-soft: #a1a1aa;
   --o-border-subtle: rgba(255, 255, 255, 0.08);
 
   display: flex;
@@ -59,8 +53,6 @@
   line-height: 1.5;
 }
 
-/* ---- Step indicator ---- */
-
 .onb-steps {
   display: flex;
   align-items: center;
@@ -83,10 +75,8 @@
 }
 
 .onb-dot--done {
-  background: #16A34A;
+  background: #16a34a;
 }
-
-/* ---- Headings ---- */
 
 .onb-title {
   margin: 0 0 var(--s-sm);
@@ -105,49 +95,6 @@
   line-height: 1.5;
 }
 
-/* ---- Form elements ---- */
-
-.onb-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-lg);
-}
-
-.onb-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-sm);
-}
-
-.onb-label {
-  font-size: var(--text-small);
-  font-weight: 600;
-  color: var(--o-text);
-}
-
-.onb-select,
-.onb-input {
-  width: 100%;
-  min-height: 48px;
-  padding: 0 var(--s-md);
-  background: var(--o-input-bg);
-  border: 1px solid var(--o-input-border);
-  border-radius: var(--radius-md);
-  color: var(--o-text);
-  font-family: var(--font-ui);
-  font-size: var(--text-body);
-  transition: border-color var(--t-fast) ease, box-shadow var(--t-fast) ease;
-}
-
-.onb-select:focus,
-.onb-input:focus {
-  outline: none;
-  border-color: var(--o-input-border-focus);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
-}
-
-/* ---- Radio cards ---- */
-
 .onb-options {
   display: flex;
   flex-direction: column;
@@ -158,7 +105,11 @@
   display: flex;
   align-items: center;
   gap: var(--s-md);
+  width: 100%;
   padding: var(--s-md);
+  color: inherit;
+  font: inherit;
+  text-align: left;
   background: var(--o-input-bg);
   border: 1px solid var(--o-input-border);
   border-radius: var(--radius-md);
@@ -166,8 +117,14 @@
   transition: border-color var(--t-fast) ease, background var(--t-fast) ease;
 }
 
-.onb-option:hover {
+.onb-option:hover,
+.onb-option:focus-visible {
   border-color: var(--o-input-border-focus);
+  outline: none;
+}
+
+.onb-option:focus-visible {
+  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
 }
 
 .onb-option--selected {
@@ -177,14 +134,11 @@
 
 .onb-option-radio {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 20px;
   height: 20px;
   border: 2px solid var(--o-input-border);
   border-radius: 50%;
   flex-shrink: 0;
-  transition: border-color var(--t-fast) ease;
 }
 
 .onb-option--selected .onb-option-radio {
@@ -193,186 +147,25 @@
 }
 
 .onb-option-text {
+  display: block;
   font-size: var(--text-small);
   font-weight: 600;
   color: var(--o-text);
 }
 
 .onb-option-desc {
+  display: block;
+  margin-top: 2px;
   font-size: var(--text-caption);
   color: var(--o-text-soft);
 }
 
-/* ---- Checkbox group ---- */
-
-.onb-checks {
+.onb-btn-row {
   display: flex;
   flex-direction: column;
   gap: var(--s-sm);
+  margin-top: var(--s-lg);
 }
-
-.onb-check {
-  display: flex;
-  align-items: center;
-  gap: var(--s-md);
-  padding: var(--s-md);
-  background: var(--o-input-bg);
-  border: 1px solid var(--o-input-border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: border-color var(--t-fast) ease, background var(--t-fast) ease;
-}
-
-.onb-check:hover {
-  border-color: var(--o-accent);
-}
-
-.onb-check--checked {
-  border-color: var(--o-accent);
-  background: rgba(212, 160, 23, 0.08);
-}
-
-.onb-check-box {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--o-input-border);
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-  color: transparent;
-  transition: all var(--t-fast) ease;
-}
-
-.onb-check--checked .onb-check-box {
-  border-color: var(--o-accent);
-  background: var(--o-accent);
-  color: var(--o-accent-text);
-}
-
-.onb-check-label {
-  flex: 1;
-  font-size: var(--text-small);
-  font-weight: 600;
-  color: var(--o-text);
-}
-
-/* ---- Slider ---- */
-
-.onb-slider {
-  width: 100%;
-  accent-color: var(--o-accent);
-  margin: var(--s-sm) 0;
-}
-
-.onb-slider-value {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: var(--text-small);
-  color: var(--o-text-soft);
-}
-
-.onb-slider-value strong {
-  color: var(--o-accent);
-  font-size: var(--text-large);
-}
-
-/* ---- Toggle ---- */
-
-.onb-toggles {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-sm);
-}
-
-.onb-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--s-md);
-  background: var(--o-input-bg);
-  border: 1px solid var(--o-input-border);
-  border-radius: var(--radius-md);
-}
-
-.onb-toggle-label {
-  font-size: var(--text-small);
-  font-weight: 600;
-  color: var(--o-text);
-}
-
-.onb-toggle-desc {
-  font-size: var(--text-caption);
-  color: var(--o-text-soft);
-}
-
-.onb-toggle-switch {
-  position: relative;
-  width: 44px;
-  height: 24px;
-  border-radius: var(--radius-full);
-  background: var(--o-input-border);
-  border: none;
-  cursor: pointer;
-  transition: background var(--t-fast) ease;
-  flex-shrink: 0;
-}
-
-.onb-toggle-switch--on {
-  background: var(--o-accent);
-}
-
-.onb-toggle-switch::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform var(--t-fast) ease;
-}
-
-.onb-toggle-switch--on::after {
-  transform: translateX(20px);
-}
-
-/* ---- Summary ---- */
-
-.onb-summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-sm);
-  margin-bottom: var(--s-xl);
-}
-
-.onb-summary-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--s-sm) 0;
-  border-top: 1px solid var(--o-border-subtle);
-  font-size: var(--text-small);
-}
-
-.onb-summary-row:first-child {
-  border-top: 0;
-}
-
-.onb-summary-label {
-  color: var(--o-text-soft);
-}
-
-.onb-summary-value {
-  color: var(--o-text);
-  font-weight: 600;
-  text-align: right;
-}
-
-/* ---- Buttons ---- */
 
 .onb-btn {
   display: inline-flex;
@@ -387,6 +180,7 @@
   font-family: var(--font-ui);
   font-size: var(--text-body);
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
   transition:
     transform var(--t-fast) var(--spring-bounce),
@@ -425,15 +219,9 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
-.onb-btn-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-sm);
-  margin-top: var(--s-lg);
-}
-
 .onb-link {
-  display: inline-block;
+  display: block;
+  margin: var(--s-sm) auto 0;
   padding: var(--s-sm);
   border: none;
   background: none;
@@ -443,67 +231,12 @@
   font-weight: 600;
   cursor: pointer;
   text-align: center;
-  transition: color var(--t-fast) ease;
 }
 
 .onb-link:hover {
   color: var(--o-accent-hover);
   text-decoration: underline;
 }
-
-/* ---- Placement test intro ---- */
-
-.onb-test-intro {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: var(--s-lg);
-}
-
-.onb-test-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: rgba(212, 160, 23, 0.12);
-  color: var(--o-accent);
-  font-size: 1.5rem;
-}
-
-.onb-test-features {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-sm);
-  width: 100%;
-  text-align: left;
-}
-
-.onb-test-feature {
-  display: flex;
-  align-items: center;
-  gap: var(--s-sm);
-  font-size: var(--text-small);
-  color: var(--o-text-soft);
-}
-
-.onb-test-feature span:first-child {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(22, 163, 74, 0.15);
-  color: #16A34A;
-  font-weight: 700;
-  font-size: var(--text-caption);
-  flex-shrink: 0;
-}
-
-/* ---- Responsive ---- */
 
 @media (max-width: 480px) {
   .onb-card {

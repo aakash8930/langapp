@@ -403,17 +403,17 @@ export class UserService {
       const merged = {
         proficiencyLevel: dto.proficiencyLevel ?? current.onboardingState?.proficiencyLevel,
         learningGoals: dto.learningGoals ?? current.onboardingState?.learningGoals,
-        learningStyle: dto.learningStyle ?? current.onboardingState?.learningStyle,
-        preferredStudyTime: dto.preferredStudyTime ?? current.onboardingState?.preferredStudyTime,
+        studyTimeMinutes: dto.studyTimeMinutes ?? current.onboardingState?.studyTimeMinutes,
+        dailyGoalXp: dto.dailyGoalXp ?? current.gamification?.dailyGoalXp,
       };
       if (
         !merged.proficiencyLevel ||
         !merged.learningGoals?.length ||
-        !merged.learningStyle ||
-        !merged.preferredStudyTime
+        !merged.studyTimeMinutes ||
+        !merged.dailyGoalXp
       ) {
         throw new BadRequestException(
-          'Choose a starting level, at least one goal, a learning style, and a study time before finishing setup.',
+          'Choose a starting level, a primary goal, and a daily commitment before finishing setup.',
         );
       }
     }

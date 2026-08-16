@@ -52,11 +52,8 @@ export type User = {
     notificationsEnabled: boolean;
     studyTimeMinutes: number;
     /**
-     * All three placement-test fields exist on the schema with nowhere that
-     * writes them yet — no placement test exists to take, on this client or
-     * web's. `onboarding.tsx`'s placement-test step is an intro screen with a
-     * "Skip for now" button, matching what web actually ships rather than
-     * what the field names imply is coming.
+     * Legacy schema fields reserved for a future real placement test. Neither
+     * client advertises or writes them while no scored test exists.
      */
     placementTestCompleted: boolean;
     placementTestScore: number | null;

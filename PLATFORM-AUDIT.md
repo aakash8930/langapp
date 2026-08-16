@@ -29,6 +29,7 @@ The signup path had concrete conversion blockers: its stylesheet was never impor
 | Email delivery observability | Queue failures were discarded, worker errors were swallowed, configuration was absent from validated env, and `/health` could not describe mail. | Every mail has a delivery UUID/kind; registration exposes queue acceptance, resend surfaces queue outage, reset remains anti-enumerating, provider failures retry, retained queue counts and configuration appear in health, and logs distinguish provider acceptance, retries, and terminal failure without recipient data. |
 | Account-state enforcement | Verification/onboarding were client-side navigation only; deep links and direct API requests bypassed them. | API learning/product controllers now compose JWT and persisted account-state guards. `/me` and auth/session recovery remain available, onboarding requires verified email, required personalization is validated server-side, and completion cannot be reversed. |
 | Cross-client first run | Web lacked central redirects and native had neither verification UI nor verified-state routing. | Web centrally redirects by authoritative session state and shows registration delivery status. Native now models `emailVerified`, provides verify/resend UI, blocks unknown offline state, and routes **Verify → Personalize → Learn** with sign-out exits on both gates. |
+| Fast, honest personalization | Web asked ten steps and native eleven before learning, including a placement-test promise with no test behind it. | Both clients now ask exactly three decisions—starting level, one primary goal, and a sustainable daily commitment. The fake placement test, speculative “AI personalization,” reminder timing, and learning-style questions are gone; API completion validation matches the shorter contract. |
 
 ## Remaining issues, prioritized
 
@@ -40,11 +41,7 @@ The signup path had concrete conversion blockers: its stylesheet was never impor
 
 ### P1 — high product/trust impact
 
-5. **Onboarding is ten steps before first value.** Language products retain learners by getting them into a useful first exercise quickly. Reduce first run to three decisions: starting level, primary goal, and sustainable daily commitment. Ask learning style, reminder timing, and other preferences contextually after the learner has completed a lesson.
-
-6. **Most “personalization” answers are stored but do not personalize learning.** `proficiencyLevel`, `learningGoals`, `learningStyle`, and `studyTimeMinutes` are persisted and returned, but no recommendation/path service consumes them. Either wire them into a transparent starting-path decision or stop claiming they tailor the course.
-
-7. **The placement-test step advertises a test that cannot be started.** It promises “15 quick questions,” “adaptive difficulty,” and vocabulary/grammar coverage, but the primary action is “Skip for now.” Build a scored placement flow tied to lesson prerequisites, or replace this step with an honest “Choose where to start” option.
+6. **Stored level and goal do not yet change the learning path.** The shortened flow now says plainly that the choices are saved without locking content, but no recommendation/path service consumes `proficiencyLevel` or the primary `learningGoal`. Wire them into a transparent starting recommendation before claiming stronger personalization.
 
 8. **Web reminder language exceeds web capability.** The setting now correctly controls in-app reminder generation, but the web does not request browser push permission. Label the channel as “in-app reminders”; only promise device notifications on the native client where permission and scheduling exist.
 
@@ -74,8 +71,7 @@ The signup path had concrete conversion blockers: its stylesheet was never impor
 
 ## Recommended next sequence
 
-1. Cut onboarding to a fast, honest starting-path flow and remove or build the placement-test promise.
-2. Code-split the web app so public auth/landing routes load independently of the learning suite.
-3. Add browser-level auth/onboarding tests and clear the existing lint baseline.
-4. Connect stored goals/level to an explainable course recommendation.
-5. Seed and verify stroke-order/lesson-attribution content before expanding more practice routes.
+1. Code-split the web app so public auth/landing routes load independently of the learning suite.
+2. Add browser-level auth/onboarding tests and clear the existing lint baseline.
+3. Connect stored goals/level to an explainable course recommendation.
+4. Seed and verify stroke-order/lesson-attribution content before expanding more practice routes.
