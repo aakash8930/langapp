@@ -23,6 +23,10 @@ export interface EnvConfig {
   CORS_ORIGINS: string;
   RESEND_API_KEY: string;
   MAIL_FROM: string;
+  SMTP_HOST: string;
+  SMTP_PORT: number;
+  SMTP_USER: string;
+  SMTP_PASS: string;
 }
 
 function required(raw: Record<string, unknown>, key: string): string {
@@ -93,5 +97,11 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     // `/health` is degraded and auth responses expose queue failure until set.
     RESEND_API_KEY: optional(raw, 'RESEND_API_KEY', ''),
     MAIL_FROM: optional(raw, 'MAIL_FROM', 'GENKŌ <noreply@genko.app>'),
+    // Dev-only fallback transport (MailService prefers this over Resend when
+    // set) — a Gmail address plus an App Password, no domain to verify.
+    SMTP_HOST: optional(raw, 'SMTP_HOST', 'smtp.gmail.com'),
+    SMTP_PORT: positiveInt(raw, 'SMTP_PORT', 587),
+    SMTP_USER: optional(raw, 'SMTP_USER', ''),
+    SMTP_PASS: optional(raw, 'SMTP_PASS', ''),
   };
 }

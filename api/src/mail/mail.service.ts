@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createTransport, type Transporter } from 'nodemailer';
 import { JobsService, type QueueSnapshot } from '../jobs/jobs.service';
 import { JOB_MAIL_SEND, QUEUE_MAIL, type MailKind } from '../jobs/queues';
 
@@ -17,11 +18,20 @@ export interface MailHealth {
   error?: string;
 }
 
+/**
+ * Which real transport `send()` uses. SMTP wins when both are configured —
+ * it's the dev-only path, so its presence means it was deliberately set up
+ * for testing recipients Resend's unverified-domain sandbox can't reach.
+ */
+type MailTransport = 'resend' | 'smtp' | 'none';
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly apiKey: string;
   private readonly from: string;
+  private readonly smtpTransporter: Transporter | null;
+  private readonly transport: MailTransport;
   private readonly enabled: boolean;
 
   constructor(
@@ -29,14 +39,46 @@ export class MailService {
     private readonly jobs: JobsService,
   ) {
     this.apiKey = this.config.get<string>('RESEND_API_KEY') ?? '';
-    this.from = this.config.get<string>('MAIL_FROM') ?? 'GENKŌ <noreply@genko.app>';
-    this.enabled = !!this.apiKey;
+
+    // SMTP_USER/SMTP_PASS is the dev-only path: a Gmail address plus an App
+    // Password (myaccount.google.com/apppasswords, needs 2-Step Verification
+    // on). No domain to verify and no recipient restriction, unlike Resend's
+    // sandbox sender — the trade is Gmail's own ~500/day cap and that it can
+    // flag automated sending. Host/port default to Gmail's STARTTLS endpoint
+    // so only the two secrets need setting.
+    const smtpUser = this.config.get<string>('SMTP_USER') ?? '';
+    const smtpPass = this.config.get<string>('SMTP_PASS') ?? '';
+    this.smtpTransporter = smtpUser && smtpPass
+      ? createTransport({
+          host: this.config.get<string>('SMTP_HOST') ?? 'smtp.gmail.com',
+          port: this.config.get<number>('SMTP_PORT') ?? 587,
+          secure: false, // STARTTLS on 587, not implicit TLS
+          auth: { user: smtpUser, pass: smtpPass },
+        })
+      : null;
+
+    this.transport = this.smtpTransporter ? 'smtp' : this.apiKey ? 'resend' : 'none';
+    this.enabled = this.transport !== 'none';
+
+    // Gmail's relay rejects (or silently rewrites) a From address that isn't
+    // the authenticated account or a verified alias, so the genko.app default
+    // — meant for Resend, which allows any From on a verified domain — would
+    // break every send over SMTP. Only fall back to it for Resend.
+    const configuredFrom = this.config.get<string>('MAIL_FROM');
+    this.from = configuredFrom
+      ?? (this.transport === 'smtp' ? `GENKŌ <${smtpUser}>` : 'GENKŌ <noreply@genko.app>');
   }
 
   /** Called by the worker. A failure must throw so BullMQ retries and retains it. */
   async send(to: string, subject: string, html: string): Promise<string | null> {
-    if (!this.enabled) {
-      throw new Error('RESEND_API_KEY is not configured');
+    if (this.transport === 'smtp') {
+      if (!this.smtpTransporter) throw new Error('SMTP transporter not initialised');
+      const info = await this.smtpTransporter.sendMail({ from: this.from, to, subject, html });
+      return info.messageId ?? null;
+    }
+
+    if (this.transport === 'none') {
+      throw new Error('No mail transport is configured (RESEND_API_KEY or SMTP_USER/SMTP_PASS)');
     }
 
     const response = await fetch('https://api.resend.com/emails', {
@@ -104,7 +146,7 @@ export class MailService {
         status: 'down',
         configured: false,
         queue,
-        error: 'RESEND_API_KEY is not configured',
+        error: 'No mail transport is configured (RESEND_API_KEY or SMTP_USER/SMTP_PASS)',
       };
     }
     return {
