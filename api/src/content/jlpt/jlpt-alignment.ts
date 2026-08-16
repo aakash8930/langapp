@@ -16,15 +16,21 @@
  * on jlpt.jp and was cross-read against the FAQ page independently.
  * `competency` text is a paraphrase of jlpt.jp/e/about/levelsummary.html,
  * not a verbatim capture, and should get one human read against that page
- * before being shown to a learner as a quotation. The fine-grained item-type
- * taxonomy per section (e.g. "kanji reading", "paraphrase", "text grammar")
- * is deliberately NOT included here: the site's own N1–N5 sample-question
- * pages are JS-driven pop-ups that couldn't be captured by an automated
- * fetch, and this file will not repeat that taxonomy from memory or a
- * secondary source per the standing rule to not import unsourced JLPT data.
- * Fill `itemTypes` in from the official PDF booklets in `sampleQuestions`
- * below (open each PDF, read the section headers, cite the page) rather
- * than from a web search.
+ * before being shown to a learner as a quotation.
+ *
+ * `itemTypes` was filled in 2026-08-14 by downloading all five
+ * `sampleQuestions.testItems` PDFs (`{level}-mondai.pdf`) and reading every
+ * page: the mondai instruction lines (e.g. "もんだい1 ___の ことばは どう
+ * よみますか"), not a secondary taxonomy. Names are translations of what
+ * each mondai actually asks the candidate to do, grouped under the same
+ * four headings the booklets themselves print (文字・語彙 / 文法 / 読解 /
+ * 聴解), independent of how `scoring.sections` groups things — N4/N5 score
+ * Language Knowledge and Reading as one combined section but the booklet
+ * still prints them as separate mondai blocks, and `itemTypes` follows the
+ * booklet, not the scoring split. `scoring`/`timing` numbers are unaffected
+ * and remain independently verified. Sub-item counts (e.g. two questions
+ * under one passage) are not tracked — this is the *type* taxonomy per
+ * mondai block, not a question-count model.
  *
  * Copyright note: only structural facts (timing, scoring, level
  * descriptions) and *links* to the official PDFs are stored here. No
@@ -90,10 +96,10 @@ export interface JlptLevelAlignment {
   sampleQuestions: JlptSampleQuestionSet;
 
   /**
-   * Per-section item types (e.g. "kanji reading", "paraphrase", "text
-   * grammar", "information retrieval"). Intentionally empty — see file
-   * header. Populate by reading `sampleQuestions.testItems` for this level
-   * and citing the page/section, not from a generic list.
+   * Item types per booklet section — 'Vocabulary' (文字・語彙), 'Grammar'
+   * (文法), 'Reading' (読解), 'Listening' (聴解) — each mapped to the mondai
+   * types printed in that level's `sampleQuestions.testItems` PDF, in
+   * booklet order. See file header for sourcing.
    */
   itemTypes: Record<string, string[]>;
 }
@@ -129,7 +135,25 @@ export const JLPT_ALIGNMENT: Record<JlptLevel, JlptLevelAlignment> = {
       ],
     },
     sampleQuestions: sample09('N1'),
-    itemTypes: {},
+    itemTypes: {
+      Vocabulary: ['Kanji reading', 'Contextually-defined expressions', 'Paraphrases', 'Usage'],
+      Grammar: ['Sentence structure', 'Sentence composition', 'Text grammar'],
+      Reading: [
+        'Short passage comprehension',
+        'Medium passage comprehension',
+        'Long passage comprehension',
+        'Integrated comprehension',
+        'Thematic (assertion) long passage comprehension',
+        'Information retrieval',
+      ],
+      Listening: [
+        'Task-based comprehension',
+        'Point comprehension',
+        'Overview comprehension',
+        'Quick response',
+        'Integrated comprehension',
+      ],
+    },
   },
   N2: {
     level: 'N2',
@@ -152,7 +176,31 @@ export const JLPT_ALIGNMENT: Record<JlptLevel, JlptLevelAlignment> = {
       ],
     },
     sampleQuestions: sample09('N2'),
-    itemTypes: {},
+    itemTypes: {
+      Vocabulary: [
+        'Kanji reading',
+        'Orthography',
+        'Word formation',
+        'Contextually-defined expressions',
+        'Paraphrases',
+        'Usage',
+      ],
+      Grammar: ['Sentence structure', 'Sentence composition', 'Text grammar'],
+      Reading: [
+        'Short passage comprehension',
+        'Medium passage comprehension',
+        'Integrated comprehension',
+        'Long passage comprehension',
+        'Information retrieval',
+      ],
+      Listening: [
+        'Task-based comprehension',
+        'Point comprehension',
+        'Overview comprehension',
+        'Quick response',
+        'Integrated comprehension',
+      ],
+    },
   },
   N3: {
     level: 'N3',
@@ -176,7 +224,29 @@ export const JLPT_ALIGNMENT: Record<JlptLevel, JlptLevelAlignment> = {
       ],
     },
     sampleQuestions: sample09('N3'),
-    itemTypes: {},
+    itemTypes: {
+      Vocabulary: [
+        'Kanji reading',
+        'Orthography',
+        'Contextually-defined expressions',
+        'Paraphrases',
+        'Usage',
+      ],
+      Grammar: ['Sentence structure', 'Sentence composition', 'Text grammar'],
+      Reading: [
+        'Short passage comprehension',
+        'Medium passage comprehension',
+        'Long passage comprehension',
+        'Information retrieval',
+      ],
+      Listening: [
+        'Task-based comprehension',
+        'Point comprehension',
+        'Overview comprehension',
+        'Verbal expression',
+        'Quick response',
+      ],
+    },
   },
   N4: {
     level: 'N4',
@@ -199,7 +269,18 @@ export const JLPT_ALIGNMENT: Record<JlptLevel, JlptLevelAlignment> = {
       ],
     },
     sampleQuestions: sample09('N4'),
-    itemTypes: {},
+    itemTypes: {
+      Vocabulary: [
+        'Kanji reading',
+        'Orthography',
+        'Contextually-defined expressions',
+        'Paraphrases',
+        'Usage',
+      ],
+      Grammar: ['Sentence structure', 'Sentence composition', 'Text grammar'],
+      Reading: ['Short passage comprehension', 'Medium passage comprehension', 'Information retrieval'],
+      Listening: ['Task-based comprehension', 'Point comprehension', 'Verbal expression', 'Quick response'],
+    },
   },
   N5: {
     level: 'N5',
@@ -222,7 +303,12 @@ export const JLPT_ALIGNMENT: Record<JlptLevel, JlptLevelAlignment> = {
       ],
     },
     sampleQuestions: sample09('N5'),
-    itemTypes: {},
+    itemTypes: {
+      Vocabulary: ['Kanji reading', 'Orthography', 'Contextually-defined expressions', 'Paraphrases'],
+      Grammar: ['Sentence structure', 'Sentence composition', 'Text grammar'],
+      Reading: ['Short passage comprehension', 'Medium passage comprehension', 'Information retrieval'],
+      Listening: ['Task-based comprehension', 'Point comprehension', 'Verbal expression', 'Quick response'],
+    },
   },
 };
 
@@ -251,6 +337,8 @@ export function isJlptPassing(
  * - https://www.jlpt.jp/e/faq/ (scoring, pass marks)
  * - https://www.jlpt.jp/e/samples/forlearners.html (sample question index)
  * - https://www.jlpt.jp/e/samples/sample09.html (sample PDF/MP3 links)
+ * - the five `{level}-mondai.pdf` booklets themselves, URLs built by
+ *   `sample09()` above (itemTypes — read in full, 2026-08-14)
  */
 export const JLPT_ALIGNMENT_SOURCES = [
   'https://www.jlpt.jp/e/about/levelsummary.html',
@@ -260,4 +348,4 @@ export const JLPT_ALIGNMENT_SOURCES = [
   'https://www.jlpt.jp/e/samples/sample09.html',
 ] as const;
 
-export const JLPT_ALIGNMENT_VERIFIED_AT = '2026-08-13';
+export const JLPT_ALIGNMENT_VERIFIED_AT = '2026-08-14';
