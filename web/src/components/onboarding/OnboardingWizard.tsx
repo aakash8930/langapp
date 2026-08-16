@@ -95,7 +95,9 @@ function Wizard({ user, signOut }: { user: SignedInUser; signOut: () => void }) 
   function answers(): OnboardingPatch {
     return {
       proficiencyLevel: form.proficiencyLevel,
-      learningGoals: form.primaryGoal ? [form.primaryGoal] : [],
+      // Omit rather than send `[]` — the DTO's ArrayMinSize(1) rejects an
+      // explicit empty array, and step 0 saves before a goal is chosen.
+      ...(form.primaryGoal ? { learningGoals: [form.primaryGoal] } : {}),
       studyTimeMinutes: form.studyTimeMinutes,
       dailyGoalXp: form.dailyGoalXp,
     };
