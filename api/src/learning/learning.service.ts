@@ -12,11 +12,7 @@ import { ExerciseAttemptsService } from './exercise-attempts.service';
 import { newCardFields } from './fsrs-card.mapper';
 import { LearnerItemStateService } from './learner-item-state.service';
 import { LessonCompletion, LessonCompletionDocument } from './schemas/lesson-completion.schema';
-import {
-  RECENT_REVIEW_WINDOW,
-  SrsCard,
-  SrsCardDocument,
-} from './schemas/srs-card.schema';
+import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
 
 /**
  * Awarded once per lesson, on the completion that creates the record.
@@ -27,10 +23,6 @@ export const XP_PER_LESSON_COMPLETION = 10;
 
 /** Fallback when XP_PER_LESSON_PRACTICE is absent; the config module validates it. */
 export const DEFAULT_XP_PER_LESSON_PRACTICE = 2;
-
-/** At least this many recent prerequisite reviews must support an unlock. */
-export const MIN_MASTERY_GATE_REVIEWS = 5;
-export const MASTERY_GATE_ACCURACY = 0.9;
 
 /** Mongo duplicate-key error. */
 const DUPLICATE_KEY = 11000;
@@ -82,7 +74,6 @@ export class LearningService {
     // are the defence for the API-spoof paths (curl, replay, future client
     // that forgets the prerequisite check).
     await this.assertPrerequisitesMet(userId, lesson.prerequisiteLessonIds);
-    await this.assertPrerequisitesMastered(userId, lesson.prerequisiteLessonIds);
     await this.assertUserAnsweredEverythingCorrectly(userId, lesson.id);
 
     const created = await this.seedCards(userId, lesson.items);
@@ -187,42 +178,6 @@ export class LearningService {
     throw new ConflictException(
       `Complete these lessons first: ${missing.join(', ')}`,
     );
-  }
-
-  /**
-   * Phase 2's advancement rule. A completed prerequisite opens the *review*
-   * queue; it does not alone certify retention. Before the next lesson can be
-   * completed, its prerequisite items need at least 90% correct across their
-   * bounded recent-review windows. This deliberately ignores streaks and XP.
-   */
-  private async assertPrerequisitesMastered(
-    userId: string,
-    prerequisiteLessonIds: string[],
-  ): Promise<void> {
-    if (prerequisiteLessonIds.length === 0) return;
-
-    const prerequisites = await Promise.all(
-      prerequisiteLessonIds.map((id) => this.contentService.findLessonById(id)),
-    );
-    const itemIds = prerequisites
-      .flatMap((lesson) => lesson.items)
-      .map((item) => new Types.ObjectId(item.id));
-    if (itemIds.length === 0) return;
-
-    const cards = await this.srsCardModel
-      .find({ userId: new Types.ObjectId(userId), 'itemRef.id': { $in: itemIds } })
-      .select('recentReviewOutcomes')
-      .exec();
-    const outcomes = cards.flatMap((card) => card.recentReviewOutcomes ?? []).slice(-RECENT_REVIEW_WINDOW);
-    const requiredReviews = Math.min(MIN_MASTERY_GATE_REVIEWS, itemIds.length);
-    const accuracy = outcomes.length === 0 ? 0 : outcomes.filter(Boolean).length / outcomes.length;
-
-    if (outcomes.length < requiredReviews || accuracy < MASTERY_GATE_ACCURACY) {
-      const percent = Math.round(accuracy * 100);
-      throw new ConflictException(
-        `Review prerequisite lessons to unlock this one: ${percent}% recent accuracy (${outcomes.length}/${requiredReviews} reviews; 90% required).`,
-      );
-    }
   }
 
   /**
