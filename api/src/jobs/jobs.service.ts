@@ -12,6 +12,22 @@ import {
   QueueName,
 } from './queues';
 
+export interface EnqueueResult {
+  accepted: boolean;
+  jobId?: string;
+  error?: string;
+}
+
+export interface QueueSnapshot {
+  status: 'up' | 'down';
+  waiting: number;
+  active: number;
+  delayed: number;
+  failed: number;
+  completed: number;
+  error?: string;
+}
+
 /**
  * Producer side of the in-process queues (ADR-006).
  *
@@ -61,16 +77,50 @@ export class JobsService {
     name: N,
     payload: JobPayloads[N],
     opts?: JobsOptions,
-  ): Promise<void> {
+  ): Promise<EnqueueResult> {
     try {
-      await this.queues[JOB_QUEUE[name]].add(name, payload, opts);
+      const job = await this.queues[JOB_QUEUE[name]].add(name, payload, opts);
+      return {
+        accepted: true,
+        ...(job?.id === undefined ? {} : { jobId: String(job.id) }),
+      };
     } catch (err) {
-      // The user's action must not fail because the queue did. Log the loss and
-      // move on; the failure surface is `/health` reporting Redis down, not a
-      // 500 on a completion that already wrote the cards.
-      this.logger.warn(
-        `Dropped job '${name}': ${err instanceof Error ? err.message : String(err)}`,
+      const error = err instanceof Error ? err.message : String(err);
+      // Callers that do not need delivery guarantees may ignore the result;
+      // critical producers such as MailService surface `accepted: false`.
+      this.logger.warn(`Dropped job '${name}': ${error}`);
+      return { accepted: false, error };
+    }
+  }
+
+  /** Operational queue counts for `/health`; no payload or PII is exposed. */
+  async inspectQueue(name: QueueName): Promise<QueueSnapshot> {
+    try {
+      const counts = await this.queues[name].getJobCounts(
+        'waiting',
+        'active',
+        'delayed',
+        'failed',
+        'completed',
       );
+      return {
+        status: 'up',
+        waiting: counts.waiting ?? 0,
+        active: counts.active ?? 0,
+        delayed: counts.delayed ?? 0,
+        failed: counts.failed ?? 0,
+        completed: counts.completed ?? 0,
+      };
+    } catch (err) {
+      return {
+        status: 'down',
+        waiting: 0,
+        active: 0,
+        delayed: 0,
+        failed: 0,
+        completed: 0,
+        error: err instanceof Error ? err.message : String(err),
+      };
     }
   }
 

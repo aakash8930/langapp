@@ -1,4 +1,6 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { ContentService, UnitContent } from './content.service';
 
 /**
@@ -17,12 +19,11 @@ import { ContentService, UnitContent } from './content.service';
  * unit's lessons and one batched resolve across every item kind, with items
  * deduplicated by `(kind, id)`.
  *
- * ## Unauthenticated, like the rest of the content surface
+ * ## Account state
  *
- * Same reasoning as `LessonController`: units are shared reference content with
- * no per-user state. A learner's *progress* through a unit is not here — that
- * is `/me/progress` — so this leaks nothing personal. If Funnel scraping ever
- * becomes a concern, adding `JwtAuthGuard` is one line here as it is there.
+ * Curriculum content is part of the learning product. The controller-level
+ * guards keep it behind email verification and completed personalization, just
+ * like lessons, exercises, and progress.
  *
  * ## An unknown unit is an empty unit, not a 404
  *
@@ -34,6 +35,7 @@ import { ContentService, UnitContent } from './content.service';
  * empty too.
  */
 @Controller('units')
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class UnitController {
   constructor(private readonly contentService: ContentService) {}
 

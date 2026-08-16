@@ -41,6 +41,8 @@ export class RootController {
         <span class="dot"></span>${ok ? 'running' : 'degraded'}
         <span class="dim">
           · mongo ${report.checks.mongo.status} · redis ${report.checks.redis.status}
+          · mail ${report.checks.mail.status}${report.checks.mail.configured ? '' : ' (not configured)'}
+          (${report.checks.mail.queue.failed} failed, ${report.checks.mail.queue.delayed} retrying)
           · up ${formatUptime(report.uptimeSeconds)}
         </span>
       </p>

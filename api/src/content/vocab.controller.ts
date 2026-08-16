@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Post, Query, UseGuards, Body } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { ContentService } from './content.service';
 import { VocabReadabilityRow } from './dto/vocab-readability-response.dto';
@@ -18,11 +19,11 @@ type VocabImportEntry = {
 };
 
 @Controller('vocab')
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class VocabController {
   constructor(private readonly contentService: ContentService) {}
 
   @Get('by-known-kana')
-  @UseGuards(JwtAuthGuard)
   async byKnownKana(
     @CurrentUser() user: AuthenticatedUser,
     @Query('cap') cap?: string,
@@ -38,7 +39,6 @@ export class VocabController {
   }
 
   @Post('import')
-  @UseGuards(JwtAuthGuard)
   async importVocab(@Body() body: { entries: VocabImportEntry[] }) {
     return this.contentService.importVocabBatch(body.entries);
   }

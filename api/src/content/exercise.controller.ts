@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { AnswerExerciseDto, FindExercisesDto } from './dto/exercise-request.dto';
 import { AnswerResult, ExerciseSet } from './dto/exercise-response.dto';
 import { ExerciseService } from './exercise/exercise.service';
@@ -10,7 +11,7 @@ import { ExerciseService } from './exercise/exercise.service';
  * these routes need an identity to be deterministic at all.
  */
 @Controller('lessons/:lessonId/exercises')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class ExerciseController {
   constructor(private readonly exerciseService: ExerciseService) {}
 

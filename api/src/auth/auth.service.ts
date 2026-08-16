@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -89,13 +90,14 @@ export class AuthService {
     // Generate an email verification token and send it
     const verificationToken = String(randomInt(0, 1_000_000)).padStart(6, '0');
     await this.userService.setVerificationToken(user._id.toString(), verificationToken);
-    this.mail.enqueue(
+    const emailDelivery = await this.mail.enqueue(
       dto.email,
       'Verify your GENKŌ account',
       `<p>Welcome to GENKŌ!</p><p>Your verification code is: <strong>${verificationToken}</strong></p>`,
+      'verification',
     );
 
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, emailDelivery);
   }
 
   async login(dto: LoginDto): Promise<AuthResponse> {
@@ -166,18 +168,9 @@ export class AuthService {
   }
 
   /**
-   * Issues a reset code and **writes it to the server log**, because Stage A has
-   * no mail service (§8: nothing that bills per message). That is a deliberate,
-   * documented trade and it is the whole security model of this flow: anyone who
-   * can read the API's log can reset any account. On a laptop whose only operator
-   * is the sole administrator that is already true of the database itself; it
-   * stops being acceptable the moment logs are shipped anywhere, at which point
-   * this needs a real mail transport rather than a wider log.
-   *
-   * The reply is identical whether or not the address is registered — the same
-   * anti-enumeration property `login` burns a dummy argon2 verify to keep. There
-   * is no dummy work to do here: both paths are one indexed lookup, and the code
-   * is generated after the branch, so the timings already match.
+   * Issues a reset code through the observed mail queue. The reply remains
+   * identical for registered and unknown addresses, and queue failures are kept
+   * out of the response so this endpoint cannot become an account oracle.
    */
   async forgotPassword(email: string): Promise<{ message: string }> {
     const user = await this.userService.findByEmail(email);
@@ -187,10 +180,11 @@ export class AuthService {
       // predictable PRNG. Zero-padded so every code is the same six digits.
       const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
       await this.passwordResets.store(email, code);
-      this.mail.enqueue(
+      await this.mail.enqueue(
         email,
         'Password reset — GENKŌ',
         `<p>Your password reset code is: <strong>${code}</strong></p><p>This code is valid for ${RESET_CODE_TTL_SECONDS / 60} minutes.</p>`,
+        'password-reset',
       );
     }
 
@@ -389,19 +383,40 @@ export class AuthService {
 
     const token = String(randomInt(0, 1_000_000)).padStart(6, '0');
     await this.userService.setVerificationToken(userId, token);
-    this.mail.enqueue(
+    const delivery = await this.mail.enqueue(
       user.email,
       'Verify your GENKŌ account',
       `<p>Your verification code is: <strong>${token}</strong></p>`,
+      'verification',
     );
 
-    return { message: 'A new verification code has been sent to your email.' };
+    if (delivery.status !== 'queued') {
+      throw new ServiceUnavailableException(
+        'Verification email could not be queued. Try again in a moment.',
+      );
+    }
+
+    return { message: 'A new verification code has been queued for your email.' };
   }
 
-  private async buildAuthResponse(user: UserDocument): Promise<AuthResponse> {
+  private async buildAuthResponse(
+    user: UserDocument,
+    emailDelivery?: { status: 'queued' | 'unavailable'; deliveryId: string },
+  ): Promise<AuthResponse> {
     const tokens = await this.issueTokens(user);
     // toUserResponse is an allowlist — passwordHash cannot ride along.
-    return { user: toUserResponse(user), tokens };
+    return {
+      user: toUserResponse(user),
+      tokens,
+      ...(emailDelivery
+        ? {
+            emailDelivery: {
+              status: emailDelivery.status,
+              deliveryId: emailDelivery.deliveryId,
+            },
+          }
+        : {}),
+    };
   }
 
   private async issueTokens(user: UserDocument): Promise<TokenPair> {
@@ -409,7 +424,13 @@ export class AuthService {
     const jti = randomUUID();
 
     const accessToken = await this.jwtService.signAsync(
-      { sub: userId, email: user.email, isAdmin: user.isAdmin },
+      {
+        sub: userId,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        emailVerified: !!user.emailVerified,
+        onboardingComplete: !!user.onboardingState?.onboardingComplete,
+      },
       {
         secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: ttl(this.config.getOrThrow<string>('JWT_ACCESS_TTL')),

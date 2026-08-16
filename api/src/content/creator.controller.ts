@@ -3,11 +3,12 @@ import { Types } from 'mongoose';
 import { ContentService } from './content.service';
 import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
 import { CreatorGuard } from '../common/auth/creator.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { CreateLessonDto, CreateVocabDto } from './dto/creator.dto';
 import { ItemRef } from './schemas/lesson.schema';
 
 @Controller('creator')
-@UseGuards(JwtAuthGuard, CreatorGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard, CreatorGuard)
 export class CreatorController {
   constructor(private readonly contentService: ContentService) {}
 

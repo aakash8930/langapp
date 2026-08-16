@@ -331,6 +331,44 @@ describe('UserService.updateOnboarding', () => {
     });
   });
 
+  it('rejects completion until the required personalization fields exist', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await expect(
+      service.updateOnboarding(USER_ID, { onboardingComplete: true }),
+    ).rejects.toThrow(/starting level/);
+    expect(findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('allows completion when the final request supplies every required answer', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await service.updateOnboarding(USER_ID, {
+      proficiencyLevel: 'beginner',
+      learningGoals: ['conversation'],
+      learningStyle: 'mixed',
+      preferredStudyTime: 'evening',
+      onboardingComplete: true,
+    });
+
+    expect(updateArg(findByIdAndUpdate).$set).toMatchObject({
+      'onboardingState.proficiencyLevel': 'beginner',
+      'onboardingState.learningGoals': ['conversation'],
+      'onboardingState.learningStyle': 'mixed',
+      'onboardingState.preferredStudyTime': 'evening',
+      'onboardingState.onboardingComplete': true,
+    });
+  });
+
+  it('rejects attempts to reverse completed onboarding', async () => {
+    const { service, findByIdAndUpdate } = build();
+
+    await expect(
+      service.updateOnboarding(USER_ID, { onboardingComplete: false }),
+    ).rejects.toThrow(/cannot be reversed/);
+    expect(findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
   it('keeps reminders off when the learner declines', async () => {
     const { service, findByIdAndUpdate } = build();
 

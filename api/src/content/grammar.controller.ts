@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { ContentService } from './content.service';
 import { SentenceReadabilityRow } from './dto/sentence-readability-response.dto';
@@ -18,7 +19,7 @@ import { SentenceReadabilityRow } from './dto/sentence-readability-response.dto'
  * Bearer-protected for the same reason `/content/vocab/by-known-kana` is.
  */
 @Controller('content/grammar')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class GrammarController {
   constructor(private readonly contentService: ContentService) {}
 

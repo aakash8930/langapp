@@ -26,18 +26,17 @@ The signup path had concrete conversion blockers: its stylesheet was never impor
 | Onboarding reliability | Web onboarding swallowed every save failure and allowed repeated clicks. | Save errors are visible, controls lock while saving, and the returned user refreshes the session cache. |
 | Reminder consent | The onboarding toggle wrote `onboardingState.notificationsEnabled`, while the worker reads `notificationSettings.studyReminders`; new users also defaulted to reminders on. | The API now writes both fields, defaults reminders off, and has regression coverage for opt-in and opt-out. |
 | Auth takeover layout | `/verify-email` was the only first-run screen still rendered through the app shell. | Verification now uses the same focused takeover layout as signup, sign-in, and onboarding. |
+| Email delivery observability | Queue failures were discarded, worker errors were swallowed, configuration was absent from validated env, and `/health` could not describe mail. | Every mail has a delivery UUID/kind; registration exposes queue acceptance, resend surfaces queue outage, reset remains anti-enumerating, provider failures retry, retained queue counts and configuration appear in health, and logs distinguish provider acceptance, retries, and terminal failure without recipient data. |
+| Account-state enforcement | Verification/onboarding were client-side navigation only; deep links and direct API requests bypassed them. | API learning/product controllers now compose JWT and persisted account-state guards. `/me` and auth/session recovery remain available, onboarding requires verified email, required personalization is validated server-side, and completion cannot be reversed. |
+| Cross-client first run | Web lacked central redirects and native had neither verification UI nor verified-state routing. | Web centrally redirects by authoritative session state and shows registration delivery status. Native now models `emailVerified`, provides verify/resend UI, blocks unknown offline state, and routes **Verify → Personalize → Learn** with sign-out exits on both gates. |
 
 ## Remaining issues, prioritized
 
 ### P0 — resolve before scaling acquisition
 
-1. **Email delivery is a hard dependency with weak failure visibility.** Registration and reset enqueue Resend jobs, while `MailService.enqueue()` deliberately drops enqueue failures. If `RESEND_API_KEY`, Redis, or the worker is unavailable, the UI says a code was sent but the learner has no recovery path. Add delivery-state telemetry, alerting, retry visibility, and an environment health check. In non-production, provide an explicit safe development-only code transport.
+1. **The first production bundle is too large for an acquisition flow.** The current web build emits roughly **1.36 MB JavaScript** and **615 KB CSS** before gzip. Signup should not download hundreds of feature routes before showing its first field. Add route-level code splitting and split feature CSS by route; measure signup LCP and interaction latency on a mid-range phone.
 
-2. **Verification and onboarding are navigational, not enforced state machines.** The happy path is now wired, but a web learner can deep-link around it and there is no root guard that routes an unverified/incomplete account back to the correct step. Decide which capabilities require verification, enforce those rules server-side, and add a web route guard based on `emailVerified` and `onboardingState.onboardingComplete`.
-
-3. **The first production bundle is too large for an acquisition flow.** The current web build emits roughly **1.36 MB JavaScript** and **615 KB CSS** before gzip. Signup should not download hundreds of feature routes before showing its first field. Add route-level code splitting and split feature CSS by route; measure signup LCP and interaction latency on a mid-range phone.
-
-4. **Dependency audit findings need triage.** Installation reported one high-severity web finding, three API findings, and 18 high-severity Expo/client findings. Do not run a blind forced upgrade; identify reachable production paths, update direct dependencies first, and record accepted transitive risk.
+2. **Dependency audit findings need triage.** Installation reported one high-severity web finding, three API findings, and 18 high-severity Expo/client findings. Do not run a blind forced upgrade; identify reachable production paths, update direct dependencies first, and record accepted transitive risk.
 
 ### P1 — high product/trust impact
 
@@ -75,9 +74,8 @@ The signup path had concrete conversion blockers: its stylesheet was never impor
 
 ## Recommended next sequence
 
-1. Make email delivery observable and enforce the verification/onboarding state machine.
-2. Cut onboarding to a fast, honest starting-path flow and remove or build the placement-test promise.
-3. Code-split the web app so public auth/landing routes load independently of the learning suite.
-4. Add auth/onboarding tests and clear the existing lint baseline.
-5. Connect stored goals/level to an explainable course recommendation.
-6. Seed and verify stroke-order/lesson-attribution content before expanding more practice routes.
+1. Cut onboarding to a fast, honest starting-path flow and remove or build the placement-test promise.
+2. Code-split the web app so public auth/landing routes load independently of the learning suite.
+3. Add browser-level auth/onboarding tests and clear the existing lint baseline.
+4. Connect stored goals/level to an explainable course recommendation.
+5. Seed and verify stroke-order/lesson-attribution content before expanding more practice routes.

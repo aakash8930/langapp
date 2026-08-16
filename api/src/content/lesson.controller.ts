@@ -1,15 +1,14 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { ContentService } from './content.service';
 import { FindLessonsDto } from './dto/find-lessons.dto';
 import { LessonDetail, LessonSummary } from './dto/lesson-response.dto';
 import { KanaCurriculumRow } from './dto/curriculum-response.dto';
 
-/**
- * Unauthenticated on purpose — lessons are shared reference content with no
- * per-user state, and §9 lists them without an auth marker. See OPEN-ITEMS.md:
- * if Funnel scraping becomes a concern, adding JwtAuthGuard here is one line.
- */
+/** Shared curriculum content, available after verification and personalization. */
 @Controller('lessons')
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class LessonController {
   constructor(private readonly contentService: ContentService) {}
 

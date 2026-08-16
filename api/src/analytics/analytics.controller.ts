@@ -3,10 +3,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { Event, EventDocument } from './schemas/event.schema';
 
 @Controller('me/history')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class AnalyticsController {
   constructor(
     @InjectModel(Event.name) private readonly eventModel: Model<EventDocument>,

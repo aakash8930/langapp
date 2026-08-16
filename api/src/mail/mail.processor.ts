@@ -18,12 +18,25 @@ export class MailProcessor extends WorkerHost {
       throw new Error(`Unknown job name: ${job.name}`);
     }
 
+    const attempt = job.attemptsMade + 1;
+    const maxAttempts = job.opts.attempts ?? 1;
+    const prefix = `delivery=${job.data.deliveryId} kind=${job.data.kind} attempt=${attempt}/${maxAttempts}`;
+    this.logger.log(`Email sending ${prefix}`);
+
     try {
-      await this.mailService.send(job.data.to, job.data.subject, job.data.html);
-    } catch (err) {
-      this.logger.warn(
-        `Mail job failed for ${job.data.to}: ${err instanceof Error ? err.message : String(err)}`,
+      const providerId = await this.mailService.send(job.data.to, job.data.subject, job.data.html);
+      this.logger.log(
+        `Email provider accepted ${prefix}${providerId ? ` provider=${providerId}` : ''}`,
       );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const lifecycle = attempt >= maxAttempts
+        ? 'Email terminal failure'
+        : 'Email attempt failed; retry pending';
+      this.logger.error(`${lifecycle} ${prefix}: ${message}`);
+      // Never swallow this: BullMQ needs the rejection to apply backoff/retries
+      // and retain the final failure for queue telemetry.
+      throw err;
     }
   }
 }

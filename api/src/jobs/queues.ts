@@ -55,7 +55,12 @@ export interface CheckRemindersPayload {
   now?: string;
 }
 
+export type MailKind = 'verification' | 'password-reset' | 'transactional';
+
 export interface MailSendPayload {
+  /** Correlation id used in logs and BullMQ's retained job records. */
+  deliveryId: string;
+  kind: MailKind;
   to: string;
   subject: string;
   html: string;

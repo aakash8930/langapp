@@ -302,7 +302,12 @@ export async function authed<T>(path: string, init: RequestInit = {}): Promise<T
   }
 }
 
-export type AuthResponse = { user: User; tokens: Tokens };
+export type EmailDelivery = {
+  status: 'queued' | 'unavailable';
+  deliveryId: string;
+};
+
+export type AuthResponse = { user: User; tokens: Tokens; emailDelivery?: EmailDelivery };
 
 export function register(body: {
   email: string;

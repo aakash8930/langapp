@@ -134,7 +134,7 @@ export default function Onboarding() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, applyUser, refresh } = useAuth();
+  const { user, applyUser, refresh, logout } = useAuth();
 
   const [step, setStep] = useState(user?.onboardingState.onboardingStep ?? 0);
   const [form, setForm] = useState<FormState>({
@@ -274,6 +274,8 @@ export default function Onboarding() {
       ) : null}
       {step === 9 ? <AiPersonalizationStep onNext={() => void next()} onBack={() => void back()} saving={saving} /> : null}
       {step === 10 ? <CompleteStep form={form} onFinish={() => void finish()} onBack={() => void back()} saving={saving} /> : null}
+
+      <Button label="Sign out" variant="secondary" onPress={() => void logout()} disabled={saving} />
     </ScrollView>
   );
 }

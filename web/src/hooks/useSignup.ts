@@ -15,12 +15,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
 import { setTokens } from '../auth';
-import { describeSignupError, registerAccount } from '../services/auth.service';
+import { describeSignupError, registerAccount, type SignupResult } from '../services/auth.service';
 import { queryKeys } from '../queryKeys';
 import type { SignupForm } from '../validation/signup.schema';
 
 export interface UseSignupResult {
-  signup: (form: SignupForm) => Promise<boolean>;
+  signup: (form: SignupForm) => Promise<SignupResult | null>;
   isPending: boolean;
   isError: boolean;
   error: string | null;
@@ -48,14 +48,13 @@ export function useSignup(): UseSignupResult {
   // normalized message. `onSuccess` above has already run by the time the
   // promise resolves, so tokens are guaranteed stored before `true` returns.
   const signup = useCallback(
-    async (form: SignupForm): Promise<boolean> => {
+    async (form: SignupForm): Promise<SignupResult | null> => {
       setError(null);
       try {
-        await mutation.mutateAsync(form);
-        return true;
+        return await mutation.mutateAsync(form);
       } catch (e) {
         setError(describeSignupError(e));
-        return false;
+        return null;
       }
     },
     [mutation],

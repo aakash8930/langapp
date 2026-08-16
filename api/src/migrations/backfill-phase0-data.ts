@@ -61,6 +61,7 @@ import {
 const migrationJobsStub: Pick<JobsService, 'enqueue' | 'schedule'> = {
   enqueue: async (name) => {
     new Logger('Migration').warn(`Ignored background job '${name}' — no Redis here.`);
+    return { accepted: false, error: 'Redis is unavailable in migration context' };
   },
   schedule: async (schedulerId) => {
     new Logger('Migration').warn(`Ignored schedule '${schedulerId}' — no Redis here.`);

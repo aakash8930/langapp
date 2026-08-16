@@ -16,9 +16,10 @@ import { StorageService } from '../common/storage/storage.service';
  * That is also why yōon are not stored whole: きゃ is two characters with two
  * stroke orders, and the client already renders it into two manuscript cells.
  *
- * ## Unauthenticated, like `/lessons` and the audio
+ * ## Unauthenticated asset exception
  *
- * Shared reference content with no per-user state.
+ * Like audio, this immutable render asset accepts no bearer header. Curriculum
+ * JSON remains state-gated and the asset contains no learner data.
  *
  * ## Licensing
  *

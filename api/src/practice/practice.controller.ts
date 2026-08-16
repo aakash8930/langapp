@@ -1,11 +1,12 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { AnswerPracticeQuestionDto, CreatePracticeSessionDto } from './dto/practice.dto';
 import { PracticeService } from './practice.service';
 
 @Controller('practice')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class PracticeController {
   constructor(private readonly practiceService: PracticeService) {}
 

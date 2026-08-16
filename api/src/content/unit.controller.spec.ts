@@ -1,5 +1,7 @@
 import { ContentService, UnitContent } from './content.service';
 import { UnitController } from './unit.controller';
+import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 
 /**
  * This controller is one line of delegation, so what is worth testing is not
@@ -64,16 +66,10 @@ describe('UnitController', () => {
     await expect(controller.findContent('nope')).resolves.toEqual(EMPTY);
   });
 
-  /**
-   * Unauthenticated by design, like the rest of the content surface.
-   *
-   * Units are shared reference content with no per-user state — a learner's
-   * progress through one is `/me/progress`, not this. If a guard is ever added
-   * it should be a deliberate decision (see the note in the controller), and
-   * this assertion is what makes adding one accidentally fail a test rather
-   * than silently break every signed-out browse screen.
-   */
-  it('carries no auth guard', () => {
-    expect(Reflect.getMetadata('__guards__', UnitController)).toBeUndefined();
+  it('requires an authenticated, fully onboarded account', () => {
+    expect(Reflect.getMetadata('__guards__', UnitController)).toEqual([
+      JwtAuthGuard,
+      AccountStateGuard,
+    ]);
   });
 });

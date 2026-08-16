@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { AnswerCheckpointDto } from './dto/checkpoint-request.dto';
 import { AnswerResult } from './dto/exercise-response.dto';
 import { CombinedTestService, CombinedTestResult, CombinedTestSet } from './combined-test/combined-test.service';
@@ -32,7 +33,7 @@ import { CombinedTestService, CombinedTestResult, CombinedTestSet } from './comb
  * one.
  */
 @Controller('combined-test')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class CombinedTestController {
   constructor(private readonly combinedTestService: CombinedTestService) {}
 

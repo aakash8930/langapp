@@ -83,6 +83,7 @@ export default function Register() {
         password,
         dateOfBirth: dateOfBirth.trim(),
       });
+      router.replace('/verify-email');
     } catch (error) {
       setFormError(authErrorMessage(error, 'register'));
     } finally {

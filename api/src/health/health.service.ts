@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { RedisService } from '../redis/redis.service';
+import { MailService, type MailHealth } from '../mail/mail.service';
 
 export interface DependencyCheck {
   status: 'up' | 'down';
@@ -15,6 +16,7 @@ export interface HealthReport {
   checks: {
     mongo: DependencyCheck;
     redis: DependencyCheck;
+    mail: MailHealth;
   };
 }
 
@@ -23,16 +25,24 @@ export class HealthService {
   constructor(
     @InjectConnection() private readonly mongoConnection: Connection,
     private readonly redis: RedisService,
+    private readonly mail: MailService,
   ) {}
 
   async check(): Promise<HealthReport> {
-    const [mongo, redis] = await Promise.all([this.checkMongo(), this.checkRedis()]);
-    const status = mongo.status === 'up' && redis.status === 'up' ? 'ok' : 'degraded';
+    const [mongo, redis, mail] = await Promise.all([
+      this.checkMongo(),
+      this.checkRedis(),
+      this.mail.health(),
+    ]);
+    const status =
+      mongo.status === 'up' && redis.status === 'up' && mail.status === 'up'
+        ? 'ok'
+        : 'degraded';
 
     return {
       status,
       uptimeSeconds: Math.round(process.uptime()),
-      checks: { mongo, redis },
+      checks: { mongo, redis, mail },
     };
   }
 

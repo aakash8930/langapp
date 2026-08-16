@@ -5,6 +5,7 @@ import {
   login as loginRequest,
   logout as logoutRequest,
   register as registerRequest,
+  type EmailDelivery,
   type LoginInput,
   type RegisterInput,
   type User,
@@ -18,6 +19,8 @@ type AuthContextValue = {
   status: Status;
   /** Null while loading, and after a launch that could not reach the server. */
   user: User | null;
+  /** Transient queue outcome from this device's most recent registration. */
+  registrationDelivery: EmailDelivery | null;
   register: (input: RegisterInput) => Promise<void>;
   login: (input: LoginInput) => Promise<void>;
   logout: () => Promise<void>;
@@ -43,6 +46,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<Status>('loading');
   const [user, setUser] = useState<User | null>(null);
+  const [registrationDelivery, setRegistrationDelivery] = useState<EmailDelivery | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,8 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // The API runs on a laptop that is off half the time. Being unable to
         // reach it says nothing about whether the session is good, so keep the
-        // tokens and let the app in — signing the user out here would mean
-        // re-typing a password every time the laptop sleeps.
+        // tokens. The app layout shows a retry/sign-out gate until it can load
+        // authoritative verification and onboarding state.
         if (error instanceof OfflineError) {
           setStatus('authenticated');
           return;
@@ -88,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(
     () =>
       onSessionExpired(() => {
+        setRegistrationDelivery(null);
         setUser(null);
         setStatus('unauthenticated');
       }),
@@ -95,19 +100,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(async (input: RegisterInput) => {
-    const me = await registerRequest(input);
-    setUser(me);
+    const result = await registerRequest(input);
+    setUser(result.user);
+    setRegistrationDelivery(result.emailDelivery ?? null);
     setStatus('authenticated');
   }, []);
 
   const login = useCallback(async (input: LoginInput) => {
     const me = await loginRequest(input);
+    setRegistrationDelivery(null);
     setUser(me);
     setStatus('authenticated');
   }, []);
 
   const logout = useCallback(async () => {
     await logoutRequest();
+    setRegistrationDelivery(null);
     setUser(null);
     setStatus('unauthenticated');
   }, []);
@@ -123,8 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, user, register, login, logout, applyUser, refresh }),
-    [status, user, register, login, logout, applyUser, refresh],
+    () => ({ status, user, registrationDelivery, register, login, logout, applyUser, refresh }),
+    [status, user, registrationDelivery, register, login, logout, applyUser, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

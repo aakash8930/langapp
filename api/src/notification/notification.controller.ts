@@ -10,11 +10,12 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { NotificationService } from './notification.service';
 import type { NotificationType } from './schemas/notification.schema';
 
 @Controller('me/notifications')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 

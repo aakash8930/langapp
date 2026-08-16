@@ -7,7 +7,14 @@ export interface TokenPair {
   expiresIn: number;
 }
 
+export interface EmailDeliveryResponse {
+  status: 'queued' | 'unavailable';
+  deliveryId: string;
+}
+
 export interface AuthResponse {
   user: UserResponse;
   tokens: TokenPair;
+  /** Present on registration; login has no email side effect. */
+  emailDelivery?: EmailDeliveryResponse;
 }

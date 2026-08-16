@@ -1,9 +1,10 @@
-import { createRootRouteWithContext, Outlet, useLocation } from '@tanstack/react-router';
+import { createRootRouteWithContext, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import { AppShell } from '../components/layout/AppShell';
 import { armMotion } from '../motion';
+import { useSession } from '../useSession';
 
 /**
  * The shape every route loader sees as its `context` argument. Caches the
@@ -95,6 +96,36 @@ function RootShell() {
  */
 function ShellContent() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { session } = useSession();
+  const sessionState = session.state;
+  const emailVerified = session.state === 'signedIn' && session.user.emailVerified;
+  const onboardingComplete =
+    session.state === 'signedIn' && !!session.user.onboardingState?.onboardingComplete;
+
+  useEffect(() => {
+    if (sessionState !== 'signedIn') return;
+
+    const isVerification = location.pathname === '/verify-email';
+    const isOnboarding = location.pathname === '/onboarding';
+    const isAuthEntry = location.pathname === '/signin' || location.pathname === '/signup';
+
+    if (!emailVerified) {
+      if (!isVerification) {
+        void navigate({ to: '/verify-email', search: {}, replace: true });
+      }
+      return;
+    }
+
+    if (!onboardingComplete) {
+      if (!isOnboarding) void navigate({ to: '/onboarding', replace: true });
+      return;
+    }
+
+    if (isVerification || isOnboarding || isAuthEntry) {
+      void navigate({ to: '/', replace: true });
+    }
+  }, [emailVerified, location.pathname, navigate, onboardingComplete, sessionState]);
 
   // Account creation, verification, sign in, and onboarding are full-page
   // takeovers — no site header, sidebar, or footer. Render them straight into

@@ -8,6 +8,18 @@ function controller(report: Partial<HealthReport> = {}): RootController {
     checks: {
       mongo: { status: 'up', latencyMs: 1 },
       redis: { status: 'up', latencyMs: 1 },
+      mail: {
+        status: 'up',
+        configured: true,
+        queue: {
+          status: 'up',
+          waiting: 0,
+          active: 0,
+          delayed: 0,
+          failed: 0,
+          completed: 10,
+        },
+      },
     },
     ...report,
   };
@@ -33,11 +45,51 @@ describe('RootController', () => {
       checks: {
         mongo: { status: 'down', latencyMs: 30, error: 'connection refused' },
         redis: { status: 'up', latencyMs: 1 },
+        mail: {
+          status: 'up',
+          configured: true,
+          queue: {
+            status: 'up',
+            waiting: 0,
+            active: 0,
+            delayed: 0,
+            failed: 0,
+            completed: 10,
+          },
+        },
       },
     }).index();
 
     expect(html).toContain('degraded');
     expect(html).toContain('mongo down');
+  });
+
+  it('shows mail queue retries and terminal failure counts', async () => {
+    const html = await controller({
+      status: 'degraded',
+      checks: {
+        mongo: { status: 'up', latencyMs: 1 },
+        redis: { status: 'up', latencyMs: 1 },
+        mail: {
+          status: 'down',
+          configured: true,
+          queue: {
+            status: 'down',
+            waiting: 1,
+            active: 1,
+            delayed: 2,
+            failed: 3,
+            completed: 4,
+            error: 'queue unavailable',
+          },
+          error: 'queue unavailable',
+        },
+      },
+    }).index();
+
+    expect(html).toContain('mail down');
+    expect(html).toContain('2 retrying');
+    expect(html).toContain('3 failed');
   });
 
   it('lists the endpoints as text, not links', async () => {

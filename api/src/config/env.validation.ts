@@ -21,6 +21,8 @@ export interface EnvConfig {
   GEMINI_API_KEY: string;
   GEMINI_MODEL: string;
   CORS_ORIGINS: string;
+  RESEND_API_KEY: string;
+  MAIL_FROM: string;
 }
 
 function required(raw: Record<string, unknown>, key: string): string {
@@ -87,5 +89,9 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     // CORS headers at all, which is what every deployment had before it
     // existed — opening a browser to this API is opt-in.
     CORS_ORIGINS: optional(raw, 'CORS_ORIGINS', ''),
+    // Email remains optional at boot so local content development works, but
+    // `/health` is degraded and auth responses expose queue failure until set.
+    RESEND_API_KEY: optional(raw, 'RESEND_API_KEY', ''),
+    MAIL_FROM: optional(raw, 'MAIL_FROM', 'GENKŌ <noreply@genko.app>'),
   };
 }

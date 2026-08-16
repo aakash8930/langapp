@@ -125,9 +125,8 @@ export class ContentService {
    * response serialises it as `null` rather than dropping the row, so the
    * client-side list keeps stable identity across migration state.
    *
-   * The endpoint is unauthenticated for the same reason `/lessons` is: kana
-   * ordering is shared reference content. OPEN-ITEMS Phase 0 #3 notes the
-   * same scraping trade-off and the same one-line `JwtAuthGuard` fix.
+   * The lesson controller protects this curriculum behind the same verified,
+   * onboarded account-state gate as the rest of the learning product.
    */
   async findKanaCurriculum(): Promise<KanaCurriculumRow[]> {
     const rows = await this.kanaModel

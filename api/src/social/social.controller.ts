@@ -11,6 +11,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { ReportUserDto, SearchUsersDto, SendMessageDto } from './dto/social.dto';
 import { LeagueService } from './league.service';
 import { SocialService } from './social.service';
@@ -25,7 +26,7 @@ import { SocialService } from './social.service';
  * skip them by forgetting a guard.
  */
 @Controller('social')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class SocialController {
   constructor(
     private readonly social: SocialService,

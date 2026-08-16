@@ -11,6 +11,7 @@ import {
 import type { Request } from 'express';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { BillingService } from './billing.service';
 import { PlanId } from './plans';
 
@@ -24,7 +25,7 @@ export class BillingController {
   }
 
   @Post('me/billing/checkout')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStateGuard)
   async checkout(
     @CurrentUser() current: AuthenticatedUser,
     @Body() body: { planId: PlanId; billingCycle: 'monthly' | 'yearly' },
@@ -36,19 +37,19 @@ export class BillingController {
   }
 
   @Post('me/billing/portal')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStateGuard)
   async portal(@CurrentUser() current: AuthenticatedUser) {
     return this.billing.createPortal(current.userId);
   }
 
   @Get('me/billing/invoices')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStateGuard)
   async invoices(@CurrentUser() current: AuthenticatedUser) {
     return this.billing.getInvoices(current.userId);
   }
 
   @Post('me/billing/cancel')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStateGuard)
   async cancel(
     @CurrentUser() current: AuthenticatedUser,
     @Query('at_period_end') atPeriodEnd?: string,

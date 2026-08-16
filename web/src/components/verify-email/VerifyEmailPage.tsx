@@ -8,14 +8,24 @@ import { useSession } from '../../useSession';
 import { verifyEmail, resendVerification } from '../../api';
 import { queryKeys } from '../../queryKeys';
 
-export function VerifyEmailPage() {
+type VerifyEmailPageProps = {
+  initialDeliveryStatus?: 'queued' | 'unavailable';
+};
+
+export function VerifyEmailPage({ initialDeliveryStatus }: VerifyEmailPageProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { session } = useSession();
+  const { session, signOut } = useSession();
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    initialDeliveryStatus === 'unavailable'
+      ? 'Your account is ready, but the verification email could not be queued. Use resend to try again.'
+      : null,
+  );
+  const [success, setSuccess] = useState<string | null>(
+    initialDeliveryStatus === 'queued' ? 'Your verification email has been queued.' : null,
+  );
 
   async function handleVerify(e: FormEvent) {
     e.preventDefault();
@@ -90,7 +100,7 @@ export function VerifyEmailPage() {
         ) : (
           <>
             <p className="vem-subtitle">
-              We sent a six-digit code to {session.user.email}. Enter it below to verify your email address.
+              Enter the six-digit code emailed to {session.user.email} to verify your address.
             </p>
 
             <form className="vem-form" onSubmit={handleVerify}>
@@ -135,6 +145,10 @@ export function VerifyEmailPage() {
                 disabled={busy}
               >
                 Resend verification
+              </button>
+              {' · '}
+              <button className="vem-link" type="button" onClick={signOut} disabled={busy}>
+                Sign out
               </button>
             </p>
           </>

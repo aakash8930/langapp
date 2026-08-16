@@ -26,6 +26,7 @@ import { LegalModule } from './legal/legal.module';
 import { SocialModule } from './social/social.module';
 import { UserModule } from './user/user.module';
 import { PracticeModule } from './practice/practice.module';
+import { AccountStateModule } from './common/auth/account-state.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { PracticeModule } from './practice/practice.module';
     }),
     HealthModule,
     UserModule,
+    AccountStateModule,
     AuthModule,
     BillingModule,
     NotificationModule,

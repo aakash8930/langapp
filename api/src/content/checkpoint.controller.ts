@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { CheckpointService } from './checkpoint/checkpoint.service';
 import { AnswerCheckpointDto } from './dto/checkpoint-request.dto';
 import { CheckpointResult, CheckpointSet } from './dto/checkpoint-response.dto';
@@ -28,7 +29,7 @@ import { AnswerResult } from './dto/exercise-response.dto';
  * server-side is the point.
  */
 @Controller('units/:unit/checkpoint')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class CheckpointController {
   constructor(private readonly checkpointService: CheckpointService) {}
 

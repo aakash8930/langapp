@@ -28,6 +28,7 @@ import { SeedService } from './seed.service';
 const seedJobsStub: Pick<JobsService, 'enqueue' | 'schedule'> = {
   enqueue: async (name) => {
     new Logger('Seed').warn(`Ignored background job '${name}' — the seed has no Redis.`);
+    return { accepted: false, error: 'Redis is unavailable in seed context' };
   },
   schedule: async (schedulerId) => {
     new Logger('Seed').warn(`Ignored schedule '${schedulerId}' — the seed has no Redis.`);

@@ -14,6 +14,7 @@ import { clearTokens, setTokens, type Tokens } from './session';
 export type User = {
   id: string;
   email: string;
+  emailVerified: boolean;
   createdAt: string;
   profile: {
     displayName: string;
@@ -80,9 +81,20 @@ export type User = {
   };
 };
 
+export type EmailDelivery = {
+  status: 'queued' | 'unavailable';
+  deliveryId: string;
+};
+
 type AuthResponse = {
   user: User;
   tokens: Tokens & { expiresIn: number };
+  emailDelivery?: EmailDelivery;
+};
+
+export type RegistrationResult = {
+  user: User;
+  emailDelivery?: EmailDelivery;
 };
 
 export type RegisterInput = {
@@ -102,14 +114,14 @@ export type LoginInput = {
   password: string;
 };
 
-export async function register(input: RegisterInput): Promise<User> {
-  const { user, tokens } = await api.post<AuthResponse>('/auth/register', {
+export async function register(input: RegisterInput): Promise<RegistrationResult> {
+  const { user, tokens, emailDelivery } = await api.post<AuthResponse>('/auth/register', {
     ...input,
     // The device timezone drives streak roll-over, which the server computes.
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   await setTokens(tokens);
-  return user;
+  return { user, emailDelivery };
 }
 
 export async function login(input: LoginInput): Promise<User> {
@@ -120,6 +132,14 @@ export async function login(input: LoginInput): Promise<User> {
 
 export function fetchMe(): Promise<User> {
   return api.get<User>('/me');
+}
+
+export function verifyEmail(token: string): Promise<{ message: string }> {
+  return api.post('/auth/verify-email', { token });
+}
+
+export function resendVerification(): Promise<{ message: string }> {
+  return api.post('/auth/resend-verification');
 }
 
 /**

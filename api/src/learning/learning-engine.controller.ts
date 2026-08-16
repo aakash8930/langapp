@@ -1,6 +1,7 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import {
   LearningEngineService,
   MemoryModelResponse,
@@ -15,7 +16,7 @@ import {
  * - Review & exercise session analytics
  */
 @Controller('learning')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class LearningEngineController {
   constructor(private readonly engineService: LearningEngineService) {}
 

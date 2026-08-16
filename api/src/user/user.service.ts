@@ -393,6 +393,31 @@ export class UserService {
     id: string,
     dto: { step?: number; nativeLanguage?: string; proficiencyLevel?: string; learningGoals?: string[]; learningStyle?: string; preferredStudyTime?: string; notificationsEnabled?: boolean; studyTimeMinutes?: number; dailyGoalXp?: number; onboardingComplete?: boolean },
   ): Promise<UserDocument> {
+    if (dto.onboardingComplete === false) {
+      throw new BadRequestException('Completed onboarding cannot be reversed.');
+    }
+
+    if (dto.onboardingComplete === true) {
+      const current = await this.findById(id);
+      if (!current) throw new NotFoundException('User not found');
+      const merged = {
+        proficiencyLevel: dto.proficiencyLevel ?? current.onboardingState?.proficiencyLevel,
+        learningGoals: dto.learningGoals ?? current.onboardingState?.learningGoals,
+        learningStyle: dto.learningStyle ?? current.onboardingState?.learningStyle,
+        preferredStudyTime: dto.preferredStudyTime ?? current.onboardingState?.preferredStudyTime,
+      };
+      if (
+        !merged.proficiencyLevel ||
+        !merged.learningGoals?.length ||
+        !merged.learningStyle ||
+        !merged.preferredStudyTime
+      ) {
+        throw new BadRequestException(
+          'Choose a starting level, at least one goal, a learning style, and a study time before finishing setup.',
+        );
+      }
+    }
+
     const patch: Record<string, unknown> = {};
     if (dto.step !== undefined) patch['onboardingState.onboardingStep'] = dto.step;
     if (dto.nativeLanguage !== undefined) patch['profile.nativeLanguage'] = dto.nativeLanguage;

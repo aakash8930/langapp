@@ -7,6 +7,8 @@ export interface AccessTokenPayload {
   sub: string;
   email: string;
   isAdmin: boolean;
+  emailVerified?: boolean;
+  onboardingComplete?: boolean;
 }
 
 /** What the guard attaches to the request once a token checks out. */
@@ -14,6 +16,8 @@ export interface AuthenticatedUser {
   userId: string;
   email: string;
   isAdmin: boolean;
+  emailVerified?: boolean;
+  onboardingComplete?: boolean;
 }
 
 export interface RequestWithUser extends Request {
@@ -45,7 +49,13 @@ export class JwtAuthGuard implements CanActivate {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
         secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
       });
-      request.user = { userId: payload.sub, email: payload.email, isAdmin: !!payload.isAdmin };
+      request.user = {
+        userId: payload.sub,
+        email: payload.email,
+        isAdmin: !!payload.isAdmin,
+        emailVerified: payload.emailVerified === true,
+        onboardingComplete: payload.onboardingComplete === true,
+      };
       return true;
     } catch {
       // Covers expired, malformed, and wrong-secret alike — the client learns

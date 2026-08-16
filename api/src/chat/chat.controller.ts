@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } f
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { ChatService } from './chat.service';
 import {
   ChatSessionListItem,
@@ -12,7 +13,7 @@ import {
 } from './dto/chat.dto';
 
 @Controller('chat')
-@UseGuards(JwtAuthGuard, ThrottlerGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard, ThrottlerGuard)
 @SkipThrottle({ auth: true })
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}

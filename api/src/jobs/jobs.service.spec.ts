@@ -26,6 +26,8 @@ describe('JobsService (ADR-006)', () => {
     const service = new JobsService(
       { add: analyticsAdd, upsertJobScheduler: analyticsUpsert } as never,
       { add: leagueAdd, upsertJobScheduler: leagueUpsert } as never,
+      {} as never,
+      {} as never,
     );
 
     return { service, analyticsAdd, leagueAdd, analyticsUpsert, leagueUpsert };
@@ -87,12 +89,65 @@ describe('JobsService (ADR-006)', () => {
     const add = jest.fn((_name: string, _data: unknown, _opts?: unknown) =>
       Promise.reject(new Error('redis down')),
     );
-    const service = new JobsService({ add } as never, { add } as never);
+    const service = new JobsService(
+      { add } as never,
+      { add } as never,
+      { add } as never,
+      { add } as never,
+    );
 
     await expect(
       service.enqueue('analytics.record', { userId: 'u', type: 'x' }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ accepted: false, error: 'redis down' });
     expect(add).toHaveBeenCalled();
+  });
+
+  it('reports retained mail queue lifecycle counts for health tooling', async () => {
+    const getJobCounts = jest.fn().mockResolvedValue({
+      waiting: 2,
+      active: 1,
+      delayed: 3,
+      failed: 4,
+      completed: 5,
+    });
+    const service = new JobsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      { getJobCounts } as never,
+    );
+
+    await expect(service.inspectQueue('mail')).resolves.toEqual({
+      status: 'up',
+      waiting: 2,
+      active: 1,
+      delayed: 3,
+      failed: 4,
+      completed: 5,
+    });
+    expect(getJobCounts).toHaveBeenCalledWith(
+      'waiting',
+      'active',
+      'delayed',
+      'failed',
+      'completed',
+    );
+  });
+
+  it('returns a down snapshot instead of throwing when queue inspection fails', async () => {
+    const getJobCounts = jest.fn().mockRejectedValue(new Error('redis down'));
+    const service = new JobsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      { getJobCounts } as never,
+    );
+
+    await expect(service.inspectQueue('mail')).resolves.toMatchObject({
+      status: 'down',
+      failed: 0,
+      error: 'redis down',
+    });
   });
 
   it('upserts a schedule on the queue the job belongs to, pinned to UTC', async () => {
@@ -119,6 +174,8 @@ describe('JobsService (ADR-006)', () => {
     const service = new JobsService(
       { upsertJobScheduler } as never,
       { upsertJobScheduler } as never,
+      {} as never,
+      {} as never,
     );
 
     await expect(

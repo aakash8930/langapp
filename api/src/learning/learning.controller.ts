@@ -1,11 +1,12 @@
 import { Controller, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { CompleteLessonResponse } from './dto/complete-lesson-response.dto';
 import { LearningService } from './learning.service';
 
 @Controller('lessons')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class LearningController {
   constructor(private readonly learningService: LearningService) {}
 

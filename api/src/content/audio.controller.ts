@@ -5,13 +5,12 @@ import { StorageService } from '../common/storage/storage.service';
 /**
  * Spoken audio for a vocabulary word.
  *
- * ## Unauthenticated, like `/lessons`
+ * ## Unauthenticated asset exception
  *
- * This is shared reference content with no per-user state — the same reasoning
- * that leaves the lesson routes open (and the same caveat, OPEN-ITEMS #1: on a
- * public funnel anyone with the link can enumerate it). Requiring a bearer token
- * would also mean the client could not hand the URL to a plain `<audio>` element
- * or `expo-av`, which is exactly what makes playback trivial.
+ * Curriculum JSON is account-state gated, but these immutable bytes stay public:
+ * requiring a bearer header would prevent the client from handing the URL to a
+ * plain `<audio>` element or `expo-av`. IDs come from protected curriculum data;
+ * the route exposes no learner state.
  *
  * ## Nothing is synthesised here
  *

@@ -48,10 +48,10 @@ export type PromptKind = 'kana' | 'vocab' | 'grammar' | 'wordReading' | 'kanji';
  * the mapping is still one-to-one — but the id resolves to the point.
  *
  * **It does not widen what an answer-hunting client can reach.** `/lessons/:id`
- * is unauthenticated and already returns every item with its gloss, romaji,
- * meanings and grammar answers, and the prompt *is* the item's own text — so
- * that lookup was always available by string match. This makes an existing path
- * exact rather than opening a new one. What stays protected is unchanged: which
+ * already returns every item with its gloss, romaji, meanings and grammar
+ * answers to the same verified/onboarded account, and the prompt *is* the item's
+ * own text — so that lookup was always available by string match. This makes an
+ * existing path exact rather than opening a new one. What stays protected is unchanged: which
  * option is correct never leaves the service, and `/complete` gates on
  * server-recorded answers rather than on anything the client asserts.
  */

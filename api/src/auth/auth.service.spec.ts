@@ -1,4 +1,9 @@
-import { ConflictException, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Logger,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -7,6 +12,13 @@ import { UserService } from '../user/user.service';
 import { AuthService } from './auth.service';
 import { PasswordResetStore } from './password-reset.store';
 import { RefreshTokenStore } from './refresh-token.store';
+import { RedisService } from '../redis/redis.service';
+import { MailService } from '../mail/mail.service';
+
+jest.mock('otplib', () => ({
+  generateSecret: jest.fn(() => 'TESTSECRET'),
+  verify: jest.fn(() => Promise.resolve(true)),
+}));
 
 const ACCESS_SECRET = 'test-access-secret-that-is-long-enough-32';
 const REFRESH_SECRET = 'test-refresh-secret-that-is-long-enough-32';
@@ -37,10 +49,22 @@ function makeUser(overrides: Partial<{ id: string; email: string; passwordHash: 
 
 interface Mocks {
   userService: jest.Mocked<
-    Pick<UserService, 'create' | 'findById' | 'findByEmail' | 'findByEmailWithPassword' | 'updatePassword'>
+    Pick<
+      UserService,
+      | 'create'
+      | 'findById'
+      | 'findByEmail'
+      | 'findByEmailWithPassword'
+      | 'updatePassword'
+      | 'setVerificationToken'
+      | 'getVerificationToken'
+      | 'verifyEmail'
+    >
   >;
   store: jest.Mocked<Pick<RefreshTokenStore, 'store' | 'consume' | 'revokeAll'>>;
   resets: jest.Mocked<Pick<PasswordResetStore, 'store' | 'verify'>>;
+  redis: { client: { set: jest.Mock; get: jest.Mock; del: jest.Mock } };
+  mail: jest.Mocked<Pick<MailService, 'enqueue'>>;
 }
 
 function build(): { service: AuthService; mocks: Mocks } {
@@ -51,6 +75,9 @@ function build(): { service: AuthService; mocks: Mocks } {
       findByEmail: jest.fn(),
       findByEmailWithPassword: jest.fn(),
       updatePassword: jest.fn().mockResolvedValue(undefined),
+      setVerificationToken: jest.fn().mockResolvedValue(undefined),
+      getVerificationToken: jest.fn().mockResolvedValue('123456'),
+      verifyEmail: jest.fn().mockResolvedValue(undefined),
     },
     store: {
       store: jest.fn().mockResolvedValue(undefined),
@@ -61,6 +88,19 @@ function build(): { service: AuthService; mocks: Mocks } {
       store: jest.fn().mockResolvedValue(undefined),
       verify: jest.fn().mockResolvedValue(true),
     },
+    redis: {
+      client: {
+        set: jest.fn().mockResolvedValue('OK'),
+        get: jest.fn().mockResolvedValue(null),
+        del: jest.fn().mockResolvedValue(1),
+      },
+    },
+    mail: {
+      enqueue: jest.fn().mockResolvedValue({
+        status: 'queued',
+        deliveryId: '00000000-0000-4000-8000-000000000001',
+      }),
+    },
   };
 
   const service = new AuthService(
@@ -69,6 +109,8 @@ function build(): { service: AuthService; mocks: Mocks } {
     config,
     mocks.store as unknown as RefreshTokenStore,
     mocks.resets as unknown as PasswordResetStore,
+    mocks.redis as unknown as RedisService,
+    mocks.mail as unknown as MailService,
   );
 
   return { service, mocks };
@@ -95,6 +137,16 @@ describe('AuthService', () => {
       expect(result.tokens.accessToken).toEqual(expect.any(String));
       expect(result.tokens.refreshToken).toEqual(expect.any(String));
       expect(result.tokens.expiresIn).toBeGreaterThan(0);
+      expect(result.emailDelivery).toEqual({
+        status: 'queued',
+        deliveryId: '00000000-0000-4000-8000-000000000001',
+      });
+      expect(mocks.mail.enqueue).toHaveBeenCalledWith(
+        'learner@example.com',
+        'Verify your GENKŌ account',
+        expect.stringContaining('verification code'),
+        'verification',
+      );
 
       // The password was hashed with argon2id, not stored or hashed with bcrypt.
       const created = mocks.userService.create.mock.calls[0][0];
@@ -107,6 +159,30 @@ describe('AuthService', () => {
 
       // The refresh jti was persisted so it can be revoked later.
       expect(mocks.store.store).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the created account successful but reports when verification mail was not queued', async () => {
+      const { service, mocks } = build();
+      mocks.userService.findByEmail.mockResolvedValue(null);
+      mocks.userService.create.mockResolvedValue(makeUser());
+      mocks.mail.enqueue.mockResolvedValue({
+        status: 'unavailable',
+        deliveryId: '00000000-0000-4000-8000-000000000002',
+        error: 'redis down',
+      });
+
+      const result = await service.register({
+        email: 'learner@example.com',
+        password: 'correct-horse-battery',
+        displayName: 'Learner',
+        dateOfBirth: ADULT_DOB,
+      });
+
+      expect(result.user.email).toBe('learner@example.com');
+      expect(result.emailDelivery).toEqual({
+        status: 'unavailable',
+        deliveryId: '00000000-0000-4000-8000-000000000002',
+      });
     });
 
     it('rejects a duplicate email with 409 and never writes', async () => {
@@ -243,6 +319,20 @@ describe('AuthService', () => {
       expect(unknown).toEqual(known);
     });
 
+    it('keeps the generic response when the registered account email cannot be queued', async () => {
+      const { service, mocks } = build();
+      mocks.userService.findByEmail.mockResolvedValue(makeUser());
+      mocks.mail.enqueue.mockResolvedValue({
+        status: 'unavailable',
+        deliveryId: '00000000-0000-4000-8000-000000000004',
+        error: 'redis down',
+      });
+
+      await expect(service.forgotPassword('learner@example.com')).resolves.toEqual({
+        message: 'If that email is registered, a reset code has been sent.',
+      });
+    });
+
     it('issues a six-digit code only when the account exists', async () => {
       const { service, mocks } = build();
       mocks.userService.findByEmail.mockResolvedValue(makeUser());
@@ -318,6 +408,22 @@ describe('AuthService', () => {
 
       expect(mocks.userService.updatePassword).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('AuthService.resendVerification', () => {
+  it('surfaces queue unavailability instead of claiming a message was sent', async () => {
+    const { service, mocks } = build();
+    mocks.userService.findById.mockResolvedValue(makeUser());
+    mocks.mail.enqueue.mockResolvedValue({
+      status: 'unavailable',
+      deliveryId: '00000000-0000-4000-8000-000000000003',
+      error: 'redis down',
+    });
+
+    await expect(service.resendVerification('507f1f77bcf86cd799439011'))
+      .rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(mocks.userService.setVerificationToken).toHaveBeenCalled();
   });
 });
 

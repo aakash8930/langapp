@@ -87,10 +87,14 @@ export function SignupForm() {
     const registered = await signup(form);
     if (!registered) return;
 
-    // Registration creates the session and sends a verification code. Verify
-    // ownership before collecting learning preferences.
+    // Registration creates the session. Carry the queue result into the next
+    // screen so a Redis outage never turns into a false “email sent” claim.
     playSuccessTransition(cardRef.current, () => {
-      navigate({ to: '/verify-email', replace: true });
+      navigate({
+        to: '/verify-email',
+        search: { delivery: registered.emailDelivery?.status ?? 'unavailable' },
+        replace: true,
+      });
     });
   }
 

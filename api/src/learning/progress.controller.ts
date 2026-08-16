@@ -2,6 +2,7 @@ import { Controller, Get, NotFoundException, UseGuards } from '@nestjs/common';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard } from '../common/auth/account-state.guard';
 import { levelFromXp } from '../user/gamification/level';
 import { UserService } from '../user/user.service';
 import { CheckpointAttemptsService } from './checkpoint-attempts.service';
@@ -20,7 +21,7 @@ import { ReviewService } from './review.service';
  * UserService, never the users collection (§4).
  */
 @Controller('me/progress')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class ProgressController {
   constructor(
     private readonly userService: UserService,

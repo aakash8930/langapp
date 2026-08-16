@@ -13,6 +13,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthenticatedUser, JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { AccountStateGuard, RequireAccountState } from '../common/auth/account-state.guard';
 import { OnboardingDto } from './dto/onboarding.dto';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -25,7 +26,7 @@ import { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 
 @Controller('me')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccountStateGuard)
 export class UserController {
   constructor(
     private readonly userService: UserService,
@@ -34,6 +35,7 @@ export class UserController {
   ) {}
 
   @Get()
+  @RequireAccountState('authenticated')
   async me(@CurrentUser() current: AuthenticatedUser): Promise<UserResponse> {
     const user = await this.userService.findById(current.userId);
     if (!user) {
@@ -53,6 +55,7 @@ export class UserController {
   }
 
   @Patch('onboarding')
+  @RequireAccountState('verified')
   async updateOnboarding(
     @CurrentUser() current: AuthenticatedUser,
     @Body() dto: OnboardingDto,

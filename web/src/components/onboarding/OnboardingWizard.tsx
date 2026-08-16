@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Check, GraduationCap, Target, BookOpen, Brain, Clock, Bell, ClipboardList, Sparkles } from 'lucide-react';
 
 import { useSession } from '../../useSession';
@@ -67,7 +67,7 @@ function Dot({ index, step }: { index: number; step: number }) {
 }
 
 export function OnboardingWizard() {
-  const { session } = useSession();
+  const { session, signOut } = useSession();
 
   if (session.state !== 'signedIn') {
     return (
@@ -75,15 +75,24 @@ export function OnboardingWizard() {
         <div className="onb-card">
           <h1 className="onb-title">Welcome to GENKŌ</h1>
           <p className="onb-subtitle">Sign in to set up your learning experience.</p>
+          <Link className="onb-btn onb-btn-primary" to="/signin">
+            Sign in
+          </Link>
         </div>
       </div>
     );
   }
 
-  return <Wizard user={session.user} />;
+  return <Wizard user={session.user} signOut={signOut} />;
 }
 
-function Wizard({ user }: { user: ReturnType<typeof useSession> extends { session: infer S } ? S extends { state: 'signedIn'; user: infer U } ? U : never : never }) {
+type SignedInUser = ReturnType<typeof useSession> extends { session: infer S }
+  ? S extends { state: 'signedIn'; user: infer U }
+    ? U
+    : never
+  : never;
+
+function Wizard({ user, signOut }: { user: SignedInUser; signOut: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const os = user.onboardingState;
@@ -164,6 +173,9 @@ function Wizard({ user }: { user: ReturnType<typeof useSession> extends { sessio
           {step === 8 && <PlacementTestIntro next={next} back={back} />}
           {step === 9 && <CompleteStep form={form} finish={finish} back={back} />}
         </fieldset>
+        <button className="onb-link" type="button" onClick={signOut} disabled={saving}>
+          Sign out
+        </button>
       </div>
     </div>
   );
