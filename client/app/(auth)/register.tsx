@@ -1,6 +1,14 @@
 import { Link, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/components/AuthProvider';
@@ -43,11 +51,13 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [dateOfBirthError, setDateOfBirthError] = useState<string>();
   const [displayNameError, setDisplayNameError] = useState<string>();
   const [emailError, setEmailError] = useState<string>();
   const [passwordError, setPasswordError] = useState<string>();
   const [confirmPasswordError, setConfirmPasswordError] = useState<string>();
+  const [termsError, setTermsError] = useState<string>();
   const [formError, setFormError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
 
@@ -63,6 +73,7 @@ export default function Register() {
     setPasswordError(nextPasswordError);
     setConfirmPasswordError(nextConfirmPasswordError);
     setDateOfBirthError(nextDobError);
+    setTermsError(acceptedTerms ? undefined : 'Accept the Terms and Privacy Policy to continue.');
     setFormError(undefined);
 
     if (
@@ -70,7 +81,8 @@ export default function Register() {
       nextEmailError ||
       nextPasswordError ||
       nextConfirmPasswordError ||
-      nextDobError
+      nextDobError ||
+      !acceptedTerms
     ) {
       return;
     }
@@ -82,6 +94,7 @@ export default function Register() {
         email: email.trim(),
         password,
         dateOfBirth: dateOfBirth.trim(),
+        acceptedTerms: true,
       });
       router.replace('/verify-email');
     } catch (error) {
@@ -237,33 +250,50 @@ export default function Register() {
         </View>
 
         <View style={{ gap: theme.spacing.lg }}>
-          <Text
-            style={{
-              fontFamily: theme.families.ui,
-              fontSize: theme.fontSize.small,
-              lineHeight: theme.lineHeight.small,
-              color: theme.colors.inkSoft,
-              textAlign: 'center',
-            }}
-          >
-            {'By creating an account, you agree to our '}
-            <Text
-              accessibilityRole="link"
-              onPress={() => router.push('/legal/terms')}
-              style={{ color: theme.colors.ai }}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.md }}>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityLabel="Accept the Terms of Service and acknowledge the Privacy Policy"
+              accessibilityState={{ checked: acceptedTerms, disabled: submitting }}
+              disabled={submitting}
+              onPress={() => {
+                setAcceptedTerms((current) => !current);
+                setTermsError(undefined);
+              }}
+              hitSlop={10}
+              style={{
+                width: 24,
+                height: 24,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 2,
+                borderColor: termsError ? theme.colors.danger : theme.colors.ai,
+                backgroundColor: acceptedTerms ? theme.colors.ai : 'transparent',
+              }}
             >
-              Terms of Service
-            </Text>
-            {' and '}
+              {acceptedTerms ? <Text style={{ color: theme.colors.surface, fontWeight: '700' }}>✓</Text> : null}
+            </Pressable>
             <Text
-              accessibilityRole="link"
-              onPress={() => router.push('/legal/privacy')}
-              style={{ color: theme.colors.ai }}
+              style={{
+                flex: 1,
+                fontFamily: theme.families.ui,
+                fontSize: theme.fontSize.small,
+                lineHeight: theme.lineHeight.small,
+                color: theme.colors.inkSoft,
+              }}
             >
-              Privacy Policy
+              {'I agree to the '}
+              <Text accessibilityRole="link" onPress={() => router.push('/legal/terms')} style={{ color: theme.colors.ai }}>
+                Terms of Service
+              </Text>
+              {' and acknowledge the '}
+              <Text accessibilityRole="link" onPress={() => router.push('/legal/privacy')} style={{ color: theme.colors.ai }}>
+                Privacy Policy
+              </Text>
+              {'.'}
             </Text>
-            {'.'}
-          </Text>
+          </View>
+          {termsError ? <FormError message={termsError} /> : null}
 
           <Button label="Create account" onPress={() => void submit()} loading={submitting} />
 

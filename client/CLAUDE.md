@@ -1,6 +1,6 @@
-# Project rules — langapp client
+# Project rules — GENKŌ client
 
-React Native + Expo client for the langapp Phase 0 API.
+React Native + Expo client for the shared GENKŌ API.
 The API is already built and live; this repo only consumes it.
 
 ## Stack (do not substitute without asking)

@@ -29,7 +29,7 @@ const EMAIL_REGEX =
 const DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export const MIN_AGE_TO_REGISTER = 13;
-export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 128;
 
 export interface PasswordRule {
@@ -43,8 +43,8 @@ export interface PasswordRule {
  * passphrase is valid even when it does not contain every character category.
  */
 export const PASSWORD_RULES: readonly PasswordRule[] = [
-  { id: 'length', label: '8+ characters', test: (p) => p.length >= PASSWORD_MIN_LENGTH },
-  { id: 'long', label: '12+ is stronger', test: (p) => p.length >= 12 },
+  { id: 'length', label: '12+ characters', test: (p) => p.length >= PASSWORD_MIN_LENGTH },
+  { id: 'long', label: '16+ is stronger', test: (p) => p.length >= 16 },
   { id: 'upper-lower', label: 'Mixed letter case', test: (p) => /[A-Z]/.test(p) && /[a-z]/.test(p) },
   { id: 'number', label: 'A number', test: (p) => /[0-9]/.test(p) },
   { id: 'special', label: 'A symbol', test: (p) => /[^a-zA-Z0-9]/.test(p) },

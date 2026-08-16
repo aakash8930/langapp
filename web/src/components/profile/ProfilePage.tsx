@@ -457,7 +457,7 @@ function LearningPreferences({ user, progress }: { user: User; progress: Progres
         <Link to="/settings" aria-label="Edit learning preferences"><Icon name="settings" size={16} /></Link>
       </div>
       <dl className="profile-row-list">
-        <PreferenceRow icon="bell" label="Study reminders" value={reminder === undefined ? 'Not configured' : reminder ? 'On' : 'Off'} />
+        <PreferenceRow icon="bell" label="In-app study reminders" value={reminder === undefined ? 'Not configured' : reminder ? 'On' : 'Off'} />
         <PreferenceRow icon="headphones" label="Audio speed" value={`${user.settings.audioSpeed}×`} />
         <PreferenceRow icon="book-open" label="Learning style" value={style ? readableValue(style) : 'Not set'} />
         <PreferenceRow icon="zap" label="Daily XP goal" value={`${progress?.daily.goalXp ?? user.gamification.dailyGoalXp} XP`} />

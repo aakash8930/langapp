@@ -1,4 +1,4 @@
-# langapp
+# GENKŌ
 
 AI-native language learning platform. Phase 0 = Japanese only, single learner flow.
 
@@ -48,7 +48,9 @@ All `npm` commands below run from `api/`.
 | `npm run start:dev` | API with watch mode |
 | `npm run seed` | Loads the Japanese content pack (idempotent) |
 | `npm test` | Unit tests |
-| `npm run typecheck` | `tsc --noEmit` — the real type gate (see OPEN-ITEMS #14) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run verify:content` | Required seed counts, recommendation slugs, and all versioned stroke assets |
+| `npm run audit:prod` | Fail on any production dependency advisory |
 | `npm run build` | Production build |
 
 ### The client
@@ -69,6 +71,7 @@ your machine.
 |---|---|
 | `npx expo start` | Dev server + QR code for Expo Go |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run audit:prod` | Fail on new advisories; only the reviewed Expo build-tool IDs are allowed |
 | `npx expo export --platform android` | Bundles everything — the fastest way to catch an import error |
 
 There is no test runner in `client/` yet, so `typecheck` and a successful
@@ -95,14 +98,19 @@ Browsing the course needs no account. Signing in adds the part that teaches:
 lesson quizzes, spaced review, XP and streak — the same account and the same
 database as the Android app, so progress made in one shows in the other.
 
-Tokens live in `localStorage`, with the XSS trade written out in `auth.ts` and
-logged as OPEN-ITEMS #27. Spaced review and the AI tutor are still app-only.
+Browser access and refresh credentials live in secure HttpOnly, SameSite cookies;
+unsafe cookie-authenticated requests also require the double-submit CSRF token.
+The native app continues to use SecureStore bearer credentials. Both surfaces use
+the same account-backed lessons, review schedule, progress, and account state.
 
 | Command | What it does |
 |---|---|
 | `npm run dev` | Vite dev server |
+| `npm run lint` | Zero-warning oxlint gate |
 | `npm run typecheck` | `tsc -b --noEmit` |
-| `npm run build` | `tsc -b && vite build` — the real gate |
+| `npm run test:e2e` | Playwright signup → verification → onboarding browser journey |
+| `npm run audit:prod` | Fail on any production dependency advisory |
+| `npm run build` | Vite build, TypeScript, and entry-budget gate |
 
 `web/CLAUDE.md` carries its rules, including the one that matters most: glass
 surfaces are translucent, **text never is**, and every contrast ratio in
@@ -317,6 +325,11 @@ Notes:
   Because it is untracked, **no git operation will move it** — a restructure that
   changes the API's working directory has to move it by hand or the service will
   fail `validateEnv` on restart.
+- **Mail smoke and alerting:** set `MAIL_SMOKE_TO` to an operations-owned inbox,
+  then an administrator can `POST /admin/mail/smoke`. It traverses the same API,
+  Redis queue, worker, retry policy, and provider used by verification/reset mail.
+  Terminal jobs are retained and make `/health` return degraded/503 until they
+  are investigated, so the existing health monitor is the alerting connection.
 - **The deployed instance has no `GEMINI_API_KEY`**, so `/chat/*` answers 503
   there while everything else works. That is why `validateEnv` gives the chat
   vars defaults instead of requiring them: a deploy whose `.env` predates a new

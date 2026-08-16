@@ -31,19 +31,12 @@ function statusBadge(status: string): string {
 export function BillingPage() {
   const { session } = useSession();
   const queryClient = useQueryClient();
+  const isSignedIn = session.state === 'signedIn';
+  const sub = isSignedIn ? session.user.subscription : undefined;
+  const isPremium = isSignedIn && sub?.status === 'active' && sub?.plan !== 'free';
 
-  if (session.state !== 'signedIn') {
-    return (
-      <div className="billing-page">
-        <p className="placeholder-note">Sign in to manage your subscription.</p>
-      </div>
-    );
-  }
-
-  const user = session.user;
-  const sub = user.subscription;
-  const isPremium = sub?.status === 'active' && sub?.plan !== 'free';
-
+  // Hooks stay above the signed-out return. `enabled` prevents the invoice
+  // request, while keeping React's hook order identical across session changes.
   const { data: invoiceData, isLoading: invoicesLoading } = useQuery({
     queryKey: queryKeys.billing.invoices,
     queryFn: fetchInvoices,
@@ -60,9 +53,17 @@ export function BillingPage() {
   const cancelMutation = useMutation({
     mutationFn: (atPeriodEnd: boolean) => cancelSubscription(atPeriodEnd),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.session.me });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.session.me });
     },
   });
+
+  if (!isSignedIn) {
+    return (
+      <div className="billing-page">
+        <p className="placeholder-note">Sign in to manage your subscription.</p>
+      </div>
+    );
+  }
 
   const invoices = invoiceData?.items ?? [];
 

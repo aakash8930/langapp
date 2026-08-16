@@ -27,6 +27,8 @@ export interface EnvConfig {
   SMTP_PORT: number;
   SMTP_USER: string;
   SMTP_PASS: string;
+  MAIL_SMOKE_TO: string;
+  CONTACT_TO: string;
 }
 
 function required(raw: Record<string, unknown>, key: string): string {
@@ -97,11 +99,16 @@ export function validateEnv(raw: Record<string, unknown>): EnvConfig {
     // `/health` is degraded and auth responses expose queue failure until set.
     RESEND_API_KEY: optional(raw, 'RESEND_API_KEY', ''),
     MAIL_FROM: optional(raw, 'MAIL_FROM', 'GENKŌ <noreply@genko.app>'),
-    // Dev-only fallback transport (MailService prefers this over Resend when
-    // set) — a Gmail address plus an App Password, no domain to verify.
+    // Dev-only fallback transport. Resend wins when both are configured;
+    // Gmail SMTP is useful when no sender domain is available.
     SMTP_HOST: optional(raw, 'SMTP_HOST', 'smtp.gmail.com'),
     SMTP_PORT: positiveInt(raw, 'SMTP_PORT', 587),
     SMTP_USER: optional(raw, 'SMTP_USER', ''),
     SMTP_PASS: optional(raw, 'SMTP_PASS', ''),
+    // Admin-only smoke endpoint destination. Empty disables the endpoint.
+    MAIL_SMOKE_TO: optional(raw, 'MAIL_SMOKE_TO', ''),
+    // Public contact requests are queued to this inbox. Empty deliberately
+    // makes POST /contact return 503 rather than claiming to deliver nowhere.
+    CONTACT_TO: optional(raw, 'CONTACT_TO', ''),
   };
 }

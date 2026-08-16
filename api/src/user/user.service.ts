@@ -15,6 +15,11 @@ export interface CreateUserInput {
   dateOfBirth?: Date;
   nativeLanguage?: string;
   tz?: string;
+  legalConsent: {
+    acceptedAt: Date;
+    termsVersion: string;
+    privacyVersion: string;
+  };
 }
 
 @Injectable()
@@ -39,6 +44,7 @@ export class UserService {
           dateOfBirth: input.dateOfBirth ?? null,
         },
         settings: input.tz ? { tz: input.tz } : {},
+        legalConsent: input.legalConsent,
       });
     } catch (err) {
       // 11000 = duplicate key on the unique email index. Racing registrations

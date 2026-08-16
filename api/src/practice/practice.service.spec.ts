@@ -14,7 +14,7 @@ function questionFor(lessonId: string) {
   const lesson = LESSONS.find((entry) => entry.id === lessonId)!;
   const kind = lesson.unit.startsWith('kanji') ? 'kanji'
     : lesson.unit.startsWith('grammar') ? 'grammar'
-      : lesson.exerciseTypes.includes('wordReading') ? 'wordReading'
+      : lesson.exerciseTypes.some((type) => type === 'wordReading') ? 'wordReading'
         : 'vocab';
   const typed = kind === 'wordReading';
   return {

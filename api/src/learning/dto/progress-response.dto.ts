@@ -1,3 +1,5 @@
+import type { StartingRecommendation } from '../starting-recommendation';
+
 /**
  * The /me/progress payload — the learner's whole dashboard in one call, so a
  * client doesn't have to stitch /me together with /reviews/due.
@@ -73,4 +75,6 @@ export interface ProgressResponse {
    * never says "tested" about a test that was failed or abandoned.
    */
   passedUnits: string[];
+  /** Deterministic curriculum target derived from persisted onboarding answers. */
+  startingRecommendation: StartingRecommendation;
 }

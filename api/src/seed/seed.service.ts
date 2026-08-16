@@ -326,6 +326,13 @@ export class SeedService {
       `Kanji use: ${kanjiUse.edges} usesKanji edges across ${kanjiUse.words} words`,
     );
 
+    const missingKanaAttribution = await this.contentService.countKanaMissingLessonAttribution();
+    if (missingKanaAttribution > 0) {
+      throw new Error(
+        `Seed incomplete: ${missingKanaAttribution} kana item(s) have no taughtInLesson attribution`,
+      );
+    }
+
     const summary: SeedSummary = {
       kanaItems: await this.contentService.countKana(),
       vocabItems: await this.contentService.countVocab(),

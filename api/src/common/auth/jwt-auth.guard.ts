@@ -2,6 +2,12 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import {
+  ACCESS_COOKIE,
+  assertBrowserCsrf,
+  isSafeMethod,
+  readCookie,
+} from './browser-cookie';
 
 export interface AccessTokenPayload {
   sub: string;
@@ -39,11 +45,17 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
-    const token = extractBearerToken(request);
+    const bearer = extractBearerToken(request);
+    const cookie = bearer ? null : readCookie(request, ACCESS_COOKIE);
+    const token = bearer ?? cookie;
 
     if (!token) {
-      throw new UnauthorizedException('Missing bearer token');
+      throw new UnauthorizedException('Missing access token');
     }
+
+    // Native bearer credentials are explicit and remain unchanged. Browser
+    // cookies are ambient, so unsafe requests also require a double-submit token.
+    if (cookie && !isSafeMethod(request.method)) assertBrowserCsrf(request);
 
     try {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {

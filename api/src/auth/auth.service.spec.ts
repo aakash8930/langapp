@@ -131,6 +131,7 @@ describe('AuthService', () => {
         password: 'correct-horse-battery',
         displayName: 'Learner',
         dateOfBirth: ADULT_DOB,
+        acceptedTerms: true,
       });
 
       expect(result.user.email).toBe('learner@example.com');
@@ -176,6 +177,7 @@ describe('AuthService', () => {
         password: 'correct-horse-battery',
         displayName: 'Learner',
         dateOfBirth: ADULT_DOB,
+        acceptedTerms: true,
       });
 
       expect(result.user.email).toBe('learner@example.com');
@@ -195,6 +197,7 @@ describe('AuthService', () => {
           password: 'correct-horse-battery',
           displayName: 'Learner',
           dateOfBirth: ADULT_DOB,
+          acceptedTerms: true,
         }),
       ).rejects.toBeInstanceOf(ConflictException);
 
@@ -445,6 +448,7 @@ describe('AuthService.register — the age gate', () => {
         password: 'correct-horse-battery',
         displayName: 'Kid',
         dateOfBirth: tooYoung.toISOString().slice(0, 10),
+        acceptedTerms: true,
       }),
     ).rejects.toThrow(/at least 13/);
 
@@ -462,6 +466,7 @@ describe('AuthService.register — the age gate', () => {
       password: 'correct-horse-battery',
       displayName: 'Learner',
       dateOfBirth: ADULT_DOB,
+      acceptedTerms: true,
     });
 
     expect(result.user.email).toBe('learner@example.com');
@@ -477,11 +482,31 @@ describe('AuthService.register — the age gate', () => {
       password: 'correct-horse-battery',
       displayName: 'Learner',
       dateOfBirth: ADULT_DOB,
+      acceptedTerms: true,
     });
 
     expect(mocks.userService.create).toHaveBeenCalledWith(
-      expect.objectContaining({ dateOfBirth: new Date(ADULT_DOB) }),
+      expect.objectContaining({
+        dateOfBirth: new Date(ADULT_DOB),
+        legalConsent: expect.objectContaining({
+          termsVersion: '2026-07-27',
+          privacyVersion: '2026-07-28',
+          acceptedAt: expect.any(Date),
+        }),
+      }),
     );
+  });
+
+  it('refuses registration without explicit legal acknowledgement', async () => {
+    const { service, mocks } = build();
+    await expect(service.register({
+      email: 'learner@example.com',
+      password: 'correct-horse-battery',
+      displayName: 'Learner',
+      dateOfBirth: ADULT_DOB,
+      acceptedTerms: false,
+    })).rejects.toThrow(/acknowledgement is required/);
+    expect(mocks.userService.create).not.toHaveBeenCalled();
   });
 
   /** An unparseable date is an unknown age, and unknown must never pass. */
@@ -494,6 +519,7 @@ describe('AuthService.register — the age gate', () => {
         password: 'correct-horse-battery',
         displayName: 'Learner',
         dateOfBirth: 'not-a-date',
+        acceptedTerms: true,
       }),
     ).rejects.toThrow(/at least 13/);
 

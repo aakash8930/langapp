@@ -7,19 +7,6 @@ import { enableApiVersioning } from './common/versioning';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
-  // Every route answers at both its bare path and under `/v1` (ADR-007). Must
-  // run before `listen`; see `common/versioning.ts` for why the bare path stays
-  // and what a v2 may and may not do.
-  enableApiVersioning(app);
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
-
   const config = app.get(ConfigService);
 
   /**
@@ -37,8 +24,8 @@ async function bootstrap(): Promise<void> {
     app.enableCors({
       origin: origins,
       methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-      credentials: false,
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-CSRF-Token'],
+      credentials: true,
     });
     new Logger('Bootstrap').log(`CORS enabled for: ${origins.join(', ')}`);
   }

@@ -68,7 +68,7 @@ export default function Welcome() {
               letterSpacing: 1,
             }}
           >
-            langapp
+            GENKŌ
           </Text>
           <Text
             style={{

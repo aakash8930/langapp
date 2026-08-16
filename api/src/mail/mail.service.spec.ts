@@ -71,6 +71,17 @@ describe('MailService delivery observability', () => {
     expect(jobs.inspectQueue).toHaveBeenCalledWith(QUEUE_MAIL);
   });
 
+  it('marks health down when terminal failures are retained for alerting', async () => {
+    const { service } = makeService();
+
+    await expect(service.health()).resolves.toMatchObject({
+      status: 'down',
+      configured: true,
+      queue: { failed: 4 },
+      error: '4 retained mail job(s) failed after all retries',
+    });
+  });
+
   it('throws provider failures so BullMQ can retry the job', async () => {
     const { service } = makeService();
     const originalFetch = global.fetch;

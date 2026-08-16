@@ -1,6 +1,8 @@
 import { PROCESSOR_METADATA } from '@nestjs/bullmq/dist/bull.constants';
 import { AnalyticsProcessor } from '../analytics/analytics.processor';
 import { LeagueSettleProcessor } from '../social/league-settle.processor';
+import { ReminderProcessor } from '../notification/reminder.processor';
+import { MailProcessor } from '../mail/mail.processor';
 import { JOB_QUEUE, JobName, QUEUE_NAMES, QueueName } from './queues';
 
 /**
@@ -19,7 +21,12 @@ import { JOB_QUEUE, JobName, QUEUE_NAMES, QueueName } from './queues';
  * new processor must be added to this list; the `expect` on the count is what
  * makes forgetting it fail rather than pass quietly.
  */
-const PROCESSORS = [AnalyticsProcessor, LeagueSettleProcessor];
+const PROCESSORS = [
+  AnalyticsProcessor,
+  LeagueSettleProcessor,
+  ReminderProcessor,
+  MailProcessor,
+];
 
 function queueOf(processor: new (...args: never[]) => unknown): string {
   const metadata = Reflect.getMetadata(PROCESSOR_METADATA, processor) as
@@ -76,6 +83,6 @@ describe('queue topology (ADR-006)', () => {
   it('covers every processor in the app — add new ones to PROCESSORS', () => {
     // Bumped deliberately when a processor lands, so the list above cannot go
     // stale without a failing test to say so.
-    expect(PROCESSORS).toHaveLength(2);
+    expect(PROCESSORS).toHaveLength(4);
   });
 });

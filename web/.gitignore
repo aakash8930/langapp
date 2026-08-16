@@ -12,8 +12,8 @@ dist
 dist-ssr
 *.local
 
-# TanStack Router generated route tree (vite plugin owns this file).
-src/routeTree.gen.ts
+# TanStack Router owns src/routeTree.gen.ts, but it is committed so a clean
+# checkout can typecheck before Vite starts. Builds regenerate it deterministically.
 
 # Editor directories and files
 .vscode/*

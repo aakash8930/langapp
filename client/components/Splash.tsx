@@ -25,7 +25,7 @@ export function Splash() {
         <Text style={{ fontFamily: theme.families.jaBold, fontSize: 58, color: theme.colors.ink, lineHeight: 70 }}>言</Text>
       </Animated.View>
       <Animated.View entering={FadeInDown.delay(140).duration(420)}>
-        <Text style={{ marginTop: theme.spacing.md, fontFamily: theme.families.ui, fontSize: theme.fontSize.title, color: theme.colors.inkSoft, letterSpacing: 2 }}>langapp</Text>
+        <Text style={{ marginTop: theme.spacing.md, fontFamily: theme.families.ui, fontSize: theme.fontSize.title, color: theme.colors.inkSoft, letterSpacing: 2 }}>GENKŌ</Text>
         <Text style={{ marginTop: theme.spacing.xs, textAlign: 'center', fontFamily: theme.families.ui, fontSize: theme.fontSize.caption, color: theme.colors.inkSoft }}>YOUR JAPANESE LEARNING SPACE</Text>
       </Animated.View>
     </View>

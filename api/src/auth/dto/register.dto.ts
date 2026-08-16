@@ -1,4 +1,14 @@
-import { IsDateString, IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  Equals,
+  IsBoolean,
+  IsDateString,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { NEW_PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from '../password-policy';
 
 export class RegisterDto {
   @IsEmail()
@@ -10,8 +20,8 @@ export class RegisterDto {
    * matters: hashing cost scales with input, so it's a cheap DoS guard.
    */
   @IsString()
-  @MinLength(8)
-  @MaxLength(128)
+  @MinLength(NEW_PASSWORD_MIN_LENGTH)
+  @MaxLength(PASSWORD_MAX_LENGTH)
   password: string;
 
   @IsString()
@@ -29,6 +39,11 @@ export class RegisterDto {
    */
   @IsDateString()
   dateOfBirth: string;
+
+  /** Explicit evidence; the server stamps the canonical policy versions. */
+  @IsBoolean()
+  @Equals(true, { message: 'Terms of Service and Privacy Policy acknowledgement is required' })
+  acceptedTerms: boolean;
 
   @IsOptional()
   @IsString()

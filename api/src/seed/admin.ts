@@ -31,7 +31,7 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger('AdminSeed');
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
-  const displayName = process.env.ADMIN_DISPLAY_NAME?.trim() || 'LangApp Administrator';
+  const displayName = process.env.ADMIN_DISPLAY_NAME?.trim() || 'GENKŌ Administrator';
 
   if (!email || !password) {
     throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD must be set before running the admin seed.');

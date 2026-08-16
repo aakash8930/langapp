@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { ChatModule } from './chat/chat.module';
 import { ContentModule } from './content/content.module';
+import { ContactModule } from './contact/contact.module';
 import { JobsModule } from './jobs/jobs.module';
 import { LearningModule } from './learning/learning.module';
 import { KnowledgeGraphModule } from './knowledge-graph/knowledge-graph.module';
@@ -83,6 +84,7 @@ import { AccountStateModule } from './common/auth/account-state.module';
     BillingModule,
     NotificationModule,
     MailModule,
+    ContactModule,
     ContentModule,
     KnowledgeGraphModule,
     LearningModule,

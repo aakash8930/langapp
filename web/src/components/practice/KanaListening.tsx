@@ -55,7 +55,7 @@ export function KanaListening({ script }: { script: 'hiragana' | 'katakana' }) {
     el.playbackRate = audioSpeed;
     audioRef.current = el;
     void el.play().catch(() => {});
-  }, [selected]);
+  }, [audioSpeed, selected]);
 
   const audioTriggered = useRef(false);
   useEffect(() => {

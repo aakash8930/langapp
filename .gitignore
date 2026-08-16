@@ -8,11 +8,12 @@ node_modules
 dist
 *.tsbuildinfo
 
-# Local object storage written at runtime by LocalStorageService.
-# Anchored with a leading slash on purpose: a bare `storage/` matches a directory
-# of that name at ANY depth, which also excluded src/common/storage/ — the
-# StorageService source itself — and broke the deploy build.
-/api/storage/
+# Local object storage written at runtime by LocalStorageService. The immutable
+# KanjiVG subset is a build input and is intentionally versioned; everything
+# else under storage remains runtime-only.
+/api/storage/*
+!/api/storage/strokes/
+!/api/storage/strokes/*.json
 
 # nightly mongodump output (scripts/backup.sh)
 /backups/

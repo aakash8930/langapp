@@ -758,6 +758,15 @@ export class ContentService {
     return this.kanaModel.countDocuments().exec();
   }
 
+  async countKanaMissingLessonAttribution(): Promise<number> {
+    return this.kanaModel.countDocuments({
+      $or: [
+        { taughtInLesson: { $exists: false } },
+        { taughtInLesson: null },
+      ],
+    }).exec();
+  }
+
   async countVocab(): Promise<number> {
     return this.vocabModel.countDocuments().exec();
   }

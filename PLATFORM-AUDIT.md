@@ -1,75 +1,39 @@
-# GENKŌ platform audit
+# GENKŌ platform audit closure
 
-**Date:** 2026-08-16  
-**Scope:** web acquisition/authentication, shared account contract, first-run onboarding, and a static product/engineering review of the web, API, and Expo client. The production API and email provider were not exercised in this workspace.
+**Updated:** 2026-08-16
+
+**Scope:** web acquisition/authentication, shared account and first-run contracts, delivery/operations, content integrity, dependency risk, and CI across API, web, and Expo.
 
 ## Executive summary
 
-GENKŌ already has a unusually broad Japanese-learning feature set: a structured course, kana/kanji/grammar libraries, listening/speaking/writing practice, account-backed FSRS review, JLPT surfaces, progress, and cross-device accounts. The largest issue is not feature count; it is cohesion. Several screens promise personalization or account behavior that is only partly wired, and the platform has more routes than the current quality gates can protect.
+The audited backlog is implemented. Browser authentication no longer exposes bearer credentials to JavaScript; first-run account state is enforced by both API guards and central web/native routing; onboarding now changes a deterministic, explainable curriculum recommendation; contact and mail flows no longer claim delivery they cannot confirm; required content and stroke assets are versioned and verified; and each package has clean-install quality and dependency gates.
 
-The signup path had concrete conversion blockers: its stylesheet was never imported, registration was duplicated inside two sign-in surfaces, OAuth controls led to API routes that do not exist, a stricter client-only password policy rejected valid API passwords, and successful web registration skipped both verification and onboarding. Those issues are addressed in this branch.
+The only accepted dependency findings are three advisory IDs propagated through Expo 57 developer build tooling. They are narrowly documented and CI fails if any new advisory appears. Browser-created bookmarks, lists, decks, deck activity, and writing corrections remain intentionally local, but that boundary is now disclosed in Data & Storage rather than implied to sync.
 
-## Completed in this pass
+## Completed contracts
 
-| Area | Problem found | Change |
+| Area | Implemented outcome | Enforcement |
 |---|---|---|
-| Signup rendering | `/signup` did not import `signup.css`, so the dedicated route could render without its intended UI. | The route now imports its stylesheet explicitly. |
-| Product fit | The signup hero was decorative Japanese wallpaper and did not explain the learning product. | Rebuilt it around the real course, spaced review, cross-device progress, and a first-lesson preview. |
-| Flow | Registration navigated straight to `/`, leaving the existing verification and personalization screens orphaned. | The flow is now **Account → Verify email → Personalize → Learn**. Verification continues into onboarding. |
-| Authentication IA | `/signin`, the landing form, and `/signup` each offered a different registration path. | Registration is canonical at `/signup`; both sign-in surfaces link there. |
-| Dead controls | Google, GitHub, and Apple buttons redirected to backend routes that do not exist. | Removed the controls. OAuth should return only after a provider, callback, account-linking, and failure flow exist. |
-| Form UX | The submit button was disabled until the form was valid, preventing submit from revealing untouched errors. | Submit now validates, focuses the first invalid field, and only disables during the request. |
-| Account semantics | The UI requested a “Full Name” although the API stores a public `displayName`. | It now asks for a display name and explains where it appears. |
-| Password contract | Web and native required character classes that `RegisterDto` does not require. | Both clients now enforce the API’s 8–128 character bounds; the meter presents other checks as suggestions. |
-| Age validation | Browser date parsing could normalize impossible dates and mix UTC/local calendar parts. | Signup now validates real UTC calendar dates and uses the same 13+ boundary as the API. |
-| Recovery copy | UI copy referred to reset/verification codes in the API server log although the API now queues email. | Recovery and verification now refer to the learner’s email. |
-| Onboarding reliability | Web onboarding swallowed every save failure and allowed repeated clicks. | Save errors are visible, controls lock while saving, and the returned user refreshes the session cache. |
-| Reminder consent | The onboarding toggle wrote `onboardingState.notificationsEnabled`, while the worker reads `notificationSettings.studyReminders`; new users also defaulted to reminders on. | The API now writes both fields, defaults reminders off, and has regression coverage for opt-in and opt-out. |
-| Auth takeover layout | `/verify-email` was the only first-run screen still rendered through the app shell. | Verification now uses the same focused takeover layout as signup, sign-in, and onboarding. |
-| Email delivery observability | Queue failures were discarded, worker errors were swallowed, configuration was absent from validated env, and `/health` could not describe mail. | Every mail has a delivery UUID/kind; registration exposes queue acceptance, resend surfaces queue outage, reset remains anti-enumerating, provider failures retry, retained queue counts and configuration appear in health, and logs distinguish provider acceptance, retries, and terminal failure without recipient data. |
-| Account-state enforcement | Verification/onboarding were client-side navigation only; deep links and direct API requests bypassed them. | API learning/product controllers now compose JWT and persisted account-state guards. `/me` and auth/session recovery remain available, onboarding requires verified email, required personalization is validated server-side, and completion cannot be reversed. |
-| Cross-client first run | Web lacked central redirects and native had neither verification UI nor verified-state routing. | Web centrally redirects by authoritative session state and shows registration delivery status. Native now models `emailVerified`, provides verify/resend UI, blocks unknown offline state, and routes **Verify → Personalize → Learn** with sign-out exits on both gates. |
-| Fast, honest personalization | Web asked ten steps and native eleven before learning, including a placement-test promise with no test behind it. | Both clients now ask exactly three decisions—starting level, one primary goal, and a sustainable daily commitment. The fake placement test, speculative “AI personalization,” reminder timing, and learning-style questions are gone; API completion validation matches the shorter contract. |
-| Web route delivery | The first page shipped roughly 1.35 MB of JavaScript and 611 KB of CSS, including learning/admin screens an auth visitor had not requested. | TanStack now splits route loaders and components automatically; AppShell, dashboard, motion, feature code, and route-owned CSS are lazy. Initial HTML references about 385 KiB JS and 39 KiB CSS (about 132 KiB gzip), and a build-time entry budget prevents eager feature chunks from returning. |
+| Browser first run | One browser journey covers signup, queued-delivery copy, six-digit verification, authoritative account-state redirect, all three onboarding choices, and dashboard entry. | `web/e2e/account-first-run.spec.ts`; Playwright Chromium in CI. |
+| Web quality baseline | Conditional hooks, callback dependencies, route generation, and entry-budget parsing are fixed. The generated TanStack route tree is committed for cold typechecks. | Web lint, typecheck, build/budget, route-tree diff, and E2E are required CI steps. |
+| Dependencies | Web and API production audits are clean. Expo residuals are the `image-size` parser DoS advisories and `uuid` caller-buffer advisory carried by Metro/`xcode`. | `audit:prod` in all packages; `client/SECURITY-AUDIT.md` and advisory-ID script reject new findings. |
+| Explainable recommendation | Persisted starting level and primary goal select kana, N5 vocabulary/grammar/kanji, or N4 vocabulary/grammar/kanji. N3–N1 explicitly fall back to the highest seeded N4 content. | Pure mapping tests, progress response contract, dashboard explanation, and verifier that every recommended unit exists. |
+| Browser auth | Access and refresh tokens are HttpOnly SameSite cookies (Secure in production). Unsafe cookie-authenticated requests require matching CSRF cookie/header values. Refresh remains single-flight and rotating. Legacy Web Storage keys are deleted. | Browser auth facade, cookie service, guard tests, CSRF tests, credentialed strict-origin CORS. Native bearer/SecureStore behavior remains supported and unchanged. |
+| Contact delivery | The public form calls a rate-limited, validated, honeypot-protected endpoint and reports success only after Redis accepts a real contact mail job. | `POST /contact`, 202/503 contract, escaped rendering, service tests, preserved form input on failure. |
+| Legal consent | Both web and native require an explicit Terms/Privacy checkbox. The API refuses missing acknowledgement and records canonical terms/privacy versions plus acceptance time outside ordinary user responses. | Shared registration contract, schema evidence, service tests, canonical legal constants. |
+| Reminder claims | Native study reminders retain device scheduling. Web calls them in-app reminders and explicitly says browser push is not enabled. | Settings/profile copy and notification-setting API contract. |
+| Mail operations | Resend is the production-preferred provider; SMTP is the development fallback. Admin smoke delivery uses the real queue/worker/provider path. Terminal failures are retained and degrade `/health`, connecting them to health monitoring. | `POST /admin/mail/smoke`, `MAIL_SMOKE_TO`, retry/terminal tests, health failure counts and 503. |
+| Brand | Product-facing metadata, PWA install name, web/native auth surfaces, status page, emails, and admin default use **GENKŌ**. Technical package/service names remain stable. | Source metadata and branding regression assertions. |
+| Required content | The authored baseline is 208 kana seed rows, 929 vocabulary rows, 32 grammar points, 188 kanji entries, and 114 lessons. Every kana seed must receive lesson attribution. | `verify:content`, seed-time attribution failure, twice-run CI seed. |
+| Stroke order | The exact 336 taught glyphs have a versioned KanjiVG subset, immutable source revision, SHA-256 manifest, valid non-empty paths, and no missing/extra files. | `api/storage/strokes`, `NOTICE`, manifest and deterministic verifier. |
+| Sync boundary | Account/profile/onboarding/lesson/review/XP/streak/settings/social data are identified as server-synced. Browser bookmarks, lists, custom decks/activity, and writing corrections are identified as local and excluded from server export. | Data & Storage disclosure; cache-clearing copy no longer implies those records are removed or synced. |
+| Web auth consolidation | Registration is only `/signup`; sign-in/recovery is only `/signin`; the landing page uses dedicated auth links. | Duplicate compact `SignIn` component removed. |
+| Password policy | New registration, reset, and change-password values require 12–128 characters and allow passphrases without arbitrary composition rules. Existing/current-password authentication remains compatible. | API policy constants and aligned web/native validation. |
+| API fixtures | DTO, seed, exercise, practice, social, user, queue, mail, and auth fixtures match current contracts. | Full API typecheck and test suite. |
+| CI | API audits/typecheck/build/tests/content verification/boot/twice-seed; web audit/lint/typecheck/build/generated-tree/E2E; Expo advisory gate/typecheck/Android export. | `.github/workflows/ci.yml`. |
 
-## Remaining issues, prioritized
+## Operational follow-up
 
-### P0 — resolve before scaling acquisition
+The sandbox has no production mail credentials, so it cannot truthfully claim a provider accepted a live external message. After deployment, set `MAIL_SMOKE_TO`, invoke `POST /admin/mail/smoke` with an administrator session, confirm the message in that inbox, and verify `/health` remains healthy. Any terminal delivery failure now makes that health check return 503 with retained failure counts.
 
-1. **Dependency audit findings need triage.** Installation reported one high-severity web finding, three API findings, and 18 high-severity Expo/client findings. Do not run a blind forced upgrade; identify reachable production paths, update direct dependencies first, and record accepted transitive risk.
-
-### P1 — high product/trust impact
-
-6. **Stored level and goal do not yet change the learning path.** The shortened flow now says plainly that the choices are saved without locking content, but no recommendation/path service consumes `proficiencyLevel` or the primary `learningGoal`. Wire them into a transparent starting recommendation before claiming stronger personalization.
-
-8. **Web reminder language exceeds web capability.** The setting now correctly controls in-app reminder generation, but the web does not request browser push permission. Label the channel as “in-app reminders”; only promise device notifications on the native client where permission and scheduling exist.
-
-9. **Auth/session tokens remain in `localStorage`.** An XSS can steal both access and refresh tokens. Before adding user-generated HTML, analytics scripts, or embeds, migrate the browser flow to secure, httpOnly, SameSite cookies with CSRF protection and strict credentialed CORS.
-
-10. **Contact form success is false-positive behavior.** The public contact route calls an authenticated admin broadcast endpoint, catches every failure, and then displays “Message sent.” Build a public, rate-limited contact endpoint with spam controls and real delivery status, or remove the form.
-
-11. **Web onboarding accessibility is incomplete.** Several choices are clickable `div` elements; some handle Enter but not Space, checkbox groups lack native controls, and labels are not consistently bound to fields. Convert choices to native radio/checkbox inputs inside `fieldset`/`legend` groups and run keyboard plus screen-reader checks.
-
-12. **Legal consent is not a platform contract.** Web now presents Terms/Privacy acknowledgment, but the native flow does not and the API stores no terms version or acceptance timestamp. Legal review should decide whether acknowledgment is required; if it is, enforce and version it consistently rather than relying on a browser-only checkbox.
-
-13. **There is no web test runner.** Signup validation, age boundaries, auth error normalization, and onboarding transitions now contain business rules but are protected only by TypeScript/build. Add focused unit tests and one browser-level happy-path/error-path auth suite.
-
-### P2 — quality and platform coherence
-
-14. **Brand identity is inconsistent.** The PWA manifest says “LangApp,” HTML title says “langapp,” authentication says “GENKŌ,” and older navigation uses “日本語.” Choose one product name and update metadata, install surfaces, email sender, app config, and legal pages together.
-
-15. **The product surface is wider than the data behind it.** Repository notes identify missing stroke-order seed data and absent kana `taughtInLesson` attribution. These gaps make writing/tracing features look broken even when their components are correct. Add seed verification to CI and fail content builds when required packs are empty.
-
-16. **Local-only learner work conflicts with cross-device expectations.** Some writing records, custom decks, bookmarks, and practice history are browser-local while account progress is synced. Continue labeling that boundary clearly, then prioritize server models for the learner-created data whose loss would hurt most.
-
-17. **Authentication behavior is still implemented twice on web.** Registration is now canonical, but the landing-page sign-in/recovery card and dedicated `/signin` form duplicate state and error handling. Extract a shared auth action hook or remove the compact form in favor of the dedicated route.
-
-18. **Current lint is not green.** Existing failures include conditional hooks in billing and hooks inside an anonymous contact route component; there is also a missing dependency warning in kana listening. Fix these baseline failures so lint can become a meaningful merge gate rather than expected noise.
-
-19. **Password minimum should be revisited as one contract.** This pass removed accidental client-only complexity and aligned all surfaces to the current 8-character API rule. A future security change should prefer longer passphrases and breached-password checks, then update API, web, native, reset, and change-password flows in the same release.
-
-## Recommended next sequence
-
-1. Add browser-level auth/onboarding tests and clear the existing lint baseline.
-2. Connect stored goals/level to an explainable course recommendation.
-3. Seed and verify stroke-order/lesson-attribution content before expanding more practice routes.
+The Expo advisory exceptions should be removed as soon as compatible Expo/Metro/`xcode` releases resolve them. The audit script prints stale IDs when that happens and continues to fail on every unreviewed advisory.

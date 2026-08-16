@@ -37,14 +37,11 @@ Browsing the course needs no account: `GET /lessons` and `GET /lessons/:id` are
 unauthenticated. Everything that *teaches* — quizzes, completion, reviews,
 progress — is behind a bearer token.
 
-Tokens are in **`localStorage`**, and the trade is written out in `auth.ts`:
-any script on the page can read them, so an XSS steals a session. That is
-tolerable only because the site renders no user-generated content and loads no
-third-party script. **Adding a comment box, an analytics snippet or an embed
-changes the answer** — at which point the fix is httpOnly cookies, which is an
-API change with a tail (cookie issuing, `credentials: true` and therefore a
-single strict origin, and CSRF protection becoming mandatory). Logged as
-OPEN-ITEMS #27.
+Browser credentials are **HttpOnly, Secure in production, SameSite cookies**.
+JavaScript can read only the double-submit CSRF cookie, which `api.ts` mirrors in
+`X-CSRF-Token` for unsafe requests. Every fetch uses `credentials: 'include'`.
+The API still accepts Authorization bearer tokens first so the native SecureStore
+flow is unchanged. Never reintroduce access or refresh tokens into Web Storage.
 
 **Refreshes must stay serialised.** Refresh tokens rotate — presenting one
 consumes it — so concurrent 401s share a single in-flight refresh. Five parallel

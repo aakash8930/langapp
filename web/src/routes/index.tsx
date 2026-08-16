@@ -1,8 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect, useRef } from 'react';
 
 import { fetchLessons, groupByUnit, type Unit } from '../api';
-import { getTokens } from '../auth';
 import { Footer } from '../components/layout/Footer';
 import { FeaturesSection } from '../components/landing/FeaturesSection';
 import { HowItWorks } from '../components/landing/HowItWorks';
@@ -11,87 +11,33 @@ import { PricingPreview } from '../components/landing/PricingPreview';
 import { TestimonialsSection } from '../components/landing/TestimonialsSection';
 import { FaqPreview } from '../components/landing/FaqPreview';
 import { Hero } from '../components/Hero';
-import { SignIn } from '../components/SignIn';
-import { log, logError } from '../debug';
 import { playHero } from '../motion';
 import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
-
-type Load =
-  | { state: 'ready'; units: Unit[] }
-  | { state: 'error'; message: string };
 
 const LazyDashboard = lazy(() =>
   import('../components/dashboard').then((module) => ({ default: module.Dashboard })),
 );
 
-/**
- * The home route, and now two different screens behind one address.
- *
- * **Signed in, it is the dashboard.** **Signed out, it is the shop window** —
- * the hero and the sign-in form, which is where the header's "Sign in" button
- * points precisely because `/` *is* the sign-in screen when there is no session.
- *
- * The course catalog used to be the bottom two-thirds of this page and now
- * lives at `/courses`. Nothing about it changed in the move except the address,
- * and one consequence is load-bearing: **`?learn=` belongs to `/courses` now.**
- * This route deliberately declares no search params, so a `learn` left on `/`
- * is dropped rather than half-honoured. Its two writers — the dashboard's
- * Continue card and the end of a lesson — both point at `/courses`.
- *
- * The curriculum API is account-state gated. Signed-out visitors therefore do
- * not request it merely to decorate hero counters; the landing page renders
- * without those figures. Signed-in visits warm the same lesson cache used by
- * the dashboard and `/courses`.
- */
 export const Route = createFileRoute('/')({
-  loader: async ({ context }): Promise<Load> => {
-    if (!getTokens()) {
-      log('route', 'home loader: public landing skips protected curriculum');
-      return { state: 'ready', units: [] };
-    }
-
-    try {
-      // `ensureQueryData` returns the cached value if fresh, otherwise fetches
-      // and stores it. The 30s default stale time means a back-navigation
-      // within half a minute reads from the cache.
-      const lessons = await context.queryClient.ensureQueryData({
-        queryKey: queryKeys.lessons.all,
-        queryFn: fetchLessons,
-      });
-      const units = groupByUnit(lessons);
-      log('route', 'home loader: catalog ready', {
-        lessons: lessons.length,
-        units: units.map((unit) => `${unit.slug}(${unit.lessons.length})`),
-      });
-      return { state: 'ready', units };
-    } catch (error: unknown) {
-      // The loader deliberately resolves rather than throwing, so the page can
-      // render its own error state instead of the router's boundary. That also
-      // means nothing else would log this.
-      logError('route', 'home loader: catalog failed to load', error);
-      return {
-        state: 'error',
-        message:
-          error instanceof Error ? error.message : 'Something stopped the catalog loading.',
-      };
-    }
-  },
   component: HomePage,
 });
 
 function HomePage() {
-  const data = Route.useLoaderData();
-  const { session, signIn } = useSession();
-
-  const units: Unit[] = data.state === 'ready' ? data.units : [];
+  const { session } = useSession();
+  const lessonsQuery = useQuery({
+    queryKey: queryKeys.lessons.all,
+    queryFn: fetchLessons,
+    enabled: session.state === 'signedIn',
+  });
+  const units: Unit[] = lessonsQuery.data ? groupByUnit(lessonsQuery.data) : [];
 
   if (session.state === 'loading') {
     return <DashboardSkeleton />;
   }
 
   if (session.state === 'signedOut') {
-    return <ShopWindow onSignIn={signIn} units={units} />;
+    return <ShopWindow units={units} />;
   }
 
   /*
@@ -108,15 +54,15 @@ function HomePage() {
 
   return (
     <>
-      {data.state === 'error' ? (
+      {lessonsQuery.isError ? (
         // The catalog failing does not empty the dashboard: the streak, the
         // goal, the level and the review queue all come from elsewhere. Only
         // the three lesson-driven cards go quiet, so this says which.
         <p className="note note-error dashboard-warning">
           <strong>The course catalog could not be loaded.</strong>
           <span>
-            {data.message} Your progress is still shown — what to study next is not. The API may
-            be asleep.
+            {lessonsQuery.error instanceof Error ? lessonsQuery.error.message : 'The catalog request failed.'}
+            {' '}Your progress is still shown — what to study next is not. The API may be asleep.
           </span>
         </p>
       ) : null}
@@ -133,7 +79,7 @@ function HomePage() {
 }
 
 /**
- * The signed-out home: hero, then the sign-in form.
+ * The signed-out home: hero, product detail, then dedicated auth links.
  *
  * `#start` is the one in-page anchor left on this screen, and `Hero`'s button
  * scrolls to it with `scrollToSection` rather than writing the hash — the hash
@@ -141,13 +87,7 @@ function HomePage() {
  * path, match nothing, and render not-found over the section it just scrolled
  * to.
  */
-function ShopWindow({
-  units,
-  onSignIn,
-}: {
-  units: Unit[];
-  onSignIn: (email: string, password: string) => Promise<void>;
-}) {
+function ShopWindow({ units }: { units: Unit[] }) {
   const heroRef = useRef<HTMLElement>(null);
 
   // The shell stays mounted across navigation, so this runs on each arrival at
@@ -175,7 +115,15 @@ function ShopWindow({
 
       <section className="section section-tight" id="start">
         <div className="wrap">
-          <SignIn onSignIn={onSignIn} />
+          <div className="panel glass signin">
+            <p className="eyebrow">START YOUR JOURNEY</p>
+            <h2>Ready to make Japanese stick?</h2>
+            <p>Build a personal course, keep your progress in sync, and continue on any device.</p>
+            <div className="hero-actions">
+              <Link to="/signup" className="btn btn-primary">Create an account</Link>
+              <Link to="/signin" className="btn btn-secondary">Sign in</Link>
+            </div>
+          </div>
         </div>
       </section>
 

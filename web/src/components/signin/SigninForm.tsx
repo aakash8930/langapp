@@ -7,6 +7,7 @@ import { forgotPassword, resetPassword } from '../../api';
 import { useSession } from '../../useSession';
 import { playSigninEntrance, playSuccessTransition } from '../../animations/signin.motion';
 import { cn } from '../../lib';
+import { PASSWORD_MIN_LENGTH } from '../../validation/signup.schema';
 
 type Mode = 'signIn' | 'forgotPassword' | 'resetPassword';
 
@@ -65,8 +66,8 @@ export function SigninForm() {
         setError('Enter the six-digit code from your email.');
         return;
       }
-      if (newPassword.length < 8) {
-        setError('Your new password must be at least 8 characters.');
+      if (newPassword.length < PASSWORD_MIN_LENGTH) {
+        setError(`Your new password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
         return;
       }
 
@@ -185,9 +186,9 @@ export function SigninForm() {
                   type={showPassword ? 'text' : 'password'}
                   value={activePassword}
                   onChange={(event) => setActivePassword(event.target.value)}
-                  placeholder={mode === 'resetPassword' ? 'At least 8 characters' : 'Your password'}
+                  placeholder={mode === 'resetPassword' ? `At least ${PASSWORD_MIN_LENGTH} characters` : 'Your password'}
                   autoComplete={mode === 'resetPassword' ? 'new-password' : 'current-password'}
-                  minLength={mode === 'resetPassword' ? 8 : undefined}
+                  minLength={mode === 'resetPassword' ? PASSWORD_MIN_LENGTH : undefined}
                   maxLength={128}
                   disabled={busy}
                   required
