@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { UserModule } from '../user/user.module';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsProcessor } from './analytics.processor';
 import { AnalyticsService } from './analytics.service';
@@ -16,7 +17,10 @@ import { Event, EventSchema } from './schemas/event.schema';
  * mean two `Queue` instances and two more Redis connections for nothing.
  */
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Event.name, schema: EventSchema }])],
+  imports: [
+    MongooseModule.forFeature([{ name: Event.name, schema: EventSchema }]),
+    UserModule,
+  ],
   controllers: [AnalyticsController],
   providers: [AnalyticsService, AnalyticsProcessor],
   exports: [AnalyticsService],

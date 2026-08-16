@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AiOrchestratorModule } from '../ai-orchestrator/ai-orchestrator.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { LearningModule } from '../learning/learning.module';
+import { UserModule } from '../user/user.module';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
@@ -21,6 +22,7 @@ import { ChatSession, ChatSessionSchema } from './schemas/chat-session.schema';
     // learning knows nothing about chat — so no forwardRef is needed here, unlike
     // the content/learning pair.
     LearningModule,
+    UserModule,
   ],
   controllers: [ChatController],
   providers: [ChatService],
