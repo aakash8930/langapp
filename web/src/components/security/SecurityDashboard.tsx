@@ -17,6 +17,7 @@ import {
 } from '../../api';
 import type { User } from '../../auth';
 import { useSession } from '../../useSession';
+import { PASSWORD_MIN_LENGTH } from '../../validation/signup.schema';
 
 /**
  * The full account security dashboard — password, 2FA, sessions, and
@@ -121,9 +122,9 @@ function PasswordSection() {
       setMessage('New passwords do not match.');
       return;
     }
-    if (newPassword.length < 8) {
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
       setStatus('error');
-      setMessage('New password must be at least 8 characters.');
+      setMessage(`New password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
       return;
     }
     save.mutate();
@@ -163,11 +164,11 @@ function PasswordSection() {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             autoComplete="new-password"
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
             maxLength={128}
             required
           />
-          <p className="security-field-hint">Must be at least 8 characters.</p>
+          <p className="security-field-hint">Use at least {PASSWORD_MIN_LENGTH} characters; long passphrases are welcome.</p>
         </div>
 
         <div className="security-field">
@@ -179,7 +180,7 @@ function PasswordSection() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             autoComplete="new-password"
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
             maxLength={128}
             required
           />

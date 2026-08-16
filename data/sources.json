@@ -56,23 +56,23 @@
   {
     "name": "KanjiVG",
     "id": "kanjivg",
-    "sourceUrl": "https://github.com/KanjiVG/kanjivg/releases/download/r20220427/kanjivg-20220427.xml.gz",
+    "sourceUrl": "https://github.com/KanjiVG/kanjivg/tree/61e39cfc29724132a6f8823b166296932985a0ff/kanji",
     "repoUrl": "https://github.com/KanjiVG/kanjivg",
+    "sourceRevision": "61e39cfc29724132a6f8823b166296932985a0ff",
     "license": "CC BY-SA 3.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
     "licenseVerified": true,
-    "licenseNote": "Read directly from the file header: 'Copyright (C) 2009-2013 Ulrich Apel. This work is distributed under the conditions of the Creative Commons Attribution-Share Alike 3.0 Licence.'",
-    "downloadedAt": "2026-08-13",
-    "version": "r20220427 (release) + a full git clone for the per-character SVG form",
-    "purpose": "Stroke-order SVG paths per kanji, with per-stroke direction and grouping. Backs writing-practice/stroke-animation — the existing TraceCanvas/StrokeOrder components on web currently 404 against /content/strokes/:codepoint because nothing is seeded (found during the platform audit, 2026-08-13). This is the fix for that gap.",
+    "licenseNote": "Read directly from the source file header: 'Copyright (C) 2009-2013 Ulrich Apel. This work is distributed under the conditions of the Creative Commons Attribution-Share Alike 3.0 Licence.' The packaged derivative preserves each SVG viewBox and stroke path geometry, orders paths by the source stroke-number IDs, and omits grouping/annotation metadata.",
+    "downloadedAt": "2026-08-16",
+    "version": "Git revision 61e39cfc29724132a6f8823b166296932985a0ff",
+    "purpose": "Deterministic stroke-order paths for every kana and kanji character taught by the authored curriculum.",
     "files": [
-      "data/raw/kanjivg/release/kanjivg.xml (merged single file, all characters)",
-      "data/raw/kanjivg/release/kanjivg.xml.gz",
-      "data/raw/kanjivg/repo/kanji/ (one SVG per character, filename = Unicode codepoint hex — the more directly importable form)"
+      "api/storage/strokes/*.json (336 compact derived character payloads)",
+      "api/storage/strokes/manifest.json (source revision and SHA-256 inventory)"
     ],
-    "format": "SVG/XML. The repo/kanji/ per-file form needs no XML-splitting; the release/kanjivg.xml form is one large document with all characters as sibling <kanji> elements.",
-    "recordCount": 6761,
-    "recordCountMethod": "grep -c '<kanji ' on kanjivg.xml, 2026-08-13"
+    "format": "Compact JSON derived from per-character SVG/XML: Unicode character, original viewBox, and path d values ordered by the source -sN stroke IDs.",
+    "recordCount": 336,
+    "recordCountMethod": "Exact authored-character inventory verified by npm run verify:content, 2026-08-16"
   },
   {
     "name": "BCCWJ Short-Unit Word Frequency List",

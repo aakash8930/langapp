@@ -57,6 +57,10 @@ jobs:
         working-directory: api
         run: npm ci
 
+      - name: Audit production API dependencies
+        working-directory: api
+        run: npm run audit:prod
+
       - name: Typecheck API
         working-directory: api
         run: npm run typecheck
@@ -68,6 +72,10 @@ jobs:
       - name: Run API Tests
         working-directory: api
         run: npm test -- --maxWorkers=2
+
+      - name: Verify authored content and deterministic stroke assets
+        working-directory: api
+        run: npm run verify:content
 
       # Every unit test constructs its classes directly, so nothing above proves
       # the app can be *assembled*. Two real bugs shipped past a green suite this
@@ -121,6 +129,14 @@ jobs:
         working-directory: web
         run: npm ci
 
+      - name: Audit production web dependencies
+        working-directory: web
+        run: npm run audit:prod
+
+      - name: Lint Web App
+        working-directory: web
+        run: npm run lint
+
       - name: Typecheck Web App
         working-directory: web
         run: npm run typecheck
@@ -128,6 +144,17 @@ jobs:
       - name: Build Web App
         working-directory: web
         run: npm run build
+
+      - name: Verify generated route tree is current
+        run: git diff --exit-code -- web/src/routeTree.gen.ts
+
+      - name: Install Playwright Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser account journey
+        working-directory: web
+        run: npm run test:e2e
 
   client:
     name: Mobile App (React Native Expo)
@@ -148,6 +175,14 @@ jobs:
         working-directory: client
         run: npm ci
 
+      - name: Audit production mobile dependencies
+        working-directory: client
+        run: npm run audit:prod
+
       - name: Typecheck Mobile Client
         working-directory: client
         run: npm run typecheck
+
+      - name: Export Android bundle
+        working-directory: client
+        run: npx expo export --platform android --output-dir /tmp/genko-expo-export

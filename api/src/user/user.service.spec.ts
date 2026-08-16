@@ -3,6 +3,7 @@ import { UserDocument } from './schemas/user.schema';
 import { UserService } from './user.service';
 
 const USER_ID = '607f1f77bcf86cd799439011';
+const notifications = { create: jest.fn().mockResolvedValue({}) } as never;
 
 /**
  * Covers `awardXp` — where the streak rules from gamification/streak.ts meet
@@ -40,6 +41,7 @@ function build(stored: Partial<Stored> = {}, opts: { rollLosesRace?: boolean } =
   };
 
   const doc = {
+    _id: { toString: () => USER_ID },
     gamification: {
       xp: state.xp,
       streakDays: state.streakDays,
@@ -64,7 +66,7 @@ function build(stored: Partial<Stored> = {}, opts: { rollLosesRace?: boolean } =
     findByIdAndUpdate,
   };
 
-  return { service: new UserService(userModel as never), findOneAndUpdate, findByIdAndUpdate };
+  return { service: new UserService(userModel as never, notifications), findOneAndUpdate, findByIdAndUpdate };
 }
 
 /** The `$inc`/`$set` payload handed to Mongo. */
@@ -227,7 +229,7 @@ describe('UserService.awardXp', () => {
 
   it('throws NotFound when the user is gone', async () => {
     const userModel = { findById: () => ({ exec: () => Promise.resolve(null) }) };
-    const service = new UserService(userModel as never);
+    const service = new UserService(userModel as never, notifications);
 
     await expect(service.awardXp(USER_ID, 10, NOW)).rejects.toThrow(NotFoundException);
   });
@@ -240,7 +242,7 @@ describe('UserService.todayXpFor', () => {
       settings: { tz: 'Asia/Kolkata' },
     }) as unknown as UserDocument;
 
-  const service = new UserService({} as never);
+  const service = new UserService({} as never, notifications);
   const NOW = new Date('2026-07-19T12:00:00Z');
 
   it('returns the stored counter when it belongs to today', () => {
@@ -385,7 +387,7 @@ describe('UserService.weeklyXpFor', () => {
   const doc = (weeklyXpWeek: string | null, weeklyXp: number): UserDocument =>
     ({ gamification: { weeklyXpWeek, weeklyXp } }) as unknown as UserDocument;
 
-  const service = new UserService({} as never);
+  const service = new UserService({} as never, notifications);
   // A Wednesday in 2026-W30.
   const NOW = new Date('2026-07-22T12:00:00Z');
 

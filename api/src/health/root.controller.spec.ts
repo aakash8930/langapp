@@ -32,7 +32,7 @@ describe('RootController', () => {
     const html = await controller().index();
 
     expect(html).toContain('<!doctype html>');
-    expect(html).toContain('langapp');
+    expect(html).toContain('GENKŌ');
     expect(html).toContain('running');
   });
 

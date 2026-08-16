@@ -18,6 +18,7 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
     upsertKana: jest.Mock;
     setKanaConceptId: jest.Mock;
     upsertVocab: jest.Mock;
+    enrichVocab: jest.Mock;
     setVocabConceptId: jest.Mock;
     upsertGrammar: jest.Mock;
     setGrammarConceptId: jest.Mock;
@@ -30,6 +31,7 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
     // pre-existing databases; this keeps fresh and repeated seeds correct.
     setKanaTaughtInLesson: jest.Mock;
     countKana: jest.Mock;
+    countKanaMissingLessonAttribution: jest.Mock;
     countVocab: jest.Mock;
     countGrammar: jest.Mock;
     countKanji: jest.Mock;
@@ -62,6 +64,7 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
       upsertKana: jest.fn().mockImplementation(() => Promise.resolve({ _id: generateOid() })),
       setKanaConceptId: jest.fn().mockResolvedValue(undefined),
       upsertVocab: jest.fn().mockImplementation(() => Promise.resolve({ _id: generateOid() })),
+      enrichVocab: jest.fn().mockResolvedValue(true),
       setVocabConceptId: jest.fn().mockResolvedValue(undefined),
       upsertGrammar: jest.fn().mockImplementation(() => Promise.resolve({ _id: generateOid() })),
       setGrammarConceptId: jest.fn().mockResolvedValue(undefined),
@@ -74,6 +77,7 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
       // pre-existing databases; this keeps fresh and repeated seeds correct.
       setKanaTaughtInLesson: jest.fn().mockResolvedValue(undefined),
       countKana: jest.fn().mockResolvedValue(208),
+      countKanaMissingLessonAttribution: jest.fn().mockResolvedValue(0),
       countVocab: jest.fn().mockResolvedValue(800),
       countGrammar: jest.fn().mockResolvedValue(40),
       countKanji: jest.fn().mockResolvedValue(104),
@@ -158,6 +162,14 @@ describe('SeedService & Knowledge Graph (OPEN-ITEMS #9, #10)', () => {
       (call: [{ kind: string }]) => call[0].kind === 'lesson',
     );
     expect(lessonNodeCalls.length).toBeGreaterThan(0);
+    expect(contentService.countKanaMissingLessonAttribution).toHaveBeenCalled();
+  });
+
+  it('fails the seed when any kana item lacks lesson attribution', async () => {
+    contentService.countKanaMissingLessonAttribution.mockResolvedValueOnce(1);
+    await expect(seedService.run()).rejects.toThrow(
+      'Seed incomplete: 1 kana item(s) have no taughtInLesson attribution',
+    );
   });
 
   /**

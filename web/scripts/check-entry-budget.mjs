@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = path.join(webRoot, 'dist');
 const html = await readFile(path.join(distRoot, 'index.html'), 'utf8');
-const assetPattern = /(?:src|href)="\.\/(assets\/[^\"]+\.(?:js|css))"/g;
+const assetPattern = /(?:src|href)="\.\/(assets\/[^"]+\.(?:js|css))"/g;
 const assets = [...new Set([...html.matchAll(assetPattern)].map((match) => match[1]))];
 
 const bytes = { js: 0, css: 0 };

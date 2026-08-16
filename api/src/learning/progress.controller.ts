@@ -9,6 +9,7 @@ import { CheckpointAttemptsService } from './checkpoint-attempts.service';
 import { ProgressResponse } from './dto/progress-response.dto';
 import { LearningService } from './learning.service';
 import { ReviewService } from './review.service';
+import { startingRecommendation } from './starting-recommendation';
 
 /**
  * Lives in the learning module rather than next to the other /me routes, and
@@ -94,6 +95,7 @@ export class ProgressController {
       lessonsCompleted: completedLessonIds.length,
       completedLessonIds,
       passedUnits,
+      startingRecommendation: startingRecommendation(user.onboardingState),
     };
   }
 }

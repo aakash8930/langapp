@@ -104,6 +104,7 @@ export type RegisterInput = {
    * without one.
    */
   dateOfBirth: string;
+  acceptedTerms: true;
 };
 
 export type LoginInput = {

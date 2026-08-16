@@ -276,6 +276,19 @@ export class Subscription {
 }
 export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);
 
+@Schema({ _id: false })
+export class LegalConsent {
+  @Prop({ type: Date, required: true })
+  acceptedAt: Date;
+
+  @Prop({ type: String, required: true })
+  termsVersion: string;
+
+  @Prop({ type: String, required: true })
+  privacyVersion: string;
+}
+export const LegalConsentSchema = SchemaFactory.createForClass(LegalConsent);
+
 @Schema({ collection: 'users', timestamps: { createdAt: true, updatedAt: true } })
 export class User {
   @Prop({ required: true, lowercase: true, trim: true })
@@ -308,6 +321,10 @@ export class User {
 
   @Prop({ type: SubscriptionSchema, required: true, default: () => ({}) })
   subscription: Subscription;
+
+  /** Registration evidence; excluded from ordinary user reads and responses. */
+  @Prop({ type: LegalConsentSchema, required: false, select: false })
+  legalConsent?: LegalConsent;
 
   @Prop({ type: Boolean, required: true, default: false })
   isAdmin: boolean;

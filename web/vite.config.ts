@@ -35,9 +35,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'LangApp',
-        short_name: 'LangApp',
-        description: 'Super-App Language Learning Platform',
+        name: 'GENKŌ',
+        short_name: 'GENKŌ',
+        description: 'Japanese lessons, review, and progress that stay in sync',
         theme_color: '#090c0b',
         background_color: '#090c0b',
         icons: [

@@ -167,7 +167,7 @@ export function SignupForm() {
             onChange={(value) => updateField('password', value)}
             error={shouldShowError('password', errors.password, form, touched, submitted) ? errors.password : undefined}
             onBlur={() => touchField('password')}
-            placeholder="At least 8 characters"
+            placeholder="At least 12 characters"
             autoComplete="new-password"
             required
             maxLength={128}
@@ -210,20 +210,23 @@ export function SignupForm() {
             disabled={isPending}
           />
 
-          <label className={cn('signup-consent', submitted && !acceptedTerms && 'signup-consent--error')}>
+          <div className={cn('signup-consent', submitted && !acceptedTerms && 'signup-consent--error')}>
             <input
               ref={termsRef}
+              id="signup-consent"
               type="checkbox"
               checked={acceptedTerms}
               onChange={(event) => setAcceptedTerms(event.target.checked)}
               disabled={isPending}
+              aria-label="Accept the Terms of Service and acknowledge the Privacy Policy"
               aria-describedby={submitted && !acceptedTerms ? 'signup-consent-error' : undefined}
             />
             <span>
-              I agree to the <Link to="/terms">Terms of Service</Link> and acknowledge the{' '}
+              <label htmlFor="signup-consent">I agree</label> to the{' '}
+              <Link to="/terms">Terms of Service</Link> and acknowledge the{' '}
               <Link to="/privacy">Privacy Policy</Link>.
             </span>
-          </label>
+          </div>
           {submitted && !acceptedTerms ? (
             <p className="signup-consent-error" id="signup-consent-error" role="alert">
               Please accept the terms to create your account.

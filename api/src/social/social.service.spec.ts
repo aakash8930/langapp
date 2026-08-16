@@ -136,12 +136,14 @@ function build(
     }),
   } as unknown as UserService;
 
+  const notifications = { create: jest.fn().mockResolvedValue({}) };
   const service = new SocialService(
     friendshipModel as never,
     messageModel as never,
     blockModel as never,
     reportModel as never,
     userService,
+    notifications as never,
   );
 
   return {

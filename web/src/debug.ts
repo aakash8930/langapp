@@ -154,7 +154,7 @@ const controls = {
     } catch {
       // Not persistable here; on for this page is still better than nothing.
     }
-    console.info('langapp debug tracing ON');
+    console.info('GENKŌ debug tracing ON');
   },
   off(): void {
     enabled = false;
@@ -163,7 +163,7 @@ const controls = {
     } catch {
       // As above.
     }
-    console.info('langapp debug tracing OFF');
+    console.info('GENKŌ debug tracing OFF');
   },
   get enabled(): boolean {
     return enabled;

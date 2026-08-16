@@ -8,6 +8,7 @@ import { AdminContentController } from './controllers/content.controller';
 import { AdminReportsController } from './controllers/reports.controller';
 import { AdminNotificationsController } from './controllers/notifications.controller';
 import { AdminSettingsController } from './controllers/settings.controller';
+import { AdminMailController } from './controllers/mail.controller';
 import { AdminAction, AdminActionSchema } from './schemas/admin-action.schema';
 import { Coupon, CouponSchema } from './schemas/coupon.schema';
 import { AppSetting, AppSettingSchema } from './schemas/app-setting.schema';
@@ -27,6 +28,7 @@ import { VocabItem, VocabItemSchema } from '../content/schemas/vocab-item.schema
 import { KanjiEntry, KanjiEntrySchema } from '../content/schemas/kanji-entry.schema';
 import { GrammarPoint, GrammarPointSchema } from '../content/schemas/grammar-point.schema';
 import { KanaItem, KanaItemSchema } from '../content/schemas/kana-item.schema';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -51,6 +53,7 @@ import { KanaItem, KanaItemSchema } from '../content/schemas/kana-item.schema';
     ]),
     NotificationModule,
     ContentModule,
+    MailModule,
   ],
   controllers: [
     AdminDashboardController,
@@ -59,6 +62,7 @@ import { KanaItem, KanaItemSchema } from '../content/schemas/kana-item.schema';
     AdminReportsController,
     AdminNotificationsController,
     AdminSettingsController,
+    AdminMailController,
   ],
   providers: [AdminGuard, AuditService],
   exports: [AdminGuard, AuditService],

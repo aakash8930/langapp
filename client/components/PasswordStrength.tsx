@@ -5,7 +5,7 @@ import { useTheme } from '@/theme';
 
 /**
  * Live password-strength suggestions matching the web signup. These checks do
- * not gate registration; the API contract requires only 8–128 characters.
+ * not gate registration; the API contract requires 12–128 characters.
  */
 export function PasswordStrength({ password }: { password: string }) {
   const theme = useTheme();
@@ -78,7 +78,7 @@ export function PasswordStrength({ password }: { password: string }) {
           color: theme.colors.inkSoft,
         }}
       >
-        Suggestions improve strength; only the 8-character minimum is required.
+        Suggestions improve strength; only the 12-character minimum is required.
       </Text>
     </View>
   );

@@ -19,7 +19,7 @@ function PaymentSuccess() {
           We are confirming your payment and updating your subscription securely.
         </p>
         <p className="success-note">
-          Premium access is activated only after the billing provider and LangApp backend confirm the transaction. Check Manage Subscription for the current status.
+          Premium access is activated only after the billing provider and GENKŌ backend confirm the transaction. Check Manage Subscription for the current status.
         </p>
         <div className="success-actions">
           <Link className="btn btn-primary" to="/">

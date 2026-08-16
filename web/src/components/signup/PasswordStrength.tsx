@@ -9,7 +9,7 @@ export interface PasswordStrengthProps {
 
 /**
  * A strength guide, deliberately separate from validity. Registration requires
- * 8–128 characters; these suggestions help a learner make that password harder
+ * 12–128 characters; these suggestions help a learner make that password harder
  * to guess without rejecting valid passphrases the API accepts.
  */
 export function PasswordStrength({ password }: PasswordStrengthProps) {
@@ -51,7 +51,7 @@ export function PasswordStrength({ password }: PasswordStrengthProps) {
           );
         })}
       </ul>
-      <p className="signup-pw-note">Suggestions improve strength; only the 8-character minimum is required.</p>
+      <p className="signup-pw-note">Suggestions improve strength; only the 12-character minimum is required.</p>
     </div>
   );
 }

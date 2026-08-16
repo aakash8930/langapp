@@ -11,6 +11,7 @@ import * as argon2 from 'argon2';
 import { generateSecret, verify as verifyTotp } from 'otplib';
 import { randomInt, randomUUID } from 'node:crypto';
 import { MailService } from '../mail/mail.service';
+import { PRIVACY_EFFECTIVE_DATE, TERMS_EFFECTIVE_DATE } from '../legal/legal.constants';
 import { RedisService } from '../redis/redis.service';
 import { toUserResponse } from '../user/dto/user-response.dto';
 import { meetsMinimumAge, MIN_AGE_TO_REGISTER } from '../user/gamification/age';
@@ -55,6 +56,12 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
+    if (dto.acceptedTerms !== true) {
+      throw new BadRequestException(
+        'Terms of Service and Privacy Policy acknowledgement is required',
+      );
+    }
+
     // Age gate first: refuse before spending an argon2 hash on the password, and
     // before the email lookup tells an under-age visitor whether an address is
     // taken. `meetsMinimumAge` refuses an unparseable date rather than defaulting
@@ -79,6 +86,11 @@ export class AuthService {
       dateOfBirth: new Date(dto.dateOfBirth),
       nativeLanguage: dto.nativeLanguage,
       tz: dto.tz,
+      legalConsent: {
+        acceptedAt: new Date(),
+        termsVersion: TERMS_EFFECTIVE_DATE,
+        privacyVersion: PRIVACY_EFFECTIVE_DATE,
+      },
     });
 
     // null means the unique index rejected it — someone registered the same

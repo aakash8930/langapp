@@ -24,6 +24,8 @@ export const queryKeys = {
       ['lessons', lessonId, 'exercises', attempt] as const,
   },
   session: {
+    /** Shared browser-session switch, so every useSession caller changes together. */
+    available: ['session', 'available'] as const,
     /** `GET /me` — who is signed in. */
     me: ['me'] as const,
     /** `GET /me/progress` — XP, streak, due-now, completed lessons. */

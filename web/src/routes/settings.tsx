@@ -347,7 +347,12 @@ function NotificationsSection({ user }: { user: User }) {
     <section>
       <h2 className="card-title">Notifications</h2>
       <div className="settings-fields">
-        <SettingCheck label="Study reminders" desc="Remind you to practice daily." checked={studyReminders} onChange={(v) => toggle('studyReminders', setStudyReminders, v)} />
+        <SettingCheck
+          label="In-app study reminders"
+          desc="Add reminders to your GENKŌ Notifications feed. Browser push notifications are not enabled."
+          checked={studyReminders}
+          onChange={(v) => toggle('studyReminders', setStudyReminders, v)}
+        />
         <SettingCheck label="Achievements" desc="Streak milestones and level-ups." checked={achievementsNotif} onChange={(v) => toggle('achievements', setAchievementsNotif, v)} />
         <SettingCheck label="Community" desc="Friend requests, messages, and replies." checked={communityNotif} onChange={(v) => toggle('community', setCommunityNotif, v)} />
         <SettingCheck label="Events & updates" desc="New lessons, challenges, and features." checked={eventsUpdates} onChange={(v) => toggle('eventsUpdates', setEventsUpdates, v)} />
@@ -436,8 +441,22 @@ function DataSection() {
         </div>
 
         <div className="field" style={{ marginTop: 'var(--s-lg)' }}>
+          <h3 className="field-label">What syncs across devices</h3>
+          <p className="field-note">
+            Your profile, onboarding choices, lesson progress, XP, streak, review schedule,
+            account settings, friends, messages, and in-app notifications are stored with your
+            account and sync through the API.
+          </p>
+          <p className="field-note" style={{ marginTop: 'var(--s-xs)' }}>
+            Vocabulary and kanji bookmarks, vocabulary lists, custom flashcard decks, deck
+            activity, and writing-workspace corrections currently stay in this browser only.
+            They are not included in account sync or the server export yet.
+          </p>
+        </div>
+
+        <div className="field" style={{ marginTop: 'var(--s-lg)' }}>
           <label className="field-label">Clear local cache</label>
-          <p className="field-note">Remove cached data stored in your browser. Your account data on the server is not affected.</p>
+          <p className="field-note">Remove the in-memory API response cache. Account data and browser-only bookmarks, lists, decks, and writing history are not affected.</p>
           <button
             className="btn btn-secondary"
             type="button"

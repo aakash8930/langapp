@@ -1,16 +1,16 @@
 /**
- * The read-only slice of the langapp API this site uses.
+ * The typed slice of the GENKŌ API this site uses.
  *
  * `GET /lessons` and `GET /lessons/:id` are unauthenticated on purpose — shared
  * reference content with no per-user state — so the curriculum browses without
  * a session. Everything that teaches (quizzes, completion, progress) is behind
- * a bearer token, with one refresh-and-retry on 401.
+ * HttpOnly browser cookies, with one refresh-and-retry on 401.
  *
  * Shapes mirror `api/src/content/dto/lesson-response.dto.ts`. Keep them in step
  * with the contract in the root CLAUDE.md.
  */
 
-import { emitSessionExpired, getTokens, setTokens, type Tokens, type User } from './auth';
+import { emitSessionExpired, type User } from './auth';
 import { log, logError } from './debug';
 import type {
   PracticeAnswerResponse,
@@ -128,7 +128,7 @@ async function readError(response: Response): Promise<string> {
  * "the laptop is asleep" — and only the third of those produces a network-tab
  * entry that explains itself.
  */
-async function send<T>(path: string, init: RequestInit = {}, accessToken?: string): Promise<T> {
+async function send<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = init.method ?? 'GET';
 
   if (!BASE_URL) {
@@ -149,18 +149,22 @@ async function send<T>(path: string, init: RequestInit = {}, accessToken?: strin
   if (init.body !== undefined && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
-  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+  const csrf = readCookie('genko_csrf');
+  if (csrf && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
+    headers.set('X-CSRF-Token', csrf);
+  }
 
   const started = performance.now();
   // `authed: true/false` rather than the token — the leak rule is about the
   // client too, and a bearer in a console line is a bearer in a screenshot.
-  log('api', `→ ${method} ${path}`, { authed: accessToken !== undefined });
+  log('api', `→ ${method} ${path}`, { credentials: 'browser cookies' });
 
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       ...init,
       headers,
+      credentials: 'include',
       // The API runs on a laptop that sleeps. Without this the page hangs
       // forever behind a funnel that terminates TLS for a dead service.
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -218,70 +222,55 @@ export function fetchLesson(id: string): Promise<LessonDetail> {
 // Authenticated calls
 // ---------------------------------------------------------------------------
 
-/**
- * Shared across concurrent 401s.
- *
- * Refresh tokens **rotate** — presenting one consumes it. Five parallel
- * requests failing at once must therefore share a single refresh, or four of
- * them race to redeem a token that the winner already burned and the session
- * dies for no reason. The contract in the root CLAUDE.md calls this out
- * explicitly; this variable is the whole of the fix.
- */
-let refreshInFlight: Promise<Tokens> | null = null;
+/** Read the non-HttpOnly half of the double-submit CSRF pair. */
+function readCookie(name: string): string | null {
+  for (const part of document.cookie.split(';')) {
+    const separator = part.indexOf('=');
+    if (separator < 0 || part.slice(0, separator).trim() !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(separator + 1).trim());
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
-function refresh(refreshToken: string): Promise<Tokens> {
+/**
+ * Refresh tokens rotate, so concurrent 401s must share one request. The token
+ * itself stays in an HttpOnly cookie and is never returned to JavaScript.
+ */
+let refreshInFlight: Promise<void> | null = null;
+
+function refreshBrowserSession(): Promise<void> {
   if (refreshInFlight) {
-    // Worth seeing: this branch firing is the serialisation working. If a trace
-    // ever shows two `/auth/refresh` requests instead of this line, rotation is
-    // being raced and the session will die for no reason.
     log('auth', 'refresh already in flight — joining it');
     return refreshInFlight;
   }
 
-  log('auth', 'refreshing tokens');
-
-  const pending = (async () => {
-    try {
-      // `/auth/refresh` answers flat — not nested under `tokens`.
-      const tokens = await send<Tokens>('/auth/refresh', {
-        method: 'POST',
-        body: JSON.stringify({ refreshToken }),
-      });
-      setTokens(tokens);
-      return tokens;
-    } finally {
-      refreshInFlight = null;
-    }
-  })();
-
+  log('auth', 'refreshing browser session');
+  const pending = send<void>('/auth/browser/refresh', { method: 'POST' }).finally(() => {
+    refreshInFlight = null;
+  });
   refreshInFlight = pending;
   return pending;
 }
 
-/** One refresh-and-retry on 401, then the session is over. */
+/** One cookie refresh-and-retry on 401, then the browser session is over. */
 export async function authed<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const tokens = getTokens();
-  if (!tokens) {
-    log('auth', `no tokens — ${path} refused before it was sent`);
-    emitSessionExpired();
-    throw new ApiError('Sign in to continue.', 401);
-  }
-
   try {
-    return await send<T>(path, init, tokens.accessToken);
+    return await send<T>(path, init);
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
 
     log('auth', `401 on ${path} — attempting one refresh-and-retry`);
-
-    let renewed: Tokens;
     try {
-      renewed = await refresh(tokens.refreshToken);
+      await refreshBrowserSession();
     } catch (refreshError) {
-      // A refresh that failed because the server is unreachable is not an
-      // expired session — keep the tokens so it recovers when it is back.
+      // An unreachable API is not proof the session expired. The HttpOnly
+      // cookies remain intact and the next request can recover.
       if (refreshError instanceof ApiError && refreshError.status === 0) {
-        log('auth', 'refresh failed on an unreachable server — tokens kept');
+        log('auth', 'refresh failed on an unreachable server — session retained');
         throw refreshError;
       }
       logError('auth', 'refresh rejected — session over', { path, refreshError });
@@ -290,10 +279,10 @@ export async function authed<T>(path: string, init: RequestInit = {}): Promise<T
     }
 
     try {
-      return await send<T>(path, init, renewed.accessToken);
+      return await send<T>(path, init);
     } catch (retryError) {
       if (retryError instanceof ApiError && retryError.status === 401) {
-        logError('auth', `401 again on ${path} after a fresh token — session over`);
+        logError('auth', `401 again on ${path} after refresh — session over`);
         emitSessionExpired();
         throw new ApiError('Your session expired. Sign in again.', 401);
       }
@@ -307,7 +296,7 @@ export type EmailDelivery = {
   deliveryId: string;
 };
 
-export type AuthResponse = { user: User; tokens: Tokens; emailDelivery?: EmailDelivery };
+export type AuthResponse = { user: User; emailDelivery?: EmailDelivery };
 
 export function register(body: {
   email: string;
@@ -315,13 +304,27 @@ export function register(body: {
   displayName: string;
   /** ISO 'YYYY-MM-DD'. Required — the server's age gate refuses under-13s. */
   dateOfBirth: string;
+  acceptedTerms: true;
   tz?: string;
 }): Promise<AuthResponse> {
-  return send<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(body) });
+  return send<AuthResponse>('/auth/browser/register', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export function login(body: { email: string; password: string }): Promise<AuthResponse> {
-  return send<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) });
+  return send<AuthResponse>('/auth/browser/login', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function logoutBrowser(): Promise<void> {
+  return send<void>('/auth/browser/logout', { method: 'POST' });
+}
+
+export function submitContact(body: {
+  name: string;
+  email: string;
+  message: string;
+  website?: string;
+}): Promise<{ status: 'queued'; deliveryId: string }> {
+  return send('/contact', { method: 'POST', body: JSON.stringify(body) });
 }
 
 /**
@@ -465,6 +468,16 @@ export type Progress = {
   cardsDueNow: number;
   lessonsCompleted: number;
   completedLessonIds: string[];
+  passedUnits: string[];
+  startingRecommendation: {
+    unit: string;
+    title: string;
+    requestedLevel: string;
+    availableLevel: 'beginner' | 'n5' | 'n4';
+    goal: string;
+    fallback: boolean;
+    reason: string;
+  };
 };
 
 export function fetchProgress(): Promise<Progress> {

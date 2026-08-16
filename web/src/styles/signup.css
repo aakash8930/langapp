@@ -395,6 +395,10 @@
   color: var(--su-text-soft);
   font-size: 12px;
   line-height: 1.55;
+}
+
+.signup-consent input,
+.signup-consent label {
   cursor: pointer;
 }
 

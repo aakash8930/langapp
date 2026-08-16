@@ -294,6 +294,7 @@ describe('ExerciseService.generate', () => {
             jlpt: 'N5',
             explanation: '…',
             examples: [],
+            commonMistakes: [],
           },
         ],
       }),
@@ -826,6 +827,7 @@ function grammarItem(p: (typeof POINTS)[number]) {
     jlpt: 'N5',
     explanation: '…',
     examples: [{ sentence: p.sentence, answer: p.answer, gloss: p.gloss }],
+    commonMistakes: [],
   };
 }
 
@@ -950,6 +952,8 @@ function kanjiItem(k: (typeof KANJI)[number]) {
     kun: ['やま'],
     meanings: k.meanings,
     strokes: 3,
+    radical: k.char,
+    jlpt: 'N5',
   };
 }
 

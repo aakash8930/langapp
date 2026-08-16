@@ -1,8 +1,18 @@
 import { Controller, Get, Header } from '@nestjs/common';
+import { PRIVACY_EFFECTIVE_DATE, TERMS_EFFECTIVE_DATE } from './legal.constants';
+
+function displayDate(iso: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${iso}T00:00:00Z`));
+}
 
 const PRIVACY_POLICY = `# Privacy Policy
 
-**Effective Date:** July 28, 2026
+**Effective Date:** ${displayDate(PRIVACY_EFFECTIVE_DATE)}
 
 ## 1. Information We Collect
 - **Account Information:** Email address, display name, date of birth, time zone, and native language.
@@ -24,12 +34,12 @@ const PRIVACY_POLICY = `# Privacy Policy
 - **One exception:** safety reports filed by you or about you are retained after deletion. They are kept as evidence for moderation review — a report about harmful behaviour would otherwise be erasable by the person reported — and cannot be used to reconstruct your account.
 
 ## 4. Contact & Inquiries
-For privacy inquiries or data requests, contact support@langapp.example.com.
+For privacy inquiries or data requests, use the public Contact page so the request reaches the configured support mailbox.
 `;
 
 const TERMS_OF_SERVICE = `# Terms of Service
 
-**Effective Date:** July 27, 2026
+**Effective Date:** ${displayDate(TERMS_EFFECTIVE_DATE)}
 
 ## 1. Acceptable Use & Age Requirement
 - You must be at least 13 years of age to register an account and use the service.
@@ -66,7 +76,7 @@ export class LegalController {
   getPrivacyJson(): { title: string; effectiveDate: string; content: string } {
     return {
       title: 'Privacy Policy',
-      effectiveDate: '2026-07-28',
+      effectiveDate: PRIVACY_EFFECTIVE_DATE,
       content: PRIVACY_POLICY,
     };
   }
@@ -75,7 +85,7 @@ export class LegalController {
   getTermsJson(): { title: string; effectiveDate: string; content: string } {
     return {
       title: 'Terms of Service',
-      effectiveDate: '2026-07-27',
+      effectiveDate: TERMS_EFFECTIVE_DATE,
       content: TERMS_OF_SERVICE,
     };
   }

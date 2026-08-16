@@ -36,7 +36,7 @@ export class RootController {
     // HealthService — no user input reaches this page, so there is nothing to
     // escape.
     return page(`
-      <h1>langapp <span class="dim">· Phase 0</span></h1>
+      <h1>GENKŌ <span class="dim">· service status</span></h1>
       <p class="status ${ok ? 'up' : 'down'}">
         <span class="dot"></span>${ok ? 'running' : 'degraded'}
         <span class="dim">
@@ -67,8 +67,8 @@ export class RootController {
       </p>
 
       <p class="foot">
-        Japanese-only learning API. No web client yet — Phase 0 is the API alone,
-        so every path above returns JSON.
+        GENKŌ Japanese-learning API. Product clients live on separate web and
+        native surfaces; application endpoints return JSON.
       </p>
     `);
   }
@@ -118,7 +118,7 @@ function page(body: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>langapp · status</title>
+<title>GENKŌ · status</title>
 <style>
   :root {
     --bg: #fbfbfa; --fg: #1a1a18; --dim: #6b6b66;

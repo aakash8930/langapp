@@ -17,8 +17,7 @@ export type SignupResult = AuthResponse;
 
 /**
  * Maps the validated form to the register endpoint and returns the auth
- * response (user + tokens) verbatim. Token storage is left to the caller — see
- * `useSignup` — so this stays a pure data function: testable, React-free, and
+ * response verbatim. Cookie issuance is handled by the API, so this stays a pure data function: testable, React-free, and
  * trivially swappable if the endpoint shape ever changes.
  */
 export async function registerAccount(form: SignupForm): Promise<SignupResult> {
@@ -27,6 +26,7 @@ export async function registerAccount(form: SignupForm): Promise<SignupResult> {
     password: form.password,
     displayName: form.displayName.trim(),
     dateOfBirth: form.dateOfBirth,
+    acceptedTerms: true,
     // The server needs a zone to decide what "today" means for the streak;
     // the browser is the only thing that knows it.
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,

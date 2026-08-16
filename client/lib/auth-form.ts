@@ -8,7 +8,7 @@ import { ApiError, OfflineError } from '@/api/client';
  *
  */
 
-export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MIN_LENGTH = 12;
 const PASSWORD_MAX_LENGTH = 128;
 const EMAIL_MAX_LENGTH = 254;
 const DISPLAY_NAME_MAX_LENGTH = 60;
@@ -42,7 +42,7 @@ export interface PasswordRule {
 /** Strength suggestions only; registration itself mirrors the API's length bounds. */
 export const PASSWORD_RULES: readonly PasswordRule[] = [
   { id: 'length', label: `${PASSWORD_MIN_LENGTH}+ characters`, test: (p) => p.length >= PASSWORD_MIN_LENGTH },
-  { id: 'long', label: '12+ is stronger', test: (p) => p.length >= 12 },
+  { id: 'long', label: '16+ is stronger', test: (p) => p.length >= 16 },
   { id: 'upper-lower', label: 'Mixed letter case', test: (p) => /[A-Z]/.test(p) && /[a-z]/.test(p) },
   { id: 'number', label: 'A number', test: (p) => /[0-9]/.test(p) },
   { id: 'special', label: 'A symbol', test: (p) => /[^a-zA-Z0-9]/.test(p) },

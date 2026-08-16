@@ -19,9 +19,8 @@ export interface MailHealth {
 }
 
 /**
- * Which real transport `send()` uses. SMTP wins when both are configured —
- * it's the dev-only path, so its presence means it was deliberately set up
- * for testing recipients Resend's unverified-domain sandbox can't reach.
+ * Which real transport `send()` uses. Resend wins when both are configured;
+ * SMTP is the explicit development fallback for testing recipients.
  */
 type MailTransport = 'resend' | 'smtp' | 'none';
 
@@ -57,7 +56,7 @@ export class MailService {
         })
       : null;
 
-    this.transport = this.smtpTransporter ? 'smtp' : this.apiKey ? 'resend' : 'none';
+    this.transport = this.apiKey ? 'resend' : this.smtpTransporter ? 'smtp' : 'none';
     this.enabled = this.transport !== 'none';
 
     // Gmail's relay rejects (or silently rewrites) a From address that isn't
@@ -149,11 +148,16 @@ export class MailService {
         error: 'No mail transport is configured (RESEND_API_KEY or SMTP_USER/SMTP_PASS)',
       };
     }
+    const hasTerminalFailures = queue.status === 'up' && queue.failed > 0;
     return {
-      status: queue.status,
+      status: queue.status === 'up' && !hasTerminalFailures ? 'up' : 'down',
       configured: true,
       queue,
-      ...(queue.error ? { error: queue.error } : {}),
+      ...(queue.error
+        ? { error: queue.error }
+        : hasTerminalFailures
+          ? { error: `${queue.failed} retained mail job(s) failed after all retries` }
+          : {}),
     };
   }
 }

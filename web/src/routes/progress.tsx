@@ -87,7 +87,7 @@ function ProgressPage() {
           <section className="glass progress-level-card" aria-label="Platform level progress">
             <div><p className="progress-kicker">PLATFORM LEVEL</p><h2>Level {progress.level}</h2><p>{progress.xpIntoLevel.toLocaleString()} of {progress.xpForNextLevel.toLocaleString()} XP toward the next level</p></div>
             <div className="progress-level-meter"><span style={{ width: `${Math.min(100, progress.xpForNextLevel ? progress.xpIntoLevel / progress.xpForNextLevel * 100 : 0)}%` }} /></div>
-            <small>Platform level reflects LangApp activity, not a JLPT proficiency level.</small>
+            <small>Platform level reflects GENKŌ activity, not a JLPT proficiency level.</small>
           </section>
           <div className="progress-grid" style={{ marginBottom: 'var(--s-xl)' }}>
           <section className="card glass" aria-labelledby="daily-heading">
