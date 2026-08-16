@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import '../../styles/verify-email.css';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';

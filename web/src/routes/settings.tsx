@@ -17,8 +17,7 @@ import { logError } from '../debug';
 import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
 import { SecurityDashboard } from '../components/security/SecurityDashboard';
-
-import './settings.css';
+import { settingsRouteStyles } from '../styles/settingsRouteStyles';
 
 const SECTIONS = [
   'account', 'security', 'appearance', 'accessibility',
@@ -52,6 +51,7 @@ function timeZones(current: string): string[] {
 }
 
 function SettingsShell() {
+  void settingsRouteStyles;
   const { session } = useSession();
   const [activeSection, setActiveSection] = useState<Section>('account');
 

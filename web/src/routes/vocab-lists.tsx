@@ -3,12 +3,14 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 
 import { useVocabLists } from '../hooks/useVocabLists';
 import { exportAsJson, exportAsCsv } from '../components/library/exportVocab';
+import { vocabRouteStyles } from '../styles/vocabRouteStyles';
 
 export const Route = createFileRoute('/vocab-lists')({
   component: ListsRoute,
 });
 
 function ListsRoute() {
+  void vocabRouteStyles;
   const { lists, create, remove, removeEntry } = useVocabLists();
   const [newName, setNewName] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());

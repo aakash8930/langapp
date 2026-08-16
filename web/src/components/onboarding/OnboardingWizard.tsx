@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import '../../styles/onboarding.css';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 

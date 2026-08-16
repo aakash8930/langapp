@@ -13,8 +13,7 @@ import {
 } from '../api';
 import { queryKeys } from '../queryKeys';
 import { useSession } from '../useSession';
-
-import './progress.css';
+import { progressRouteStyles } from '../styles/progressRouteStyles';
 
 export const Route = createFileRoute('/progress')({
   component: ProgressPage,
@@ -28,6 +27,7 @@ const BANDS: { id: MasteryLevel; label: string; note: string }[] = [
 ];
 
 function ProgressPage() {
+  void progressRouteStyles;
   const { session } = useSession();
   const signedIn = session.state === 'signedIn';
 

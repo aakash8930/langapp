@@ -4,8 +4,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useCorpus, type VocabItem } from '../components/library/useCorpus';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useVocabLists } from '../hooks/useVocabLists';
-
-import '../components/library/vocab-browse.css';
+import { vocabRouteStyles } from '../styles/vocabRouteStyles';
 
 type Pool = 'all' | 'bookmarks' | string;
 
@@ -22,7 +21,8 @@ export const Route = createFileRoute('/vocab-practice')({
   component: VocabPracticeRoute,
 });
 
-export function VocabPracticeRoute() {
+function VocabPracticeRoute() {
+  void vocabRouteStyles;
   const corpus = useCorpus();
   const { bookmarks } = useBookmarks();
   const { lists } = useVocabLists();

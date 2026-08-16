@@ -1,10 +1,13 @@
 import { createRootRouteWithContext, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 
-import { AppShell } from '../components/layout/AppShell';
-import { armMotion } from '../motion';
+import { logError } from '../debug';
 import { useSession } from '../useSession';
+
+const LazyAppShell = lazy(() =>
+  import('../components/layout/AppShell').then((module) => ({ default: module.AppShell })),
+);
 
 /**
  * The shape every route loader sees as its `context` argument. Caches the
@@ -60,7 +63,12 @@ function RootShell() {
   // screen needs it on first paint, and remounting it on every navigation is
   // exactly what `motion.ts` exists to avoid.
   useEffect(() => {
-    armMotion();
+    // Animation runtime is not part of route matching or the first paint. Load
+    // it after mount so an auth entry route does not block on the full motion
+    // engine before its first field is usable.
+    void import('../motion')
+      .then(({ armMotion }) => armMotion())
+      .catch((error) => logError('ui', 'animation runtime failed to load', error));
   }, []);
 
   return (
@@ -141,8 +149,10 @@ function ShellContent() {
   }
 
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <Suspense fallback={<main className="page" aria-busy="true" aria-label="Loading application" />}>
+      <LazyAppShell>
+        <Outlet />
+      </LazyAppShell>
+    </Suspense>
   );
 }

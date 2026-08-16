@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useRef } from 'react';
+import './landing/landing.css';
 import { Link } from '@tanstack/react-router';
 import { logError } from '../debug';
 import { countUp, scrollToSection } from '../motion';

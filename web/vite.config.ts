@@ -14,6 +14,21 @@ export default defineConfig({
     TanStackRouterVite({
       routesDirectory: 'src/routes',
       generatedRouteTree: 'src/routeTree.gen.ts',
+      // Route components (and their component-only imports) become dynamic
+      // chunks. Public landing/auth routes no longer download the dashboard,
+      // practice suites, admin panels, or their feature CSS before first paint.
+      autoCodeSplitting: true,
+      codeSplittingOptions: {
+        // Loaders often import the shared API plus feature-specific helpers.
+        // Keeping them in the route tree would preload learning code even when
+        // the matched route is only /, /signin, /signup, or /verify-email.
+        defaultBehavior: [
+          ['loader'],
+          ['component'],
+          ['errorComponent'],
+          ['notFoundComponent'],
+        ],
+      },
     }),
     react(),
     VitePWA({

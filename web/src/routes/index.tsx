@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 
 import { fetchLessons, groupByUnit, type Unit } from '../api';
-import { Dashboard } from '../components/dashboard';
+import { getTokens } from '../auth';
 import { Footer } from '../components/layout/Footer';
 import { FeaturesSection } from '../components/landing/FeaturesSection';
 import { HowItWorks } from '../components/landing/HowItWorks';
@@ -10,7 +10,6 @@ import { JLPTPrepSection } from '../components/landing/JLPTPrepSection';
 import { PricingPreview } from '../components/landing/PricingPreview';
 import { TestimonialsSection } from '../components/landing/TestimonialsSection';
 import { FaqPreview } from '../components/landing/FaqPreview';
-import '../components/landing/landing.css';
 import { Hero } from '../components/Hero';
 import { SignIn } from '../components/SignIn';
 import { log, logError } from '../debug';
@@ -21,6 +20,10 @@ import { useSession } from '../useSession';
 type Load =
   | { state: 'ready'; units: Unit[] }
   | { state: 'error'; message: string };
+
+const LazyDashboard = lazy(() =>
+  import('../components/dashboard').then((module) => ({ default: module.Dashboard })),
+);
 
 /**
  * The home route, and now two different screens behind one address.
@@ -36,13 +39,18 @@ type Load =
  * is dropped rather than half-honoured. Its two writers — the dashboard's
  * Continue card and the end of a lesson — both point at `/courses`.
  *
- * The loader still runs for signed-out visitors, because the hero's three
- * counters come from the catalog and browsing is public. It is the same cached
- * query the dashboard and `/courses` read, so arriving at any of the three
- * warms the other two.
+ * The curriculum API is account-state gated. Signed-out visitors therefore do
+ * not request it merely to decorate hero counters; the landing page renders
+ * without those figures. Signed-in visits warm the same lesson cache used by
+ * the dashboard and `/courses`.
  */
 export const Route = createFileRoute('/')({
   loader: async ({ context }): Promise<Load> => {
+    if (!getTokens()) {
+      log('route', 'home loader: public landing skips protected curriculum');
+      return { state: 'ready', units: [] };
+    }
+
     try {
       // `ensureQueryData` returns the cached value if fresh, otherwise fetches
       // and stores it. The 30s default stale time means a back-navigation
@@ -113,11 +121,13 @@ function HomePage() {
         </p>
       ) : null}
 
-      <Dashboard
-        units={units}
-        progress={session.progress}
-        tz={session.user.settings.tz}
-      />
+      <Suspense fallback={<DashboardSkeleton />}>
+        <LazyDashboard
+          units={units}
+          progress={session.progress}
+          tz={session.user.settings.tz}
+        />
+      </Suspense>
     </>
   );
 }
@@ -174,39 +184,14 @@ function ShopWindow({
   );
 }
 
-/**
- * The dashboard's loading state.
- *
- * Blocks rather than a spinner, and in the dashboard's own proportions: the
- * page it becomes has a wide column and a narrow one, and a layout that
- * reshuffles the moment data lands reads as a glitch. Nothing here animates —
- * a shimmer under `prefers-reduced-motion` is exactly the kind of decoration
- * the site's motion rule turns off.
- */
+/** Uses only global shell styles so dashboard CSS stays in its lazy chunk. */
 function DashboardSkeleton() {
   return (
-    <div className="dashboard" aria-busy="true" aria-live="polite">
-      <span className="visually-hidden">Loading your dashboard…</span>
-
-      <section className="dashboard-main" aria-label="Loading learning dashboard">
-        <span className="skeleton-card skeleton-card-wide" />
-        <div className="dashboard-action-grid">
-          <span className="skeleton-card skeleton-card-tall" />
-          <span className="skeleton-card" />
-        </div>
-        <span className="skeleton-card skeleton-card-wide" />
-        <div className="dashboard-progress-grid">
-          <span className="skeleton-card" />
-          <span className="skeleton-card" />
-        </div>
-        <span className="skeleton-card skeleton-card-wide" />
+    <main className="page" aria-busy="true" aria-live="polite">
+      <section className="panel glass">
+        <p className="eyebrow">YOUR LEARNING SPACE</p>
+        <h1>Loading your dashboard…</h1>
       </section>
-
-      <aside className="dashboard-side" aria-label="Loading account status">
-        <span className="skeleton-card" />
-        <span className="skeleton-card" />
-        <span className="skeleton-card skeleton-card-tall" />
-      </aside>
-    </div>
+    </main>
   );
 }

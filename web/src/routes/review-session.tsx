@@ -5,8 +5,6 @@ import { ReviewDataGate } from '../components/review/reviewHelpers';
 import { ReviewTabs } from '../components/review/ReviewTabs';
 import { useSession } from '../useSession';
 
-import '../components/review/review.css';
-
 export const Route = createFileRoute('/review-session')({
   component: ReviewSessionRoute,
 });

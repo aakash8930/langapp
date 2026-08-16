@@ -30,14 +30,13 @@ The signup path had concrete conversion blockers: its stylesheet was never impor
 | Account-state enforcement | Verification/onboarding were client-side navigation only; deep links and direct API requests bypassed them. | API learning/product controllers now compose JWT and persisted account-state guards. `/me` and auth/session recovery remain available, onboarding requires verified email, required personalization is validated server-side, and completion cannot be reversed. |
 | Cross-client first run | Web lacked central redirects and native had neither verification UI nor verified-state routing. | Web centrally redirects by authoritative session state and shows registration delivery status. Native now models `emailVerified`, provides verify/resend UI, blocks unknown offline state, and routes **Verify → Personalize → Learn** with sign-out exits on both gates. |
 | Fast, honest personalization | Web asked ten steps and native eleven before learning, including a placement-test promise with no test behind it. | Both clients now ask exactly three decisions—starting level, one primary goal, and a sustainable daily commitment. The fake placement test, speculative “AI personalization,” reminder timing, and learning-style questions are gone; API completion validation matches the shorter contract. |
+| Web route delivery | The first page shipped roughly 1.35 MB of JavaScript and 611 KB of CSS, including learning/admin screens an auth visitor had not requested. | TanStack now splits route loaders and components automatically; AppShell, dashboard, motion, feature code, and route-owned CSS are lazy. Initial HTML references about 385 KiB JS and 39 KiB CSS (about 132 KiB gzip), and a build-time entry budget prevents eager feature chunks from returning. |
 
 ## Remaining issues, prioritized
 
 ### P0 — resolve before scaling acquisition
 
-1. **The first production bundle is too large for an acquisition flow.** The current web build emits roughly **1.36 MB JavaScript** and **615 KB CSS** before gzip. Signup should not download hundreds of feature routes before showing its first field. Add route-level code splitting and split feature CSS by route; measure signup LCP and interaction latency on a mid-range phone.
-
-2. **Dependency audit findings need triage.** Installation reported one high-severity web finding, three API findings, and 18 high-severity Expo/client findings. Do not run a blind forced upgrade; identify reachable production paths, update direct dependencies first, and record accepted transitive risk.
+1. **Dependency audit findings need triage.** Installation reported one high-severity web finding, three API findings, and 18 high-severity Expo/client findings. Do not run a blind forced upgrade; identify reachable production paths, update direct dependencies first, and record accepted transitive risk.
 
 ### P1 — high product/trust impact
 
@@ -71,7 +70,6 @@ The signup path had concrete conversion blockers: its stylesheet was never impor
 
 ## Recommended next sequence
 
-1. Code-split the web app so public auth/landing routes load independently of the learning suite.
-2. Add browser-level auth/onboarding tests and clear the existing lint baseline.
-3. Connect stored goals/level to an explainable course recommendation.
-4. Seed and verify stroke-order/lesson-attribution content before expanding more practice routes.
+1. Add browser-level auth/onboarding tests and clear the existing lint baseline.
+2. Connect stored goals/level to an explainable course recommendation.
+3. Seed and verify stroke-order/lesson-attribution content before expanding more practice routes.

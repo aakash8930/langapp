@@ -4,8 +4,7 @@ import { useMemo, useState } from 'react';
 import { useCorpus, type KanjiItem } from '../components/library/useCorpus';
 import { Icon } from '../components/ui/Icon';
 import { useKanjiBookmarks } from '../hooks/useKanjiBookmarks';
-
-import '../components/library/kanji-library.css';
+import { kanjiRouteStyles } from '../styles/kanjiRouteStyles';
 
 type BookmarkSort = 'newest' | 'oldest' | 'character';
 
@@ -14,6 +13,7 @@ export const Route = createFileRoute('/kanji-bookmarks')({
 });
 
 function KanjiBookmarkRoute() {
+  void kanjiRouteStyles;
   const { bookmarks, remove, clear } = useKanjiBookmarks();
   const corpus = useCorpus();
   const [query, setQuery] = useState('');

@@ -3,12 +3,14 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 
 import { useBookmarks } from '../hooks/useBookmarks';
 import { exportAsJson, exportAsCsv } from '../components/library/exportVocab';
+import { vocabRouteStyles } from '../styles/vocabRouteStyles';
 
 export const Route = createFileRoute('/vocab-bookmarks')({
   component: BookmarkRoute,
 });
 
 function BookmarkRoute() {
+  void vocabRouteStyles;
   const { bookmarks, remove } = useBookmarks();
   const [exportText, setExportText] = useState('');
 

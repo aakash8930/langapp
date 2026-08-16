@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Icon } from '../components/ui/Icon';
-import './billing.success.css';
+import { billingSuccessRouteStyles } from '../styles/billingSuccessRouteStyles';
 
 export const Route = createFileRoute('/billing/success')({
   component: PaymentSuccess,
 });
 
 function PaymentSuccess() {
+  void billingSuccessRouteStyles;
   return (
     <div className="success-page">
       <div className="success-card glass">

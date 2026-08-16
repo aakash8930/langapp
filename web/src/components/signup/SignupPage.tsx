@@ -1,4 +1,5 @@
 import { SignupForm } from './SignupForm';
+import '../../styles/signup.css';
 import { SignupHero } from './SignupHero';
 
 /**

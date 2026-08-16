@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import './review.css';
 
 import { Icon, type IconName } from '../ui/Icon';
 
