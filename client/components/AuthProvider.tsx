@@ -68,10 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         if (cancelled) return;
 
-        // The API runs on a laptop that is off half the time. Being unable to
-        // reach it says nothing about whether the session is good, so keep the
-        // tokens. The app layout shows a retry/sign-out gate until it can load
-        // authoritative verification and onboarding state.
+        // A network failure says nothing about whether the saved session is
+        // valid, so keep its tokens. The app layout shows a retry/sign-out gate
+        // until authoritative verification and onboarding state can load.
         if (error instanceof OfflineError) {
           setStatus('authenticated');
           return;

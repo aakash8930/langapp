@@ -33,7 +33,10 @@ export default function Learn() {
 
   const retry = () => { void progress.refetch(); void lessons.refetch(); };
   const toggle = (unit: string) => setToggled((current) => {
-    const copy = new Set(current); copy.has(unit) ? copy.delete(unit) : copy.add(unit); return copy;
+    const copy = new Set(current);
+    if (copy.has(unit)) copy.delete(unit);
+    else copy.add(unit);
+    return copy;
   });
 
   return (

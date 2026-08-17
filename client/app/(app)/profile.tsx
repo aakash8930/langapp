@@ -32,9 +32,7 @@ export default function Profile() {
       ) : null}
 
       <View style={{ gap: 0 }}>
-        <Row title="Settings and reminders" onPress={() => router.push('/settings')} />
-        <Row title="Friends and messages" onPress={() => router.push('/friends')} />
-        <Row title="Leaderboard" onPress={() => router.push('/leaderboard')} />
+        <Row title="Settings, reminders, and account" onPress={() => router.push('/settings')} />
         <Row title="Sign out" danger onPress={() => void logout()} />
       </View>
     </ScrollView>

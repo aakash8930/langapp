@@ -20,15 +20,9 @@ import { ThemeProvider, useTheme } from '@/theme';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // The API lives on a laptop and goes offline regularly. Retrying twice
-      // rides out a restart; retrying forever just burns battery on a screen
-      // that should be showing its error state.
-      //
-      // Unreachable is the exception: each attempt can now burn the full
-      // request timeout, so three of them would leave a skeleton on screen for
-      // half a minute before admitting anything is wrong. Say so on the first
-      // failure instead — the error state has a retry button, and a person
-      // who knows their laptop is asleep should not have to watch us find out.
+      // Retry transient server failures twice. Network-unreachable errors stop
+      // immediately because each attempt can consume the full request timeout;
+      // the visible error state already offers an explicit retry action.
       retry: (failureCount, error) => !isOffline(error) && failureCount < 2,
       staleTime: 30_000,
     },

@@ -7,8 +7,8 @@ import { useTheme } from '@/theme';
 
 const FEATURES = [
   {
-    mark: '再',
-    title: 'Spaced repetition that adapts to you',
+    mark: '学',
+    title: 'Short lessons with real practice',
     body: 'Every lesson combines explanation, recognition, and recall practice.',
   },
   {

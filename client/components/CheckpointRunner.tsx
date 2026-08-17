@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   type CheckpointMiss,
-  type CheckpointQuestion,
   type CheckpointResult,
   type CheckpointSet,
   answerCheckpoint,
@@ -14,7 +13,6 @@ import {
 } from '@/api/checkpoints';
 import {
   type CombinedTestMiss,
-  type CombinedTestQuestion,
   type CombinedTestResult,
   type CombinedTestSet,
   answerCombinedTest,
@@ -122,7 +120,7 @@ export function CheckpointRunner({
   const [busy, setBusy] = useState(false);
 
   /** When the current question went on screen, for `responseTimeMs`. */
-  const shownAt = useRef(Date.now());
+  const shownAt = useRef(0);
 
   /**
    * Answers still in flight. Submitting before they land would score the
@@ -133,13 +131,14 @@ export function CheckpointRunner({
 
   /** Answers whose POST failed outright, so the summary can say so. */
   const [lost, setLost] = useState(0);
+  const sourceUnit = source.kind === 'perUnit' ? source.unit : null;
 
   useEffect(() => {
     let cancelled = false;
 
     const promise =
-      source.kind === 'perUnit'
-        ? startCheckpoint(source.unit).then((set) => ({ kind: 'perUnit' as const, set }))
+      source.kind === 'perUnit' && sourceUnit
+        ? startCheckpoint(sourceUnit).then((set) => ({ kind: 'perUnit' as const, set }))
         : startCombinedTest().then((set) => ({ kind: 'combined' as const, set }));
 
     promise
@@ -160,7 +159,7 @@ export function CheckpointRunner({
     return () => {
       cancelled = true;
     };
-  }, [source.kind, source.kind === 'perUnit' ? source.unit : null]);
+  }, [source.kind, sourceUnit]);
 
   const inProgress = phase.name === 'asking' && phase.index > 0;
 

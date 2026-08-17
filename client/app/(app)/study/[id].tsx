@@ -19,20 +19,8 @@ import { useTheme } from '@/theme';
 /**
  * The teach step: one item at a time, before any question is asked.
  *
- * ## Why the app needed a new screen rather than a port
- *
- * The website had the material already — as a list inside a disclosure — so its
- * teach step was a re-presentation. The app had nothing: home linked straight
- * into the quiz, and `fetchLesson` did not exist on this side at all. A learner
- * met あ for the first time as a multiple-choice question.
- *
- * ## Front and back, not front then back
- *
- * Both halves of the card are shown at once, which is the opposite of the review
- * screen a few files away — and deliberately. Review is retrieval: the answer is
- * withheld because recalling it is the exercise. Study is presentation: there is
- * nothing to retrieve yet, and hiding the reading behind a tap would be a quiz
- * with no stakes.
+ * This is presentation, not assessment: the Japanese form, reading, meaning,
+ * audio, and stroke order stay visible together before recall is tested.
  *
  * Reusing `CardFront`/`CardBack` rather than writing a third renderer means a
  * character is shown consistently across study views — including the
@@ -173,23 +161,11 @@ export default function Study() {
                 else setIndex((n) => Math.min(n + 1, items.length - 1));
               }}
             />
-            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                <Button
-                  label="Back"
-                  variant="secondary"
-                  disabled={index === 0}
-                  onPress={() => setIndex((n) => Math.max(n - 1, 0))}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button
-                  label={last ? 'Leave' : 'Skip to quiz'}
-                  variant="secondary"
-                  onPress={last ? leave : startQuiz}
-                />
-              </View>
-            </View>
+            <Button
+              label={index === 0 ? 'Leave lesson' : 'Back'}
+              variant="secondary"
+              onPress={index === 0 ? leave : () => setIndex((n) => Math.max(n - 1, 0))}
+            />
           </View>
         </>
       )}

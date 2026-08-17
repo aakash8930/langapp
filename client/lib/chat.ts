@@ -21,7 +21,7 @@ export type ChatErrorCopy = {
  * `describeError` maps every 5xx to "the server errored, trying again often
  * works". For a 503 here that is actively misleading: it means the API has no
  * `GEMINI_API_KEY`, so no amount of trying will help and the fix is on the
- * laptop, not the phone. 429 is likewise ambiguous — it could be this app's
+ * server configuration, not the phone. 429 is likewise ambiguous — it could be this app's
  * throttle or the provider's quota, and the learner cannot tell the difference,
  * so the copy doesn't pretend to.
  */
