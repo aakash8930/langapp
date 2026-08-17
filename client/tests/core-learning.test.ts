@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import type { GradeResult } from '../api/reviews';
 import type { LessonSummary } from '../api/lessons';
-import { groupByUnit, lessonAfter, nextLesson, withLockState } from '../lib/lessons';
+import { groupByUnit, lessonAfter, nextLesson, unitLabel, withLockState } from '../lib/lessons';
 import { formatInterval, summarize } from '../lib/reviews';
 import { showsRomaji } from '../lib/romaji';
 
@@ -43,6 +43,14 @@ test('mobile course path honors prerequisites and teaching order', () => {
   assert.equal(advanced[0].status, 'done');
   assert.equal(advanced[1].status, 'current');
   assert.equal(nextLesson(advanced)?.id, 'kata-1');
+
+  const n4 = groupByUnit(withLockState([
+    lesson('kanji-n4-1', 'kanji-n4', 0),
+    lesson('vocab-n4-1', 'vocab-n4', 0),
+    lesson('grammar-n4-1', 'grammar-n4', 0),
+  ], []));
+  assert.deepEqual(n4.map((unit) => unit.unit), ['vocab-n4', 'grammar-n4', 'kanji-n4']);
+  assert.equal(unitLabel('grammar-n4'), 'N4 grammar');
 });
 
 test('mobile review summary counts only server-confirmed grades', () => {

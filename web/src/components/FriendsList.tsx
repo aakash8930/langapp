@@ -6,6 +6,7 @@ import './Social.css';
 export function FriendsList({ onSelectFriend }: { onSelectFriend: (friend: PublicProfile) => void }) {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
+  const [requestNotice, setRequestNotice] = useState<string | null>(null);
   
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ['friends'],
@@ -43,7 +44,11 @@ export function FriendsList({ onSelectFriend }: { onSelectFriend: (friend: Publi
 
   const sendRequestMutation = useMutation({
     mutationFn: sendFriendRequest,
-    onSuccess: () => alert('Friend request sent!'),
+    onMutate: () => setRequestNotice(null),
+    onSuccess: () => setRequestNotice('Friend request sent.'),
+    onError: (error) => setRequestNotice(
+      error instanceof Error ? error.message : 'Could not send the friend request.',
+    ),
   });
 
   return (
@@ -56,6 +61,9 @@ export function FriendsList({ onSelectFriend }: { onSelectFriend: (friend: Publi
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
         />
+        {requestNotice ? (
+          <p role={sendRequestMutation.isError ? 'alert' : 'status'}>{requestNotice}</p>
+        ) : null}
         {searchQuery.length >= 2 && (
           <div className="search-results">
             {isSearching ? <p>Searching...</p> : searchResults.length === 0 ? <p>No users found.</p> : null}

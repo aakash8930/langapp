@@ -1,5 +1,9 @@
 # Expo production audit exceptions
 
+**Rechecked:** 2026-08-17 after updating all compatible Expo 57 patch releases
+and successfully exporting the Android bundle. The three upstream advisory IDs
+remain in Expo/Metro build tooling; there is still no compatible npm resolution.
+
 `npm run audit:prod` fails on every advisory except the exact IDs below. They
 are propagated through Expo/Metro native build tooling, not application request
 handling:

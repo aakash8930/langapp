@@ -87,7 +87,7 @@ export function ContinueCard({
 /**
  * Shown instead of the card when every lesson is complete.
  *
- * Reachable now — 58 lessons is a lot, but it is finite, and a learner who
+ * Reachable now — 114 lessons is a lot, but it is finite, and a learner who
  * finishes deserves better than the card silently vanishing. Points at reviews,
  * because that is genuinely what is left to do.
  */

@@ -59,7 +59,7 @@ function VocabPracticeRoute() {
 
   // A focused session is ten stable questions. The old implementation rebuilt
   // and reshuffled `source` on every answer render, so the question could change
-  // underneath the selected result and an all-words run lasted 802 questions.
+  // underneath the selected result and an all-words run would be hundreds of questions.
   const shuffled = useMemo(() => {
     const mixed = shuffle(source);
     if (mixed.length === 0) return [];

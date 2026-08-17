@@ -50,7 +50,7 @@ export function describeSignupError(error: unknown): string {
       case 429:
         return 'Too many attempts. Wait a moment, then try again.';
       case 0:
-        return "Can't reach the server. The API runs on a laptop — check that it's awake.";
+        return "Can't reach the learning service. Check your connection and try again.";
       default:
         return error.message || 'Something went wrong. Please try again.';
     }

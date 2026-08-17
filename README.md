@@ -27,7 +27,7 @@ cd api
 docker compose up -d          # mongo + redis, localhost-only ports
 cp .env.example .env          # then fill in the two JWT secrets
 npm install
-npm run seed                  # loads the Japanese content pack (11 units)
+npm run seed                  # loads the verified Japanese content pack (14 units)
 npm run start:dev             # api on :3000
 ```
 
@@ -75,8 +75,8 @@ your machine.
 | `npm run audit:prod` | Fail on new advisories; only the reviewed Expo build-tool IDs are allowed |
 | `npx expo export --platform android` | Bundles everything — the fastest way to catch an import error |
 
-There is no test runner in `client/` yet, so `typecheck` and a successful
-`expo export` are the gate.
+The mobile gate is `npm test`, `npm run typecheck`, the reviewed production
+dependency audit, and a successful Android Expo export.
 
 > `npx expo install` is broken under npm 11 in this repo — resolve version pins
 > from `bundledNativeModules.json` and add them to `package.json` by hand.
@@ -261,8 +261,8 @@ Two consequences worth knowing:
 
 Streaks are pinned by tests in `streak.spec.ts` (same day / consecutive /
 skipped / non-UTC learner, plus DST and leap day) and `user.service.spec.ts`
-(the writes those rules produce). See OPEN-ITEMS #18 for the one known edge:
-moving timezone backwards across the date line resets the streak.
+(the writes those rules produce). One known edge remains: moving timezone backwards across the date line resets
+the streak.
 
 ### The daily summary (T1.8)
 
@@ -281,8 +281,8 @@ under whatever zone was in effect at the time — against local today, so changi
 zone can make it read 0 for a day that had work in it. These counts re-derive from
 event timestamps and are unaffected. Caught while verifying T1.8 live: one account
 reads `xpToday: 0` in Pacific/Kiritimati and `16` in Pacific/Niue while both
-counts hold at `reviewsDone: 3, lessonsDone: 1`. It is the same root cause as
-OPEN-ITEMS #18, and within a fixed zone all three agree.
+counts hold at `reviewsDone: 3, lessonsDone: 1`. It has the same timezone-change root cause as the streak edge above; within a
+fixed zone all three agree.
 
 `AnalyticsService.countTodayByType` fetches a **48-hour window and filters by
 local date string** rather than issuing a Mongo range query from local midnight.
@@ -300,7 +300,11 @@ screen someone opens.
 
 ## Deployment
 
-Live on the laptop, public via Tailscale Funnel:
+### Legacy development deployment
+
+The current laptop/Tailscale topology is useful for development and private
+acceptance only; it is not approved for public-MVP traffic until the isolation
+and acceptance gates in `RELEASE-CHECKLIST.md` are complete.
 
 **API:** https://aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net/langapp
 **Web:** https://aakash-ideapad-3-15iml05-u-1.tail7a4203.ts.net/learn
@@ -397,8 +401,8 @@ so that's a seed change rather than a migration.
 database. `KnowledgeNode.refId` points at a content document; that document's
 `conceptId` points back. "What are X's prerequisites" is one indexed lookup.
 
-**Every `@Prop` with a union or imported type needs an explicit `type:`.** See
-OPEN-ITEMS #14 — this has bitten once already.
+**Every `@Prop` with a union or imported type needs an explicit `type:`.**
+Mongoose reflection cannot infer those runtime types reliably.
 
 ## Exercise generation
 
@@ -538,8 +542,8 @@ curl -s https://generativelanguage.googleapis.com/v1beta/models \
   -H "x-goog-api-key: $GEMINI_API_KEY" | grep '"name"'
 ```
 
-A 503 from the provider currently surfaces to the learner as a 502 with no
-retry — see OPEN-ITEMS #28.
+Transient provider 503 responses are retried with a short capped backoff; a
+terminal provider failure surfaces to the learner as 502.
 
 One call per turn: Gemini's `responseSchema` forces
 `{ reply, corrections: [{span, fix, note}] }`, so the conversation turn and the
@@ -563,149 +567,39 @@ sentence slightly wrong is the ordinary case in practice, not an error.
 
 ## Seeded content
 
-`npm run seed` loads **eleven units — 208 kana, 802 words, 12 grammar points, 104
-kanji, 90 lessons** — each item with a `KnowledgeNode`, chained via
-`prerequisiteLessonIds`.
+`npm run seed` currently loads **14 ordered units — 208 kana rows, 929
+vocabulary rows, 32 grammar points, 188 kanji entries, and 114 lessons**.
+`npm run verify:content` is the canonical release gate for these counts; it also
+verifies every recommended starting unit and all deterministic stroke assets.
 
-It starts with `hiragana-basics` and `katakana-basics`: 92 characters, both base
-kana tables in full, 10 lessons.
+The prerequisite chain is:
 
-Base characters only: no dakuten (が), handakuten (ぱ), yōon (きゃ), or chōonpu
-(ー). Those are marks on characters already here, and belong to a later unit
-rather than a longer version of this one. Romaji is Hepburn throughout (`shi`,
-`chi`, `tsu`, `fu`), because Hepburn is what a learner types.
+1. `hiragana-basics`
+2. `katakana-basics`
+3. `vocab-basics`
+4. `hiragana-marks`
+5. `katakana-marks`
+6. `hiragana-marks-extra`
+7. `katakana-marks-extra`
+8. `vocab-everyday`
+9. `grammar-basics`
+10. `kanji-basics`
+11. `vocab-n5`
+12. `vocab-n4`
+13. `grammar-n4`
+14. `kanji-n4`
 
-The two units are the same shape — `src/seed/japanese/kana-pack.ts` defines it,
-and each script is a data file filling it in. Adding a third script would be a
-new pack in `PACKS`, nothing more.
+The course starts from zero, reaches a complete authored N5 vocabulary, and then
+adds the currently available N4 vocabulary, grammar, and kanji. N3–N1 onboarding
+choices deliberately fall back to the highest authored N4 starting point rather
+than implying that unseeded higher-level lessons exist.
 
-**The chain runs across units**: katakana's first lesson lists hiragana's last
-as its prerequisite, so §1's "Hiragana → Katakana" is a real gate rather than a
-display order. The character-level graph edges deliberately stop at the unit
-boundary — "ん before ア" is a claim about stages, not characters, and the
-lesson prerequisite already makes it.
+Kana includes the base tables, dakuten, handakuten, yōon, small-tsu doubling,
+and the long-vowel mark. Romaji is authored and regression-tested for particle
+and word exceptions rather than generated from a naive character lookup.
+Kanji exercises ask for meaning, not an isolated reading, because the correct
+reading depends on the word in which the character appears.
 
-Distractors are drawn from the unit pool, so a katakana question never offers a
-hiragana option, and シ's options naturally include ツ — which is exactly the
-discrimination worth drilling.
-
-A third unit, `vocab-basics`, adds **58 words in 6 themed lessons**, chained
-after katakana.
-
-**Every word is spelled using only the 92 characters the kana units teach** —
-no dakuten, handakuten, small kana or long mark, because a learner arriving here
-has been taught none of them. `src/seed/japanese/vocab.spec.ts` enforces that
-rather than trusting it, and it caught three words on the first run: たべる,
-ありがとう and ください all need marks that come later. That rule is also why
-みず, ともだち, がくせい and every katakana loanword are absent.
-
-Every word and every grammar example also carries **romaji**, shown up to N4 and
-dropped from N3 on — by then reading kana is the skill, and latin beside it is a
-crutch nobody drops unaided. It is authored rather than generated, because a kana
-lookup table is wrong exactly where it matters: は as a topic marker is `wa`, を is
-`o`, and こんにちは is `konnichiwa`, not `konnichiha`. `romaji.spec.ts`
-transliterates and compares anyway, so a typo fails the build while the real
-exceptions stay listed and visible.
-
-`lemma` and `reading` are identical throughout, which is not a placeholder —
-ねこ is a correct way to write 猫, and kana-only is how these words are presented
-until kanji are taught. When kanji arrive, `lemma` gains the kanji spelling and
-`reading` is already right, which is exactly why §5 keeps the two fields apart.
-
-Two more units, `hiragana-marks` and `katakana-marks`, add **58 syllables each**:
-dakuten (が), handakuten (ぱ) and yōon (きゃ). Nothing there is a new glyph except
-the small ゃゅょ — a learner is not memorising 116 new shapes, they are learning
-three rules, which is why it is a separate unit rather than more rows on the base
-table.
-
-**They come after the vocabulary unit, not before it.** Folding them into the
-base units would be better in the abstract — you would finish hiragana entirely
-before starting katakana — but it puts twelve more lessons between someone and
-the first Japanese word they can read, and the vocabulary unit was built to need
-none of it.
-
-Two romaji collisions are deliberate and tested for: じ/ぢ are both `ji`, ず/づ
-both `zu`. The exercise generator already deduplicated distractors by answer text
-— written expecting exactly this — so a question about ぢ never also offers じ.
-
-**っ and ー are absent.** Both are marks rather than syllables: っ doubles the
-following consonant and has no reading of its own, ー lengthens the preceding
-vowel. Neither can answer "which romaji matches this character", which is the
-only question this app can ask today. They are why がっこう and コーヒー are still
-unreadable — see OPEN-ITEMS.
-
-**Update 2026-07-26:** Two more units, `hiragana-marks-extra` and
-`katakana-marks-extra`, now teach っ and ー — one lesson each, six words,
-typed romaji. がっこう (gakkou), きって (kitte), コーヒー (koohii),
-テーブル (teeburu). The lesson prompts the word and the learner types the
-reading; the grader exact-matches so a missed doubled consonant or vowel is
-the wrong answer rather than a near-miss.
-
-**Then `vocab-everyday` — 220 words in 14 themed lessons (T1.6, 2026-07-26),
-the largest unit in the pack.** It is the unit the marks made possible: by here
-a learner knows **151 distinct characters**, effectively all of kana, so the
-words the first unit had to leave out arrive at last — たべる, ともだち, がくせい,
-みず, おかあさん, ぎゅうにゅう, and loanwords from パン to パソコン. Fifteen words
-a lesson rather than ten, since a learner reaching lesson 35 is no longer meeting
-their first Japanese word; the verb and adjective lessons carry twenty, because
-those are the two groups where having more to compare is what makes each stick.
-
-Two limits remain, both enforced by `vocab-everyday.spec.ts` rather than trusted:
-**the small vowels ぁぃぅぇぉ / ァィゥェォ and ヴ are never taught by any unit**, so
-フォーク and パーティー are still unspellable and look deceptively like beginner
-words; and **っ before ち is avoided**, because the transliterator's doubling rule
-yields `ccha` where Hepburn writes まっちゃ as `matcha` — one exception not worth
-carrying. The spec also refuses any lemma an earlier unit owns, which is what
-keeps はな "nose" from silently overwriting はな "flower": `lemma` is the key the
-seed upserts on.
-
-Last comes `grammar-basics`: **12 points in 4 lessons** — です/は/か, polite verb
-endings, the particles that go with verbs, and noun-linking. Quizzed by filling
-a gap: 「わたし＿せんせいです。」with は / を / に / の to choose from, which tests
-using a particle where matching a title to its definition would only test having
-read the definition.
-
-That needed a sentence to put a gap in, so `GrammarPoint` gains an `examples`
-array — the second documented departure from §5's schemas, after `SrsCard`.
-Every sentence is checked by `grammar.spec.ts` against three rules: only taught
-kana (no っ or ー, which were still untaught at the time), only words from the
-vocabulary unit or conjugations this unit teaches, and at most 16 characters —
-Japanese does not space its words, and short sentences are what make that
-survivable.
-
-**Last of all, `kanji-basics` — 104 characters in 10 themed lessons (T1.7,
-2026-07-26).** It is placed last so it can be a *re-reading* rather than a
-memorisation slog: **every kanji in it writes a word the learner already knows in
-kana.** 山 is not a new glyph, it is how やま — learned in the first words unit —
-is really written; 学 and 校 are the two halves of がっこう; 食 is the 食 in
-たべる. Each entry lists the seeded words it writes and `kanji.spec.ts` checks
-every one against the actual vocabulary, so the unit cannot drift into teaching
-characters for words the course never taught. It caught たべもの on 物 the first
-time it ran — a plausible word, and not one this course teaches.
-
-The unit asks **kanji → meaning, and never kanji → reading.** A kanji has several
-readings and which one applies depends on the word: 山 is やま alone and サン in
-火山, and both are right, so "which reading is this?" would have two correct
-answers — the same defect the grammar unit hit with 「わたしはいき＿。」. Readings
-are still taught: `GET /lessons/:id` returns `on` and `kun` and the lesson screen
-shows them. They are study material, not an answer key.
-
-**Last of all, `vocab-n5` — 512 words in 32 themed lessons (2026-07-27).** JLPT
-N5 is conventionally about 800 words and 100 kanji; the kanji side was already
-there, but the vocabulary was 290, roughly a third of the level. This unit takes
-the course to **802 words**, which is N5's vocabulary complete.
-
-It sits after grammar and kanji rather than beside the other vocabulary, and that
-is a pedagogical call: slotting 32 lessons in before grammar would push the first
-grammar lesson from 49 to 81, so a learner would meet eight hundred words before
-being shown how to put two of them in a sentence. Depth belongs on top of a
-complete course, not in the middle of one.
-
-The whole curriculum is one chain: hiragana → katakana → first words → hiragana
-marks → katakana marks → hiragana marks-extra → katakana marks-extra →
-everyday words → grammar → kanji → the rest of N5, **90 lessons across 11 units**, each unit's
-first lesson gated on the previous unit's last. Grammar comes after all the words
-because its sentences are built from them, and kanji after everything because it
-depends on the whole vocabulary above it.
-Every write is an upsert on a natural key, so re-running preserves `_id`s — which
-matters because SRS cards will reference them.
+Every content write is an upsert on a natural key, so re-running the seed keeps
+stable document IDs for existing SRS references. CI runs the seed twice and
+requires identical summaries.

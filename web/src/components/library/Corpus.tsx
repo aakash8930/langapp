@@ -19,7 +19,7 @@ import './corpus.css';
 /**
  * How many rows are painted at once.
  *
- * There are 802 vocabulary items. Rendering all of them is roughly 4000 DOM
+ * There are 929 authored vocabulary rows. Rendering all of them is thousands of DOM
  * nodes for a list nobody scrolls to the bottom of, and it makes the search
  * field feel sticky on every keystroke. A cap plus a count is the honest,
  * dependency-free version of virtualisation: the screen says how many matched
@@ -123,7 +123,7 @@ function LibraryFrame({
   );
 }
 
-/** 802 words: lemma, reading, romaji, gloss, part of speech, JLPT level. */
+/** Authored words: lemma, reading, romaji, gloss, part of speech, JLPT level. */
 export function VocabularyLibrary() {
   const corpus = useCorpus();
   const items = corpus.data ? itemsOfKind(corpus.data.items, 'vocab') : null;
@@ -161,7 +161,7 @@ export function VocabularyLibrary() {
   );
 }
 
-/** 104 characters, as a grid with an expandable detail per character. */
+/** Authored kanji, as a grid with an expandable detail per character. */
 export function KanjiLibrary() {
   const corpus = useCorpus();
   const items = corpus.data ? itemsOfKind(corpus.data.items, 'kanji') : null;
@@ -251,7 +251,7 @@ export function KanjiLibrary() {
   );
 }
 
-/** 12 points, each with its explanation and worked examples. */
+/** Authored grammar points, each with its explanation and worked examples. */
 export function GrammarLibrary() {
   const corpus = useCorpus();
   const items = corpus.data ? itemsOfKind(corpus.data.items, 'grammar') : null;
@@ -305,8 +305,8 @@ export function GrammarLibrary() {
  * Search across every kind at once.
  *
  * This is the honest form of "Dictionary" for this product. A real dictionary
- * is a reference work covering the language; this covers **the 1126 items the
- * course teaches** and says so, because there is no dictionary API behind it
+ * is a reference work covering the language; this covers **the items in the
+ * currently authored course** and says so, because there is no whole-language dictionary API behind it
  * and pretending otherwise would have a learner conclude a word does not exist
  * in Japanese when it merely is not in the syllabus yet.
  */

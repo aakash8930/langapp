@@ -15,8 +15,8 @@ import { useTheme } from '@/theme';
 const SWAY = [0, 1, 0, -1];
 
 /**
- * One unit, drawn as a stretch of path — and the piece that makes ten units and
- * 58 lessons navigable.
+ * One unit, drawn as a stretch of path — and the piece that makes fourteen units and
+ * 114 lessons navigable.
  *
  * Only the *current* unit is expanded. Finished units collapse to a single line,
  * and future units to a heading with a lock. That is the whole reason the path

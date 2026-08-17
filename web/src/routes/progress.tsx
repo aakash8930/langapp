@@ -104,15 +104,17 @@ function ProgressPage() {
             </p>
           </section>
 
-          <section className="card glass" aria-labelledby="weekly-heading">
-            <h2 className="card-title" id="weekly-heading">Weekly Goal</h2>
-            <p className="stat-tile-value" style={{ fontSize: 'var(--text-title)' }}>Coming soon</p>
-            <p className="band-note">Weekly aggregation needs dated learning events. We do not project today's XP across seven days and present it as progress.</p>
-            <p className="band-note" style={{ marginTop: 'var(--s-sm)' }}>{progress.daily.lessonsDone} lessons · {progress.daily.reviewsDone} reviews completed today</p>
+          <section className="card glass" aria-labelledby="activity-heading">
+            <h2 className="card-title" id="activity-heading">Today&rsquo;s activity</h2>
+            <p className="stat-tile-value tabular" style={{ fontSize: 'var(--text-title)' }}>
+              {progress.daily.lessonsDone + progress.daily.reviewsDone}
+            </p>
+            <p className="band-note">Confirmed learning actions on your local calendar day.</p>
+            <p className="band-note" style={{ marginTop: 'var(--s-sm)' }}>{progress.daily.lessonsDone} lessons · {progress.daily.reviewsDone} reviews</p>
           </section>
 
-          <section className="card glass" aria-labelledby="monthly-heading">
-            <h2 className="card-title" id="monthly-heading">Monthly Goal</h2>
+          <section className="card glass" aria-labelledby="all-time-heading">
+            <h2 className="card-title" id="all-time-heading">All-time progress</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-md)' }}>
               <div>
                 <span style={{ color: 'var(--ink-soft)', fontSize: 'var(--text-small)' }}>Lessons completed</span>

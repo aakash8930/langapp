@@ -74,6 +74,9 @@ const UNIT_LABELS: Record<string, string> = {
   'grammar-basics': 'First sentences',
   'kanji-basics': 'First kanji',
   'vocab-n5': 'Everything else at N5',
+  'vocab-n4': 'N4 vocabulary',
+  'grammar-n4': 'N4 grammar',
+  'kanji-n4': 'N4 kanji',
 };
 
 /**
@@ -81,8 +84,8 @@ const UNIT_LABELS: Record<string, string> = {
  * alphabetically — correct here by luck, and not something to depend on. A unit
  * missing from this list sorts after the known ones rather than vanishing.
  *
- * **This list must match the seed's chain** (`api/src/seed/seed.service.ts`'s
- * `ORDERED_PACKS`, then grammar, then kanji). It drifted once already: the four
+ * **This list must match the seed's chain** (`api/src/seed/required-content.ts`).
+ * It drifted once already: the four
  * units added on 2026-07-26 were absent, so they fell through to rank
  * `UNIT_ORDER.length` and sorted *after* `grammar-basics` — which put the
  * grammar chapter before the two marks-extra units and `vocab-everyday` that
@@ -101,13 +104,16 @@ const UNIT_ORDER = [
   'grammar-basics',
   'kanji-basics',
   'vocab-n5',
+  'vocab-n4',
+  'grammar-n4',
+  'kanji-n4',
 ];
 
 /**
  * Where a unit sits relative to the learner, which is what decides how much of
  * it the path draws.
  *
- * With ten units and 58 lessons, drawing every lesson at once is the problem the
+ * With fourteen units and 114 lessons, drawing every lesson at once is the problem the
  * path exists to solve — a flat list that long has no sense of place. So `done`
  * units collapse to one line, `locked` units to a chapter heading, and only the
  * `current` one is expanded. That is the whole trick.

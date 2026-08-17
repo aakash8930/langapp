@@ -125,7 +125,7 @@ async function readError(response: Response): Promise<string> {
  * touches `fetch`, so instrumenting it covers all ~40 callers and cannot drift
  * out of step with new ones. The method, path, status and duration are the four
  * facts that separate "the click did nothing" from "the server said no" from
- * "the laptop is asleep" — and only the third of those produces a network-tab
+ * "the service is unreachable" — and only the third produces a network-tab
  * entry that explains itself.
  */
 async function send<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -165,8 +165,8 @@ async function send<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...init,
       headers,
       credentials: 'include',
-      // The API runs on a laptop that sleeps. Without this the page hangs
-      // forever behind a funnel that terminates TLS for a dead service.
+      // Bound every request so an unavailable upstream cannot leave the page
+      // waiting forever behind a proxy that still terminates TLS.
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch (cause) {
@@ -179,7 +179,7 @@ async function send<T>(path: string, init: RequestInit = {}): Promise<T> {
       hint: 'Timeout, DNS, or CORS. A CORS rejection means the API needs CORS_ORIGINS set to this origin.',
     });
     throw new ApiError(
-      'Can’t reach the server. The API runs on a laptop — check that it’s awake, then try again.',
+      'Can’t reach the learning service. Check your connection and try again.',
       0,
     );
   }
@@ -339,7 +339,7 @@ export function forgotPassword(email: string): Promise<{ message: string }> {
   });
 }
 
-/** `code` is the six digits `/auth/forgot-password` wrote to the API's log. */
+/** `code` is the six-digit credential delivered by the configured mail worker. */
 export function resetPassword(
   email: string,
   code: string,
@@ -1127,8 +1127,8 @@ export function newAttempt(): number {
  * Display names and teaching order for unit slugs.
  *
  * Duplicated from `client/lib/lessons.ts` rather than shared: the two apps have
- * separate `node_modules` by design, and a shared package for ten labels would
- * cost more than it saves. If a third copy ever appears, extract it.
+ * separate `node_modules` by design, and a shared package for fourteen labels
+ * would cost more than it saves. If a third copy ever appears, extract it.
  *
  * **Both copies drifted on 2026-07-26** — four units were added to the seed and
  * neither list was updated, so they rendered as raw slugs and sorted wrongly.
@@ -1165,7 +1165,7 @@ const UNIT_LABELS: Record<string, { label: string; ja: string; blurb: string }> 
   // like a slip from the T1.1 build. The marks have real names: 促音 そくおん is
   // the small tsu, 長音 ちょうおん the vowel-lengthening bar. Fixed 2026-07-26.
   // This site's own README calls confidently teaching wrong Japanese the
-  // existential risk of the project (OPEN-ITEMS #8), and a unit heading is as
+  // highest-risk content defect in a language product, and a unit heading is as
   // front-of-house as it gets.
   'hiragana-marks-extra': {
     label: 'Hiragana っ / ー',
@@ -1195,7 +1195,22 @@ const UNIT_LABELS: Record<string, { label: string; ja: string; blurb: string }> 
   'vocab-n5': {
     label: 'Everything else at N5',
     ja: 'ごい',
-    blurb: '512 more words — the ones that take the course to a full N5 vocabulary of 802.',
+    blurb: '512 more words — the unit that completes the authored N5 vocabulary.',
+  },
+  'vocab-n4': {
+    label: 'N4 vocabulary',
+    ja: 'ごい',
+    blurb: 'The currently authored N4 word set, built on the complete N5 foundation.',
+  },
+  'grammar-n4': {
+    label: 'N4 grammar',
+    ja: 'ぶんぽう',
+    blurb: 'Intermediate patterns and examples that extend the first sentence units.',
+  },
+  'kanji-n4': {
+    label: 'N4 kanji',
+    ja: 'かんじ',
+    blurb: 'The currently authored N4 characters, readings, meanings, and vocabulary links.',
   },
 };
 
