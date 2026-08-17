@@ -70,7 +70,8 @@ your machine.
 | Command | What it does |
 |---|---|
 | `npx expo start` | Dev server + QR code for Expo Go |
-| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Fast mobile course-path, review-summary, and display-policy tests |
+| `npm run typecheck` | `tsc --noEmit`, including mobile tests |
 | `npm run audit:prod` | Fail on new advisories; only the reviewed Expo build-tool IDs are allowed |
 | `npx expo export --platform android` | Bundles everything — the fastest way to catch an import error |
 
@@ -126,7 +127,8 @@ the same account-backed lessons, review schedule, progress, and account state.
 | `npm run dev` | Vite dev server |
 | `npm run lint` | Zero-warning oxlint gate |
 | `npm run typecheck` | `tsc -b --noEmit` |
-| `npm run test:e2e` | Playwright signup → verification → onboarding browser journey |
+| `npm run test:e2e` | Fast mocked Playwright signup → verification → onboarding journey |
+| `npm run test:e2e:fullstack` | Real browser/API/Mongo/Redis/Mailpit learner loop (requires the CI service stack) |
 | `npm run audit:prod` | Fail on any production dependency advisory |
 | `npm run build` | Vite build, TypeScript, and entry-budget gate |
 

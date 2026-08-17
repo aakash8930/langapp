@@ -1,0 +1,10 @@
+[Unit]
+Description=Check the public GENKŌ health contract
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/genko/monitor.env
+WorkingDirectory=%h/deploy/langapp
+ExecStart=%h/deploy/langapp/scripts/monitor-health.sh
