@@ -52,7 +52,6 @@ export function useSession() {
 
   const sessionState = session.state;
   const hasProgress = session.state === 'signedIn' && session.progress !== null;
-  const cardsDueNow = session.state === 'signedIn' ? (session.progress?.cardsDueNow ?? null) : null;
   const userError = userQuery.error;
 
   useEffect(() => {
@@ -64,8 +63,8 @@ export function useSession() {
       logError('auth', 'session dropped to signedOut — /me was rejected', { error: userError });
       return;
     }
-    log('auth', `session → ${sessionState}`, { hasProgress, cardsDueNow });
-  }, [sessionState, hasProgress, cardsDueNow, userError]);
+    log('auth', `session → ${sessionState}`, { hasProgress });
+  }, [sessionState, hasProgress, userError]);
 
   useEffect(() => onSessionExpired(() => {
     queryClient.setQueryData(queryKeys.session.available, false);

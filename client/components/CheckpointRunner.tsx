@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   type CheckpointMiss,
-  type CheckpointQuestion,
   type CheckpointResult,
   type CheckpointSet,
   answerCheckpoint,
@@ -14,7 +13,6 @@ import {
 } from '@/api/checkpoints';
 import {
   type CombinedTestMiss,
-  type CombinedTestQuestion,
   type CombinedTestResult,
   type CombinedTestSet,
   answerCombinedTest,
@@ -122,7 +120,7 @@ export function CheckpointRunner({
   const [busy, setBusy] = useState(false);
 
   /** When the current question went on screen, for `responseTimeMs`. */
-  const shownAt = useRef(Date.now());
+  const shownAt = useRef(0);
 
   /**
    * Answers still in flight. Submitting before they land would score the
@@ -133,13 +131,14 @@ export function CheckpointRunner({
 
   /** Answers whose POST failed outright, so the summary can say so. */
   const [lost, setLost] = useState(0);
+  const sourceUnit = source.kind === 'perUnit' ? source.unit : null;
 
   useEffect(() => {
     let cancelled = false;
 
     const promise =
-      source.kind === 'perUnit'
-        ? startCheckpoint(source.unit).then((set) => ({ kind: 'perUnit' as const, set }))
+      source.kind === 'perUnit' && sourceUnit
+        ? startCheckpoint(sourceUnit).then((set) => ({ kind: 'perUnit' as const, set }))
         : startCombinedTest().then((set) => ({ kind: 'combined' as const, set }));
 
     promise
@@ -160,7 +159,7 @@ export function CheckpointRunner({
     return () => {
       cancelled = true;
     };
-  }, [source.kind, source.kind === 'perUnit' ? source.unit : null]);
+  }, [source.kind, sourceUnit]);
 
   const inProgress = phase.name === 'asking' && phase.index > 0;
 
@@ -209,7 +208,6 @@ export function CheckpointRunner({
         // XP, streak and the due count all move on a pass, and the home screen
         // reads them from /me/progress.
         void queryClient.invalidateQueries({ queryKey: ['progress'] });
-        void queryClient.invalidateQueries({ queryKey: ['reviews', 'due'] });
       } catch (error) {
         setPhase({ name: 'error', error });
       }
@@ -505,34 +503,7 @@ function Summary({
         {result.result.xpAwarded > 0 ? (
           <SummaryRow label="XP earned" value={`+${result.result.xpAwarded}`} emphasis />
         ) : null}
-        {result.result.scheduledForReview > 0 ? (
-          <SummaryRow
-            label="Added to review"
-            value={`${result.result.scheduledForReview}`}
-          />
-        ) : null}
       </View>
-
-      {/*
-        The whole consequence of failing, said plainly. Nothing is locked and no
-        progress is taken away — the missed items just come back sooner. A
-        learner who thinks a failed test costs them something will avoid taking
-        one, which defeats the point of having it.
-      */}
-      {result.result.scheduledForReview > 0 ? (
-        <Text
-          style={{
-            fontFamily: theme.families.ui,
-            fontSize: theme.fontSize.small,
-            lineHeight: theme.lineHeight.small,
-            color: theme.colors.inkSoft,
-          }}
-        >
-          {result.result.scheduledForReview === 1 ? 'The item' : 'The items'} you missed{' '}
-          {result.result.scheduledForReview === 1 ? 'is' : 'are'} waiting in your reviews. Nothing is
-          locked — {result.result.passed ? 'this is just what to practise next.' : 'take the test again whenever you like.'}
-        </Text>
-      ) : null}
 
       {lost > 0 ? (
         <FormError

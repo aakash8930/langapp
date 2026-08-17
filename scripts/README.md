@@ -1,10 +1,24 @@
 # Ops scripts
 
+## Public release preflight
+
+Run the non-destructive external checks before and after the final deployment:
+
+```bash
+API_URL=https://public.example/api \
+WEB_URL=https://public.example/learn \
+./scripts/release-preflight.sh
+```
+
+This is only the automated portion of `RELEASE-CHECKLIST.md`; mail delivery,
+account acceptance, Android, restore, and rollback checks require recorded
+operator evidence.
+
 ## Backups
 
-§11 of the blueprint calls a nightly backup **required, not optional**. There is
-one Mongo shared by dev and the deployed instance, on one laptop, holding real
-accounts — so a bad seed, a dropped collection or a dead disk takes everything.
+A nightly production backup is **required, not optional**. Production must use
+Mongo, Redis, and object storage isolated from development — a development seed,
+migration, queue purge, or container restart must never affect public accounts.
 
 ```bash
 scripts/backup.sh                       # dump, verify, rotate

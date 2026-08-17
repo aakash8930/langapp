@@ -4,7 +4,7 @@ import { InfoPage } from '../components/landing/InfoPage';
 const RELEASES = [
   { version: 'v1.0', date: '2026-08-08', changes: ['Full admin panel', 'Notification system', 'Subscription billing', 'Settings consolidation', 'Landing page'] },
   { version: 'v0.9', date: '2026-07-28', changes: ['AI Tutor chat', 'Community features', 'Leaderboard', 'Achievements', 'Security dashboard'] },
-  { version: 'v0.5', date: '2026-07-15', changes: ['Spaced repetition review', 'Lesson curriculum', 'Vocabulary library', 'User profiles'] },
+  { version: 'v0.5', date: '2026-07-15', changes: ['Lesson exercises', 'Lesson curriculum', 'Vocabulary library', 'User profiles'] },
 ];
 
 export const Route = createFileRoute('/changelog')({ component: () => (

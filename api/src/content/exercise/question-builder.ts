@@ -225,11 +225,11 @@ export function normaliseAnswer(text: string): string {
 }
 
 /**
- * Maps the prompt kind (how the question is displayed) to the SRS item kind
+ * Maps the prompt kind (how the question is displayed) to the content item kind
  * (how the card is stored). Mostly identical, but `wordReading` is a
  * display-level concept — the underlying item is always a vocabulary word.
  */
-export function promptKindToSrsKind(promptKind: PromptKind): ContentKind {
+export function promptKindToContentKind(promptKind: PromptKind): ContentKind {
   if (promptKind === 'wordReading') return 'vocab';
   return promptKind as ContentKind;
 }

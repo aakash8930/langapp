@@ -26,18 +26,18 @@ function makeService(rows: { type: string; ts: Date }[]) {
 }
 
 describe('AnalyticsService.countTodayByType (T1.8)', () => {
-  const TYPES = ['review.graded', 'lesson.completed'];
+  const TYPES = ['practice.completed', 'lesson.completed'];
 
   it('counts each type separately and reports zero for a type with no events', async () => {
     const now = new Date('2026-07-26T12:00:00Z');
     const { service } = makeService([
-      { type: 'review.graded', ts: new Date('2026-07-26T09:00:00Z') },
-      { type: 'review.graded', ts: new Date('2026-07-26T10:00:00Z') },
+      { type: 'practice.completed', ts: new Date('2026-07-26T09:00:00Z') },
+      { type: 'practice.completed', ts: new Date('2026-07-26T10:00:00Z') },
     ]);
 
     const counts = await service.countTodayByType(USER_ID, TYPES, 'UTC', now);
 
-    expect(counts).toEqual({ 'review.graded': 2, 'lesson.completed': 0 });
+    expect(counts).toEqual({ 'practice.completed': 2, 'lesson.completed': 0 });
   });
 
   it('always returns a key per requested type, so a caller never reads undefined', async () => {
@@ -50,7 +50,7 @@ describe('AnalyticsService.countTodayByType (T1.8)', () => {
       new Date('2026-07-26T12:00:00Z'),
     );
 
-    expect(Object.keys(counts).sort()).toEqual(['lesson.completed', 'review.graded']);
+    expect(Object.keys(counts).sort()).toEqual(['lesson.completed', 'practice.completed']);
   });
 
   /**
@@ -62,8 +62,8 @@ describe('AnalyticsService.countTodayByType (T1.8)', () => {
     // 2026-07-26T02:00Z is still the 25th in New York (22:00 on the 25th) but
     // already the 26th in Tokyo (11:00).
     const rows = [
-      { type: 'review.graded', ts: new Date('2026-07-26T02:00:00Z') },
-      { type: 'review.graded', ts: new Date('2026-07-26T16:00:00Z') },
+      { type: 'practice.completed', ts: new Date('2026-07-26T02:00:00Z') },
+      { type: 'practice.completed', ts: new Date('2026-07-26T16:00:00Z') },
     ];
 
     // At 18:00Z: NY local date is the 26th, so only the 16:00Z event counts.
@@ -73,7 +73,7 @@ describe('AnalyticsService.countTodayByType (T1.8)', () => {
       'America/New_York',
       new Date('2026-07-26T18:00:00Z'),
     );
-    expect(ny['review.graded']).toBe(1);
+    expect(ny['practice.completed']).toBe(1);
 
     // Same instants, Tokyo. At 02:00Z Tokyo is already the 26th; 16:00Z is the
     // 27th there (01:00). Asking at 04:00Z (13:00 on the 26th) counts the first.
@@ -83,19 +83,19 @@ describe('AnalyticsService.countTodayByType (T1.8)', () => {
       'Asia/Tokyo',
       new Date('2026-07-26T04:00:00Z'),
     );
-    expect(tokyo['review.graded']).toBe(1);
+    expect(tokyo['practice.completed']).toBe(1);
   });
 
   it('excludes yesterday even when it is within the fetched window', async () => {
     const now = new Date('2026-07-26T12:00:00Z');
     const { service } = makeService([
-      { type: 'review.graded', ts: new Date('2026-07-25T12:00:00Z') },
+      { type: 'practice.completed', ts: new Date('2026-07-25T12:00:00Z') },
       { type: 'lesson.completed', ts: new Date('2026-07-26T11:00:00Z') },
     ]);
 
     const counts = await service.countTodayByType(USER_ID, TYPES, 'UTC', now);
 
-    expect(counts).toEqual({ 'review.graded': 0, 'lesson.completed': 1 });
+    expect(counts).toEqual({ 'practice.completed': 0, 'lesson.completed': 1 });
   });
 
   it('queries a 48-hour window scoped to the user and the requested types', async () => {
@@ -122,33 +122,5 @@ describe('AnalyticsService.countTodayByType (T1.8)', () => {
 
     expect(counts).toEqual({});
     expect(find).not.toHaveBeenCalled();
-  });
-});
-
-describe('AnalyticsService.listReviewEvents', () => {
-  it('scopes and caps the newest-first append-only review log', async () => {
-    const eventId = new Types.ObjectId();
-    const row = { _id: eventId, ts: new Date('2026-08-12T10:00:00Z'), payload: { grade: 'good' } };
-    const exec = jest.fn().mockResolvedValue([row]);
-    const lean = jest.fn(() => ({ exec }));
-    const limit = jest.fn(() => ({ lean }));
-    const sort = jest.fn(() => ({ limit, lean }));
-    const select = jest.fn(() => ({ sort }));
-    const find = jest.fn(() => ({ select }));
-    const service = new AnalyticsService(
-      { find } as never,
-      { enqueue: jest.fn() } as never,
-    );
-    const since = new Date('2026-08-01T00:00:00Z');
-
-    const events = await service.listReviewEvents(USER_ID, { since, limit: 50 });
-
-    expect(find).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'review.graded',
-      ts: { $gte: since },
-    }));
-    expect(sort).toHaveBeenCalledWith({ ts: -1 });
-    expect(limit).toHaveBeenCalledWith(50);
-    expect(events).toEqual([{ id: eventId.toString(), ts: row.ts, payload: { grade: 'good' } }]);
   });
 });

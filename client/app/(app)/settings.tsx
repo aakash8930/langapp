@@ -236,7 +236,7 @@ export default function Settings() {
 
       <Section
         title="Daily goal"
-        hint={`${user.gamification.dailyGoalXp} XP a day. A review is worth 2 XP and finishing a new lesson 10.`}
+        hint={`${user.gamification.dailyGoalXp} XP a day. Finishing a new lesson earns 10 XP; repeat practice earns a smaller award.`}
       >
         <SegmentedControl
           label="Daily XP goal"

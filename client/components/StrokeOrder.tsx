@@ -1,3 +1,9 @@
+/*
+ * React Native Animated values are intentionally mutable refs, and the fetch
+ * effect resets visible state when its character key changes. The React DOM
+ * compiler rules do not model either native pattern correctly.
+ */
+/* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect */
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, Text, View, Linking } from 'react-native';
 import Svg, { Path } from 'react-native-svg';

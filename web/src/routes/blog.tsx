@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { InfoPage } from '../components/landing/InfoPage';
 
 const POSTS = [
-  { slug: 'why-spaced-repetition-works', title: 'Why Spaced Repetition Actually Works', date: '2026-07-15', excerpt: 'The science behind FSRS and why it\'s more effective than traditional flashcards.' },
+  { slug: 'recognition-and-recall', title: 'Why Lessons Need Recognition and Recall', date: '2026-07-15', excerpt: 'How immediate practice turns a short explanation into usable knowledge.' },
   { slug: 'learning-hiragana-fast', title: 'How to Learn Hiragana in One Week', date: '2026-07-01', excerpt: 'A practical guide to mastering the Japanese syllabary quickly and efficiently.' },
   { slug: 'jlpt-n5-guide', title: 'Complete JLPT N5 Study Guide', date: '2026-06-20', excerpt: 'Everything you need to know to pass the N5 exam on your first attempt.' },
 ];

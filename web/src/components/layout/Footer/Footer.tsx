@@ -16,16 +16,12 @@ const columns = [
     title: 'Company',
     links: [
       { label: 'About', to: '/about' },
-      { label: 'Blog', to: '/blog' },
-      { label: 'Careers', to: '/careers' },
-      { label: 'Press Kit', to: '/press-kit' },
       { label: 'Contact', to: '/contact' },
     ],
   },
   {
     title: 'Resources',
     links: [
-      { label: 'Documentation', to: '/documentation' },
       { label: 'FAQ', to: '/faq' },
       { label: 'Roadmap', to: '/roadmap' },
       { label: 'Changelog', to: '/changelog' },

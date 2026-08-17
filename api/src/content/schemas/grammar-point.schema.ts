@@ -5,8 +5,7 @@ import { JLPT_LEVELS, JlptLevel } from './vocab-item.schema';
 /**
  * A worked example of a grammar point, with a gap where the point itself goes.
  *
- * This is the second departure from §5's schemas (the first is `SrsCard`, see
- * OPEN-ITEMS #15), and it exists because a grammar quiz has to ask something.
+ * This is an intentional departure from the original content schema, and it exists because a grammar quiz has to ask something.
  * The only question this app can generate is multiple choice, and the useful
  * multiple-choice question about a particle is "which one fills this gap" —
  * which needs a sentence with a gap in it. §5's GrammarPoint has title, jlpt

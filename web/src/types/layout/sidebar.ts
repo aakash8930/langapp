@@ -36,12 +36,6 @@ export type SidebarItem =
       icon?: IconName;
       glyph?: string;
       to: RoutePath;
-      /**
-       * Which live counter, if any, renders as a pill on the right of the row.
-       * `due` is the only one the API can answer today (`progress.cardsDueNow`);
-       * see `Sidebar.tsx` for why there is no notification count.
-       */
-      badge?: 'due';
       /** Rows only shown to admins. Everything else renders for everyone. */
       adminOnly?: boolean;
     }

@@ -29,6 +29,7 @@ export function ContinueCard({
   onPress: (lesson: LessonWithState) => void;
 }) {
   const theme = useTheme();
+  const minutes = Math.max(3, Math.min(12, Math.ceil(lesson.itemCount * 0.8)));
 
   return (
     <Pressable
@@ -78,7 +79,7 @@ export function ContinueCard({
           theme.tabularFigures,
         ]}
       >
-        {lesson.itemCount} to learn
+        About {minutes} minutes · {lesson.itemCount} items
       </Text>
     </Pressable>
   );
@@ -87,8 +88,8 @@ export function ContinueCard({
 /**
  * Shown instead of the card when every lesson is complete.
  *
- * Reachable now — 58 lessons is a lot, but it is finite, and a learner who
- * finishes deserves better than the card silently vanishing. Points at reviews,
+ * Reachable now — 114 lessons is a lot, but it is finite, and a learner who
+ * finishes deserves better than the card silently vanishing. Points at further practice,
  * because that is genuinely what is left to do.
  */
 export function CourseComplete() {
@@ -123,7 +124,7 @@ export function CourseComplete() {
           color: theme.colors.inkSoft,
         }}
       >
-        Keep your reviews up to date — that is where the words actually stick.
+        Use practice and checkpoints to keep applying what you learned.
       </Text>
     </View>
   );

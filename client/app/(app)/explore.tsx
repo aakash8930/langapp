@@ -4,11 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme';
 
-type Destination = { title: string; detail: string; route?: '/review' | '/chat' | '/combined-test' | '/friends' | '/leaderboard' | '/settings' };
+type Destination = { title: string; detail: string; route?: '/chat' | '/combined-test' | '/friends' | '/leaderboard' | '/settings' };
 const groups: { title: string; items: Destination[] }[] = [
   { title: 'LEARN & PRACTISE', items: [
     { title: 'Lessons & Courses', detail: 'Continue the structured Japanese path', route: '/settings' },
-    { title: 'Spaced Review', detail: 'Complete cards scheduled by the API', route: '/review' },
     { title: 'AI Tutor', detail: 'Ask questions in an authenticated study chat', route: '/chat' },
     { title: 'Combined Tests', detail: 'Assess completed learning units', route: '/combined-test' },
   ] },

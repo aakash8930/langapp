@@ -56,7 +56,7 @@ function HomePage() {
     <>
       {lessonsQuery.isError ? (
         // The catalog failing does not empty the dashboard: the streak, the
-        // goal, the level and the review queue all come from elsewhere. Only
+        // goal, the level and the practice hub all come from elsewhere. Only
         // the three lesson-driven cards go quiet, so this says which.
         <p className="note note-error dashboard-warning">
           <strong>The course catalog could not be loaded.</strong>

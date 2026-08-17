@@ -22,12 +22,10 @@ import { useTheme } from '@/theme';
 const TOTAL_STEPS = 3;
 
 const LEVELS = [
-  { value: 'beginner', label: 'New to Japanese', desc: 'Start with scripts, sounds, and first phrases' },
-  { value: 'n5', label: 'Early beginner · N5', desc: 'I know kana and some basic vocabulary' },
-  { value: 'n4', label: 'Beginner · N4', desc: 'I can handle simple everyday Japanese' },
-  { value: 'n3', label: 'Intermediate · N3', desc: 'I can follow familiar conversations and texts' },
-  { value: 'n2', label: 'Upper intermediate · N2', desc: 'I can read and discuss a broad range of topics' },
-  { value: 'n1', label: 'Advanced · N1', desc: 'I am working toward near-native comprehension' },
+  { value: 'beginner', label: 'Starting from zero', desc: 'Begin with hiragana, sounds, and first words' },
+  { value: 'n5', label: 'I know kana', desc: 'Start with vocabulary and beginner sentences' },
+  { value: 'n4', label: 'I know basic Japanese', desc: 'Start with the available N4 vocabulary and grammar' },
+  { value: 'n3', label: 'I am around N4 or above', desc: 'Use the highest level currently available in GENKŌ' },
 ] as const;
 
 const GOALS = [
@@ -39,10 +37,10 @@ const GOALS = [
 ] as const;
 
 const COMMITMENTS = [
-  { minutes: 5, xp: 20, label: '5 minutes', desc: 'A quick daily check-in · 20 XP goal' },
+  { minutes: 5, xp: 20, label: '5 minutes', desc: 'One short lesson · 20 XP goal' },
+  { minutes: 10, xp: 35, label: '10 minutes', desc: 'A lesson and a little practice · 35 XP goal' },
   { minutes: 15, xp: 50, label: '15 minutes', desc: 'A steady daily habit · 50 XP goal' },
-  { minutes: 30, xp: 100, label: '30 minutes', desc: 'A focused session · 100 XP goal' },
-  { minutes: 60, xp: 200, label: '60 minutes', desc: 'An intensive routine · 200 XP goal' },
+  { minutes: 20, xp: 70, label: '20 minutes', desc: 'A focused learning session · 70 XP goal' },
 ] as const;
 
 type FormState = {
@@ -51,6 +49,11 @@ type FormState = {
   studyTimeMinutes: number;
   dailyGoalXp: number;
 };
+
+function visibleLevel(level: string | undefined): string {
+  if (level === 'n1' || level === 'n2' || level === 'n3') return 'n3';
+  return level ?? '';
+}
 
 function initialStep(user: User | null): number {
   const onboarding = user?.onboardingState;
@@ -68,7 +71,7 @@ export default function Onboarding() {
   const { user, applyUser, refresh, logout } = useAuth();
   const [step, setStep] = useState(() => initialStep(user));
   const [form, setForm] = useState<FormState>(() => ({
-    proficiencyLevel: user?.onboardingState.proficiencyLevel ?? '',
+    proficiencyLevel: visibleLevel(user?.onboardingState.proficiencyLevel),
     primaryGoal: user?.onboardingState.learningGoals[0] ?? '',
     studyTimeMinutes: user?.onboardingState.studyTimeMinutes ?? 15,
     dailyGoalXp: user?.gamification.dailyGoalXp ?? 50,

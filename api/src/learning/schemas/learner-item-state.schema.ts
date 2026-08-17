@@ -1,7 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { ItemMasteryLevel } from '../learner-model/confidence';
-import { SrsItemRef, SrsItemRefSchema } from './srs-card.schema';
+import { ContentKind } from '../../knowledge-graph/schemas/knowledge-node.schema';
+
+@Schema({ _id: false })
+export class LearnerItemRef {
+  @Prop({ type: String, required: true })
+  kind: ContentKind;
+
+  @Prop({ type: Types.ObjectId, required: true })
+  id: Types.ObjectId;
+}
+export const LearnerItemRefSchema = SchemaFactory.createForClass(LearnerItemRef);
 
 export const ITEM_MASTERY_LEVELS: ItemMasteryLevel[] = [
   'new',
@@ -13,9 +23,9 @@ export const ITEM_MASTERY_LEVELS: ItemMasteryLevel[] = [
 /**
  * Where the learner has been seen practising an item. §5.2's provenance field.
  *
- * `lesson`, `review`, `chat`, `reading`, `checkpoint`, `combined`, and
- * `practice` are written today. Practice remains separate because generated
- * application evidence must never be mistaken for an FSRS Review event.
+ * `lesson`, `chat`, `reading`, `checkpoint`, `combined`, and `practice` are
+ * written today. Practice remains separate so generated application evidence
+ * can be distinguished from guided lesson evidence.
  * Recorded so that "weak on へ" can distinguish weak *in a quiz* from weak *in
  * conversation*.
  *
@@ -29,14 +39,13 @@ export const ITEM_MASTERY_LEVELS: ItemMasteryLevel[] = [
  */
 export const SOURCE_CONTEXTS = [
   'lesson',
-  'review',
   'chat',
   'reading',
   'checkpoint',
   'combined',
   // Generated Practice sessions contribute confidence evidence but never write
-  // FSRS scheduling state. Keeping the provenance separate lets Weak Areas
-  // distinguish application practice from lesson completion and Review.
+  // persistent scheduling state. Keeping the provenance separate lets Weak Areas
+  // distinguish application practice from lesson completion.
   'practice',
 ] as const;
 export type SourceContext = (typeof SOURCE_CONTEXTS)[number];
@@ -70,30 +79,12 @@ export const ExerciseTypeStatsSchema = SchemaFactory.createForClass(ExerciseType
 /**
  * §5.2 / ADR-003: the pedagogical model for one `(user, item)` pair.
  *
- * ## Why this is not fields on `SrsCard`
- *
- * `SrsCard` is FSRS's state and nothing else. The two are read together only when
- * something needs both, and the hottest query in the app — `{userId, due}` —
- * serves entirely from a compound index; hanging confidence, response-time
- * distributions and per-exercise-type tallies off it would bloat that read for
- * every learner on every session. Two documents per item per learner is 24k
- * documents at this size, which is nothing; ADR-003 names 100k learners as the
- * point to revisit, not a date.
- *
  * ## What it replaces
  *
  * Hearts and gems (Phase 2 §3.1) collected exactly one useful signal — *where a
  * learner errs* — and removing them left nothing holding it. This is the rebuilt
  * home for that signal, and until something writes to it the only per-attempt
  * evidence in the system is the raw `ExerciseAttempt` row.
- *
- * ## The rule that must not be broken
- *
- * Nothing here is scheduling state. **`confidence` and `masteryLevel` may never be
- * written back into `stability`, `difficulty`, `state`, `reps` or `lapses`** —
- * §6.1 is explicit, and the precedent is `scheduleMissedWords`, which moves `due`
- * and writes nothing else. Feeding the scheduler observations that never happened
- * degrades every interval it computes afterwards.
  *
  * `confidence` and `masteryLevel` are **derived and stored**: read on every session
  * composition, written only on answer, so the asymmetry favours storing them. They
@@ -106,13 +97,9 @@ export class LearnerItemState {
   @Prop({ type: Types.ObjectId, required: true })
   userId: Types.ObjectId;
 
-  /**
-   * Reuses `SrsCard`'s ref shape deliberately: the two documents share a key, and
-   * a second, subtly different `{kind, id}` embedded type is how they would drift
-   * apart.
-   */
-  @Prop({ type: SrsItemRefSchema, required: true })
-  itemRef: SrsItemRef;
+  /** Stable content identity for this learner-model row. */
+  @Prop({ type: LearnerItemRefSchema, required: true })
+  itemRef: LearnerItemRef;
 
   // ---- evidence (§5.2) ----
 
@@ -171,9 +158,8 @@ export class LearnerItemState {
 export type LearnerItemStateDocument = HydratedDocument<LearnerItemState>;
 export const LearnerItemStateSchema = SchemaFactory.createForClass(LearnerItemState);
 
-// One state per (user, item) — the same key `SrsCard` uses, so the pair can be
-// read together. Unique because a second row would split one item's evidence in
-// two and silently halve every count derived from it.
+// One state per (user, item). Unique because a second row would split one
+// item's evidence in two and silently halve every count derived from it.
 LearnerItemStateSchema.index(
   { userId: 1, 'itemRef.kind': 1, 'itemRef.id': 1 },
   { unique: true },

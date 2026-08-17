@@ -1,12 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchLeaderboard } from '../api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchLeaderboard, updateSettings } from '../api';
 import { queryKeys } from '../queryKeys';
 import './Leaderboard.css';
 
 export function Leaderboard() {
+  const queryClient = useQueryClient();
   const { data: leaderboard, isLoading, error } = useQuery({
     queryKey: queryKeys.social.leaderboard,
     queryFn: fetchLeaderboard,
+  });
+  const optIn = useMutation({
+    mutationFn: () => updateSettings({ leaderboardOptIn: true }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.social.leaderboard }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.session.me }),
+      ]);
+    },
   });
 
   if (isLoading) {
@@ -22,7 +32,19 @@ export function Leaderboard() {
       <div className="leaderboard-opt-in glass panel">
         <h2>Join the Leagues!</h2>
         <p>Compete with other learners, earn XP, and rank up each week.</p>
-        <button className="btn btn-primary" onClick={() => alert('Opt-in logic would go here!')}>Join Now</button>
+        <button
+          className="btn btn-primary"
+          type="button"
+          onClick={() => optIn.mutate()}
+          disabled={optIn.isPending}
+        >
+          {optIn.isPending ? 'Joining…' : 'Join now'}
+        </button>
+        {optIn.isError ? (
+          <p className="leaderboard-error" role="alert">
+            {optIn.error instanceof Error ? optIn.error.message : 'Could not join the leaderboard.'}
+          </p>
+        ) : null}
       </div>
     );
   }

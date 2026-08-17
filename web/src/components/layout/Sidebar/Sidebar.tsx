@@ -20,18 +20,6 @@ function initials(name: string): string {
 /**
  * The primary navigation.
  *
- * ## The badge is the due count, and it is the only live number here
- *
- * `progress.cardsDueNow` is a real figure the API sends, and it belongs on the
- * Review row for the same reason the due callout out-shouts everything else on
- * the old home page: SRS only works if due cards get cleared before new
- * material is added. It is the one counter in the design the server can answer.
- *
- * The notification bell's "3" from the design has no endpoint behind it — there
- * is no notifications API — so there is no bell. A badge that invents a number
- * is worse than an absent one, and this project has already written that rule
- * down twice (see the reward layer in CLAUDE.md).
- *
  * ## Planned rows are inert, and say why
  *
  * Fifteen of the twenty-four rows lead nowhere yet. They render as `<span>`
@@ -43,9 +31,7 @@ function initials(name: string): string {
 export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const { session } = useSession();
 
-  const progress = session.state === 'signedIn' ? session.progress : null;
   const isAdmin = session.state === 'signedIn' && session.user.isAdmin === true;
-  const due = progress?.cardsDueNow ?? 0;
   const [openGroups, setOpenGroups] = useState(
     () => new Set(sidebarGroups.filter((group) => group.title).map((group) => group.id)),
   );
@@ -89,7 +75,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             <ul className="sidebar-list" aria-label={group.title}>
               {items.map((item) => (
                 <li key={item.id}>
-                  <Row item={item} due={due} collapsed={collapsed} />
+                  <Row item={item} collapsed={collapsed} />
                 </li>
               ))}
             </ul>
@@ -133,7 +119,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           {collapsed ? null : (
             <span className="sidebar-profile-copy">
               <strong>{session.user.profile.displayName}</strong>
-              <small>Level {progress?.level ?? 1}</small>
+              <small>Level {session.progress?.level ?? 1}</small>
             </span>
           )}
           {collapsed ? null : <Icon name="chevron-right" size={15} />}
@@ -148,7 +134,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
  * inside and none of their outside — the shape that argues for a component
  * rather than a ternary in the middle of the list.
  */
-function Row({ item, due, collapsed }: { item: SidebarItem; due: number; collapsed: boolean }) {
+function Row({ item, collapsed }: { item: SidebarItem; collapsed: boolean }) {
   const glyph = item.glyph ? (
     <span className="sidebar-icon sidebar-icon-ja ja" aria-hidden="true">
       {item.glyph}
@@ -193,12 +179,6 @@ function Row({ item, due, collapsed }: { item: SidebarItem; due: number; collaps
     >
       {glyph}
       {label}
-      {item.badge === 'due' && due > 0 ? (
-        <span className="sidebar-badge tabular">
-          {due}
-          <span className="visually-hidden"> cards due</span>
-        </span>
-      ) : null}
     </Link>
   );
 }

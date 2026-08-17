@@ -8,7 +8,7 @@ import { useTheme } from '@/theme';
  *
  * The tutor speaks on the left in a surface block; the learner answers on the
  * right on an indigo ground — `ai`, the token for information and secondary
- * action, deliberately not `shu`, which belongs to the review scale and active
+ * action, deliberately not `shu`, which is reserved for active
  * state. `paper` on `ai` clears AA in both themes (6.5:1 light, 5.7:1 dark),
  * which is why the fill can be solid rather than tinted.
  */

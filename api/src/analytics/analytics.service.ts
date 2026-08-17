@@ -13,19 +13,7 @@ export interface RecordEventInput {
 }
 
 /**
- * Lean read model for the append-only review log. Analytics owns the event
- * collection; learning consumes these rows through this service rather than
- * reaching across the module boundary.
- */
-export interface ReviewAnalyticsEvent {
-  id: string;
-  ts: Date;
-  payload: Record<string, unknown>;
-}
-
-/**
- * Owns the `events` collection. Reads serve daily progress plus the Review
- * System's history, heatmap, observed statistics, and retention views.
+ * Owns the `events` collection. Reads currently serve daily progress and operational analytics.
  */
 @Injectable()
 export class AnalyticsService {
@@ -44,8 +32,7 @@ export class AnalyticsService {
    * the same `void`-returning, never-throws shape.
    *
    * **The row is not there when this resolves.** That is new, and it reaches one
-   * caller: `countTodayByType` counts `events`, so `daily.reviewsDone` and
-   * `daily.lessonsDone` on `GET /me/progress` are eventually consistent with the
+   * caller: `countTodayByType` counts `events`, so `daily.lessonsDone` on `GET /me/progress` are eventually consistent with the
    * grade or completion that produced them. The window is a worker hop on the
    * same box — shorter than the client's next HTTP round trip, so in practice a
    * screen refresh sees the increment — but it is a window, and a test that
@@ -127,40 +114,6 @@ export class AnalyticsService {
     }
 
     return counts;
-  }
-
-  /**
-   * Reads the real append-only review log for one learner. Callers can request
-   * every event in a window for exact aggregates or cap the newest-first list
-   * for a history screen. No scheduling state is reconstructed here.
-   */
-  async listReviewEvents(
-    userId: string,
-    options: { since?: Date; limit?: number; newestFirst?: boolean } = {},
-  ): Promise<ReviewAnalyticsEvent[]> {
-    const filter: Record<string, unknown> = {
-      userId: new Types.ObjectId(userId),
-      type: 'review.graded',
-    };
-    if (options.since) {
-      filter.ts = { $gte: options.since };
-    }
-
-    const query = this.eventModel
-      .find(filter)
-      .select('_id ts payload')
-      .sort({ ts: options.newestFirst === false ? 1 : -1 });
-    if (options.limit !== undefined) {
-      query.limit(Math.max(1, Math.min(options.limit, 500)));
-    }
-    const rows = await query
-      .lean<{ _id: Types.ObjectId; ts: Date; payload?: Record<string, unknown> }[]>()
-      .exec();
-    return rows.map((row) => ({
-      id: row._id.toString(),
-      ts: row.ts,
-      payload: row.payload ?? {},
-    }));
   }
 
   /**

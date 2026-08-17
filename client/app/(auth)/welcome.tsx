@@ -7,9 +7,9 @@ import { useTheme } from '@/theme';
 
 const FEATURES = [
   {
-    mark: '再',
-    title: 'Spaced repetition that adapts to you',
-    body: 'Every card is scheduled by FSRS off your own answers, not a fixed calendar.',
+    mark: '学',
+    title: 'Short lessons with real practice',
+    body: 'Every lesson combines explanation, recognition, and recall practice.',
   },
   {
     mark: '話',

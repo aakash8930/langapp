@@ -1,15 +1,13 @@
 import { Link } from '@tanstack/react-router';
-
 import { Icon, type IconName } from '../ui/Icon';
 
-export type FlashcardSection = 'decks' | 'mine' | 'create' | 'shared' | 'queue' | 'statistics';
+export type FlashcardSection = 'decks' | 'mine' | 'create' | 'shared' | 'statistics';
 
-const TABS: { id: FlashcardSection; label: string; to: '/flashcards' | '/flashcards-my-decks' | '/flashcards-create' | '/flashcards-shared' | '/flashcards-review-queue' | '/flashcards-statistics'; icon: IconName }[] = [
+const TABS: { id: FlashcardSection; label: string; to: '/flashcards' | '/flashcards-my-decks' | '/flashcards-create' | '/flashcards-shared' | '/flashcards-statistics'; icon: IconName }[] = [
   { id: 'decks', label: 'Decks', to: '/flashcards', icon: 'layers' },
   { id: 'mine', label: 'My Decks', to: '/flashcards-my-decks', icon: 'book-marked' },
   { id: 'create', label: 'Create Deck', to: '/flashcards-create', icon: 'pen-square' },
   { id: 'shared', label: 'Shared Decks', to: '/flashcards-shared', icon: 'users' },
-  { id: 'queue', label: 'Review Queue', to: '/flashcards-review-queue', icon: 'refresh-cw' },
   { id: 'statistics', label: 'Statistics', to: '/flashcards-statistics', icon: 'trending-up' },
 ];
 

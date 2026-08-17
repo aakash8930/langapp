@@ -51,7 +51,7 @@ export function JLPTDashboard() {
             <p className="jlpt-card-label">YOUR NEXT BEST STEP</p>
             <h2>Practice particles</h2>
             <p>Grammar is your biggest score opportunity. Complete a focused set, then review it with spaced repetition.</p>
-            <div><Link className="btn btn-primary" to="/grammar-exercises">Practice 15 questions</Link><Link className="btn btn-secondary" to="/review">Open review queue</Link></div>
+            <div><Link className="btn btn-primary" to="/grammar-exercises">Practice 15 questions</Link><Link className="btn btn-secondary" to="/practice-hub">Open practice hub</Link></div>
           </div>
         </section>
 
@@ -69,7 +69,7 @@ export function JLPTDashboard() {
 
         <section className="jlpt-section jlpt-two-col">
           <article className="glass jlpt-panel"><p className="jlpt-card-label">THIS WEEK'S PLAN</p><h2>Small steps. Clear progress.</h2>
-            <ul className="jlpt-checklist"><li><span className="done">✓</span><div><b>Vocabulary review</b><small>24 cards due today</small></div><Link to="/review">Review</Link></li><li><span>2</span><div><b>Particles practice</b><small>15 original N5-aligned questions</small></div><Link to="/grammar-exercises">Start</Link></li><li><span>3</span><div><b>Listening set</b><small>Short responses and key details</small></div><Link to="/listening">Practice</Link></li></ul>
+            <ul className="jlpt-checklist"><li><span className="done">✓</span><div><b>Vocabulary review</b><small>24 cards due today</small></div><Link to="/practice-hub">Review</Link></li><li><span>2</span><div><b>Particles practice</b><small>15 original N5-aligned questions</small></div><Link to="/grammar-exercises">Start</Link></li><li><span>3</span><div><b>Listening set</b><small>Short responses and key details</small></div><Link to="/listening">Practice</Link></li></ul>
           </article>
           <article className="glass jlpt-panel jlpt-result-summary"><p className="jlpt-card-label">MOCK TESTS</p><h2>{latest ? `${latest.score}% on your last N5 mock` : 'Take your N5 baseline'}</h2><p>{latest ? 'Your result has been turned into targeted recommendations below.' : 'A short diagnostic identifies the skills to prioritize next.'}</p><Link className="btn btn-primary" to="/jlpt-mock-test">{latest ? 'Take another mock' : 'Start mock test'}</Link><Link className="text-link" to="/jlpt-results">View all results →</Link></article>
         </section>
@@ -80,7 +80,7 @@ export function JLPTDashboard() {
       {tab === 'curriculum' && <section className="jlpt-section">
         <div className="jlpt-section-heading"><div><p className="jlpt-card-label">JLPT-ALIGNED CURRICULUM</p><h2>Build from core Japanese data</h2></div></div>
         <div className="jlpt-level-grid">{jlptLevels.map((item) => <article className="glass jlpt-level-card" key={item.level}><div><span className="jlpt-level-name">{item.level}</span><span className="jlpt-status">{item.status}</span></div><h3>{item.label}</h3><p>{item.description}</p><div className="jlpt-meter small"><span style={{ width: `${item.readiness}%` }} /></div><small>{item.readiness ? `${item.readiness}% learning readiness` : 'Choose this target when ready'}</small>{item.level === 'N5' && <Link to="/vocabulary">Explore N5 learning content →</Link>}</article>)}</div>
-        <article className="glass jlpt-flow"><p className="jlpt-card-label">CONNECTED LEARNING LOOP</p><div><b>Learn</b><span>Vocabulary · Kanji · Grammar</span><i>→</i><b>Assess</b><span>Original mock questions</span><i>→</i><b>Improve</b><span>Weak areas · FSRS review</span></div></article>
+        <article className="glass jlpt-flow"><p className="jlpt-card-label">CONNECTED LEARNING LOOP</p><div><b>Learn</b><span>Vocabulary · Kanji · Grammar</span><i>→</i><b>Assess</b><span>Original mock questions</span><i>→</i><b>Improve</b><span>Weak areas · targeted practice</span></div></article>
       </section>}
 
       {tab === 'exam' && <section className="jlpt-section">

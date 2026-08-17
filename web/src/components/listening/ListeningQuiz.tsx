@@ -67,7 +67,7 @@ function ListeningQuizSession({ run, speed, onSpeedChange, onExit, onRestart }: 
 
   if (index >= questions.length) {
     const percent = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
-    return <section className="listening-quiz-result glass"><span className="listening-quiz-result-glyph ja">聴</span><p className="listening-kicker">QUIZ COMPLETE</p><h1>{score} of {questions.length} correct</h1><p className="listening-quiz-percent tabular">{percent}%</p><p>This result belongs to this run only. It is not saved as listening mastery or added to the review schedule.</p><div><button type="button" className="btn btn-primary" onClick={onRestart}><Icon name="refresh-cw" size={16} /> Try this pool again</button><button type="button" className="btn btn-secondary" onClick={onExit}>Change quiz settings</button><Link className="btn btn-secondary" to="/review">Open review queue</Link></div></section>;
+    return <section className="listening-quiz-result glass"><span className="listening-quiz-result-glyph ja">聴</span><p className="listening-kicker">QUIZ COMPLETE</p><h1>{score} of {questions.length} correct</h1><p className="listening-quiz-percent tabular">{percent}%</p><p>This result belongs to this run only. It is not saved as listening mastery or saved as persistent mastery.</p><div><button type="button" className="btn btn-primary" onClick={onRestart}><Icon name="refresh-cw" size={16} /> Try this pool again</button><button type="button" className="btn btn-secondary" onClick={onExit}>Change quiz settings</button><Link className="btn btn-secondary" to="/practice-hub">Open practice hub</Link></div></section>;
   }
   if (!question) return null;
   const correct = selected === question.answer;

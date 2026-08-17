@@ -166,7 +166,7 @@ function DailyPlan({ overview, signedIn }: { overview?: PracticeOverview; signed
       <footer className="practice-daily-summary">
         <div><Icon name="check-circle-2" size={21} /><span><strong>{signedIn ? completed : '—'}</strong><small>answered today</small></span></div>
         <div><Icon name="star" size={21} /><span><strong>{signedIn ? `${Math.round((completed / Math.max(1, target)) * 100)}%` : '—'}</strong><small>plan progress</small></span></div>
-        <div><Icon name="shield-check" size={21} /><span><strong>0</strong><small>FSRS dates changed</small></span></div>
+        <div><Icon name="shield-check" size={21} /><span><strong>0</strong><small>persistent schedules changed</small></span></div>
       </footer>
     </section>
   );
@@ -267,8 +267,8 @@ function PracticePrinciple() {
     <section className="practice-tip-card glass">
       <Icon name="sparkles" size={24} />
       <h2>Practice is not Review</h2>
-      <p><strong>Review</strong> asks what you are forgetting with scheduled FSRS cards. <strong>Practice</strong> asks whether you can apply what you know through generated exercises.</p>
-      <Link to="/review">Open scheduled Review <Icon name="arrow-right" size={14} /></Link>
+      <p><strong>Practice</strong> asks whether you can apply completed material through generated exercises.</p>
+      <Link to="/practice-hub">Open scheduled Review <Icon name="arrow-right" size={14} /></Link>
     </section>
   );
 }

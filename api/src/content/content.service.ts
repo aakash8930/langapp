@@ -483,7 +483,7 @@ export class ContentService {
    * back into the caller's order — for a lesson that order is pedagogical
    * (あいうえお), so it must not degrade into whatever order Mongo returns.
    *
-   * Public because the learning module resolves SRS card items through it —
+   * Public because the learning module resolves learning record items through it —
    * cards store the same `{ kind, id }` ref, and content stays the only module
    * that touches content collections.
    */

@@ -443,7 +443,7 @@ function DataSection() {
         <div className="field" style={{ marginTop: 'var(--s-lg)' }}>
           <h3 className="field-label">What syncs across devices</h3>
           <p className="field-note">
-            Your profile, onboarding choices, lesson progress, XP, streak, review schedule,
+            Your profile, onboarding choices, lesson and checkpoint progress, XP, streak,
             account settings, friends, messages, and in-app notifications are stored with your
             account and sync through the API.
           </p>

@@ -10,16 +10,16 @@ import { queryKeys } from '../../queryKeys';
  * ## Why this is a fan-out and not one request
  *
  * `GET /units/:unit/content` is per-unit, so "every vocabulary word in the
- * course" is the union of eleven of those. Each is two database queries, they
+ * course" is the union of fourteen of those. Each is two database queries, they
  * run in parallel, and the result is cached under a single key — so the
  * Vocabulary, Kanji, Grammar and Dictionary screens share **one** fetch between
  * them, and moving between those screens costs nothing.
  *
- * The measured shape today: 11 units, 1126 unique items — 802 vocab, 208 kana,
- * 104 kanji, 12 grammar.
+ * The required authored baseline is 14 units: 929 vocabulary rows, 208 kana,
+ * 188 kanji, and 32 grammar points. The union still deduplicates shared items.
  *
  * A `?kind=` filter on the server would make this one request instead of
- * eleven. It is not worth adding yet: the eleven are parallel, small, cached
+ * fourteen. It is not worth adding yet: the requests are parallel, small, cached
  * for an hour, and the union is what three of the four callers want anyway.
  * The moment the syllabus grows past a few dozen units, that changes.
  *
@@ -33,7 +33,7 @@ import { queryKeys } from '../../queryKeys';
  * ## One slow unit does not empty the library
  *
  * `allSettled`, not `all`: a single unit failing would otherwise throw away the
- * other ten. A partial corpus is a usable library with something missing; an
+ * other thirteen. A partial corpus is a usable library with something missing; an
  * empty one is a broken screen. Failures are logged and the caller is told how
  * many units are missing so it can say so.
  */
@@ -81,7 +81,7 @@ export function useCorpus() {
     queryKey: queryKeys.content.corpus,
     queryFn: fetchCorpus,
     // The syllabus is reference content. Re-assembling it on every visit would
-    // mean eleven requests to learn nothing changed.
+    // mean fourteen requests to learn nothing changed.
     staleTime: 60 * 60_000,
   });
 }

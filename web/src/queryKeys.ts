@@ -28,25 +28,11 @@ export const queryKeys = {
     available: ['session', 'available'] as const,
     /** `GET /me` — who is signed in. */
     me: ['me'] as const,
-    /** `GET /me/progress` — XP, streak, due-now, completed lessons. */
+    /** `GET /me/progress` — XP, streak, checkpoints, completed lessons. */
     progress: ['me', 'progress'] as const,
     /** `GET /me/history` — paginated activity events. */
     history: (params?: Record<string, unknown>) =>
       ['me', 'history', params ?? {}] as const,
-  },
-  reviews: {
-    /** `GET /reviews/due` — every card due at request time, capped for display. */
-    due: ['reviews', 'due'] as const,
-    /** `GET /reviews/session` — today's persisted due + new review set. */
-    session: ['reviews', 'session'] as const,
-    summary: ['reviews', 'summary'] as const,
-    missed: ['reviews', 'missed'] as const,
-    events: (limit: number) => ['reviews', 'events', limit] as const,
-    history: (days: number) => ['reviews', 'history', days] as const,
-    statistics: (days: number) => ['reviews', 'statistics', days] as const,
-    heatmap: (days: number) => ['reviews', 'heatmap', days] as const,
-    retention: (days: number) => ['reviews', 'retention', days] as const,
-    forecast: (days: number) => ['reviews', 'forecast', days] as const,
   },
   practice: {
     overview: ['practice', 'overview'] as const,
@@ -59,12 +45,6 @@ export const queryKeys = {
     readableVocab: ['reading', 'readable-vocab'] as const,
     /** `GET /content/grammar/by-known-kana` — personalised grammar examples. */
     readableSentences: ['reading', 'readable-sentences'] as const,
-  },
-  learning: {
-    /** `GET /learning/memory-model` — mastery bands and the forgetting curve. */
-    memoryModel: ['learning', 'memory-model'] as const,
-    /** `GET /learning/analytics` — today's review accuracy and pace. */
-    analytics: ['learning', 'analytics'] as const,
   },
   content: {
     /** `GET /lessons/curriculum` — the canonical kana list. Public. */

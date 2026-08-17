@@ -167,20 +167,3 @@ export function monthLabel(day: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })
     .format(new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, 1)));
 }
-
-/**
- * How long a card has been waiting, as a short human string.
- *
- * `/reviews/due` only ever returns cards whose `due` has already passed — the
- * query is `due: { $lte: now }` — so this is always a *past* interval. The
- * design's "Due in 15m" is not a thing this API can answer, and rendering a
- * future time here would be inventing one.
- */
-export function waitedFor(due: string, now: Date = new Date()): string {
-  const minutes = Math.max(0, Math.round((now.getTime() - new Date(due).getTime()) / 60_000));
-
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m`;
-  if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
-  return `${Math.round(minutes / 1440)}d`;
-}

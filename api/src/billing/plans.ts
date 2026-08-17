@@ -7,7 +7,7 @@ export const PLANS = [
     features: [
       'Complete Japanese course',
       'Vocabulary, grammar, kana, and kanji libraries',
-      'Lesson quizzes and spaced review',
+      'Lesson quizzes and checkpoints',
       'Progress, XP, streaks, and social practice',
       'AI tutor and Japanese audio when configured',
       'No payment method required',

@@ -4,16 +4,16 @@
  *
  * ## Confidence is not stability
  *
- * FSRS already estimates *predicted retention* and owns every interval.
+ * The removed scheduler estimated predicted retention and owns every interval.
  * Confidence measures something different — **felt certainty**, from recent
  * outcomes and how long the learner took — and §6.1 is explicit that it is
  * deliberately not a function of stability. A fast correct answer and a slow
  * correct answer are different observations, and response time is the only
  * signal in the system that can tell them apart.
  *
- * **Nothing here may ever be written back into FSRS state.** The engine may
+ * **Nothing here may ever be written back into scheduler state.** The engine may
  * choose what to show; `stability`, `difficulty`, `state`, `reps` and `lapses`
- * change only in a real graded review. The precedent is `scheduleMissedWords`,
+ * were changed only by scheduler grades. The precedent is `scheduleMissedWords`,
  * which moves `due` and nothing else.
  */
 
@@ -26,7 +26,7 @@ export const RECENT_OUTCOMES = 10;
  * Below this, confidence is scaled down however good the outcomes look: two
  * correct answers out of two is weak evidence, and treating it as certainty
  * would retire an item the learner has barely met. Five is the smallest number
- * that spans a lesson plus a review or two, so an item reaches full weight
+ * that spans several lesson and practice exposures, so an item reaches full weight
  * through ordinary use rather than needing to be drilled.
  */
 export const EXPOSURES_FOR_FULL_EVIDENCE = 5;
@@ -178,7 +178,7 @@ export function computeConfidence(input: ConfidenceInput): number {
 /**
  * Mastery band for an item, from confidence and how much evidence there is.
  *
- * Distinct from `computeMastery` on `SrsCard`, which bands FSRS *stability* —
+ * This mastery band derives from exercise confidence —
  * predicted retention. Both are called "mastery" and they answer different
  * questions; this one is about the learner's demonstrated performance, and it is
  * the one a weakness report should use.

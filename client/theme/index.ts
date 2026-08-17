@@ -22,6 +22,6 @@ export function useTheme(): Theme {
 export { darkTheme, lightTheme, type Theme } from './themes';
 export { ThemeProvider, type ThemePreference } from './ThemeProvider';
 export { darkPalette, lightPalette } from './colors';
-export type { GradeScale, GradeStep, Palette } from './colors';
+export type { Palette } from './colors';
 export { controlHeight, duration, hairlineWidth, radius, spacing } from './spacing';
 export { families, fontSize, lineHeight, tabularFigures } from './typography';

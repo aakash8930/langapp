@@ -542,7 +542,7 @@ function CourseHero({
             label={loading ? '—' : String(lessons)}
             note={lessons === 1 ? 'Lesson' : 'Lessons'}
           />
-          <MetaChip icon="repeat" label="FSRS" note="Spaced repetition" />
+          <MetaChip icon="pen-square" label="Recall" note="Lesson practice" />
         </ul>
       </div>
 
@@ -570,8 +570,8 @@ function CourseHero({
                 <Icon name="chevron-right" size={18} />
               </Link>
             ) : lessons > 0 ? (
-              <Link className="btn btn-primary course-cta" to="/review">
-                Every lesson done — review
+              <Link className="btn btn-primary course-cta" to="/practice-hub">
+                Every lesson complete — practise
               </Link>
             ) : null}
           </>
@@ -579,7 +579,7 @@ function CourseHero({
           <>
             <p className="course-progress-note">
               Browsing is open to everyone. An account is what tracks which lessons you have
-              finished and schedules the reviews.
+              finished and saves your progress.
             </p>
             <Link className="btn btn-primary course-cta" to="/">
               Sign in
@@ -764,7 +764,7 @@ function StudyGuideCard({ signedIn, next }: { signedIn: boolean; next: LessonSum
   const steps = [
     { icon: 'book-open' as const, title: 'Learn', note: 'Open the next lesson and study its items.' },
     { icon: 'check' as const, title: 'Test', note: 'Pass the lesson quiz to record completion.' },
-    { icon: 'repeat' as const, title: 'Review', note: 'Clear due cards when FSRS schedules them.' },
+    { icon: 'pen-square' as const, title: 'Practise', note: 'Use checkpoints and mixed practice to apply the material.' },
   ];
 
   return (
@@ -789,7 +789,7 @@ function StudyGuideCard({ signedIn, next }: { signedIn: boolean; next: LessonSum
       ) : !signedIn ? (
         <Link className="btn btn-primary course-guide-action" to="/">Sign in to track progress</Link>
       ) : (
-        <Link className="btn btn-primary course-guide-action" to="/review">Review completed lessons</Link>
+        <Link className="btn btn-primary course-guide-action" to="/practice-hub">Practise completed lessons</Link>
       )}
     </section>
   );
@@ -800,7 +800,7 @@ function CourseShortcuts() {
     { label: 'Hiragana library', note: 'Browse the full script', icon: 'languages' as const, to: '/hiragana' as const },
     { label: 'Vocabulary', note: 'Explore N5 words', icon: 'library' as const, to: '/vocabulary' as const },
     { label: 'Grammar guide', note: 'Review core patterns', icon: 'book-marked' as const, to: '/grammar' as const },
-    { label: 'Review queue', note: 'Study cards due now', icon: 'repeat' as const, to: '/review' as const },
+    { label: 'Practice hub', note: 'Mixed course practice', icon: 'repeat' as const, to: '/practice-hub' as const },
   ];
 
   return (
@@ -855,7 +855,7 @@ function AboutCard({ units, lessons }: { units: Unit[]; lessons: number }) {
         <AboutRow icon="layers" label={`${units.length} modules`} />
         <AboutRow icon="library" label={`${taught} items taught`} />
         <AboutRow icon="graduation-cap" label="JLPT N5 throughout" />
-        <AboutRow icon="repeat" label="Reviews scheduled by FSRS" />
+        <AboutRow icon="pen-square" label="Recognition and recall exercises" />
         <AboutRow icon="check" label="Free, and no account needed to browse" />
       </ul>
     </section>
@@ -923,7 +923,6 @@ function YourStatsCard({ progress, doneCount }: { progress: Progress; doneCount:
         <StatRow label="Total XP" value={progress.xp.toLocaleString()} />
         <StatRow label="Level" value={String(progress.level)} />
         <StatRow label="Day streak" value={String(progress.streakDays)} />
-        <StatRow label="Cards due now" value={String(progress.cardsDueNow)} />
       </dl>
     </section>
   );
@@ -942,13 +941,13 @@ function StatRow({ label, value }: { label: string; value: string }) {
  * The four claims along the bottom.
  *
  * Static copy, and every one of them is true of this product rather than
- * marketing: the scheduler really is FSRS, the tutor really is a chat screen,
+ * marketing: the lessons are structured, the tutor is a real chat screen,
  * XP and levels really are awarded server-side. Each links to the screen that
  * makes the claim good, which is the difference between a feature strip and a
  * row of adjectives.
  */
 function FeatureStrip() {
-  const features: { id: string; icon: IconName; title: string; note: string; to: '/review' | '/practice' | '/leagues' | '/courses' }[] = [
+  const features: { id: string; icon: IconName; title: string; note: string; to: '/practice-hub' | '/practice' | '/leagues' | '/courses' }[] = [
     {
       id: 'pace',
       icon: 'book-open',
@@ -964,17 +963,17 @@ function FeatureStrip() {
       to: '/practice',
     },
     {
-      id: 'srs',
-      icon: 'repeat',
-      title: 'Spaced repetition',
-      note: 'FSRS schedules each card just before you would forget it.',
-      to: '/review',
+      id: 'practice',
+      icon: 'pen-square',
+      title: 'Course practice',
+      note: 'Apply completed material in focused sessions.',
+      to: '/practice-hub',
     },
     {
       id: 'xp',
       icon: 'zap',
       title: 'XP and levels',
-      note: 'Awarded by the server for lessons and reviews.',
+      note: 'Awarded by the server for lessons, practice, and checkpoints.',
       to: '/leagues',
     },
   ];

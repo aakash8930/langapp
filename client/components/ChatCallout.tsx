@@ -3,12 +3,10 @@ import { Pressable, Text, View } from 'react-native';
 import { useTheme } from '@/theme';
 
 /**
- * The way in to the AI conversation, sitting under the review callout.
+ * The way in to the AI conversation, shown after course progress.
  *
- * Deliberately quieter than that one — a hairline block, not a solid fill.
- * Review has to out-shout everything because SRS collapses if due cards go
- * uncleared; conversation practice is the reward for having done it, and
- * putting two loud surfaces in a row would leave neither of them loud.
+ * Deliberately quiet: a hairline block rather than another dominant dashboard
+ * card. Conversation is optional support beside the primary course path.
  */
 export function ChatCallout({ onPress }: { onPress: () => void }) {
   const theme = useTheme();

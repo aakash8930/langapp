@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router';
 
 const FAQS = [
-  { q: 'Is GENKŌ really free?', a: 'Yes! The Free plan gives you access to core lessons, vocabulary, kanji, and grammar. Pro unlocks unlimited lessons, AI Tutor, and advanced analytics.' },
-  { q: 'Do I need to know any Japanese to start?', a: 'Not at all. GENKŌ starts from absolute zero — hiragana, katakana, and basic vocabulary. Our placement test can also fast-track you if you already know some.' },
-  { q: 'How does spaced repetition work?', a: 'GENKŌ uses the FSRS algorithm to schedule your reviews. Cards you find easy appear less often; cards you struggle with come back sooner. This optimizes your memory retention.' },
-  { q: 'Can I study offline?', a: 'Pro subscribers can download lessons for offline use. Study on the train, in a café, or anywhere without internet.' },
-  { q: 'What is JLPT and does GENKŌ help with it?', a: 'JLPT is the Japanese Language Proficiency Test — the standard certification. GENKŌ has structured content aligned with N5 through N1 levels, plus mock tests and targeted practice.' },
+  { q: 'Is GENKŌ really free?', a: 'Yes. Every feature released in the public MVP is free, with no payment card or trial expiry. Paid checkout is disabled.' },
+  { q: 'Do I need to know any Japanese to start?', a: 'Not at all. GENKŌ starts from absolute zero with hiragana, katakana, and basic vocabulary. Onboarding can also recommend a later starting unit if you already know some Japanese.' },
+  { q: 'How are lessons structured?', a: 'Each lesson introduces a small set of concepts, checks recognition and recall, and records completion only after every exercise is answered correctly.' },
+  { q: 'Can I study offline?', a: 'Not yet. Lessons, account sync, exercises, and AI currently require a connection.' },
+  { q: 'What JLPT content is available?', a: 'The authored course currently contains beginner, N5, and N4-aligned vocabulary, grammar, and kanji. Higher-level onboarding choices explicitly fall back to the highest available N4 material.' },
 ];
 
 export function FaqPreview() {

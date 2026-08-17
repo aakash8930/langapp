@@ -89,11 +89,8 @@ export type CompleteLessonResult = {
   lessonId: string;
   title: string;
   /** Created by this call. Zero on a repeat completion. */
-  cardsCreated: number;
-  cardsAlreadyPresent: number;
   /** Full award the first time, a smaller practice award on every repeat. */
   xpAwarded: number;
-  /** Says which of the two happened — don't infer it from `cardsCreated`. */
   firstCompletion: boolean;
   totalXp: number;
 };

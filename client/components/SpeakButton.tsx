@@ -40,7 +40,7 @@ export function SpeakButton({
         if (status.isLoaded && !status.error) {
           // Rewind first: tapping twice replays instead of resuming midway.
           void player.seekTo(0);
-          player.playbackRate = speed;
+          player.setPlaybackRate(speed);
           player.play();
           return;
         }

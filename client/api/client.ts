@@ -43,12 +43,12 @@ export class ApiError extends Error {
 }
 
 /**
- * The API runs on a laptop and is offline regularly — a normal condition, not
- * an exception. Status 0 means the request never reached the server.
+ * An unreachable learning service is a recoverable network condition, not an
+ * application crash. Status 0 means the request never reached the server.
  */
 export class OfflineError extends ApiError {
   constructor(
-    message = 'Can’t reach the server. Check that the API is running, then try again.',
+    message = 'Can’t reach the learning service. Check your connection, then try again.',
   ) {
     super(message, 0);
     this.name = 'OfflineError';
@@ -58,10 +58,9 @@ export class OfflineError extends ApiError {
 /**
  * How long to wait before deciding the server is not going to answer.
  *
- * A refused connection rejects in milliseconds, so this is not about the laptop
- * being asleep — it is about the case that actually hangs: the Tailscale Funnel
- * still terminating TLS and accepting the connection while the API behind it is
- * dead. `fetch` has no default timeout, so without this the request waits
+ * A refused connection rejects in milliseconds; the case that actually hangs
+ * is a proxy still terminating TLS and accepting the connection while its API
+ * upstream is unavailable. `fetch` has no default timeout, so without this the request waits
  * forever and the screen spins forever with it.
  */
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -113,7 +112,7 @@ async function send(path: string, init: RequestInit, accessToken?: string): Prom
     if (error instanceof TypeError) throw new OfflineError();
     if (isAbort(error)) {
       throw new OfflineError(
-        'The server didn’t respond. Check that the API is running, then try again.',
+        'The learning service didn’t respond. Check your connection, then try again.',
       );
     }
     throw error;

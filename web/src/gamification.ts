@@ -84,7 +84,6 @@ export function achievementsFor(progress: Progress): Achievement[] {
   const lessons = progress.lessonsCompleted;
   const streak = progress.streakDays;
   const level = progress.level;
-  const reviewsToday = progress.daily.reviewsDone;
 
   const all: Achievement[] = [
     {
@@ -167,15 +166,6 @@ export function achievementsFor(progress: Progress): Achievement[] {
       goal: `Hit today's goal — ${progress.daily.xpToday} of ${progress.daily.goalXp} XP.`,
       unlocked: progress.daily.goalMet,
       progress: ratio(progress.daily.xpToday, progress.daily.goalXp),
-    },
-    {
-      id: 'reviews-10-today',
-      icon: '♻️',
-      title: 'Ten reviews',
-      earned: 'Ten reviews cleared today.',
-      goal: `Clear 10 reviews today — ${reviewsToday} so far.`,
-      unlocked: reviewsToday >= 10,
-      progress: ratio(reviewsToday, 10),
     },
   ];
 

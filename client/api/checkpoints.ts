@@ -54,8 +54,6 @@ export type CheckpointResult = {
   passed: boolean;
   xpAwarded: number;
   missed: CheckpointMiss[];
-  /** How many items were pulled forward in the SRS. Always `missed.length`. */
-  scheduledForReview: number;
 };
 
 /**

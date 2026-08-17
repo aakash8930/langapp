@@ -1,6 +1,9 @@
 # GENKŌ platform audit closure
 
-**Updated:** 2026-08-16
+> Historical closure record. The spaced-review subsystem described in this audit
+> was removed from the product and API on 2026-08-17 after learner testing.
+
+**Updated:** 2026-08-17
 
 **Scope:** web acquisition/authentication, shared account and first-run contracts, delivery/operations, content integrity, dependency risk, and CI across API, web, and Expo.
 
@@ -28,7 +31,7 @@ The only accepted dependency findings are three advisory IDs propagated through 
 | Stroke order | The full 6,703-character normalized KanjiVG pack is versioned for dictionary and future-course use. All files have an immutable source revision, SHA-256 manifest, valid non-empty paths, filename/character agreement, and the 336 taught glyphs are a required subset. | `api/storage/strokes`, `NOTICE`, manifest and deterministic verifier. |
 | Audio | Kana and vocabulary prefer a generated, verified WAV pack; web and Expo use Japanese system-voice fallback when a recording is absent. AI tutor replies are speakable on both clients, with non-Japanese translation text removed before TTS. | Atomic generator, complete coverage/hash manifest, web Speech Synthesis, Expo Speech, and immutable API routes. |
 | Public-free launch | New checkout is disabled and the only advertised plan is the free public MVP. Cookie and refund pages state the actual storage and no-charge contracts rather than placeholder terms. | API rejects free checkout; web access, billing, landing, and legal surfaces align. |
-| Sync boundary | Account/profile/onboarding/lesson/review/XP/streak/settings/social data are identified as server-synced. Browser bookmarks, lists, custom decks/activity, and writing corrections are identified as local and excluded from server export. | Data & Storage disclosure; cache-clearing copy no longer implies those records are removed or synced. |
+| Sync boundary | Account/profile/onboarding/lesson/checkpoint/XP/streak/settings/social data are identified as server-synced. Browser bookmarks, lists, custom decks/activity, and writing corrections are identified as local and excluded from server export. | Data & Storage disclosure; cache-clearing copy no longer implies those records are removed or synced. |
 | Web auth consolidation | Registration is only `/signup`; sign-in/recovery is only `/signin`; the landing page uses dedicated auth links. | Duplicate compact `SignIn` component removed. |
 | Password policy | New registration, reset, and change-password values require 12–128 characters and allow passphrases without arbitrary composition rules. Existing/current-password authentication remains compatible. | API policy constants and aligned web/native validation. |
 | API fixtures | DTO, seed, exercise, practice, social, user, queue, mail, and auth fixtures match current contracts. | Full API typecheck and test suite. |

@@ -367,7 +367,6 @@ function LevelProgress({ user, progress }: { user: User; progress: Progress | nu
       <dl className="profile-level-mini-stats">
         <div><dt>Total XP</dt><dd>{progress?.xp.toLocaleString() ?? '—'}</dd></div>
         <div><dt>Lessons</dt><dd>{progress?.lessonsCompleted ?? '—'}</dd></div>
-        <div><dt>Due now</dt><dd>{progress?.cardsDueNow ?? '—'}</dd></div>
       </dl>
     </section>
   );
@@ -428,7 +427,7 @@ function LearningOverview({ progress }: { progress: Progress | null }) {
         <dl className="profile-overview-stats">
           <div><Icon name="zap" size={19} /><div className="profile-overview-stat-copy"><dt>XP earned</dt><dd className="tabular">{progress?.xp.toLocaleString() ?? '—'}</dd></div></div>
           <div><Icon name="book-open" size={19} /><div className="profile-overview-stat-copy"><dt>Lessons completed</dt><dd className="tabular">{progress?.lessonsCompleted ?? '—'}</dd></div></div>
-          <div><Icon name="refresh-cw" size={19} /><div className="profile-overview-stat-copy"><dt>Reviews today</dt><dd className="tabular">{progress?.daily.reviewsDone ?? '—'}</dd></div></div>
+          <div><Icon name="check" size={19} /><div className="profile-overview-stat-copy"><dt>Lessons today</dt><dd className="tabular">{progress?.daily.lessonsDone ?? '—'}</dd></div></div>
         </dl>
       </div>
 

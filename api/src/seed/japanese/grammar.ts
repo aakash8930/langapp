@@ -48,7 +48,7 @@ export interface GrammarLessonSeed {
  *
  * It needs an example sentence, which §5's `GrammarPoint` has nowhere to put, so
  * the schema gains an `examples` array. That is the second documented departure
- * from §5 (the first is on `SrsCard`, OPEN-ITEMS #15). Approved before it was
+ * from the original content schema. Approved before it was
  * made.
  *
  * **The English gloss is part of the question, not decoration.** 「わたしはいき＿。」

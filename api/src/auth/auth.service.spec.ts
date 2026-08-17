@@ -489,8 +489,8 @@ describe('AuthService.register — the age gate', () => {
       expect.objectContaining({
         dateOfBirth: new Date(ADULT_DOB),
         legalConsent: expect.objectContaining({
-          termsVersion: '2026-07-27',
-          privacyVersion: '2026-07-28',
+          termsVersion: '2026-08-17',
+          privacyVersion: '2026-08-17',
           acceptedAt: expect.any(Date),
         }),
       }),

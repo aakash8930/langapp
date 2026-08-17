@@ -11,7 +11,7 @@ const ANNOUNCEMENTS = [
   {
     id: '1',
     title: 'Welcome to the new dashboard',
-    body: 'Your study progress, daily goals, and review queue are all here. Everything updates as you learn.',
+    body: 'Your study progress, daily goals, and course path are all here. Everything updates as you learn.',
     date: '2026-08-01',
   },
   {

@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
@@ -104,10 +103,9 @@ export function CheckpointQuiz({ unit, units }: { unit: string; units: Unit[] })
         const result = await submitCheckpoint(unit, set.attempt);
         setPhase({ name: 'done', set, result });
 
-        // XP, streak and the due-now count all move on a pass, and the header
+        // XP and streak can move on a pass, and the header
         // reads them from `/me/progress`.
         void queryClient.invalidateQueries({ queryKey: queryKeys.session.progress });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.reviews.due });
       } catch (err) {
         setPhase({ name: 'error', message: messageFor(err) });
       }
@@ -334,26 +332,7 @@ function Summary({
             <dd className="tabular accent">+{result.xpAwarded}</dd>
           </div>
         ) : null}
-        {result.scheduledForReview > 0 ? (
-          <div>
-            <dt>Added to reviews</dt>
-            <dd className="tabular">{result.scheduledForReview}</dd>
-          </div>
-        ) : null}
       </dl>
-
-      {/*
-        Said plainly, because it is the whole consequence of failing and the
-        thing that makes a failed test worth sitting. Nothing is locked and no
-        progress is lost — the items just come back sooner.
-      */}
-      {result.scheduledForReview > 0 ? (
-        <p className="summary-note">
-          The {result.scheduledForReview === 1 ? 'item' : 'items'} you missed{' '}
-          {result.scheduledForReview === 1 ? 'is' : 'are'} now waiting in your reviews. Nothing is
-          locked — {result.passed ? 'this is just what to practise next' : 'take the test again whenever you like'}.
-        </p>
-      ) : null}
 
       {lost > 0 ? (
         <p className="note-error" role="alert">
@@ -384,11 +363,7 @@ function Summary({
         <button className="btn btn-primary" type="button" onClick={goBack}>
           Back to the course
         </button>
-        {result.passed ? null : (
-          <Link className="link-button" to="/review">
-            Practise the misses first
-          </Link>
-        )}
+        {result.passed ? null : <span className="summary-note">Study the missed answers above, then retake when ready.</span>}
       </div>
     </div>
   );

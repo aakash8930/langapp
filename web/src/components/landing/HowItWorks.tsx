@@ -2,7 +2,7 @@ import { Icon } from '../ui/Icon';
 
 const STEPS = [
   { step: 1, icon: 'book-open', title: 'Choose a Course', desc: 'Start with Hiragana, Katakana, or jump into vocabulary and grammar.' },
-  { step: 2, icon: 'repeat', title: 'Practice Daily', desc: 'Our SRS algorithm shows you exactly what to review, exactly when you need it.' },
+  { step: 2, icon: 'pen-square', title: 'Practise Immediately', desc: 'Recognition and recall exercises reinforce each concept before the lesson is complete.' },
   { step: 3, icon: 'trending-up', title: 'Track Your Progress', desc: 'Watch your streak grow, earn achievements, and climb the league ranks.' },
 ] as const;
 

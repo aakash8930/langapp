@@ -10,7 +10,8 @@
     "test:e2e": "playwright test",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "audit:prod": "npm audit --omit=dev --audit-level=low"
+    "audit:prod": "npm audit --omit=dev --audit-level=low",
+    "test:e2e:fullstack": "playwright test --config playwright.fullstack.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",

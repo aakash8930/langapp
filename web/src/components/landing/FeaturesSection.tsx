@@ -1,12 +1,12 @@
 import { Icon } from '../ui/Icon';
 
 const FEATURES = [
-  { icon: 'refresh-cw', title: 'Spaced Repetition', desc: 'FSRS algorithm optimizes your review schedule so you remember what you learn — forever.' },
+  { icon: 'book-open', title: 'Guided Lessons', desc: 'Learn a small set of concepts, practise them immediately, and move through one ordered course.' },
   { icon: 'bot', title: 'AI Tutor', desc: 'Practice conversations and get real-time feedback from an AI that understands Japanese.' },
-  { icon: 'sparkles', title: 'Beautiful Interface', desc: 'A clean, distraction-free design inspired by Japanese aesthetics. Your focus stays on learning.' },
-  { icon: 'trending-up', title: 'Progress Tracking', desc: 'Visualize your growth with detailed analytics, heatmaps, and mastery breakdowns.' },
-  { icon: 'users', title: 'Community Learning', desc: 'Join leagues, compete with friends, and learn together in a supportive community.' },
-  { icon: 'book-open', title: 'Offline Mode', desc: 'Download lessons and practice anywhere — on the train, in a café, or wherever life takes you.' },
+  { icon: 'book-open', title: 'Structured Courses', desc: 'Move from kana through vocabulary, grammar, and kanji in one prerequisite-aware path.' },
+  { icon: 'trending-up', title: 'Progress Tracking', desc: 'See completed lessons, checkpoints, XP, and streak data from your synced account.' },
+  { icon: 'headphones', title: 'Japanese Audio', desc: 'Hear course readings from generated recordings with a system-voice fallback when needed.' },
+  { icon: 'languages', title: 'Web and Android', desc: 'Continue the same lessons and progress across the browser and Android app.' },
 ] as const;
 
 export function FeaturesSection() {

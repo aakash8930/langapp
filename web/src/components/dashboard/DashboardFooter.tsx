@@ -3,10 +3,9 @@ import { Link } from '@tanstack/react-router';
 import { Icon } from '../ui/Icon';
 
 const FEATURES = [
-  { label: 'Unlimited lessons', icon: 'check' as const, to: '/courses' as const },
-  { label: 'Advanced AI tools', icon: 'sparkles' as const, to: '/ai-tools' as const },
-  { label: 'Premium content', icon: 'crown' as const, to: '/plans' as const },
-  { label: 'Offline access', icon: 'zap' as const, to: '/settings' as const },
+  { label: 'Course lessons', icon: 'check' as const, to: '/courses' as const },
+  { label: 'AI Tutor', icon: 'sparkles' as const, to: '/practice' as const },
+  { label: 'Synced progress', icon: 'trending-up' as const, to: '/progress' as const },
 ];
 
 export function DashboardFooter() {

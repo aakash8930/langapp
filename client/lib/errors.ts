@@ -14,9 +14,8 @@ export type ErrorCopy = {
 };
 
 /**
- * The server being unreachable is the normal condition for this project, not
- * an exception — it lives on a laptop that sleeps. It gets its own copy so it
- * never reads like a crash.
+ * The service being unreachable is a recoverable operating condition, not an
+ * application crash. It gets its own copy so the learner knows to retry.
  */
 export function isOffline(error: unknown): boolean {
   return error instanceof OfflineError || (error instanceof ApiError && error.status === 0);
@@ -26,7 +25,7 @@ export function describeError(error: unknown): ErrorCopy {
   if (isOffline(error)) {
     return {
       title: 'Can’t reach the server',
-      body: 'The API runs on your laptop. Check that it’s awake and running, then try again.',
+      body: 'Check your connection and try again. If this continues, the learning service may be unavailable.',
       retryable: true,
     };
   }

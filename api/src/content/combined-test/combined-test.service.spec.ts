@@ -384,24 +384,6 @@ describe('CombinedTestService.submit', () => {
     expect(awardXp).toHaveBeenCalledTimes(1);
   });
 
-  it('pulls every missed item forward in the SRS, and nothing else', async () => {
-    const { service, attempts, scheduleItemDue, awardXp } = build();
-    const set = await service.start(USER_ID);
-    await answerAll(service, attempts, Math.floor(set.questionCount / 2));
-
-    await service.submit(set.attempt, USER_ID);
-
-    // Half the questions were wrong; one scheduling call per missed item.
-    expect(scheduleItemDue).toHaveBeenCalledTimes(set.questionCount - Math.floor(set.questionCount / 2));
-    // No XP for a failing attempt — the missed SRS advance is the whole
-    // consequence of failing.
-    expect(awardXp).not.toHaveBeenCalled();
-    // `scheduleItemDue` only ever receives the user id and item ref — the
-    // single-key update that ADR-003 turns on.
-    for (const call of scheduleItemDue.mock.calls) {
-      expect(call).toHaveLength(3);
-    }
-  });
 
   it('fails below the pass mark and awards nothing', async () => {
     const { service, attempts, awardXp } = build();

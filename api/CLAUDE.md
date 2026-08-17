@@ -1,5 +1,8 @@
 # Backend rules (`api/`)
 
+> **Current product decision (2026-08-17):** The spaced-review/FSRS subsystem and its routes were removed after learner testing. Any older review-specific guidance below is superseded and must not be reintroduced without a new product decision.
+
+
 These rules govern the NestJS backend only. Workspace-wide rules live in
 `../CLAUDE.md`.
 
