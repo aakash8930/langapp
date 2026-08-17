@@ -68,7 +68,7 @@ export default function AppLayout() {
           : { display: 'none' },
         tabBarLabelStyle: {
           fontFamily: theme.families.ui,
-          fontSize: 12,
+          fontSize: 14,
         },
       }}
     >

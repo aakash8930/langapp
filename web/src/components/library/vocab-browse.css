@@ -16,7 +16,7 @@
 .vocab-kicker {
   margin: 0 0 var(--s-xs);
   color: var(--brand-primary);
-  font-size: 0.68rem;
+  font-size: 0.875rem;
   font-weight: 800;
   line-height: 1.3;
   letter-spacing: 0.16em;
@@ -133,7 +133,7 @@
 
 .vocab-hero-metrics dt {
   color: var(--ink-soft);
-  font-size: 0.67rem;
+  font-size: 0.875rem;
   line-height: 1.35;
 }
 
@@ -195,7 +195,7 @@
   border-radius: var(--radius-full);
   background: var(--hairline);
   color: var(--ink);
-  font-size: 0.62rem;
+  font-size: 0.875rem;
 }
 
 .vocab-loading,
@@ -358,7 +358,7 @@
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink-soft);
-  font-size: 0.67rem;
+  font-size: 0.875rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -477,7 +477,7 @@
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: var(--paper);
   color: var(--ink-soft);
-  font-size: 0.65rem;
+  font-size: 0.875rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -548,7 +548,7 @@
 .vocab-word-cell small {
   overflow: hidden;
   color: var(--ink-soft);
-  font-size: 0.68rem;
+  font-size: 0.875rem;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -587,7 +587,7 @@
   border-radius: var(--radius-full);
   background: var(--hairline);
   color: var(--ink-soft);
-  font-size: 0.62rem;
+  font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.2;
   text-transform: capitalize;
@@ -664,7 +664,7 @@
 .vocab-detail-label {
   margin: 0 0 2px;
   color: var(--brand-primary);
-  font-size: 0.62rem;
+  font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.14em;
 }
@@ -725,7 +725,7 @@
 
 .vocab-detail-facts dt {
   color: var(--ink-soft);
-  font-size: 0.63rem;
+  font-size: 0.875rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1057,7 +1057,7 @@
 
 .vocab-practice-card dt {
   color: var(--ink-soft);
-  font-size: 0.62rem;
+  font-size: 0.875rem;
 }
 
 .vocab-practice-card dd {
@@ -1118,7 +1118,7 @@
 .vocab-collection-list small,
 .vocab-saved-list small {
   color: var(--ink-soft);
-  font-size: 0.66rem;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
@@ -1171,7 +1171,7 @@
 .vocab-local-note {
   margin: var(--s-sm) 0 0;
   color: var(--brand-success);
-  font-size: 0.65rem;
+  font-size: 0.875rem;
 }
 
 .vocab-local-note {

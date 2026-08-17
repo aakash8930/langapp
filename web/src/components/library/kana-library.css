@@ -167,7 +167,7 @@
 .kana-kicker {
   margin: 0 0 var(--s-xs);
   color: var(--brand-primary);
-  font-size: 0.68rem;
+  font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   line-height: 1.3;
@@ -314,7 +314,7 @@
 .kana-progress-ring small,
 .kana-progress-card > div:last-child > span {
   color: var(--ink-soft);
-  font-size: 0.68rem;
+  font-size: 0.875rem;
 }
 
 .kana-progress-card > div:last-child {
@@ -444,7 +444,7 @@
 
 .kana-path-number {
   color: var(--brand-primary);
-  font-size: 0.64rem;
+  font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -470,7 +470,7 @@
 .kana-path-copy small {
   margin-top: 2px;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 
@@ -480,7 +480,7 @@
   align-items: center;
   gap: var(--s-sm);
   color: var(--ink-soft);
-  font-size: 0.65rem;
+  font-size: 0.875rem;
 }
 
 .kana-path-meta > i {
@@ -567,7 +567,7 @@
 
 .kana-vowel-card small {
   color: var(--ink-soft);
-  font-size: 0.63rem;
+  font-size: 0.875rem;
   line-height: 1.35;
 }
 
@@ -582,7 +582,7 @@
   background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
   color: var(--ink-soft);
   font: inherit;
-  font-size: 0.62rem;
+  font-size: 0.875rem;
   cursor: pointer;
 }
 
@@ -767,7 +767,7 @@
 .kana-marks-guide small {
   margin-top: 2px;
   color: var(--ink-soft);
-  font-size: 0.66rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 
@@ -848,7 +848,7 @@
   top: 4px;
   right: 5px;
   color: var(--brand-primary);
-  font-size: 0.56rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 
@@ -907,7 +907,7 @@
   border: 1px solid color-mix(in srgb, var(--brand-secondary) 38%, var(--hairline));
   border-radius: var(--radius-full);
   color: var(--brand-secondary);
-  font-size: 0.62rem;
+  font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -977,7 +977,7 @@
 .kana-memory-tip p {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: 0.875rem;
   line-height: 1.55;
 }
 
@@ -1021,7 +1021,7 @@
 
 .kana-confusion-tip small {
   color: var(--ink-soft);
-  font-size: 0.68rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 
@@ -1076,7 +1076,7 @@
 
 .kana-reference .kana-detail-facts dt,
 .kana-reference .kana-detail-facts dd {
-  font-size: 0.7rem;
+  font-size: 0.875rem;
 }
 
 .kana-detail-nav {
@@ -1109,7 +1109,7 @@
 
 .kana-detail-nav > span {
   color: var(--ink-soft);
-  font-size: 0.68rem;
+  font-size: 0.875rem;
 }
 
 .kana-detail-actions {
@@ -1213,7 +1213,7 @@
 
 .kana-pair-grid small {
   color: var(--ink-soft);
-  font-size: 0.68rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 
@@ -1242,7 +1242,7 @@
 
 .kana-routine li span {
   color: var(--brand-primary);
-  font-size: 0.65rem;
+  font-size: 0.875rem;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1302,7 +1302,7 @@
 
 .kana-practice-index {
   color: var(--ink-soft);
-  font-size: 0.65rem;
+  font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -1340,7 +1340,7 @@
 .kana-practice-card em {
   align-self: center;
   color: var(--brand-secondary);
-  font-size: 0.62rem;
+  font-size: 0.875rem;
   font-style: normal;
   font-weight: 800;
   text-transform: uppercase;

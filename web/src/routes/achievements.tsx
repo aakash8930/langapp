@@ -7,14 +7,11 @@ import { useSession } from '../useSession';
 /**
  * The achievements screen.
  *
- * This is the row `Achievements.tsx` was always meant to be, on a page of its
- * own. That component was orphaned when the dashboard took the home address —
- * the dashboard carries `BadgesCard`, a six-tile condensed form with no room
- * for descriptions — and rather than delete it, this route is the place where
- * the full form (goal text, progress slivers, the earned/locked split) belongs.
- *
- * The dashboard's badge shelf deliberately has no "View all" link because there
- * was nothing to link to. There is now, and `BadgesCard` should get one.
+ * The full form of the badge shelf (goal text, progress slivers, the
+ * earned/locked split) lives here, on a page of its own, rather than as a
+ * condensed card on the dashboard. The dashboard was reduced to its essential
+ * path after learner testing, and badges remain one click away from the
+ * sidebar.
  *
  * Every tick is derived from `/me/progress` on render and stored nowhere; see
  * `gamification.ts` for the three badges that were dropped rather than faked,

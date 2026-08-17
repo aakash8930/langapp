@@ -63,7 +63,7 @@
 
 .plans-save-badge {
   margin-left: var(--s-xs);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--brand-success);
   text-transform: uppercase;
@@ -109,7 +109,7 @@
   padding: var(--s-xs) var(--s-lg);
   background: var(--brand-primary);
   color: var(--paper);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   border-radius: var(--radius-full);
   text-transform: uppercase;

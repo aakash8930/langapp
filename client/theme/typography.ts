@@ -22,12 +22,12 @@ export const families = {
 } as const;
 
 export const fontSize = {
-  caption: 12,
-  small: 14,
-  body: 16,
-  bodyLarge: 18,
-  title: 22,
-  heading: 28,
+  caption: 14,
+  small: 16,
+  body: 18,
+  bodyLarge: 20,
+  title: 24,
+  heading: 32,
   /** Large numeric display — the streak counter, which carries the home screen. */
   displayNumber: 64,
   /** Kanji on an exercise card. */
@@ -37,12 +37,12 @@ export const fontSize = {
 } as const;
 
 export const lineHeight = {
-  caption: 16,
-  small: 20,
-  body: 24,
-  bodyLarge: 26,
-  title: 30,
-  heading: 36,
+  caption: 20,
+  small: 22,
+  body: 26,
+  bodyLarge: 28,
+  title: 32,
+  heading: 40,
 } as const;
 
 /**

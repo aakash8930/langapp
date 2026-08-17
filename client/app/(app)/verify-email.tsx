@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', padding: 20 },
   card: { borderWidth: 1, borderRadius: 18, padding: 24 },
-  eyebrow: { fontFamily: 'ZenKakuGothicNew_700Bold', fontSize: 12, letterSpacing: 1.4, marginBottom: 10 },
+  eyebrow: { fontFamily: 'ZenKakuGothicNew_700Bold', fontSize: 14, letterSpacing: 1.4, marginBottom: 10 },
   title: { fontFamily: 'ZenKakuGothicNew_700Bold', fontSize: 30, lineHeight: 38, marginBottom: 10 },
   body: { fontFamily: 'ZenKakuGothicNew_400Regular', fontSize: 16, lineHeight: 24, marginBottom: 26 },
   label: { fontFamily: 'ZenKakuGothicNew_500Medium', fontSize: 14, marginBottom: 8 },

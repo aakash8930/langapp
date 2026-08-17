@@ -208,7 +208,7 @@
 }
 
 .app-header-name { font-family: inherit; }
-.app-header-sub { font-size: 0.68rem; line-height: 1.35; }
+.app-header-sub { font-size: 0.875rem; line-height: 1.35; }
 .app-header-proverb-ja { color: var(--ink-soft); }
 
 .app-header-tools { gap: 10px; padding-top: 0; }
@@ -232,7 +232,7 @@
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   color: var(--ink);
-  font-size: 0.72rem;
+  font-size: 0.875rem;
 }
 
 .app-header-streak svg { color: var(--brand-secondary); fill: color-mix(in srgb, var(--brand-secondary) 18%, transparent); }
@@ -276,8 +276,8 @@
   border-bottom: 1px solid var(--hairline);
 }
 
-.app-user-menu-popover p strong { font-size: 0.72rem; }
-.app-user-menu-popover p span { color: var(--ink-soft); font-size: 0.58rem; }
+.app-user-menu-popover p strong { font-size: 0.875rem; }
+.app-user-menu-popover p span { color: var(--ink-soft); font-size: 0.875rem; }
 
 .app-user-menu-popover a,
 .app-user-menu-popover button {

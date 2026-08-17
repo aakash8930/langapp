@@ -52,13 +52,13 @@
   --font-ui: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: 'Outfit', var(--font-ui);
 
-  --text-caption: 0.75rem;
-  --text-small: 0.875rem;
-  --text-body: 1rem;
-  --text-large: 1.125rem;
-  --text-title: 1.5rem;
-  --text-heading: 2rem;
-  --text-display: clamp(2.5rem, 6vw, 4.5rem);
+  --text-caption: 0.875rem;
+  --text-small: 1rem;
+  --text-body: 1.125rem;
+  --text-large: 1.25rem;
+  --text-title: 1.625rem;
+  --text-heading: 2.25rem;
+  --text-display: clamp(3rem, 7vw, 5.5rem);
 
   /* Aliases used by the newer reference-driven screens. */
   --text-base: var(--text-body);

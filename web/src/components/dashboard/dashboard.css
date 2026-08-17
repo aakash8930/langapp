@@ -1509,7 +1509,7 @@
   border-radius: var(--radius-full);
   background: var(--shu);
   color: var(--surface);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   font-family: var(--font-ui);
   display: inline-flex;
@@ -1605,6 +1605,13 @@
 .dashboard-progress-grid > *,
 .dashboard-action-grid > * {
   min-width: 0;
+}
+
+/* `.streak-card` carries a `grid-column: span 5` from the retired 12-column
+   grid; inside the two-column progress row it must behave like a normal cell. */
+.dashboard-progress-grid .streak-card,
+.dashboard-progress-grid .todays-goal-card {
+  grid-column: auto;
 }
 
 .dashboard-main .ai-recommendations-card,
@@ -1774,10 +1781,12 @@
    ========================================================================== */
 
 .dashboard-reference {
-  grid-template-columns: minmax(0, 1fr) 292px;
+  /* Single essential path — the side column was removed with the secondary
+     widgets, so the dashboard is one readable column of three blocks. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
@@ -1814,7 +1823,7 @@
   margin: 0;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 0.94rem;
+  font-size: var(--text-large);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -1822,7 +1831,7 @@
 .dashboard-section-head > a,
 .dashboard-reference .card-link {
   color: var(--brand-primary);
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
 }
@@ -1889,7 +1898,7 @@
 
 .action-row-copy strong {
   color: var(--ink);
-  font-size: 0.76rem;
+  font-size: 0.875rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -1897,7 +1906,7 @@
 .action-row-copy small {
   margin-top: 3px;
   color: var(--ink-soft);
-  font-size: 0.61rem;
+  font-size: 0.875rem;
   white-space: nowrap;
 }
 
@@ -1965,7 +1974,7 @@
   border-radius: var(--radius-sm);
   background: rgba(11, 14, 13, 0.76);
   color: var(--brand-tertiary);
-  font-size: 0.58rem;
+  font-size: 0.875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1987,7 +1996,7 @@
 .learning-course-body strong {
   grid-column: 1 / -1;
   overflow: hidden;
-  font-size: 0.78rem;
+  font-size: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1995,7 +2004,7 @@
 .learning-course-count,
 .learning-course-percent {
   color: var(--ink-soft);
-  font-size: 0.6rem;
+  font-size: 0.875rem;
 }
 
 .learning-course-percent {
@@ -2060,12 +2069,12 @@
   color: var(--brand-primary);
 }
 
-.practice-skill-tile strong { font-size: 0.76rem; }
+.practice-skill-tile strong { font-size: 0.875rem; }
 .practice-skill-tile small {
   min-height: 28px;
   margin-top: 2px;
   color: var(--ink-soft);
-  font-size: 0.58rem;
+  font-size: 0.875rem;
   line-height: 1.35;
 }
 
@@ -2079,7 +2088,7 @@
 .practice-skill-cta {
   margin-top: 5px;
   color: var(--brand-primary);
-  font-size: 0.58rem;
+  font-size: 0.875rem;
 }
 
 .dashboard-reference .ai-recommendations-card {
@@ -2130,7 +2139,7 @@
 
 .ai-recommend-copy strong {
   overflow: hidden;
-  font-size: 0.68rem;
+  font-size: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2138,7 +2147,7 @@
 .ai-recommend-copy small {
   overflow: hidden;
   color: var(--ink-soft);
-  font-size: 0.56rem;
+  font-size: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2148,7 +2157,7 @@
   border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--hairline));
   border-radius: var(--radius-sm);
   color: var(--brand-primary);
-  font-size: 0.58rem;
+  font-size: 0.875rem;
 }
 
 /* Lower row */
@@ -2182,12 +2191,12 @@
 .dashboard-lower-grid .review-glyph {
   width: 28px;
   height: 28px;
-  font-size: 0.7rem;
+  font-size: 0.875rem;
 }
 
-.dashboard-lower-grid .review-label { font-size: 0.65rem; }
+.dashboard-lower-grid .review-label { font-size: 0.875rem; }
 .dashboard-lower-grid .review-kind,
-.dashboard-lower-grid .review-wait { font-size: 0.54rem; }
+.dashboard-lower-grid .review-wait { font-size: 0.875rem; }
 
 .dashboard-reference .badge-grid {
   grid-template-columns: repeat(4, minmax(42px, 1fr));
@@ -2235,8 +2244,8 @@
   min-width: 0;
 }
 
-.community-link-list strong { font-size: 0.65rem; }
-.community-link-list small { color: var(--ink-soft); font-size: 0.54rem; }
+.community-link-list strong { font-size: 0.875rem; }
+.community-link-list small { color: var(--ink-soft); font-size: 0.875rem; }
 
 /* Right rail */
 .dashboard-reference .dashboard-side > .card {
@@ -2254,7 +2263,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.85rem;
+  font-size: var(--text-large);
 }
 
 .streak-summary {
@@ -2271,14 +2280,14 @@
 
 .streak-count span {
   font-family: var(--font-ui);
-  font-size: 0.74rem;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
 .streak-summary .card-note {
   max-width: 150px;
   margin-top: 5px;
-  font-size: 0.58rem;
+  font-size: 0.875rem;
 }
 
 .streak-emblem {
@@ -2316,7 +2325,7 @@
 .dashboard-reference .todays-goal-dial { width: 68px; height: 68px; }
 .dashboard-reference .todays-goal-card .today-dial { width: 68px; height: 68px; }
 .dashboard-reference .today-dial-figure { font-size: 1rem; }
-.dashboard-reference .today-dial-figure span { font-size: 0.5rem; }
+.dashboard-reference .today-dial-figure span { font-size: 0.875rem; }
 
 .todays-goal-meta {
   display: flex;
@@ -2324,10 +2333,10 @@
   font-style: normal;
 }
 
-.todays-goal-meta > span { color: var(--ink-soft); font-size: 0.58rem; }
+.todays-goal-meta > span { color: var(--ink-soft); font-size: 0.875rem; }
 .todays-goal-meta strong { font-size: 1.25rem; font-weight: 500; }
-.todays-goal-meta strong small { color: var(--ink-soft); font-size: 0.64rem; font-weight: 400; }
-.todays-goal-meta em { margin-top: 2px; color: var(--ink-soft); font-size: 0.54rem; font-style: normal; }
+.todays-goal-meta strong small { color: var(--ink-soft); font-size: 0.875rem; font-weight: 400; }
+.todays-goal-meta em { margin-top: 2px; color: var(--ink-soft); font-size: 0.875rem; font-style: normal; }
 
 .goal-accent-bar,
 .jlpt-progress {
@@ -2362,8 +2371,8 @@
 }
 
 .goal-mini-stats div:first-child { border-left: 0; }
-.goal-mini-stats dt { color: var(--ink-soft); font-size: 0.52rem; }
-.goal-mini-stats dd { margin: 0; font-size: 0.76rem; font-weight: 600; }
+.goal-mini-stats dt { color: var(--ink-soft); font-size: 0.875rem; }
+.goal-mini-stats dd { margin: 0; font-size: 0.875rem; font-weight: 600; }
 
 .jlpt-track-row {
   display: flex;
@@ -2388,15 +2397,15 @@
   flex: 1;
   flex-direction: column;
 }
-.jlpt-track-copy strong { font-size: 0.76rem; }
-.jlpt-track-copy small { color: var(--ink-soft); font-size: 0.58rem; }
+.jlpt-track-copy strong { font-size: 0.875rem; }
+.jlpt-track-copy small { color: var(--ink-soft); font-size: 0.875rem; }
 
 .jlpt-progress-note {
   display: flex;
   justify-content: space-between;
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.56rem;
+  font-size: 0.875rem;
 }
 .jlpt-progress-note strong { color: var(--ink); }
 
@@ -2409,7 +2418,7 @@
   border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
   color: var(--brand-primary);
-  font-size: 0.62rem;
+  font-size: 0.875rem;
   text-decoration: none;
 }
 
@@ -2423,7 +2432,7 @@
 }
 
 .dashboard-reference .upgrade-card .upgrade-perks { display: none; }
-.dashboard-reference .upgrade-card .placeholder-note { font-size: 0.63rem; }
+.dashboard-reference .upgrade-card .placeholder-note { font-size: 0.875rem; }
 .dashboard-reference .upgrade-card .btn {
   align-self: flex-start;
   min-height: 34px;
@@ -2461,8 +2470,8 @@
   margin: 0;
 }
 
-.dashboard-proverb strong { font-size: 0.76rem; font-weight: 500; }
-.dashboard-proverb span { color: var(--ink-soft); font-size: 0.52rem; }
+.dashboard-proverb strong { font-size: 0.875rem; font-weight: 500; }
+.dashboard-proverb span { color: var(--ink-soft); font-size: 0.875rem; }
 
 .dashboard-footer-strip ul {
   display: grid;
@@ -2482,7 +2491,7 @@
   justify-content: center;
   gap: 6px;
   color: var(--ink-soft);
-  font-size: 0.56rem;
+  font-size: 0.875rem;
   text-decoration: none;
 }
 .dashboard-footer-strip svg { color: var(--brand-primary); }

@@ -595,7 +595,7 @@
   left: 0;
 }
 .daily-ring-text {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--ink);
   z-index: 1;
@@ -664,7 +664,7 @@
   cursor: default;
 }
 .level-number {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 800;
   padding: 2px 6px;
   border-radius: var(--radius-full);

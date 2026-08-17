@@ -131,7 +131,7 @@
   color: var(--ink-soft);
   padding: var(--s-sm) var(--s-md);
   border-bottom: 2px solid var(--hairline);
-  font-size: 11px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -201,7 +201,7 @@
   display: inline-block;
   padding: 1px 8px;
   border-radius: var(--radius-full);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
