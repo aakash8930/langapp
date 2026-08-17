@@ -70,7 +70,7 @@ your machine.
 | Command | What it does |
 |---|---|
 | `npx expo start` | Dev server + QR code for Expo Go |
-| `npm test` | Fast mobile course-path, review-summary, and display-policy tests |
+| `npm test` | Fast mobile course-path and display-policy tests |
 | `npm run typecheck` | `tsc --noEmit`, including mobile tests |
 | `npm run audit:prod` | Fail on new advisories; only the reviewed Expo build-tool IDs are allowed |
 | `npx expo export --platform android` | Bundles everything — the fastest way to catch an import error |
@@ -114,13 +114,13 @@ how it behaved before the site existed — the Expo app never needed them, becau
 a native fetch is not subject to the same-origin policy.
 
 Browsing the course needs no account. Signing in adds the part that teaches:
-lesson quizzes, spaced review, XP and streak — the same account and the same
+lesson quizzes, checkpoints, XP and streak — the same account and the same
 database as the Android app, so progress made in one shows in the other.
 
 Browser access and refresh credentials live in secure HttpOnly, SameSite cookies;
 unsafe cookie-authenticated requests also require the double-submit CSRF token.
 The native app continues to use SecureStore bearer credentials. Both surfaces use
-the same account-backed lessons, review schedule, progress, and account state.
+the same account-backed lessons, progress, and account state.
 
 | Command | What it does |
 |---|---|
@@ -189,7 +189,7 @@ api/src/
   user/              users collection, /me, embedded profile+gamification+settings
   content/           kana, vocab, grammar, kanji, lessons + exercise generation
   knowledge-graph/   knowledgeNodes + knowledgeEdges (adjacency list, no graph DB)
-  learning/          srsCards, lesson completion (XP via UserService)
+  learning/          lesson completion, attempts, learner evidence, checkpoints
   analytics/         append-only events (write path only)
   seed/              npm run seed
   health/            GET /health with live Mongo + Redis checks
@@ -219,9 +219,6 @@ after a `/v2` exists. `/` and `/health` are unversioned and answer bare only.
 | `GET` | `/lessons/:id` | — | resolves `itemRefs` into full item documents |
 | `GET` | `/lessons/:id/exercises?attempt=` | Bearer | multiple-choice set; no answer key in the payload |
 | `POST` | `/lessons/:id/exercises/:exerciseId/answer` | Bearer | `{ optionId }` → correct/incorrect + the right answer |
-| `POST` | `/lessons/:id/complete` | Bearer | seeds SRS cards, awards XP, emits `lesson.completed` |
-| `GET` | `/reviews/due` | Bearer | due cards with content resolved, capped at 20 |
-| `POST` | `/reviews/:cardId/grade` | Bearer | `{ grade }` — again/hard/good/easy through ts-fsrs |
 | `POST` | `/chat/sessions` | Bearer | starts an AI chat; returns the scripted opener; rate limited |
 | `POST` | `/chat/sessions/:id/messages` | Bearer | `{ text }` → reply + corrections; one Gemini call; rate limited |
 
@@ -264,39 +261,12 @@ skipped / non-UTC learner, plus DST and leap day) and `user.service.spec.ts`
 (the writes those rules produce). One known edge remains: moving timezone backwards across the date line resets
 the streak.
 
-### The daily summary (T1.8)
+### The daily summary
 
-`daily` also carries `reviewsDone` and `lessonsDone`, so the home screen can say
-what the learner *did* rather than only what it scored. XP alone is ambiguous —
-30 XP is three lessons or fifteen reviews — and "0 of 50 XP today" reads the same
-whether nothing has happened or the reviews are done against a high goal.
-
-Both are counted from the **event log** (`review.graded`, `lesson.completed`),
-which has been accumulating since M4, and on the learner's local day using the
-same `localDateString` helper and the same `now` as `xpToday`.
-
-**They can disagree with `xpToday` after a timezone change, and the counts are
-the ones to trust.** `xpToday` compares the *stored* `lastStudyDate` — written
-under whatever zone was in effect at the time — against local today, so changing
-zone can make it read 0 for a day that had work in it. These counts re-derive from
-event timestamps and are unaffected. Caught while verifying T1.8 live: one account
-reads `xpToday: 0` in Pacific/Kiritimati and `16` in Pacific/Niue while both
-counts hold at `reviewsDone: 3, lessonsDone: 1`. It has the same timezone-change root cause as the streak edge above; within a
-fixed zone all three agree.
-
-`AnalyticsService.countTodayByType` fetches a **48-hour window and filters by
-local date string** rather than issuing a Mongo range query from local midnight.
-A range query needs the *instant* of midnight in an IANA zone, which means
-deriving a UTC offset, and getting that wrong across a DST boundary is precisely
-the bug class item #18 documents. The window covers every zone from UTC−12 to
-UTC+14, a learner's day is a handful of rows, and the existing `{userId, ts}`
-index serves it. This is a per-user daily count and deliberately not a foundation
-for §13's funnel reads, which want a real aggregation.
-
-The app shows it as one quiet line under the XP sentence — "2 lessons and 5
-reviews today", or "Nothing studied yet today" on an empty day rather than
-"0 reviews, 0 lessons", which reads as a scoreboard of failure on the first
-screen someone opens.
+`daily` carries `lessonsDone`, counted from append-only `lesson.completed`
+events on the learner's local calendar day. XP and event counts can briefly
+differ because analytics writes are queued; XP remains the synchronous source
+for goals and streaks.
 
 ## Deployment
 
@@ -450,64 +420,11 @@ order is pedagogical and preserved. A quiz is not the lesson.
 
 ## Lesson completion
 
-`POST /lessons/:id/complete` does three things, in order:
-
-1. **Seeds SRS cards** — one per lesson item the user doesn't already have,
-   initialised via `ts-fsrs`'s `createEmptyCard()` so the zero values match what
-   the scheduler expects at first review. All start `state: 'new'`.
-2. **Awards XP** through `UserService.awardXp()` — `$inc`, so concurrent awards
-   accumulate rather than overwrite. Learning never touches the `users`
-   collection.
-3. **Emits `lesson.completed`** into the append-only `events` collection.
-
-Repeating a completion creates no new cards. Two layers enforce that: a
-read-then-filter against existing cards (the common path), and a unique index on
-`{userId, itemRef.kind, itemRef.id}` that catches anything racing past it —
-verified with 8 simultaneous requests.
-
-Step 3 is guarded at both ends: cards and XP are already committed by then, so a
-failed analytics write logs and moves on rather than turning a successful
-completion into a 500. §7 puts analytics off the request path for this reason;
-the BullMQ version is [Later].
-
-## The review loop
-
-This is the core of Phase 0 (§6). `ts-fsrs` owns every scheduling decision —
-nothing in this repo computes an interval.
-
-- **`GET /reviews/due`** — `{ userId, due: { $lte: now } }` sorted by `due`,
-  capped at 20 (§6: sessions must be bounded). Served entirely by the
-  `{ userId: 1, due: 1 }` index: `explain()` shows `IXSCAN` with **no in-memory
-  SORT stage**, because the compound index provides the ordering too. Returns
-  `totalDue` alongside the capped batch so a client can render "20 of 47".
-- **`POST /reviews/:cardId/grade`** — `{ grade: again|hard|good|easy }`. Loads
-  the card, hands it to `fsrs.next()`, persists stability, difficulty, due,
-  state, reps, lapses and lastReview, awards XP, emits `review.graded`.
-
-Measured behaviour, grading `good` each time the card falls due:
-
-```
-good  learning  due in 10 min      good  review  due in  7.0 days
-good  review    due in 24.0 hr     good  review  due in 19.0 days
-good  review    due in  2.0 days   good  review  due in 48.0 days
-```
-
-And the four grades on a fresh card: `again` 1 min · `hard` 6 min · `good`
-10 min · `easy` 8 days.
-
-### Why SrsCard has one field §5 doesn't
-
-`learningSteps`. `ts-fsrs` tracks position in its learning-step sequence
-(default 1m → 10m) in a field that **cannot be derived** from anything else on
-the card. Without persisting it, a card re-enters step 0 on every grade and never
-graduates out of Learning — it sits at "due in 10 minutes" forever, which makes
-progressive intervals impossible. This was measured, not assumed.
-
-`elapsed_days` and `scheduled_days` are deliberately *not* stored: both are
-derivable from `lastReview`/`due`, and deriving them can't drift out of sync.
-
-`learning/fsrs-card.mapper.ts` is the single point where ts-fsrs's snake_case /
-numeric-enum representation meets §5's camelCase / string-state one.
+`POST /lessons/:id/complete` verifies prerequisites and a clean exercise
+attempt, records an idempotent lesson completion, awards XP through
+`UserService`, adds newly taught kana to the learner state, and emits
+`lesson.completed`. Repeating a lesson earns the smaller configured practice
+award rather than duplicating completion progress.
 
 ## The AI chat
 
@@ -601,5 +518,5 @@ Kanji exercises ask for meaning, not an isolated reading, because the correct
 reading depends on the word in which the character appears.
 
 Every content write is an upsert on a natural key, so re-running the seed keeps
-stable document IDs for existing SRS references. CI runs the seed twice and
+stable document IDs for existing content and lesson references. CI runs the seed twice and
 requires identical summaries.

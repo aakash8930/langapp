@@ -941,17 +941,11 @@ function Summary({
           <dt>Total XP</dt>
           <dd className="tabular">{summary.totalXp}</dd>
         </div>
-        <div>
-          <dt>{summary.firstCompletion ? 'New review cards' : 'Cards already in review'}</dt>
-          <dd className="tabular">
-            {summary.firstCompletion ? summary.cardsCreated : summary.cardsAlreadyPresent}
-          </dd>
-        </div>
       </dl>
 
       <p className="summary-note">
         {summary.firstCompletion
-          ? 'Those cards come back on their own schedule. Reviewing them is what makes this stick.'
+          ? 'Lesson progress has been saved.'
           : 'You had already finished this one, so the XP is the smaller practice award.'}
       </p>
 
@@ -979,7 +973,7 @@ function Summary({
       <div className="up-next">
         {next.kind === 'unknown' ? null : next.kind === 'courseComplete' ? (
           <p className="up-next-line">
-            <strong>That is the last lesson.</strong> Everything from here is review.
+            <strong>That is the last lesson.</strong> You have completed the current course.
           </p>
         ) : next.kind === 'practise' ? (
           <p className="up-next-line">

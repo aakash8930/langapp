@@ -56,8 +56,6 @@ export type CombinedTestResult = {
   passed: boolean;
   xpAwarded: number;
   missed: CombinedTestMiss[];
-  /** How many items were pulled forward in the SRS. Always `missed.length`. */
-  scheduledForReview: number;
 };
 
 /**

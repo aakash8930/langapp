@@ -8,13 +8,12 @@ import { UserService } from '../user/user.service';
 import { CheckpointAttemptsService } from './checkpoint-attempts.service';
 import { ProgressResponse } from './dto/progress-response.dto';
 import { LearningService } from './learning.service';
-import { ReviewService } from './review.service';
 import { startingRecommendation } from './starting-recommendation';
 
 /**
  * Lives in the learning module rather than next to the other /me routes, and
  * that placement is the point: /me/progress needs both the user's gamification
- * block and the learner's card/lesson counts. UserModule importing
+ * block and the learner's lesson counts. UserModule importing
  * LearningModule would close a cycle — learning already imports user — and the
  * fix for that would be forwardRef, which trades a compile-time error for a
  * runtime ordering bug. Learning depends on user in one direction only, so the
@@ -27,7 +26,6 @@ export class ProgressController {
   constructor(
     private readonly userService: UserService,
     private readonly learningService: LearningService,
-    private readonly reviewService: ReviewService,
     // Read side of `events`, for the daily summary (T1.8). Learning already
     // depends on analytics for the write side, so this adds no new module edge.
     private readonly analyticsService: AnalyticsService,
@@ -44,19 +42,17 @@ export class ProgressController {
       throw new NotFoundException('User not found');
     }
 
-    // One `now` for the whole response: today's-XP rollover and the due cutoff
-    // must agree, and two calls to new Date() can straddle a midnight boundary.
+    // One `now` for the whole response so local-day calculations cannot straddle midnight.
     const now = new Date();
 
-    const [cardsDueNow, completedLessonIds, todayCounts, passedUnits] = await Promise.all([
-      this.reviewService.countDue(current.userId, now),
+    const [completedLessonIds, todayCounts, passedUnits] = await Promise.all([
       this.learningService.findCompletedLessonIds(current.userId),
       // Counted on the user's own local day, the same `now` and the same tz rule
       // `todayXpFor` uses below — so the whole `daily` block agrees about when
       // today started rather than two clocks straddling a midnight.
       this.analyticsService.countTodayByType(
         current.userId,
-        ['review.graded', 'lesson.completed'],
+        ['lesson.completed'],
         user.settings.tz,
         now,
       ),
@@ -88,10 +84,8 @@ export class ProgressController {
         percentOfGoal:
           dailyGoalXp > 0 ? Math.min(100, Math.round((xpToday / dailyGoalXp) * 100)) : 100,
         goalMet: xpToday >= dailyGoalXp,
-        reviewsDone: todayCounts['review.graded'] ?? 0,
         lessonsDone: todayCounts['lesson.completed'] ?? 0,
       },
-      cardsDueNow,
       lessonsCompleted: completedLessonIds.length,
       completedLessonIds,
       passedUnits,

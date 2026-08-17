@@ -54,7 +54,7 @@ export const Hero = forwardRef<HTMLElement, { totals: Totals }>(function Hero({ 
               Get Started for Free
             </a>
           ) : (
-            <Link to="/review" className="btn btn-primary">
+            <Link to="/courses" className="btn btn-primary">
               Continue Learning
             </Link>
           )}

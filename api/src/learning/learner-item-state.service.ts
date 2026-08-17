@@ -7,7 +7,6 @@ import {
   computeItemMastery,
   EMPTY_STATS,
   pushOutcome,
-  RECENT_OUTCOMES,
   updateStats,
 } from './learner-model/confidence';
 import {
@@ -15,14 +14,6 @@ import {
   LearnerItemStateDocument,
   SourceContext,
 } from './schemas/learner-item-state.schema';
-import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
-
-export interface BackfillReport {
-  cards: number;
-  created: number;
-  /** Already had a state, left untouched. */
-  skipped: number;
-}
 
 /** A read-only, scheduler-independent weakness signal for Practice. */
 export interface WeakItemEvidence {
@@ -40,8 +31,7 @@ export interface WeakItemEvidence {
 /**
  * One call to `record()`. Carries the minimum the service needs to mutate the
  * right row and recompute the derived fields. `exerciseType` is the value the
- * `LearnerItemState.byExerciseType` map should be keyed on — `null` on review
- * and chat contexts, by decision (2) of the slice.
+ * `LearnerItemState.byExerciseType` map should be keyed on — `null` on chat contexts, by decision (2) of the slice.
  */
 export interface RecordInput {
   userId: Types.ObjectId;
@@ -58,7 +48,7 @@ const DUPLICATE_KEY = 11000;
  * Owns `learnerItemStates` (§5.2, ADR-003).
  *
  * The write path landed 2026-07-28: `record()` mutates an existing row or
- * creates a new one for every lesson answer, review grade and chat correction.
+ * creates a new one for lesson, practice, checkpoint, and correction evidence.
  * Derived fields (`confidence`, `masteryLevel`) are recomputed on every write
  * from the evidence above them — `confidence.ts` is pure, which is what makes
  * a drift check possible (§5.2).
@@ -72,115 +62,7 @@ export class LearnerItemStateService {
   constructor(
     @InjectModel(LearnerItemState.name)
     private readonly stateModel: Model<LearnerItemStateDocument>,
-    @InjectModel(SrsCard.name)
-    private readonly cardModel: Model<SrsCardDocument>,
   ) {}
-
-  /**
-   * Create a `LearnerItemState` for every existing `SrsCard`, carrying over the
-   * review evidence the card already holds.
-   *
-   * ## Why `SrsCard` is the only source
-   *
-   * ADR-003 says `totalReviews` / `correctReviews` should move off the card
-   * "before they carry data worth preserving" — they now hold real counts for 386
-   * cards, so the backfill preserves them instead of costing zeros.
-   *
-   * `ExerciseAttempt` **cannot** be backfilled, and that is worth knowing rather
-   * than discovering later: it records `{userId, lessonId, attempt, exerciseId,
-   * correct, responseTimeMs}` and **no item id and no exercise type**. `exerciseId`
-   * is `{attempt}:{index}` — a position in a shuffle — so attributing a historical
-   * answer to an item would mean regenerating every past exercise set against
-   * content that has since changed. Lesson-level evidence therefore starts
-   * accumulating when the write path lands, and `byExerciseType` is empty until
-   * then. The fix for the future is `itemId` and `type` on the attempt row, which
-   * the answer endpoint already has to hand.
-   *
-   * ## Idempotency
-   *
-   * Each card's state is looked up by `{userId, itemRef}` before inserting, so
-   * running this twice is a no-op rather than a doubling — a migration that cannot
-   * be re-run safely is a migration nobody dares re-run. The **unique index** is
-   * the actual guarantee; the lookup is an optimisation, and a concurrent second
-   * run fails loudly on a duplicate key instead of splitting one item's evidence
-   * across two rows.
-   *
-   * **Existing states are not overwritten.** Once the write path is live, a state
-   * holds evidence the card never had, and a re-run must not flatten it back to
-   * review counts. Such rows are counted as skipped.
-   */
-  async backfillFromSrsCards(): Promise<BackfillReport> {
-    const report: BackfillReport = { cards: 0, created: 0, skipped: 0 };
-
-    // `cursor()` rather than `find()`: this walks every card of every learner, and
-    // loading them all is exactly the kind of thing that is fine at 386 and not at
-    // 386,000.
-    for await (const card of this.cardModel.find().cursor()) {
-      report.cards++;
-
-      const existing = await this.stateModel
-        .findOne({
-          userId: card.userId,
-          'itemRef.kind': card.itemRef.kind,
-          'itemRef.id': card.itemRef.id,
-        })
-        .exec();
-
-      if (existing) {
-        // Already has a state — leave whatever evidence it has accumulated alone.
-        report.skipped++;
-        continue;
-      }
-
-      const exposures = card.totalReviews;
-      const correct = Math.min(card.correctReviews, exposures);
-      const incorrect = exposures - correct;
-
-      const state = {
-        userId: card.userId,
-        itemRef: card.itemRef,
-        exposures,
-        correct,
-        incorrect,
-        // No response times survive: the card never stored any, and the attempts
-        // that did cannot be attributed to an item.
-        responseTimeMs: { ...EMPTY_STATS },
-        lastNOutcomes: reconstructOutcomes(correct, incorrect),
-        // Empty on purpose — see the note above on `ExerciseAttempt`.
-        byExerciseType: new Map(),
-        confidence: 0,
-        masteryLevel: 'new' as const,
-        firstSeenAt: card.createdAt ?? null,
-        lastSeenAt: card.lastReview,
-        // Every one of these counts came from grading a review.
-        sourceContexts: exposures > 0 ? (['review'] as const) : [],
-      };
-
-      const confidence = computeConfidence({
-        exposures: state.exposures,
-        lastNOutcomes: state.lastNOutcomes,
-        responseTimeMs: state.responseTimeMs,
-        // No per-type baseline exists yet — `LearnerProfile` is §5.2 [Later] — so
-        // the speed term is neutral for every backfilled row.
-        baselineMs: null,
-      });
-
-      await this.stateModel.create({
-        ...state,
-        confidence,
-        masteryLevel: computeItemMastery(confidence, state.exposures),
-        sourceContexts: [...state.sourceContexts],
-      });
-      report.created++;
-    }
-
-    this.logger.log(
-      `Backfill: ${report.cards} cards -> ${report.created} created, ` +
-        `${report.skipped} already present`,
-    );
-
-    return report;
-  }
 
   /**
    * Build this collection's declared indexes, and **wait for them**.
@@ -211,15 +93,14 @@ export class LearnerItemStateService {
    *
    * ## Never throws
    *
-   * Every caller is on a side-effect path: an answer endpoint, a review grade,
-   * a chat turn. Losing the pedagogical-model write must not undo the user's
+   * Every caller is on a side-effect path: an answer endpoint, checkpoint, or chat turn. Losing the pedagogical-model write must not undo the user's
    * actual action — same failure semantics as `LearningService.scheduleMissedWords`
    * and `AnalyticsService.record`. A swallowed error is logged at warn.
    *
    * ## `byExerciseType` is only touched on exercises
    *
    * Per decision (2) of the slice: the map stays a recognition-vs-recall metric
-   * for exercises. A review grade or a chat correction carries
+   * for exercises. A chat correction carries
    * `exerciseType: null`, and this method leaves the map unchanged in that
    * case. The totals (`exposures`, `correct`, `incorrect`), the recency ring,
    * the response-time stats and the provenance still accumulate.
@@ -403,7 +284,7 @@ export class LearnerItemStateService {
   /**
    * Lowest-confidence items with real exposures, used by the Practice engine.
    * This is deliberately learner evidence only: it does not read or mutate an
-   * SRS card, and therefore cannot turn Practice into a second due queue.
+   * learning record, and therefore cannot turn Practice into a second due queue.
    */
   async findWeakestForUser(
     userId: string,
@@ -512,7 +393,7 @@ function isDuplicateKeyError(err: unknown): boolean {
 
 /**
  * Order-stable dedupe: `sourceContexts` is appended-to, so the order carries
- * information ("learner met this first in chat, then again in review"). The
+ * information ("learner met this first in chat, then in a lesson"). The
  * membership test just drops a duplicate if it ever appears twice — a
  * re-recorded lesson does not push a second `'lesson'` entry.
  */
@@ -525,34 +406,4 @@ function dedupeSourceContexts(values: SourceContext[]): SourceContext[] {
     out.push(value);
   }
   return out;
-}
-
-/**
- * Rebuild a plausible recency ring from two totals.
- *
- * The card knows *how many* reviews were correct but not **in what order**, and
- * recency is the whole point of the ring. Ordering the failures first is the
- * deliberate choice: it makes the most recent outcomes the correct ones, so a
- * learner who has since improved is not punished by a history that never recorded
- * when they improved. The opposite order would depress confidence for every item
- * ever failed once.
- *
- * This is reconstruction, not data. It is why backfilled confidence should be read
- * as a starting estimate — the honest alternative, an empty ring, scores every
- * item 0 and would surface hundreds of well-known items as weak on the first
- * adaptive session.
- */
-function reconstructOutcomes(correct: number, incorrect: number): boolean[] {
-  const total = Math.min(correct + incorrect, RECENT_OUTCOMES);
-  if (total === 0) return [];
-
-  // Proportional within the window, so 20 reviews at 90% reads as 9 of 10.
-  const scale = total / (correct + incorrect);
-  const wrong = Math.min(total, Math.round(incorrect * scale));
-
-  let outcomes: boolean[] = [];
-  for (let i = 0; i < wrong; i++) outcomes = pushOutcome(outcomes, false);
-  for (let i = 0; i < total - wrong; i++) outcomes = pushOutcome(outcomes, true);
-
-  return outcomes;
 }

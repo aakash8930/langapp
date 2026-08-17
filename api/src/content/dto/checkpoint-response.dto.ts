@@ -46,8 +46,6 @@ export interface CheckpointResult {
   passed: boolean;
   xpAwarded: number;
   missed: CheckpointMiss[];
-  /** How many items were pulled forward in the SRS — always `missed.length`. */
-  scheduledForReview: number;
 }
 
 /**

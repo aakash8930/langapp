@@ -58,8 +58,6 @@ export function TodaysGoalWidget({ progress }: { progress: Progress }) {
       <span className="goal-accent-bar" aria-hidden="true"><span style={{ width: `${Math.min(daily.percentOfGoal, 100)}%` }} /></span>
       <dl className="goal-mini-stats">
         <div><dt>Lessons</dt><dd className="tabular">{daily.lessonsDone}</dd></div>
-        <div><dt>Reviews</dt><dd className="tabular">{daily.reviewsDone}</dd></div>
-        <div><dt>Due now</dt><dd className="tabular">{progress.cardsDueNow}</dd></div>
       </dl>
     </section>
   );

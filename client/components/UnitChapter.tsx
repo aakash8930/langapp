@@ -86,7 +86,7 @@ export function UnitChapter({
             is right for a placement probe later and reads as a trick now.
 
             Nothing downstream is gated on the result. Passing awards XP;
-            failing pulls the missed items into reviews and locks nothing.
+            failing shows the missed answers and locks nothing.
           */}
           {group.status === 'done' ? (
             <View style={{ alignItems: 'center', gap: theme.spacing.md }}>

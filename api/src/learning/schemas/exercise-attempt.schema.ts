@@ -57,10 +57,10 @@ export class ExerciseAttempt {
   itemId: Types.ObjectId | null;
 
   /**
-   * The item's `kind` in the `SrsItemRef` sense — same enum `SrsCard.itemRef`
+   * The item's content `kind` — same content-kind enum
    * uses, so `(itemKind, itemId)` can be matched against `learnerItemStates`
-   * and `srsCards` without translation. `'wordReading'` is mapped to `'vocab'`
-   * at write time (the existing `promptKindToSrsKind` helper), so this
+   * without translation. `'wordReading'` is mapped to `'vocab'`
+   * at write time (the existing `promptKindToContentKind` helper), so this
    * column never carries `'wordReading'`.
    */
   @Prop({ type: String, required: false, default: null, enum: CONTENT_KINDS })

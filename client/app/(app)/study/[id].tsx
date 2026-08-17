@@ -8,7 +8,7 @@ import { fetchLesson } from '@/api/lessons';
 import { kindHasStrokes } from '@/api/strokes';
 import { Button } from '@/components/Button';
 import { ErrorState } from '@/components/ErrorState';
-import { CardBack, CardFront } from '@/components/ReviewCardFace';
+import { CardBack, CardFront } from '@/components/StudyCardFace';
 import { LessonSkeleton } from '@/components/LessonSkeleton';
 import { SessionProgress } from '@/components/SessionProgress';
 import { SpeakButton } from '@/components/SpeakButton';
@@ -35,7 +35,7 @@ import { useTheme } from '@/theme';
  * with no stakes.
  *
  * Reusing `CardFront`/`CardBack` rather than writing a third renderer means a
- * character is shown here exactly as it will be shown in review — including the
+ * character is shown consistently across study views — including the
  * manuscript cell, the romaji display rule, and the play button on vocabulary.
  */
 export default function Study() {

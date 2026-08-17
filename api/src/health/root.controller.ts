@@ -87,15 +87,6 @@ const ROUTES: [string, string, string][] = [
   ['GET', '/lessons/:id', ''],
   ['GET', '/lessons/:id/exercises', 'bearer'],
   ['POST', '/lessons/:id/complete', 'bearer · seeds cards, awards XP'],
-  ['GET', '/reviews/due', 'bearer · capped at 20'],
-  ['GET', '/reviews/session', 'bearer · stable daily due + new set'],
-  ['GET', '/reviews/summary', 'bearer · live queue counts'],
-  ['GET', '/reviews/events', 'bearer · persisted grade history'],
-  ['GET', '/reviews/statistics', 'bearer · observed review metrics'],
-  ['GET', '/reviews/retention', 'bearer · predicted + observed'],
-  ['GET', '/reviews/heatmap', 'bearer · review events by local day'],
-  ['GET', '/reviews/forecast/daily', 'bearer · current next-due dates'],
-  ['POST', '/reviews/:cardId/grade', 'bearer · FSRS'],
 ];
 
 function formatUptime(seconds: number): string {

@@ -21,7 +21,7 @@ import { UserService } from './user.service';
  * ## What is deleted
  *
  * - `users` — the account document itself (owned by UserService)
- * - `srsCards`, `lessonCompletions`, `exerciseAttempts` — owned by LearningService
+ * - `lessonCompletions`, `exerciseAttempts`, learner state, checkpoints — owned by LearningService
  * - `chatSessions`, `chatMessages` — owned by ChatService
  * - `events` (analytics) — owned by AnalyticsService
  * - `friendships`, `blocks`, `directMessages` — owned by SocialService

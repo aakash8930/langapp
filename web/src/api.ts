@@ -462,10 +462,8 @@ export type Progress = {
      * them yet — the header carries XP and streak, and a third metric would
      * crowd it. The app's home screen is where the daily summary lives.
      */
-    reviewsDone: number;
     lessonsDone: number;
   };
-  cardsDueNow: number;
   lessonsCompleted: number;
   completedLessonIds: string[];
   passedUnits: string[];
@@ -536,48 +534,6 @@ export function fetchUnitContent(unit: string): Promise<UnitContent> {
 }
 
 /** How well a card is known. The server's bands, not ours. */
-export type MasteryLevel = 'new' | 'learning' | 'familiar' | 'mastered';
-
-/**
- * `GET /learning/memory-model` — the shape of what the learner remembers.
- *
- * This is the one endpoint that is allowed to describe SRS behaviour in
- * aggregate. It does not leak per-card FSRS internals: `stability` and
- * `difficulty` are absent here exactly as they are absent from `GradeResult`,
- * and the leak rule is enforced server-side rather than by this type.
- */
-export type MemoryModel = {
-  totalCards: number;
-  /** Percentage, 0–100 — already scaled by the server. Do not multiply again. */
-  overallRetentionRate: number;
-  masteryBreakdown: Record<MasteryLevel, number>;
-  forgettingCurve: { day: number; retentionRate: number }[];
-};
-
-export function fetchMemoryModel(): Promise<MemoryModel> {
-  return authed<MemoryModel>('/learning/memory-model');
-}
-
-/**
- * `GET /learning/analytics` — today's review numbers.
- *
- * Note the two different scales, which is the trap in this pair:
- * `accuracyRateToday` is a **fraction** (0–1) while `MemoryModel`'s
- * `overallRetentionRate` is a **percentage** (0–100). They are rendered
- * differently for that reason and not because one is more precise.
- */
-export type ReviewAnalytics = {
-  totalReviewsToday: number;
-  /** 0.0–1.0. */
-  accuracyRateToday: number;
-  averageResponseTimeMs: number;
-  masteredCount: number;
-};
-
-export function fetchAnalytics(): Promise<ReviewAnalytics> {
-  return authed<ReviewAnalytics>('/learning/analytics');
-}
-
 /** The themes the server will accept. Mirrors `THEMES` in the user schema. */
 export const THEMES = ['light', 'dark', 'system'] as const;
 export type Theme = (typeof THEMES)[number];
@@ -751,8 +707,6 @@ export type AnswerResult = {
 export type CompleteResult = {
   lessonId: string;
   title: string;
-  cardsCreated: number;
-  cardsAlreadyPresent: number;
   xpAwarded: number;
   firstCompletion: boolean;
   totalXp: number;
@@ -793,7 +747,7 @@ export function completeLesson(lessonId: string): Promise<CompleteResult> {
 }
 
 // ---------------------------------------------------------------------------
-// Practice — generated application exercises, intentionally separate from FSRS
+// Practice — generated application exercises, generated application exercises
 // ---------------------------------------------------------------------------
 
 export function fetchPracticeOverview(): Promise<PracticeOverview> {
@@ -885,7 +839,6 @@ export type CheckpointResult = {
   passed: boolean;
   xpAwarded: number;
   missed: CheckpointMiss[];
-  scheduledForReview: number;
 };
 
 /**
@@ -936,182 +889,6 @@ export function submitCheckpoint(unit: string, attempt: number): Promise<Checkpo
     `/units/${encodeURIComponent(unit)}/checkpoint/${attempt}/submit`,
     { method: 'POST' },
   );
-}
-
-export const REVIEW_GRADES = ['again', 'hard', 'good', 'easy'] as const;
-export type ReviewGrade = (typeof REVIEW_GRADES)[number];
-export type CardState = 'new' | 'learning' | 'review' | 'relearning';
-
-export type DueCard = {
-  cardId: string;
-  state: CardState;
-  mastery: MasteryLevel;
-  /** ISO 8601 — JSON has no Date, whatever the server's DTO says. */
-  due: string;
-  reps: number;
-  lapses: number;
-  totalReviews: number;
-  accuracyRate: number;
-  item: ResolvedItem;
-};
-
-export type DueReviews = { count: number; totalDue: number; cap: number; cards: DueCard[] };
-export type DailyReviewSession = DueReviews & { localDate: string; dueCount: number; newCount: number };
-
-/**
- * Mirrors the server's `GradeReviewResponse`. The leak rule in the root
- * CLAUDE.md says FSRS internals (stability, difficulty) must not reach a
- * client; this type does not declare them, so they cannot be rendered.
- */
-export type GradeResult = {
-  cardId: string;
-  grade: ReviewGrade;
-  state: CardState;
-  due: string;
-  /** Minutes until the card returns — the number a learner cares about. */
-  intervalMinutes: number;
-  reps: number;
-  lapses: number;
-  xpAwarded: number;
-  totalXp: number;
-};
-
-export function fetchDueReviews(): Promise<DueReviews> {
-  return authed<DueReviews>('/reviews/due');
-}
-
-/** Stable daily mix: overdue/due cards first, then the server's capped new cards. */
-export function fetchReviewSession(): Promise<DailyReviewSession> {
-  return authed<DailyReviewSession>('/reviews/session');
-}
-
-/**
- * XP is due-gated server-side: grading a card that was not actually due
- * reschedules it but awards nothing, so `xpAwarded` can legitimately be 0.
- */
-export function gradeReview(cardId: string, grade: ReviewGrade, responseTimeMs?: number): Promise<GradeResult> {
-  return authed<GradeResult>(`/reviews/${encodeURIComponent(cardId)}/grade`, {
-    method: 'POST',
-    body: JSON.stringify({ grade, ...(responseTimeMs === undefined ? {} : { responseTimeMs }) }),
-  });
-}
-
-export interface ReviewHistoryEntry {
-  date: string;
-  count: number;
-  recalled: number;
-}
-
-export interface HeatmapEntry {
-  date: string;
-  count: number;
-}
-
-export interface ForecastEntry {
-  days: number;
-  due: number;
-  weekLabel: string;
-}
-
-export type ReviewSummary = {
-  localDate: string;
-  dueNow: number;
-  overdue: number;
-  states: Record<CardState, number>;
-  totalCards: number;
-  estimatedMinutes: number | null;
-  timingSamples: number;
-};
-
-export type ReviewEvent = {
-  id: string;
-  reviewedAt: string;
-  cardId: string | null;
-  grade: ReviewGrade | null;
-  itemKind: string | null;
-  itemId: string | null;
-  item: ResolvedItem | null;
-  previousState: string | null;
-  newState: string | null;
-  previousDue: string | null;
-  newDue: string | null;
-  intervalMinutes: number | null;
-  responseTimeMs: number | null;
-  wasDue: boolean | null;
-};
-
-export type MissedReviews = {
-  localDate: string;
-  overdueNow: number;
-  failedToday: number;
-  failedLast7Days: number;
-  overdueCards: DueCard[];
-  cap: number;
-};
-
-export type ReviewStatistics = {
-  days: number;
-  reviewsCompleted: number;
-  successfulReviews: number;
-  observedSuccessRate: number | null;
-  averageResponseTimeMs: number | null;
-  timingSamples: number;
-  grades: Record<ReviewGrade, number>;
-  dueNow: number;
-  overdueNow: number;
-  totalCards: number;
-  states: Record<CardState, number>;
-  mastery: Record<MasteryLevel, number>;
-};
-
-export type ReviewRetention = {
-  totalCards: number;
-  reviewedCards: number;
-  predictedRetentionRate: number | null;
-  byKind: { kind: string; cards: number; predictedRetentionRate: number }[];
-  observedDays: number;
-  observedReviews: number;
-  observedSuccessRate: number | null;
-};
-
-export type DailyForecast = { date: string; due: number; isToday: boolean };
-
-export function fetchReviewSummary(): Promise<ReviewSummary> {
-  return authed<ReviewSummary>('/reviews/summary');
-}
-
-export function fetchMissedReviews(): Promise<MissedReviews> {
-  return authed<MissedReviews>('/reviews/missed');
-}
-
-export function fetchReviewEvents(limit = 50): Promise<ReviewEvent[]> {
-  return authed<ReviewEvent[]>(`/reviews/events?limit=${encodeURIComponent(limit)}`);
-}
-
-export function fetchReviewStatistics(days = 30): Promise<ReviewStatistics> {
-  return authed<ReviewStatistics>(`/reviews/statistics?days=${encodeURIComponent(days)}`);
-}
-
-export function fetchReviewRetention(days = 30): Promise<ReviewRetention> {
-  return authed<ReviewRetention>(`/reviews/retention?days=${encodeURIComponent(days)}`);
-}
-
-export function fetchDailyReviewForecast(days = 14): Promise<DailyForecast[]> {
-  return authed<DailyForecast[]>(`/reviews/forecast/daily?days=${encodeURIComponent(days)}`);
-}
-
-export function fetchReviewHistory(days?: number): Promise<ReviewHistoryEntry[]> {
-  const d = days ? `?days=${days}` : '';
-  return authed<ReviewHistoryEntry[]>(`/reviews/history${d}`);
-}
-
-export function fetchReviewHeatmap(days?: number): Promise<HeatmapEntry[]> {
-  const d = days ? `?days=${days}` : '';
-  return authed<HeatmapEntry[]>(`/reviews/heatmap${d}`);
-}
-
-export function fetchReviewForecast(): Promise<ForecastEntry[]> {
-  return authed<ForecastEntry[]>('/reviews/forecast');
 }
 
 /**

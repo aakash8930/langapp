@@ -22,7 +22,7 @@ export function UpgradePremium() {
       </p>
       <ul className="upgrade-perks">
         <li>All released lessons</li>
-        <li>FSRS reviews</li>
+        <li>Practice and checkpoints</li>
         <li>AI Tutor</li>
         <li>Synced progress</li>
       </ul>

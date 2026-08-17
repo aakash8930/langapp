@@ -5,9 +5,8 @@ import { HydratedDocument, Types } from 'mongoose';
  * §5: append-only, write-heavy, never updated. The broad §13 activation and
  * cohort-retention read side remains [Later].
  *
- * The Review System reads `review.graded` rows for learner-facing history
- * and aggregates; other event families remain write-heavy analytics inputs.
- * `payload` is deliberately unstructured: event shapes change constantly and
+ * Daily progress reads lesson-completion rows; other event families remain
+ * write-heavy analytics inputs. `payload` is deliberately unstructured: event shapes change constantly and
  * schema-ing them would make every new event a migration.
  */
 @Schema({ collection: 'events', timestamps: false })
@@ -15,7 +14,7 @@ export class Event {
   @Prop({ type: Types.ObjectId, required: true })
   userId: Types.ObjectId;
 
-  /** 'lesson.completed', 'review.graded', 'chat.turn' */
+  /** 'lesson.completed', 'chat.turn', and other product events. */
   @Prop({ type: String, required: true, trim: true })
   type: string;
 
@@ -31,8 +30,7 @@ export const EventSchema = SchemaFactory.createForClass(Event);
 
 // §5: "this user's recent events, newest first" is the general read pattern.
 EventSchema.index({ userId: 1, ts: -1 });
-// Review history, heatmap, statistics and retention all read one learner's
-// review.graded window. Keep that filter and newest-first sort index-covered.
+// Per-user activity reads use one learner's
 EventSchema.index({ userId: 1, type: 1, ts: -1 });
 // Funnel queries ("everyone who completed a lesson") span users.
 EventSchema.index({ type: 1, ts: -1 });

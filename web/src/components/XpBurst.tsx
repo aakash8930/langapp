@@ -8,7 +8,7 @@ import { burstConfetti } from '../motion';
  * ## It only appears where XP is real
  *
  * The number comes from the server every time — `xpAwarded` on
- * `POST /lessons/:id/complete` and on `POST /reviews/:cardId/grade`. Those are
+ * `POST /lessons/:id/complete` and checkpoint completion. Those are
  * the only two responses that carry it.
  *
  * That constraint is worth stating because the obvious place to want this is on

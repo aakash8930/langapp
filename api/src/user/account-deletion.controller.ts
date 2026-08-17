@@ -23,7 +23,7 @@ export class AccountDeletionController {
   /**
    * Permanently delete the authenticated account and all associated data.
    *
-   * **This operation is irreversible.** All learning progress, SRS cards,
+   * **This operation is irreversible.** All learning progress, learning records,
    * lesson completions, chat history, social data, and analytics events are
    * erased. Reports filed by or about the account are retained for moderation
    * purposes (they cannot be used to identify the account — they are evidence

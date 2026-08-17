@@ -105,7 +105,7 @@ function QuizSession({ run, onExit, onRestart }: { run: QuizRun; onExit: () => v
 
   if (finished) {
     const percent = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
-    return <section className="kanji-quiz-result glass"><span className="kanji-quiz-result-glyph ja">答</span><p className="kanji-kicker">QUIZ COMPLETE</p><h1>{score} of {questions.length} correct</h1><p className="kanji-quiz-percent tabular">{percent}%</p><p>This score belongs to this run only. It is not saved as mastery or added to your review schedule.</p><div><button type="button" className="btn btn-primary" onClick={onRestart}><Icon name="refresh-cw" size={16} /> Try this pool again</button><button type="button" className="btn btn-secondary" onClick={onExit}>Change quiz settings</button><Link className="btn btn-secondary" to="/review">Open review queue</Link></div></section>;
+    return <section className="kanji-quiz-result glass"><span className="kanji-quiz-result-glyph ja">答</span><p className="kanji-kicker">QUIZ COMPLETE</p><h1>{score} of {questions.length} correct</h1><p className="kanji-quiz-percent tabular">{percent}%</p><p>This score belongs to this run only. It is not saved as mastery or added to your review schedule.</p><div><button type="button" className="btn btn-primary" onClick={onRestart}><Icon name="refresh-cw" size={16} /> Try this pool again</button><button type="button" className="btn btn-secondary" onClick={onExit}>Change quiz settings</button><Link className="btn btn-secondary" to="/practice-hub">Open practice hub</Link></div></section>;
   }
 
   if (!question) return null;
@@ -114,5 +114,5 @@ function QuizSession({ run, onExit, onRestart }: { run: QuizRun; onExit: () => v
 }
 
 function QuizFrame({ bookmarks, children }: { bookmarks: number; children: React.ReactNode }) {
-  return <div className="page kanji-reference"><nav className="kanji-tabs glass" aria-label="Kanji sections"><Link to="/kanji"><Icon name="grid" size={16} /> Kanji list</Link><Link to="/kanji-writing"><Icon name="pen-tool" size={16} /> Writing</Link><Link className="is-active" to="/kanji-quiz" aria-current="page"><Icon name="sparkles" size={16} /> Quiz</Link><Link to="/review"><Icon name="refresh-cw" size={16} /> Review</Link><Link to="/kanji-bookmarks"><Icon name="book-marked" size={16} /> Bookmarks <span className="tabular">{bookmarks}</span></Link></nav>{children}</div>;
+  return <div className="page kanji-reference"><nav className="kanji-tabs glass" aria-label="Kanji sections"><Link to="/kanji"><Icon name="grid" size={16} /> Kanji list</Link><Link to="/kanji-writing"><Icon name="pen-tool" size={16} /> Writing</Link><Link className="is-active" to="/kanji-quiz" aria-current="page"><Icon name="sparkles" size={16} /> Quiz</Link><Link to="/practice-hub"><Icon name="refresh-cw" size={16} /> Practice</Link><Link to="/kanji-bookmarks"><Icon name="book-marked" size={16} /> Bookmarks <span className="tabular">{bookmarks}</span></Link></nav>{children}</div>;
 }

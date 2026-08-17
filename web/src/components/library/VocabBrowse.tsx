@@ -488,7 +488,7 @@ function VocabSidebar({
       </section>
 
       <section className="vocab-rail-card glass" aria-labelledby="vocab-saved-heading">
-        <div className="vocab-rail-head"><div><p className="vocab-kicker">SAVED WORDS</p><h2 id="vocab-saved-heading">Review later</h2></div><Link to="/vocab-bookmarks">View all</Link></div>
+        <div className="vocab-rail-head"><div><p className="vocab-kicker">SAVED WORDS</p><h2 id="vocab-saved-heading">Study later</h2></div><Link to="/vocab-bookmarks">View all</Link></div>
         {recentBookmarks.length === 0 ? <p className="vocab-rail-empty">Select the star beside a word to keep it close.</p> : (
           <ul className="vocab-saved-list">{recentBookmarks.map((bookmark) => <li key={bookmark.id}><button type="button" onClick={() => onFindSaved(bookmark)}><span className="ja" lang="ja">{bookmark.lemma}</span><span><strong>{bookmark.gloss}</strong>{bookmark.reading === bookmark.lemma ? null : <small className="ja" lang="ja">{bookmark.reading}</small>}</span><Icon name="star" size={13} fill="currentColor" /></button></li>)}</ul>
         )}

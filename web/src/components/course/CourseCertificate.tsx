@@ -155,7 +155,7 @@ export function CourseCertificate({
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--s-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
-        <Link className="btn btn-primary" to="/review-session">
+        <Link className="btn btn-primary" to="/practice-hub">
           <Icon name="refresh-cw" size={18} />
           Keep reviewing
         </Link>

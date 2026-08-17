@@ -1,5 +1,8 @@
 # Project rules — langapp web
 
+> **Current product decision (2026-08-17):** The spaced-review/FSRS subsystem and its routes were removed after learner testing. Any older review-specific guidance below is superseded and must not be reintroduced without a new product decision.
+
+
 The public website. Vite + React + TypeScript strict, talking to the same API as
 the Android app.
 

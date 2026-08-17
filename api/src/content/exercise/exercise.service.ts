@@ -11,7 +11,6 @@ import {
 import { LessonDetail, ResolvedItem } from '../dto/lesson-response.dto';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
 import { LearnerItemStateService } from '../../learning/learner-item-state.service';
-import { LearningService } from '../../learning/learning.service';
 import { mulberry32, seedFrom, shuffle } from './deterministic-random';
 import { ExercisePluginRegistry } from './plugins/exercise-plugin.registry';
 import {
@@ -27,7 +26,7 @@ import {
   kanaChoice,
   KindQuestion,
   normaliseAnswer,
-  promptKindToSrsKind,
+  promptKindToContentKind,
   toGrammarChoice,
   toKanjiChoice,
   VOCAB_QUESTION,
@@ -129,11 +128,6 @@ export class ExerciseService {
     // reach into another module's collections" rule intact.
     @Inject(forwardRef(() => ExerciseAttemptsService))
     private readonly exerciseAttempts: ExerciseAttemptsService,
-    // SRS scheduling on wrong answers. forwardRef because ContentModule and
-    // LearningModule already have a mutual dependency for ExerciseAttemptsService
-    // — this is a second edge in the same cycle, not a new cycle.
-    @Inject(forwardRef(() => LearningService))
-    private readonly learningService: LearningService,
     // §5.2 / ADR-003: the learner-model write path. Same forwardRef cycle —
     // another edge to `LearningModule`, already exported.
     @Inject(forwardRef(() => LearnerItemStateService))
@@ -297,20 +291,9 @@ export class ExerciseService {
   }
 
   /**
-   * The side effect every answer has: record the attempt.
-   *
-   * On a wrong **lesson** answer there is a second side-effect: pull the SRS
-   * card for this item due immediately so the learner will see it in their next
-   * review session. Practice callers explicitly opt out: they write confidence
-   * evidence and their own durable session result, but scheduling remains the
-   * sole responsibility of real Review/lesson events.
-   *
-   * **Neither can fail the answer.** The attempt record's only expected failure
-   * is a duplicate key (the same learner re-answering the same question in the
-   * same attempt) which the service swallows; anything else is logged. The SRS
-   * scheduling is the same bargain — losing it is a small unfairness in the
-   * learner's favour, while a 500 in place of their answer is not recoverable.
-   * Same reasoning `AnalyticsService.record` documents.
+   * Persist the attempt and learner-model evidence for every answer.
+   * Neither side effect may replace valid answer feedback with a server error;
+   * failures are logged and the learner can continue the lesson.
    */
   private async settleAnswer(
     userId: string,
@@ -329,15 +312,14 @@ export class ExerciseService {
     // runtime — in production the value is always an ObjectId-shaped string
     // from `GET /lessons/:id`, but a future client could send anything and
     // `settleAnswer` must not fail the answer over a stale or hostile id.
-    // `wordReading` maps to `'vocab'` for the SRS (and now for the learner
-    // model) — the same `promptKindToSrsKind` helper below carries both edges.
+    // `wordReading` maps to `'vocab'` in the learner model.
     const item = question
       ? {
           itemId:
             question.itemId && Types.ObjectId.isValid(question.itemId)
               ? new Types.ObjectId(question.itemId)
               : null,
-          itemKind: question.promptKind ? promptKindToSrsKind(question.promptKind) : null,
+          itemKind: question.promptKind ? promptKindToContentKind(question.promptKind) : null,
           exerciseType: question.type,
         }
       : { itemId: null, itemKind: null, exerciseType: null };
@@ -387,29 +369,6 @@ export class ExerciseService {
       await this.recordCharacterMistakes(userId, question.prompt, responseTimeMs, sourceContext);
     }
 
-    // Practice is application evidence, not FSRS scheduling input. A mistake
-    // still updates LearnerItemState above, but must never pull a card due or
-    // otherwise become a disguised Review queue.
-    if (sourceContext === 'practice') {
-      return;
-    }
-
-    // Wrong lesson answer: pull this item's SRS card due immediately so it
-    // surfaces in the learner's next review. Fire-and-forget —
-    // `scheduleItemDue` never throws, so this cannot fail the answer response.
-    if (question?.itemId && question.promptKind) {
-      const kind = promptKindToSrsKind(question.promptKind);
-      this.learningService
-        .scheduleItemDue(userId, question.itemId, kind)
-        .catch((err: unknown) => {
-          // scheduleItemDue already swallows, but guard here too in case the
-          // shape of the method changes.
-          this.logger.warn(
-            `SRS scheduling lost for user ${userId} item ${question.itemId}: ` +
-              `${err instanceof Error ? err.message : String(err)}`,
-          );
-        });
-    }
   }
 
   private async recordCharacterMistakes(

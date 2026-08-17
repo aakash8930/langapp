@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { GradeResult } from '../api/reviews';
 import type { LessonSummary } from '../api/lessons';
 import { groupByUnit, lessonAfter, nextLesson, unitLabel, withLockState } from '../lib/lessons';
-import { formatInterval, summarize } from '../lib/reviews';
 import { showsRomaji } from '../lib/romaji';
 
 function lesson(
@@ -51,31 +49,6 @@ test('mobile course path honors prerequisites and teaching order', () => {
   ], []));
   assert.deepEqual(n4.map((unit) => unit.unit), ['vocab-n4', 'grammar-n4', 'kanji-n4']);
   assert.equal(unitLabel('grammar-n4'), 'N4 grammar');
-});
-
-test('mobile review summary counts only server-confirmed grades', () => {
-  const results = [
-    { grade: 'again', xpAwarded: 1, intervalMinutes: 1 },
-    { grade: 'good', xpAwarded: 3, intervalMinutes: 10 },
-    { grade: 'easy', xpAwarded: 4, intervalMinutes: 60 * 24 * 8 },
-  ] as GradeResult[];
-
-  assert.deepEqual(summarize(results), {
-    reviewed: 3,
-    recalled: 2,
-    accuracyPercent: 67,
-    xpEarned: 8,
-    nextDueMinutes: 1,
-  });
-  assert.deepEqual(summarize([]), {
-    reviewed: 0,
-    recalled: 0,
-    accuracyPercent: 0,
-    xpEarned: 0,
-    nextDueMinutes: null,
-  });
-  assert.equal(formatInterval(1), 'in 1 minute');
-  assert.equal(formatInterval(60 * 24 * 2), 'in 2 days');
 });
 
 test('romaji support stops after the authored N4 boundary', () => {

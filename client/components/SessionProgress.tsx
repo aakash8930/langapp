@@ -5,10 +5,10 @@ import { useTheme } from '@/theme';
 /**
  * Position through a bounded session, over a thin vermilion rule.
  *
- * Shared by the lesson and review screens because they are the same idea — a
+ * Used by bounded lesson and checkpoint sessions: a
  * finite queue you are partway through — and the bar should be recognisably
  * the same object in both. Only the caption differs: a lesson counts up to its
- * length, a review session counts down what is left.
+ * length, a checkpoint counts down what is left.
  */
 export function SessionProgress({
   position,
@@ -27,7 +27,7 @@ export function SessionProgress({
    * question; omitted, it stays a plain fill.
    *
    * The distinction is not decorative. A continuous bar answers "how far
-   * through am I", which is the only useful question in a review session, where
+   * through am I", which is the only useful question in a bounded session, where
    * every card is graded and none of them can fail the session. A lesson is now
    * pass-or-repeat, so "is this run still clean" matters more — and that needs
    * per-question state a single bar cannot carry. Same reasoning, and same

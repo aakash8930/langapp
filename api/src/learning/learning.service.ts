@@ -1,18 +1,15 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, Model, Types } from 'mongoose';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { ContentService } from '../content/content.service';
-import { ResolvedItem } from '../content/dto/lesson-response.dto';
 import { UserService } from '../user/user.service';
 import { CompleteLessonResponse } from './dto/complete-lesson-response.dto';
 import { CheckpointAttemptsService } from './checkpoint-attempts.service';
 import { ExerciseAttemptsService } from './exercise-attempts.service';
-import { newCardFields } from './fsrs-card.mapper';
 import { LearnerItemStateService } from './learner-item-state.service';
 import { LessonCompletion, LessonCompletionDocument } from './schemas/lesson-completion.schema';
-import { SrsCard, SrsCardDocument } from './schemas/srs-card.schema';
 
 /**
  * Awarded once per lesson, on the completion that creates the record.
@@ -24,12 +21,8 @@ export const XP_PER_LESSON_COMPLETION = 10;
 /** Fallback when XP_PER_LESSON_PRACTICE is absent; the config module validates it. */
 export const DEFAULT_XP_PER_LESSON_PRACTICE = 2;
 
-/** Mongo duplicate-key error. */
-const DUPLICATE_KEY = 11000;
-
 /**
- * Owns `srsCards`. Reaches content, users and analytics only through their
- * exported services — never their collections (§4).
+ * Owns lesson completions and coordinates exercise completion, XP, and analytics.
  */
 @Injectable()
 export class LearningService {
@@ -37,9 +30,9 @@ export class LearningService {
   private readonly xpPerPractice: number;
 
   constructor(
-    @InjectModel(SrsCard.name) private readonly srsCardModel: Model<SrsCardDocument>,
     @InjectModel(LessonCompletion.name)
     private readonly lessonCompletionModel: Model<LessonCompletionDocument>,
+    @InjectConnection() private readonly connection: Connection,
     private readonly contentService: ContentService,
     private readonly userService: UserService,
     private readonly analyticsService: AnalyticsService,
@@ -63,11 +56,9 @@ export class LearningService {
 
   async completeLesson(userId: string, lessonId: string): Promise<CompleteLessonResponse> {
     // Reuses the validated read path — 400 on a malformed id, 404 if absent.
-    // `items` excludes refs whose content is gone, so no card is created for
-    // an item the learner could never actually review.
     const lesson = await this.contentService.findLessonById(lessonId);
 
-    // Two preconditions before any XP cards or completion rows are written.
+    // Two preconditions before any XP or completion rows are written.
     // Both are 409 Conflict: the request is well-formed, but the user's state
     // does not allow it. The client derives lesson lock state from
     // `completedLessonIds` and disables access itself — these server checks
@@ -75,8 +66,6 @@ export class LearningService {
     // that forgets the prerequisite check).
     await this.assertPrerequisitesMet(userId, lesson.prerequisiteLessonIds);
     await this.assertUserAnsweredEverythingCorrectly(userId, lesson.id);
-
-    const created = await this.seedCards(userId, lesson.items);
 
     // The completion record is the source of truth for "has this been done
     // before", not `created > 0`: a learner can already hold every card from a
@@ -90,7 +79,7 @@ export class LearningService {
     // learner did not already have, and going down this branch on every
     // completion would spend a write per replay for no gain. `$addToSet`
     // inside `UserService.addKnownKana` is the idempotency backstop that makes
-    // a lesson teaching *no* kana (e.g. vocab-only checkpoint reviews) free.
+    // a lesson teaching *no* kana (e.g. vocab-only checkpoints) free.
     if (firstCompletion) {
       const newKana: string[] = [];
       const seen = new Set<string>();
@@ -117,7 +106,7 @@ export class LearningService {
     const user = await this.userService.awardXp(userId, xpAwarded);
 
     // Deliberately last, and guarded here as well as inside AnalyticsService:
-    // cards and XP are already committed by this point, so a failure to log
+    // completion and XP are already committed by this point, so a failure to log
     // must not turn a successful completion into an error response (§7). The
     // duplicated catch is intentional — the guarantee shouldn't depend on
     // another module's internals staying non-throwing.
@@ -129,7 +118,6 @@ export class LearningService {
           lessonId: lesson.id,
           unit: lesson.unit,
           itemCount: lesson.items.length,
-          cardsCreated: created,
           xpAwarded,
           firstCompletion,
           timesCompleted: completion.timesCompleted,
@@ -145,8 +133,6 @@ export class LearningService {
     return {
       lessonId: lesson.id,
       title: lesson.title,
-      cardsCreated: created,
-      cardsAlreadyPresent: lesson.items.length - created,
       xpAwarded,
       firstCompletion,
       totalXp: user.gamification.xp,
@@ -195,11 +181,7 @@ export class LearningService {
    * ## Why it is not "all correct first try"
    *
    * The clients re-ask a question the learner got wrong until they answer it
-   * correctly, so a mistake costs a heart and a repeat rather than the lesson.
-   * That matters more here than it looks: **`/complete` is what seeds the SRS
-   * cards.** Hard-blocking completion would mean a word the learner got wrong
-   * never enters review at all, which is precisely backwards — that is the word
-   * they most need scheduled, and it is what T1.5 exists to arrange.
+   * correctly, so completion requires persistence rather than first-try perfection.
    *
    * So the rule is "you finished having got everything right", reached by
    * persistence rather than by first-try perfection.
@@ -220,62 +202,6 @@ export class LearningService {
           ? 'Answer the exercises before completing this lesson.'
           : 'Answer every exercise correctly before completing this lesson.',
       );
-    }
-  }
-
-  /**
-   * Creates a card for each item the user doesn't already have one for.
-   *
-   * Two layers of protection against duplicates: this filters against existing
-   * cards first (the common path, and it keeps the insert small), and the
-   * unique index catches anything that races past it. `ordered: false` means one
-   * duplicate doesn't abort the rest of the batch.
-   */
-  private async seedCards(userId: string, items: ResolvedItem[]): Promise<number> {
-    if (items.length === 0) {
-      return 0;
-    }
-
-    const userObjectId = new Types.ObjectId(userId);
-    const itemIds = items.map((item) => new Types.ObjectId(item.id));
-
-    const existing = await this.srsCardModel
-      .find({ userId: userObjectId, 'itemRef.id': { $in: itemIds } })
-      .select('itemRef')
-      .exec();
-
-    const existingKeys = new Set(
-      existing.map((card) => `${card.itemRef.kind}:${card.itemRef.id.toString()}`),
-    );
-
-    const now = new Date();
-    const toCreate = items
-      .filter((item) => !existingKeys.has(`${item.kind}:${item.id}`))
-      .map((item) => ({
-        userId: userObjectId,
-        itemRef: { kind: item.kind, id: new Types.ObjectId(item.id) },
-        ...newCardFields(now),
-      }));
-
-    if (toCreate.length === 0) {
-      return 0;
-    }
-
-    try {
-      const inserted = await this.srsCardModel.insertMany(toCreate, { ordered: false });
-      return inserted.length;
-    } catch (err) {
-      // A concurrent completion won the race for some cards. Those are exactly
-      // the ones we wanted to exist anyway, so count what actually landed.
-      if (isDuplicateKeyError(err)) {
-        const writeErrors = (err as { writeErrors?: unknown[] }).writeErrors?.length ?? 0;
-        const inserted = toCreate.length - writeErrors;
-        this.logger.warn(
-          `Concurrent completion for user ${userId}: ${writeErrors} card(s) already existed`,
-        );
-        return Math.max(0, inserted);
-      }
-      throw err;
     }
   }
 
@@ -374,202 +300,6 @@ export class LearningService {
   }
 
   /**
-   * §7 step 7: schedule words the learner got wrong in conversation.
-   *
-   * `texts` are the free-text fragments of a chat correction — the `span` the
-   * learner wrote and the `fix` they should have written. Both are matched, not
-   * just the fix: a span is often a correct word used wrongly (わたしわ contains
-   * わたし), and a span misspelled beyond recognition simply matches nothing.
-   *
-   * Two outcomes per matched word, and the distinction is the whole design:
-   *
-   * - **No card yet** → create one, due now. Unambiguously right: the learner has
-   *   just demonstrated the word matters to them and nothing is tracking it.
-   * - **Card already exists** → pull `due` forward to now if it is later, and
-   *   change *nothing else*. `stability`, `difficulty`, `state`, `reps` and
-   *   `lapses` are FSRS's model of this learner, and the only honest way to move
-   *   them is a real grade. Manufacturing one from "the tutor corrected you"
-   *   would feed the scheduler an observation that never happened and quietly
-   *   degrade every interval it computes afterwards.
-   *
-   * So this makes a word come up sooner; it never claims to know how well the
-   * learner knows it. That is the most a correction can honestly say.
-   *
-   * Never throws. A chat turn has already cost a provider call and been
-   * persisted by the time this runs, and failing the request over a scheduling
-   * nicety would lose the learner's reply — same failure semantics as
-   * `AnalyticsService.record`.
-   */
-  async scheduleMissedWords(
-    userId: string,
-    texts: string[],
-  ): Promise<{ cardsCreated: number; cardsAdvanced: number }> {
-    try {
-      const matched = await this.contentService.findVocabInTexts(texts);
-      if (matched.length === 0) {
-        return { cardsCreated: 0, cardsAdvanced: 0 };
-      }
-
-      const userObjectId = new Types.ObjectId(userId);
-      const now = new Date();
-
-      const existing = await this.srsCardModel
-        .find({
-          userId: userObjectId,
-          'itemRef.kind': 'vocab',
-          'itemRef.id': { $in: matched.map((doc) => doc._id) },
-        })
-        .select('itemRef due')
-        .exec();
-
-      const existingIds = new Set(existing.map((card) => card.itemRef.id.toString()));
-
-      const toCreate = matched
-        .filter((doc) => !existingIds.has(doc._id.toString()))
-        .map((doc) => ({
-          userId: userObjectId,
-          itemRef: { kind: 'vocab' as const, id: doc._id },
-          ...newCardFields(now),
-        }));
-
-      let cardsCreated = 0;
-      if (toCreate.length > 0) {
-        try {
-          const inserted = await this.srsCardModel.insertMany(toCreate, { ordered: false });
-          cardsCreated = inserted.length;
-        } catch (err) {
-          // Same race as seedCards: a concurrent completion may have created the
-          // card we wanted. That is the desired end state, so count what landed.
-          if (!isDuplicateKeyError(err)) throw err;
-          const writeErrors = (err as { writeErrors?: unknown[] }).writeErrors?.length ?? 0;
-          cardsCreated = Math.max(0, toCreate.length - writeErrors);
-        }
-      }
-
-      // Only cards that are not already due — pushing an already-due card's date
-      // to now would be a no-op write, and moving it *later* would be wrong.
-      const notYetDue = existing.filter((card) => card.due > now).map((card) => card._id);
-
-      let cardsAdvanced = 0;
-      if (notYetDue.length > 0) {
-        const result = await this.srsCardModel
-          .updateMany({ _id: { $in: notYetDue } }, { $set: { due: now } })
-          .exec();
-        cardsAdvanced = result.modifiedCount;
-      }
-
-      // §5.2 / ADR-003: a correction is also evidence. Every matched vocab
-      // gets one exposure with `correct: false` — the learner *was* corrected,
-      // and that is the only honest signal the schema can carry.
-      //
-      // Fire-and-forget (`record` never throws internally; we attach an extra
-      // `.catch` here so an interface contract change cannot turn a lost
-      // evidence row into a lost chat turn). Uses `sourceContext: 'chat'`,
-      // which lets a future weakness report distinguish "weak in conversation"
-      // from "weak in a quiz".
-      //
-      // `correct: false` is deliberate: §5.2 names a chat correction as the
-      // signal hearts used to collect, and a tutor correction is *evidence of
-      // an error*, not evidence of mastery. Counter-intuitive on its face,
-      // right on the second look.
-      for (const doc of matched) {
-        this.learnerItemStateService
-          .record({
-            userId: userObjectId,
-            itemRef: { kind: 'vocab', id: doc._id },
-            outcome: { correct: false },
-            exerciseType: null,
-            sourceContext: 'chat',
-          })
-          .catch((err: unknown) => {
-            this.logger.warn(
-              `LearnerItemState chat record lost for vocab ${doc._id.toString()}: ` +
-                `${err instanceof Error ? err.message : String(err)}`,
-            );
-          });
-      }
-
-      return { cardsCreated, cardsAdvanced };
-    } catch (err) {
-      this.logger.warn(
-        `Could not schedule missed words for user ${userId}: ${
-          err instanceof Error ? err.message : 'unknown error'
-        }`,
-      );
-      return { cardsCreated: 0, cardsAdvanced: 0 };
-    }
-  }
-
-  /**
-   * §26 exercise-answer path: pull the SRS card for a specific item due when a
-   * learner gets it wrong in an exercise.
-   *
-   * Identical guarantee to `scheduleMissedWords`, but without the text-matching
-   * step — exercise answers already carry the exact item id, so there is nothing
-   * to infer. Both branches follow the same "only move `due`, never the FSRS
-   * model" rule:
-   *
-   * - **No card yet** → create one due now. The lesson should have seeded one on
-   *   completion, but this is the correct fallback if for any reason it is absent.
-   * - **Card exists** → pull `due` to now if it is in the future; leave an
-   *   already-due card alone (a no-op write, and the card is already coming up).
-   *
-   * Never throws — a wrong answer has already been recorded by
-   * `ExerciseAttemptsService`; failing over a scheduling side-effect would cost
-   * the learner their answer feedback rather than the scheduling nicety.
-   */
-  async scheduleItemDue(
-    userId: string,
-    itemId: string,
-    kind: string,
-  ): Promise<{ cardCreated: boolean; cardAdvanced: boolean }> {
-    try {
-      const userObjectId = new Types.ObjectId(userId);
-      const itemObjectId = new Types.ObjectId(itemId);
-      const now = new Date();
-
-      const existing = await this.srsCardModel
-        .findOne({
-          userId: userObjectId,
-          'itemRef.kind': kind,
-          'itemRef.id': itemObjectId,
-        })
-        .select('due')
-        .exec();
-
-      if (!existing) {
-        await this.srsCardModel.create({
-          userId: userObjectId,
-          itemRef: { kind, id: itemObjectId },
-          ...newCardFields(now),
-        });
-        return { cardCreated: true, cardAdvanced: false };
-      }
-
-      if (existing.due > now) {
-        await this.srsCardModel
-          .updateOne({ _id: existing._id }, { $set: { due: now } })
-          .exec();
-        return { cardCreated: false, cardAdvanced: true };
-      }
-
-      // Already due — nothing to do.
-      return { cardCreated: false, cardAdvanced: false };
-    } catch (err) {
-      this.logger.warn(
-        `Could not schedule item ${itemId} (${kind}) due for user ${userId}: ${
-          err instanceof Error ? err.message : 'unknown error'
-        }`,
-      );
-      return { cardCreated: false, cardAdvanced: false };
-    }
-  }
-
-  async countCards(userId: string): Promise<number> {
-    return this.srsCardModel.countDocuments({ userId: new Types.ObjectId(userId) }).exec();
-  }
-
-  /**
    * Account-deletion cascade for OPEN-ITEMS #5/#32.
    *
    * Erases every piece of learning data owned by this module for the given user.
@@ -592,19 +322,14 @@ export class LearningService {
   async deleteAllForUser(userId: string): Promise<void> {
     const objectId = new Types.ObjectId(userId);
     await Promise.all([
-      this.srsCardModel.deleteMany({ userId: objectId }).exec(),
+      // Dormant records created by the removed spaced-review subsystem are not
+      // read by the application, but account deletion must still erase them.
+      this.connection.collection('srsCards').deleteMany({ userId: objectId }),
+      this.connection.collection('dailyStudySessions').deleteMany({ userId: objectId }),
       this.lessonCompletionModel.deleteMany({ userId: objectId }).exec(),
       this.exerciseAttempts.deleteAllForUser(userId),
       this.learnerItemStateService.deleteAllForUser(userId),
       this.checkpointAttempts.deleteAllForUser(userId),
     ]);
   }
-}
-
-function isDuplicateKeyError(err: unknown): boolean {
-  if (typeof err !== 'object' || err === null) return false;
-  const code = (err as { code?: number }).code;
-  // insertMany with ordered:false reports a BulkWriteError wrapping per-doc codes.
-  const writeErrors = (err as { writeErrors?: { err?: { code?: number } }[] }).writeErrors;
-  return code === DUPLICATE_KEY || !!writeErrors?.some((e) => e.err?.code === DUPLICATE_KEY);
 }

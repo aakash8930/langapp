@@ -14,7 +14,7 @@ export function tapFeedback(): void {
 }
 
 /**
- * Confirms a grade on the review scale. Medium rather than Light: this one is a
+ * Confirms a confidence choice in a local study session. Medium rather than Light: this one is a
  * committed decision that immediately moves the card away, and it wants to feel
  * different under the thumb from the tap that merely revealed the answer.
  */

@@ -88,7 +88,7 @@ export function ContinueCard({
  * Shown instead of the card when every lesson is complete.
  *
  * Reachable now — 114 lessons is a lot, but it is finite, and a learner who
- * finishes deserves better than the card silently vanishing. Points at reviews,
+ * finishes deserves better than the card silently vanishing. Points at further practice,
  * because that is genuinely what is left to do.
  */
 export function CourseComplete() {
@@ -123,7 +123,7 @@ export function CourseComplete() {
           color: theme.colors.inkSoft,
         }}
       >
-        Keep your reviews up to date — that is where the words actually stick.
+        Use practice and checkpoints to keep applying what you learned.
       </Text>
     </View>
   );

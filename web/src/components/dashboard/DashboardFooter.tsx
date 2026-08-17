@@ -5,7 +5,6 @@ import { Icon } from '../ui/Icon';
 const FEATURES = [
   { label: 'Course lessons', icon: 'check' as const, to: '/courses' as const },
   { label: 'AI Tutor', icon: 'sparkles' as const, to: '/practice' as const },
-  { label: 'Spaced review', icon: 'refresh-cw' as const, to: '/review' as const },
   { label: 'Synced progress', icon: 'trending-up' as const, to: '/progress' as const },
 ];
 

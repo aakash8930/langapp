@@ -7,7 +7,6 @@ import { KanaItemDocument } from '../schemas/kana-item.schema';
 import { VocabItemDocument } from '../schemas/vocab-item.schema';
 import { ExerciseAttemptsService } from '../../learning/exercise-attempts.service';
 import { LearnerItemStateService } from '../../learning/learner-item-state.service';
-import { LearningService } from '../../learning/learning.service';
 import { ExerciseService } from './exercise.service';
 
 /**
@@ -131,8 +130,7 @@ function makeServiceWithAttempts(
   recordAttempt: jest.Mock = jest.fn(() => Promise.resolve(true)),
   recordLearnerItem: jest.Mock = jest.fn(() => Promise.resolve()),
   characterKana: { id: string; kana: string }[] = [],
-  scheduleItemDue: jest.Mock = jest.fn(() => Promise.resolve({ cardCreated: false, cardAdvanced: false })),
-): { service: ExerciseService; recordAttempt: jest.Mock; recordLearnerItem: jest.Mock; scheduleItemDue: jest.Mock } {
+): { service: ExerciseService; recordAttempt: jest.Mock; recordLearnerItem: jest.Mock } {
   const contentService = {
     findLessonById: () => Promise.resolve(lesson),
     findUnitKanaPool: () =>
@@ -156,21 +154,9 @@ function makeServiceWithAttempts(
   const service = new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
-    { scheduleItemDue } as unknown as LearningService,
     learnerItemStateService,
   );
-  return { service, recordAttempt, recordLearnerItem, scheduleItemDue };
-}
-
-/**
- * SRS scheduling is a fire-and-forget side effect of wrong answers. Tests in
- * this file care about grading and persistence; scheduling is asserted in its
- * own dedicated block below. Stubbed here so all existing tests keep passing.
- */
-function fakeLearningService() {
-  return {
-    scheduleItemDue: jest.fn(() => Promise.resolve({ cardCreated: false, cardAdvanced: false })),
-  } as unknown as LearningService;
+  return { service, recordAttempt, recordLearnerItem };
 }
 
 describe('ExerciseService.generate', () => {
@@ -517,9 +503,8 @@ describe('ExerciseService.answer — persists the attempt (T1.4)', () => {
 /**
  * §5.2 / ADR-003: the learner-model write path. Every answer emits one
  * `LearnerItemStateService.record()` call carrying the item the question was
- * about. The shape matters because `LearnerItemState` and `SrsCard` share the
- * `(kind, id)` key — `wordReading` would otherwise create a row no card could
- * match against.
+ * about. `wordReading` maps to its vocabulary item so the learner model keeps
+ * one stable `(kind, id)` identity across exercise types.
  */
 describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', () => {
   // The shared `VOWELS` / `WORDS` / `READING_WORDS` fixtures use short string
@@ -616,7 +601,7 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
     );
   });
 
-  it('maps wordReading prompts to the vocab kind the SRS card uses', async () => {
+  it('maps wordReading prompts to the vocab learner-model kind', async () => {
     const { service, recordLearnerItem } = makeServiceWithAttempts(
       LEARNER_READING_LESSON,
       LEARNER_VOWEL_POOL,        // kana distractor pool
@@ -629,9 +614,8 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
       text: LEARNER_READING_WORDS[0].romaji,
     });
 
-    // `promptKindToSrsKind` already maps `'wordReading' → 'vocab'` for the SRS
-    // pull-forward path; the learner-model write uses the same helper, so the
-    // two collections cannot drift apart on `(kind, id)`.
+    // Word-reading evidence belongs to the vocabulary item rather than a
+    // separate synthetic kind.
     expect(recordLearnerItem).toHaveBeenCalledWith(
       expect.objectContaining({
         itemRef: {
@@ -676,8 +660,7 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
     }
   });
 
-  it('records Practice evidence without changing an FSRS due date', async () => {
-    const scheduleItemDue = jest.fn(() => Promise.resolve({ cardCreated: false, cardAdvanced: false }));
+  it('records Practice evidence under its own source context', async () => {
     const { service, recordLearnerItem } = makeServiceWithAttempts(
       LEARNER_VOWEL_LESSON,
       LEARNER_VOWEL_POOL,
@@ -685,7 +668,6 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
       undefined,
       undefined,
       [],
-      scheduleItemDue,
     );
     const set = await service.generate(LESSON_ID, USER_A, 0);
     const question = asMultipleChoice(set.questions[0]);
@@ -700,7 +682,6 @@ describe('ExerciseService.answer — writes learner-model evidence (ADR-003)', (
     expect(recordLearnerItem).toHaveBeenCalledWith(
       expect.objectContaining({ sourceContext: 'practice', outcome: { correct: false, responseTimeMs: undefined } }),
     );
-    expect(scheduleItemDue).not.toHaveBeenCalled();
   });
 
   it('does not fail the answer when the learner-model write throws', async () => {
@@ -860,7 +841,6 @@ function grammarServiceWithAttempts(items = POINTS.map(grammarItem)) {
   const service = new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
-    fakeLearningService(),
     learnerItemStateService,
   );
   return { service, recordAttempt };
@@ -978,7 +958,6 @@ function kanjiService(items = KANJI.map(kanjiItem)): ExerciseService {
   return new ExerciseService(
     contentService as unknown as ContentService,
     exerciseAttempts,
-    fakeLearningService(),
     learnerItemStateService,
   );
 }
@@ -1255,7 +1234,7 @@ describe('ExerciseService.answer — wordReading lessons (T1.1)', () => {
 
 // The "answer — hearts (slice 2)" describe block that lived here was removed
 // when hearts/gems were deleted in Phase 2 Stage 0 (§3.1). Wrong-answer
-// behaviour is covered by the answer describe blocks above; the SRS pull-forward
+// behaviour is covered by the answer describe blocks above; learner evidence
 // has its own describe block below.
 
 /**

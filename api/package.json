@@ -1,7 +1,7 @@
 {
   "name": "langapp",
   "version": "0.0.1",
-  "description": "AI-native language learning platform — Phase 0",
+  "description": "GENKŌ Japanese learning platform API",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
@@ -12,7 +12,6 @@
     "seed": "ts-node -r tsconfig-paths/register src/seed/seed.ts",
     "seed:admin": "ts-node -r tsconfig-paths/register src/seed/admin.ts",
     "migrate:phase0-data": "ts-node -r tsconfig-paths/register src/migrations/backfill-phase0-data.ts",
-    "migrate:learner-item-state": "ts-node -r tsconfig-paths/register src/migrations/backfill-learner-item-state.ts",
     "import:jmdict": "ts-node -r tsconfig-paths/register src/import/jmdict.importer.ts",
     "import:kanjivg": "ts-node -r tsconfig-paths/register src/import/kanjivg.importer.ts",
     "test": "jest",
@@ -44,8 +43,7 @@
     "razorpay": "^2.9.8",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.18.1",
-    "rxjs": "^7.8.1",
-    "ts-fsrs": "^5.4.1"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

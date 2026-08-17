@@ -10,7 +10,6 @@ import {
 import { Types } from 'mongoose';
 import { CheckpointAttemptsService, CHECKPOINT_PASS_MARK } from '../../learning/checkpoint-attempts.service';
 import { LearnerItemStateService } from '../../learning/learner-item-state.service';
-import { LearningService } from '../../learning/learning.service';
 import { CheckpointQuestion } from '../../learning/schemas/unit-checkpoint-attempt.schema';
 import { UserService } from '../../user/user.service';
 import { ContentService, UnitContent } from '../content.service';
@@ -34,7 +33,7 @@ import {
   kanaChoice,
   KindQuestion,
   normaliseAnswer,
-  promptKindToSrsKind,
+  promptKindToContentKind,
   toGrammarChoice,
   toKanjiChoice,
   VOCAB_QUESTION,
@@ -74,9 +73,7 @@ export const XP_PER_CHECKPOINT_REPEAT = 5;
  *
  * The lesson flow re-asks a question until the learner gets it right, which is
  * good teaching and would make a test meaningless. Here the first answer is
- * the answer. Nothing blocks progress on the result: failing pulls the missed
- * items forward in the SRS and awards nothing, which is a consequence rather
- * than a punishment (Phase 2 §3.1 removed hearts for that reason).
+ * the answer. Nothing blocks progress on the result; a failed checkpoint simply awards no XP.
  */
 @Injectable()
 export class CheckpointService {
@@ -88,11 +85,6 @@ export class CheckpointService {
     private readonly attempts: CheckpointAttemptsService,
     @Inject(forwardRef(() => LearnerItemStateService))
     private readonly learnerItemState: LearnerItemStateService,
-    // For pulling missed items forward in the SRS. `scheduleItemDue` writes
-    // `due` and nothing else, which is the rule ADR-003 turns on: a checkpoint
-    // answer is not a graded review and must not reach FSRS's model.
-    @Inject(forwardRef(() => LearningService))
-    private readonly learningService: LearningService,
     private readonly userService: UserService,
   ) {}
 
@@ -228,9 +220,6 @@ export class CheckpointService {
       return this.resultFor(attempt.unit, attempt.attempt, attempt.questions, attempt.score ?? score, attempt.passed ?? passed, 0);
     }
 
-    const missed = attempt.questions.filter((q) => !q.correct);
-    await this.scheduleMissed(userId, missed);
-
     let xpAwarded = 0;
     if (passed) {
       xpAwarded = passedBefore ? XP_PER_CHECKPOINT_REPEAT : XP_PER_CHECKPOINT_PASS;
@@ -269,36 +258,7 @@ export class CheckpointService {
         correctValue: q.correctValue,
         answered: q.answered,
       })),
-      scheduledForReview: missed.length,
     };
-  }
-
-  /**
-   * Pull every missed item forward in the SRS.
-   *
-   * `scheduleItemDue` writes `due` and nothing else and never throws — the
-   * precedent set by `scheduleMissedWords` for chat corrections. A checkpoint
-   * answer is evidence about the learner, not a graded review, so it must not
-   * touch `stability`, `difficulty`, `state`, `reps` or `lapses`.
-   *
-   * This is the whole consequence of failing. Nothing is locked, no progress is
-   * taken away: the items the learner got wrong come back sooner, which is what
-   * a test result is *for*.
-   */
-  private async scheduleMissed(userId: string, missed: CheckpointQuestion[]): Promise<void> {
-    await Promise.all(
-      missed.map((question) =>
-        this.learningService
-          .scheduleItemDue(userId, question.itemId.toString(), question.itemKind)
-          .catch((err: unknown) => {
-            this.logger.warn(
-              `SRS scheduling lost for user ${userId} item ${question.itemId.toString()}: ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-            );
-          }),
-      ),
-    );
   }
 
   /**
@@ -507,7 +467,7 @@ export class CheckpointService {
 /** A candidate question: the flattened item plus how it should be asked. */
 interface ChoiceEntry {
   choice: Choice;
-  itemKind: ReturnType<typeof promptKindToSrsKind>;
+  itemKind: ReturnType<typeof promptKindToContentKind>;
   kindQuestion: KindQuestion;
   exerciseType: 'multipleChoice' | 'wordReading';
 }

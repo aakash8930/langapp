@@ -11,7 +11,7 @@ import { useTheme } from '@/theme';
  * ruled for exactly one character and holds nothing else. A vocabulary word is
  * three or four characters and would either overflow that square or be shrunk
  * until the point of the cell is lost, so it is set large in plain type
- * instead. Same decision the review card makes, for the same reason.
+ * instead. Same decision the study card makes, for the same reason.
  *
  * A kanji is one glyph too, but it does **not** get a genkouyoushi cell: the cell
  * is ruled with the quadrant guides a learner uses to place kana, and a kanji
@@ -50,7 +50,7 @@ export function QuestionPrompt({ prompt, kind }: { prompt: string; kind: PromptK
 
   return (
     <Text
-      // `heading` for a word, matching the review card's word face on purpose:
+      // `heading` for a word, matching the study card's word face on purpose:
       // a word is read, not inspected, so it does not need the size a single
       // glyph does — and こんにちは at display size would wrap mid-word on a
       // narrow phone. A sentence steps down again: it is longer, it must wrap

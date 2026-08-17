@@ -220,7 +220,7 @@ export interface SeedSummary {
  *
  * Every write is an upsert on a natural key, so `npm run seed` is idempotent —
  * running it twice leaves the same documents with the same _ids, which matters
- * because SrsCards reference those ids from the next milestone onward.
+ * because lesson, attempt, and learner-state records reference those ids.
  *
  * Note it goes through ContentService and KnowledgeGraphService rather than
  * touching collections directly: the seed obeys the same module boundary as

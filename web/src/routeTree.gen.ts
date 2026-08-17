@@ -33,7 +33,6 @@ import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FlashcardsRouteImport } from './routes/flashcards'
 import { Route as FlashcardsCreateRouteImport } from './routes/flashcards-create'
 import { Route as FlashcardsMyDecksRouteImport } from './routes/flashcards-my-decks'
-import { Route as FlashcardsReviewQueueRouteImport } from './routes/flashcards-review-queue'
 import { Route as FlashcardsSharedRouteImport } from './routes/flashcards-shared'
 import { Route as FlashcardsStatisticsRouteImport } from './routes/flashcards-statistics'
 import { Route as GiftPlansRouteImport } from './routes/gift-plans'
@@ -83,14 +82,6 @@ import { Route as ReadingQuizRouteImport } from './routes/reading-quiz'
 import { Route as ReadingStatisticsRouteImport } from './routes/reading-statistics'
 import { Route as ReferralRouteImport } from './routes/referral'
 import { Route as RefundPolicyRouteImport } from './routes/refund-policy'
-import { Route as ReviewRouteImport } from './routes/review'
-import { Route as ReviewForecastRouteImport } from './routes/review-forecast'
-import { Route as ReviewHeatmapRouteImport } from './routes/review-heatmap'
-import { Route as ReviewHistoryRouteImport } from './routes/review-history'
-import { Route as ReviewMissedRouteImport } from './routes/review-missed'
-import { Route as ReviewRetentionRouteImport } from './routes/review-retention'
-import { Route as ReviewSessionRouteImport } from './routes/review-session'
-import { Route as ReviewStatisticsRouteImport } from './routes/review-statistics'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SentenceBuilderRouteImport } from './routes/sentence-builder'
@@ -278,11 +269,6 @@ const FlashcardsCreateRoute = FlashcardsCreateRouteImport.update({
 const FlashcardsMyDecksRoute = FlashcardsMyDecksRouteImport.update({
   id: '/flashcards-my-decks',
   path: '/flashcards-my-decks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FlashcardsReviewQueueRoute = FlashcardsReviewQueueRouteImport.update({
-  id: '/flashcards-review-queue',
-  path: '/flashcards-review-queue',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FlashcardsSharedRoute = FlashcardsSharedRouteImport.update({
@@ -528,46 +514,6 @@ const ReferralRoute = ReferralRouteImport.update({
 const RefundPolicyRoute = RefundPolicyRouteImport.update({
   id: '/refund-policy',
   path: '/refund-policy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewRoute = ReviewRouteImport.update({
-  id: '/review',
-  path: '/review',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewForecastRoute = ReviewForecastRouteImport.update({
-  id: '/review-forecast',
-  path: '/review-forecast',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewHeatmapRoute = ReviewHeatmapRouteImport.update({
-  id: '/review-heatmap',
-  path: '/review-heatmap',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewHistoryRoute = ReviewHistoryRouteImport.update({
-  id: '/review-history',
-  path: '/review-history',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewMissedRoute = ReviewMissedRouteImport.update({
-  id: '/review-missed',
-  path: '/review-missed',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewRetentionRoute = ReviewRetentionRouteImport.update({
-  id: '/review-retention',
-  path: '/review-retention',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewSessionRoute = ReviewSessionRouteImport.update({
-  id: '/review-session',
-  path: '/review-session',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewStatisticsRoute = ReviewStatisticsRouteImport.update({
-  id: '/review-statistics',
-  path: '/review-statistics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RoadmapRoute = RoadmapRouteImport.update({
@@ -936,7 +882,6 @@ export interface FileRoutesByFullPath {
   '/flashcards': typeof FlashcardsRoute
   '/flashcards-create': typeof FlashcardsCreateRoute
   '/flashcards-my-decks': typeof FlashcardsMyDecksRoute
-  '/flashcards-review-queue': typeof FlashcardsReviewQueueRoute
   '/flashcards-shared': typeof FlashcardsSharedRoute
   '/flashcards-statistics': typeof FlashcardsStatisticsRoute
   '/gift-plans': typeof GiftPlansRoute
@@ -986,14 +931,6 @@ export interface FileRoutesByFullPath {
   '/reading-statistics': typeof ReadingStatisticsRoute
   '/referral': typeof ReferralRoute
   '/refund-policy': typeof RefundPolicyRoute
-  '/review': typeof ReviewRoute
-  '/review-forecast': typeof ReviewForecastRoute
-  '/review-heatmap': typeof ReviewHeatmapRoute
-  '/review-history': typeof ReviewHistoryRoute
-  '/review-missed': typeof ReviewMissedRoute
-  '/review-retention': typeof ReviewRetentionRoute
-  '/review-session': typeof ReviewSessionRoute
-  '/review-statistics': typeof ReviewStatisticsRoute
   '/roadmap': typeof RoadmapRoute
   '/security': typeof SecurityRoute
   '/sentence-builder': typeof SentenceBuilderRoute
@@ -1088,7 +1025,6 @@ export interface FileRoutesByTo {
   '/flashcards': typeof FlashcardsRoute
   '/flashcards-create': typeof FlashcardsCreateRoute
   '/flashcards-my-decks': typeof FlashcardsMyDecksRoute
-  '/flashcards-review-queue': typeof FlashcardsReviewQueueRoute
   '/flashcards-shared': typeof FlashcardsSharedRoute
   '/flashcards-statistics': typeof FlashcardsStatisticsRoute
   '/gift-plans': typeof GiftPlansRoute
@@ -1138,14 +1074,6 @@ export interface FileRoutesByTo {
   '/reading-statistics': typeof ReadingStatisticsRoute
   '/referral': typeof ReferralRoute
   '/refund-policy': typeof RefundPolicyRoute
-  '/review': typeof ReviewRoute
-  '/review-forecast': typeof ReviewForecastRoute
-  '/review-heatmap': typeof ReviewHeatmapRoute
-  '/review-history': typeof ReviewHistoryRoute
-  '/review-missed': typeof ReviewMissedRoute
-  '/review-retention': typeof ReviewRetentionRoute
-  '/review-session': typeof ReviewSessionRoute
-  '/review-statistics': typeof ReviewStatisticsRoute
   '/roadmap': typeof RoadmapRoute
   '/security': typeof SecurityRoute
   '/sentence-builder': typeof SentenceBuilderRoute
@@ -1241,7 +1169,6 @@ export interface FileRoutesById {
   '/flashcards': typeof FlashcardsRoute
   '/flashcards-create': typeof FlashcardsCreateRoute
   '/flashcards-my-decks': typeof FlashcardsMyDecksRoute
-  '/flashcards-review-queue': typeof FlashcardsReviewQueueRoute
   '/flashcards-shared': typeof FlashcardsSharedRoute
   '/flashcards-statistics': typeof FlashcardsStatisticsRoute
   '/gift-plans': typeof GiftPlansRoute
@@ -1291,14 +1218,6 @@ export interface FileRoutesById {
   '/reading-statistics': typeof ReadingStatisticsRoute
   '/referral': typeof ReferralRoute
   '/refund-policy': typeof RefundPolicyRoute
-  '/review': typeof ReviewRoute
-  '/review-forecast': typeof ReviewForecastRoute
-  '/review-heatmap': typeof ReviewHeatmapRoute
-  '/review-history': typeof ReviewHistoryRoute
-  '/review-missed': typeof ReviewMissedRoute
-  '/review-retention': typeof ReviewRetentionRoute
-  '/review-session': typeof ReviewSessionRoute
-  '/review-statistics': typeof ReviewStatisticsRoute
   '/roadmap': typeof RoadmapRoute
   '/security': typeof SecurityRoute
   '/sentence-builder': typeof SentenceBuilderRoute
@@ -1395,7 +1314,6 @@ export interface FileRouteTypes {
     | '/flashcards'
     | '/flashcards-create'
     | '/flashcards-my-decks'
-    | '/flashcards-review-queue'
     | '/flashcards-shared'
     | '/flashcards-statistics'
     | '/gift-plans'
@@ -1445,14 +1363,6 @@ export interface FileRouteTypes {
     | '/reading-statistics'
     | '/referral'
     | '/refund-policy'
-    | '/review'
-    | '/review-forecast'
-    | '/review-heatmap'
-    | '/review-history'
-    | '/review-missed'
-    | '/review-retention'
-    | '/review-session'
-    | '/review-statistics'
     | '/roadmap'
     | '/security'
     | '/sentence-builder'
@@ -1547,7 +1457,6 @@ export interface FileRouteTypes {
     | '/flashcards'
     | '/flashcards-create'
     | '/flashcards-my-decks'
-    | '/flashcards-review-queue'
     | '/flashcards-shared'
     | '/flashcards-statistics'
     | '/gift-plans'
@@ -1597,14 +1506,6 @@ export interface FileRouteTypes {
     | '/reading-statistics'
     | '/referral'
     | '/refund-policy'
-    | '/review'
-    | '/review-forecast'
-    | '/review-heatmap'
-    | '/review-history'
-    | '/review-missed'
-    | '/review-retention'
-    | '/review-session'
-    | '/review-statistics'
     | '/roadmap'
     | '/security'
     | '/sentence-builder'
@@ -1699,7 +1600,6 @@ export interface FileRouteTypes {
     | '/flashcards'
     | '/flashcards-create'
     | '/flashcards-my-decks'
-    | '/flashcards-review-queue'
     | '/flashcards-shared'
     | '/flashcards-statistics'
     | '/gift-plans'
@@ -1749,14 +1649,6 @@ export interface FileRouteTypes {
     | '/reading-statistics'
     | '/referral'
     | '/refund-policy'
-    | '/review'
-    | '/review-forecast'
-    | '/review-heatmap'
-    | '/review-history'
-    | '/review-missed'
-    | '/review-retention'
-    | '/review-session'
-    | '/review-statistics'
     | '/roadmap'
     | '/security'
     | '/sentence-builder'
@@ -1852,7 +1744,6 @@ export interface RootRouteChildren {
   FlashcardsRoute: typeof FlashcardsRoute
   FlashcardsCreateRoute: typeof FlashcardsCreateRoute
   FlashcardsMyDecksRoute: typeof FlashcardsMyDecksRoute
-  FlashcardsReviewQueueRoute: typeof FlashcardsReviewQueueRoute
   FlashcardsSharedRoute: typeof FlashcardsSharedRoute
   FlashcardsStatisticsRoute: typeof FlashcardsStatisticsRoute
   GiftPlansRoute: typeof GiftPlansRoute
@@ -1902,14 +1793,6 @@ export interface RootRouteChildren {
   ReadingStatisticsRoute: typeof ReadingStatisticsRoute
   ReferralRoute: typeof ReferralRoute
   RefundPolicyRoute: typeof RefundPolicyRoute
-  ReviewRoute: typeof ReviewRoute
-  ReviewForecastRoute: typeof ReviewForecastRoute
-  ReviewHeatmapRoute: typeof ReviewHeatmapRoute
-  ReviewHistoryRoute: typeof ReviewHistoryRoute
-  ReviewMissedRoute: typeof ReviewMissedRoute
-  ReviewRetentionRoute: typeof ReviewRetentionRoute
-  ReviewSessionRoute: typeof ReviewSessionRoute
-  ReviewStatisticsRoute: typeof ReviewStatisticsRoute
   RoadmapRoute: typeof RoadmapRoute
   SecurityRoute: typeof SecurityRoute
   SentenceBuilderRoute: typeof SentenceBuilderRoute
@@ -2145,13 +2028,6 @@ declare module '@tanstack/react-router' {
       path: '/flashcards-my-decks'
       fullPath: '/flashcards-my-decks'
       preLoaderRoute: typeof FlashcardsMyDecksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/flashcards-review-queue': {
-      id: '/flashcards-review-queue'
-      path: '/flashcards-review-queue'
-      fullPath: '/flashcards-review-queue'
-      preLoaderRoute: typeof FlashcardsReviewQueueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/flashcards-shared': {
@@ -2495,62 +2371,6 @@ declare module '@tanstack/react-router' {
       path: '/refund-policy'
       fullPath: '/refund-policy'
       preLoaderRoute: typeof RefundPolicyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/review': {
-      id: '/review'
-      path: '/review'
-      fullPath: '/review'
-      preLoaderRoute: typeof ReviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/review-forecast': {
-      id: '/review-forecast'
-      path: '/review-forecast'
-      fullPath: '/review-forecast'
-      preLoaderRoute: typeof ReviewForecastRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/review-heatmap': {
-      id: '/review-heatmap'
-      path: '/review-heatmap'
-      fullPath: '/review-heatmap'
-      preLoaderRoute: typeof ReviewHeatmapRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/review-history': {
-      id: '/review-history'
-      path: '/review-history'
-      fullPath: '/review-history'
-      preLoaderRoute: typeof ReviewHistoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/review-missed': {
-      id: '/review-missed'
-      path: '/review-missed'
-      fullPath: '/review-missed'
-      preLoaderRoute: typeof ReviewMissedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/review-retention': {
-      id: '/review-retention'
-      path: '/review-retention'
-      fullPath: '/review-retention'
-      preLoaderRoute: typeof ReviewRetentionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/review-session': {
-      id: '/review-session'
-      path: '/review-session'
-      fullPath: '/review-session'
-      preLoaderRoute: typeof ReviewSessionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/review-statistics': {
-      id: '/review-statistics'
-      path: '/review-statistics'
-      fullPath: '/review-statistics'
-      preLoaderRoute: typeof ReviewStatisticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/roadmap': {
@@ -3089,7 +2909,6 @@ const rootRouteChildren: RootRouteChildren = {
   FlashcardsRoute: FlashcardsRoute,
   FlashcardsCreateRoute: FlashcardsCreateRoute,
   FlashcardsMyDecksRoute: FlashcardsMyDecksRoute,
-  FlashcardsReviewQueueRoute: FlashcardsReviewQueueRoute,
   FlashcardsSharedRoute: FlashcardsSharedRoute,
   FlashcardsStatisticsRoute: FlashcardsStatisticsRoute,
   GiftPlansRoute: GiftPlansRoute,
@@ -3139,14 +2958,6 @@ const rootRouteChildren: RootRouteChildren = {
   ReadingStatisticsRoute: ReadingStatisticsRoute,
   ReferralRoute: ReferralRoute,
   RefundPolicyRoute: RefundPolicyRoute,
-  ReviewRoute: ReviewRoute,
-  ReviewForecastRoute: ReviewForecastRoute,
-  ReviewHeatmapRoute: ReviewHeatmapRoute,
-  ReviewHistoryRoute: ReviewHistoryRoute,
-  ReviewMissedRoute: ReviewMissedRoute,
-  ReviewRetentionRoute: ReviewRetentionRoute,
-  ReviewSessionRoute: ReviewSessionRoute,
-  ReviewStatisticsRoute: ReviewStatisticsRoute,
   RoadmapRoute: RoadmapRoute,
   SecurityRoute: SecurityRoute,
   SentenceBuilderRoute: SentenceBuilderRoute,

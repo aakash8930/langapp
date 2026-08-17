@@ -58,7 +58,7 @@ export function StreakCard({ progress, tz }: { progress: Progress; tz: string })
               ? 'Study today to start your streak.'
               : todayDone
                 ? 'Keep it up! Today is counted.'
-                : 'One review keeps your streak alive.'}
+                : 'One lesson or practice session keeps your streak alive.'}
           </p>
         </div>
         <span className="streak-emblem ja" aria-hidden="true">門</span>

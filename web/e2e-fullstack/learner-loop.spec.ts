@@ -47,7 +47,7 @@ async function fillSignup(page: Page) {
   await page.getByRole('checkbox').check();
 }
 
-test('real signup, mail, onboarding, lesson, review, and recovery loop', async ({ page, context }) => {
+test('real signup, mail, onboarding, lesson, and recovery loop', async ({ page, context }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/#/signup');
   await fillSignup(page);
@@ -124,17 +124,6 @@ test('real signup, mail, onboarding, lesson, review, and recovery loop', async (
   expect(progress.ok()).toBeTruthy();
   expect((await progress.json() as { completedLessonIds: string[] }).completedLessonIds)
     .toContain(lessonId);
-
-  const due = await page.request.get(`${API}/reviews/due`);
-  expect(due.ok()).toBeTruthy();
-  const cards = (await due.json() as { cards: Array<{ cardId: string }> }).cards;
-  expect(cards.length).toBeGreaterThan(0);
-  const grade = await page.request.post(`${API}/reviews/${cards[0].cardId}/grade`, {
-    data: { grade: 'good', responseTimeMs: 400 },
-    headers: await csrf(context),
-  });
-  expect(grade.ok()).toBeTruthy();
-  expect((await grade.json() as { totalReviews: number }).totalReviews).toBe(1);
 
   const forgot = await page.request.post(`${API}/auth/forgot-password`, { data: { email: EMAIL } });
   expect(forgot.ok()).toBeTruthy();

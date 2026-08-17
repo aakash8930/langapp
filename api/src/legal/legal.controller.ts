@@ -16,13 +16,13 @@ const PRIVACY_POLICY = `# Privacy Policy
 
 ## 1. Information We Collect
 - **Account Information:** Email address, display name, date of birth, time zone, and native language.
-- **Learning & Progress Data:** Exercise attempts, lesson completions, SRS memory model cards (stability, difficulty, due dates), XP, and streak data.
+- **Learning & Progress Data:** Exercise attempts, lesson and checkpoint completions, per-item learning evidence, XP, and streak data.
 - **Social & Messaging Data:** Direct messages sent to accepted friends, block lists, and friendship connections. Content of direct messages is stored solely for delivery and is never logged in server telemetry.
 - **AI Chat Interactions:** Text input provided during scenario-based AI tutor sessions to generate responses and Japanese grammar/vocabulary feedback.
 - **Safety Reports:** Reports submitted regarding user behavior or content errors.
 
 ## 2. How We Use Information
-- To provide personalized adaptive learning schedules using Spaced Repetition Algorithms (FSRS).
+- To provide ordered lessons, practice sessions, checkpoints, progress, and learning recommendations.
 - To enable peer-to-peer social interaction and leaderboards.
 - To enforce age-appropriate safety controls (messaging restricted to users who meet the minimum age requirement).
 - To maintain security and prevent abusive behavior.
@@ -30,7 +30,7 @@ const PRIVACY_POLICY = `# Privacy Policy
 ## 3. Data Ownership & Deletion (GDPR / DPDP Compliance)
 - You own your learning data.
 - You can permanently delete your account and all associated data at any time from Settings → Account → Delete account in the app, or by contacting us at the address below.
-- Account deletion immediately and permanently erases your account profile, SRS cards, exercise history, chat sessions, direct messages, and social connections. Deleting direct messages removes them for the other participant as well.
+- Account deletion immediately and permanently erases your account profile, exercise and lesson history, learner evidence, chat sessions, direct messages, and social connections. Deleting direct messages removes them for the other participant as well.
 - **One exception:** safety reports filed by you or about you are retained after deletion. They are kept as evidence for moderation review — a report about harmful behaviour would otherwise be erasable by the person reported — and cannot be used to reconstruct your account.
 
 ## 4. Contact & Inquiries

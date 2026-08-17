@@ -157,7 +157,7 @@ function VocabPracticeRoute() {
         </dl>
         {missed.length > 0 && (
           <div className="missed-list">
-            <h3>Words to review</h3>
+            <h3>Words to practise</h3>
             <ul className="kana-cells" style={{ justifyContent: 'center', marginTop: 'var(--s-md)' }}>
               {missed.map((m) => (
                 <li key={m.id}>

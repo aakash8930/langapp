@@ -48,7 +48,6 @@ Use a new operations-owned inbox, not an existing account. Keep browser develope
 - [ ] Complete all onboarding choices and reach the dashboard.
 - [ ] Complete one lesson, including at least one wrong and one correct answer.
 - [ ] Reload and sign in again; lesson completion, XP, and streak remain.
-- [ ] Open the review queue, grade a card, reload, and confirm the new schedule remains.
 - [ ] Request password recovery, receive the external email, reset, and sign in with the new password.
 - [ ] Send the public contact form and confirm the message reaches `CONTACT_TO`.
 - [ ] Start an AI tutor session, send a message, and receive a valid reply.
@@ -91,7 +90,7 @@ Record archive timestamp, encrypted off-site destination identifier, restore res
 
 - [ ] Build the final production APK from the release commit.
 - [ ] Install it on a clean physical Android device.
-- [ ] Verify signup/sign-in, lesson, review, AI, and sign-out against production.
+- [ ] Verify signup/sign-in, lesson, checkpoint, AI, and sign-out against production.
 - [ ] Install it over the previous APK and confirm the signing key permits upgrade.
 - [ ] Confirm `versionCode` increased and the keystore has a protected backup.
 - [ ] Publish a stable authenticated or public download location and update instructions.

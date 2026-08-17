@@ -17,7 +17,7 @@ const BENEFITS = [
   {
     icon: Repeat2,
     title: 'Review at the right time',
-    text: 'Completed lessons feed a spaced-review queue tied to your account.',
+    text: 'Completed lessons feed a spaced-practice hub tied to your account.',
   },
   {
     icon: Smartphone,

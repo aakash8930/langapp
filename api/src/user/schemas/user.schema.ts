@@ -153,23 +153,20 @@ export const SettingsSchema = SchemaFactory.createForClass(Settings);
  * gates what content the user is allowed to see. Deliberately separate from
  * `LearnerItemState` — the two answer different questions:
  *
- *  - `LearnerItemState` is per-card FSRS scheduling evidence; one row per
- *    `(user, card)`, growing with every review, used by the SRS engine.
+ *  - `LearnerItemState` is per-item exercise evidence used by adaptive practice.
  *  - `knownKana` is the *set* of characters the user has been *taught*; it
  *    answers "what characters may appear on the learner's screen right now",
  *    which is what the constrained content filter (Phase 1 #5) and the bare
  *    reading screen (Phase 0 #4) actually need.
  *
- * The split matters because the two are updated on different events: FSRS
- * state changes on every review; `knownKana` changes only on lesson
- * completion. Conflating them would either force a join through `SrsCard`
- * on every vocabulary read, or duplicate the lesson-completion signal in two
- * places. Embedding a tiny `learningState` follows the §5 rule
+ * The split matters because per-item evidence changes on exercise answers while
+ * `knownKana` changes only on lesson completion. Conflating them would either
+ * force a join on every vocabulary read or duplicate the completion signal. Embedding a tiny `learningState` follows the §5 rule
  * ("read together, bounded") and keeps `/me` as the single round trip.
  *
  * `knownKana` is the union across every completed lesson's `Lesson.itemRefs`
  * of kind `'kana'`. Computed on `recordCompletion`; never read from raw
- * `SrsCard` state. Written server-side, never accepted from the client.
+ * scheduler state. Written server-side, never accepted from the client.
  */
 @Schema({ _id: false })
 export class LearningState {

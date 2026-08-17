@@ -92,7 +92,7 @@ function GrammarQuizSession({ run, onExit, onRestart }: { run: QuizRun; onExit: 
 
   if (index >= questions.length) {
     const percent = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
-    return <section className="grammar-quiz-result glass"><span className="grammar-quiz-result-glyph ja">答</span><p className="grammar-kicker">QUIZ COMPLETE</p><h1>{score} of {questions.length} correct</h1><p className="grammar-quiz-percent tabular">{percent}%</p><p>This result describes this quiz run only. It is not saved as grammar mastery or added to the review schedule.</p><div><button type="button" className="btn btn-primary" onClick={onRestart}><Icon name="refresh-cw" size={16} /> Try this pool again</button><button type="button" className="btn btn-secondary" onClick={onExit}>Change quiz settings</button><Link className="btn btn-secondary" to="/review">Open review queue</Link></div></section>;
+    return <section className="grammar-quiz-result glass"><span className="grammar-quiz-result-glyph ja">答</span><p className="grammar-kicker">QUIZ COMPLETE</p><h1>{score} of {questions.length} correct</h1><p className="grammar-quiz-percent tabular">{percent}%</p><p>This result describes this quiz run only. It is not saved as grammar mastery or saved as persistent mastery.</p><div><button type="button" className="btn btn-primary" onClick={onRestart}><Icon name="refresh-cw" size={16} /> Try this pool again</button><button type="button" className="btn btn-secondary" onClick={onExit}>Change quiz settings</button><Link className="btn btn-secondary" to="/practice-hub">Open practice hub</Link></div></section>;
   }
   if (!question) return null;
   const correct = selected === question.answer;

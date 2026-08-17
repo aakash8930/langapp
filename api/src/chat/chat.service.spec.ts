@@ -3,7 +3,6 @@ import { Types } from 'mongoose';
 import { AiOrchestratorService, ConverseResult } from '../ai-orchestrator/ai-orchestrator.service';
 import { DEFAULT_SCENARIO_ID, findScenario } from '../ai-orchestrator/scenarios';
 import { AnalyticsService } from '../analytics/analytics.service';
-import { LearningService } from '../learning/learning.service';
 import { ChatService, CHAT_SESSION_MESSAGE_CAP } from './chat.service';
 import { ChatMessageDocument } from './schemas/chat-message.schema';
 import { ChatSessionDocument } from './schemas/chat-session.schema';
@@ -16,7 +15,6 @@ interface BuildOpts {
   messageCount?: number;
   recentMessages?: { role: 'user' | 'assistant'; text: string }[];
   converseResult?: ConverseResult;
-  scheduled?: { cardsCreated: number; cardsAdvanced: number };
 }
 
 function build(opts: BuildOpts = {}) {
@@ -69,16 +67,12 @@ function build(opts: BuildOpts = {}) {
     return scenario;
   });
   const record = jest.fn(() => Promise.resolve());
-  const scheduleMissedWords = jest.fn(() =>
-    Promise.resolve(opts.scheduled ?? { cardsCreated: 0, cardsAdvanced: 0 }),
-  );
 
   const service = new ChatService(
     sessionModel as never,
     messageModel as never,
     { converse, requireScenario } as unknown as AiOrchestratorService,
     { record } as unknown as AnalyticsService,
-    { scheduleMissedWords } as unknown as LearningService,
   );
 
   return {
@@ -88,7 +82,6 @@ function build(opts: BuildOpts = {}) {
     sessionModel,
     converse,
     record,
-    scheduleMissedWords,
   };
 }
 
@@ -229,7 +222,7 @@ describe('ChatService.sendMessage — the turn', () => {
   });
 });
 
-describe('ChatService.sendMessage — corrections feed the SRS (T1.5)', () => {
+describe('ChatService.sendMessage — corrections', () => {
   const CORRECTED: ConverseResult = {
     reply: 'いいですね！',
     corrections: [
@@ -238,49 +231,9 @@ describe('ChatService.sendMessage — corrections feed the SRS (T1.5)', () => {
     ],
   };
 
-  it('passes both halves of every correction to the scheduler', async () => {
-    const { service, scheduleMissedWords } = build({ converseResult: CORRECTED });
-
-    await service.sendMessage(USER_ID, SESSION_ID, 'わたしわがっこにいきます');
-
-    expect(scheduleMissedWords).toHaveBeenCalledWith(USER_ID, [
-      'わたしわ',
-      'わたしは',
-      'がっこ',
-      'がっこう',
-    ]);
-  });
-
-  it('records what was scheduled on the analytics event', async () => {
-    const { service, record } = build({
-      converseResult: CORRECTED,
-      scheduled: { cardsCreated: 2, cardsAdvanced: 1 },
-    });
-
-    await service.sendMessage(USER_ID, SESSION_ID, 'わたしわ');
-
-    expect(record).toHaveBeenCalledWith({
-      userId: USER_ID,
-      type: 'chat.turn',
-      payload: expect.objectContaining({ cardsCreated: 2, cardsAdvanced: 1 }),
-    });
-  });
-
-  it('still calls the scheduler with an empty list when the turn was clean', async () => {
-    // Cheap, and it keeps the call site unconditional — a turn with no
-    // corrections must not take a different code path.
-    const { service, scheduleMissedWords } = build();
-
-    await service.sendMessage(USER_ID, SESSION_ID, 'こんにちは');
-
-    expect(scheduleMissedWords).toHaveBeenCalledWith(USER_ID, []);
-  });
-
-  it('returns the reply even though scheduling is awaited', async () => {
+  it('persists and returns corrections with the tutor reply', async () => {
     const { service } = build({ converseResult: CORRECTED });
-
     const turn = await service.sendMessage(USER_ID, SESSION_ID, 'わたしわ');
-
     expect(turn.reply.text).toBe('いいですね！');
     expect(turn.corrections).toHaveLength(2);
   });

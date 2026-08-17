@@ -33,7 +33,7 @@ import {
   kanaChoice,
   KindQuestion,
   normaliseAnswer,
-  promptKindToSrsKind,
+  promptKindToContentKind,
   toGrammarChoice,
   toKanjiChoice,
   VOCAB_QUESTION,
@@ -225,9 +225,6 @@ export class CombinedTestService {
       );
     }
 
-    const missed = attempt.questions.filter((q) => !q.correct);
-    await this.scheduleMissed(userId, missed);
-
     let xpAwarded = 0;
     if (passed) {
       xpAwarded = passedBefore ? XP_PER_COMBINED_REPEAT : XP_PER_COMBINED_PASS;
@@ -313,7 +310,7 @@ export class CombinedTestService {
   }
 
   private async rankByWeakness(
-    candidates: { choice: Choice; itemKind: ReturnType<typeof promptKindToSrsKind>; kindQuestion: KindQuestion; exerciseType: 'multipleChoice' | 'wordReading' }[],
+    candidates: { choice: Choice; itemKind: ReturnType<typeof promptKindToContentKind>; kindQuestion: KindQuestion; exerciseType: 'multipleChoice' | 'wordReading' }[],
     userId: string,
     unitSlugs: readonly string[],
   ): Promise<typeof candidates> {
@@ -340,7 +337,7 @@ export class CombinedTestService {
   }
 
   private toCombinedQuestion(
-    entry: { choice: Choice; itemKind: ReturnType<typeof promptKindToSrsKind>; kindQuestion: KindQuestion; exerciseType: 'multipleChoice' | 'wordReading' },
+    entry: { choice: Choice; itemKind: ReturnType<typeof promptKindToContentKind>; kindQuestion: KindQuestion; exerciseType: 'multipleChoice' | 'wordReading' },
     candidates: { choice: Choice }[],
     unitSlugs: readonly string[],
     userId: string,
@@ -410,22 +407,6 @@ export class CombinedTestService {
             `${question.itemId.toString()}: ${err instanceof Error ? err.message : String(err)}`,
         );
       });
-  }
-
-  private async scheduleMissed(userId: string, missed: CheckpointQuestion[]): Promise<void> {
-    await Promise.all(
-      missed.map((question) =>
-        this.learningService
-          .scheduleItemDue(userId, question.itemId.toString(), question.itemKind)
-          .catch((err: unknown) => {
-            this.logger.warn(
-              `SRS scheduling lost for user ${userId} item ${question.itemId.toString()}: ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-            );
-          }),
-      ),
-    );
   }
 
   private grade(
@@ -511,7 +492,6 @@ export class CombinedTestService {
         correctValue: q.correctValue,
         answered: q.answered,
       })),
-      scheduledForReview: missed.length,
     };
   }
 }
@@ -560,7 +540,7 @@ function toChoices(
   exerciseType: 'multipleChoice' | 'wordReading',
 ): {
   choice: Choice;
-  itemKind: ReturnType<typeof promptKindToSrsKind>;
+  itemKind: ReturnType<typeof promptKindToContentKind>;
   kindQuestion: KindQuestion;
   exerciseType: 'multipleChoice' | 'wordReading';
 }[] {
@@ -578,7 +558,7 @@ function toChoices(
 
   const entries: {
     choice: Choice;
-    itemKind: ReturnType<typeof promptKindToSrsKind>;
+    itemKind: ReturnType<typeof promptKindToContentKind>;
     kindQuestion: KindQuestion;
     exerciseType: 'multipleChoice' | 'wordReading';
   }[] = [];

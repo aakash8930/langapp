@@ -6,7 +6,6 @@ import { UserService } from '../user/user.service';
 import { CheckpointAttemptsService } from './checkpoint-attempts.service';
 import { LearningService } from './learning.service';
 import { ProgressController } from './progress.controller';
-import { ReviewService } from './review.service';
 
 const USER_ID = '607f1f77bcf86cd799439011';
 const CURRENT = { userId: USER_ID } as AuthenticatedUser;
@@ -35,12 +34,10 @@ function makeController(overrides: { passedUnits?: string[]; user?: unknown } = 
     findCompletedLessonIds: jest.fn().mockResolvedValue(['lesson-a', 'lesson-b']),
   } as unknown as LearningService;
 
-  const reviewService = {
-    countDue: jest.fn().mockResolvedValue(7),
-  } as unknown as ReviewService;
+
 
   const analyticsService = {
-    countTodayByType: jest.fn().mockResolvedValue({ 'review.graded': 4, 'lesson.completed': 1 }),
+    countTodayByType: jest.fn().mockResolvedValue({ 'lesson.completed': 1 }),
   } as unknown as AnalyticsService;
 
   const checkpointAttempts = {
@@ -51,7 +48,6 @@ function makeController(overrides: { passedUnits?: string[]; user?: unknown } = 
     controller: new ProgressController(
       userService,
       learningService,
-      reviewService,
       analyticsService,
       checkpointAttempts,
     ),
@@ -98,10 +94,8 @@ describe('ProgressController — passedUnits', () => {
 
     expect(result.xp).toBe(120);
     expect(result.streakDays).toBe(3);
-    expect(result.cardsDueNow).toBe(7);
     expect(result.lessonsCompleted).toBe(2);
     expect(result.daily.xpToday).toBe(20);
-    expect(result.daily.reviewsDone).toBe(4);
     expect(result.daily.lessonsDone).toBe(1);
   });
 

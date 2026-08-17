@@ -86,7 +86,7 @@ describe('AnalyticsProcessor (ADR-006)', () => {
     await processor.process(
       makeJob('analytics.record', {
         userId: USER_ID,
-        type: 'review.graded',
+        type: 'practice.completed',
         payload: { cardId: new Types.ObjectId().toString() },
       }),
     );

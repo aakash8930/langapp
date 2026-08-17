@@ -42,7 +42,7 @@ const SESSION_KEY = ['chat', 'session'] as const;
  * into the cache, not into component state.
  *
  * Sends are serialised — the composer is disabled while a turn is in flight —
- * so the concurrent-mutation trap that shapes the review screen cannot arise
+ * so the concurrent-mutation trap of overlapping writes cannot arise
  * here. The plain async call is kept anyway, for the same reason: the ledger
  * below is the state, and `useMutation` would only offer a second, staler copy
  * of it.

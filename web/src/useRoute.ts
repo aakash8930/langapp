@@ -24,10 +24,9 @@ export type Route =
   | { name: 'catalog'; learn?: string }
   | { name: 'lesson'; id: string }
   | { name: 'study'; id: string }
-  | { name: 'review' };
+;
 
 function parse(hash: string): Route {
-  if (hash === '#/review') return { name: 'review' };
   const lesson = /^#\/lesson\/([A-Za-z0-9]+)$/.exec(hash);
   if (lesson) return { name: 'lesson', id: lesson[1] };
   const study = /^#\/study\/([A-Za-z0-9]+)$/.exec(hash);
@@ -96,8 +95,6 @@ export function go(route: Route): void {
       ? `#/lesson/${route.id}`
       : route.name === 'study'
         ? `#/study/${route.id}`
-        : route.name === 'review'
-          ? '#/review'
           : route.name === 'catalog'
             ? // A search param on `/courses`, matching that route's
               // `validateSearch`. This said `#/learn/${…}` until 2026-07-30 and

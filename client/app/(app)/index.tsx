@@ -22,7 +22,6 @@ import {
 } from '@/components/HomeSkeletons';
 import { NotificationsLink } from '@/components/NotificationsLink';
 import { ProgressSummary } from '@/components/ProgressSummary';
-import { ReviewCallout, ReviewEmptyState } from '@/components/ReviewCallout';
 import { UnitChapter } from '@/components/UnitChapter';
 import { groupByUnit, nextLesson, withLockState, type UnitGroup } from '@/lib/lessons';
 import { useTheme } from '@/theme';
@@ -188,15 +187,6 @@ export default function Home() {
       ) : (
         <>
           <ProgressSummary progress={progress.data} />
-
-          {progress.data.cardsDueNow > 0 ? (
-            <ReviewCallout
-              count={progress.data.cardsDueNow}
-              onPress={() => router.push('/review')}
-            />
-          ) : (
-            <ReviewEmptyState hasStarted={progress.data.lessonsCompleted > 0} />
-          )}
 
           <ChatCallout onPress={() => router.push('/chat')} />
 

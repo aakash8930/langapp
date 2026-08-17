@@ -209,7 +209,6 @@ export function CheckpointRunner({
         // XP, streak and the due count all move on a pass, and the home screen
         // reads them from /me/progress.
         void queryClient.invalidateQueries({ queryKey: ['progress'] });
-        void queryClient.invalidateQueries({ queryKey: ['reviews', 'due'] });
       } catch (error) {
         setPhase({ name: 'error', error });
       }
@@ -505,34 +504,7 @@ function Summary({
         {result.result.xpAwarded > 0 ? (
           <SummaryRow label="XP earned" value={`+${result.result.xpAwarded}`} emphasis />
         ) : null}
-        {result.result.scheduledForReview > 0 ? (
-          <SummaryRow
-            label="Added to review"
-            value={`${result.result.scheduledForReview}`}
-          />
-        ) : null}
       </View>
-
-      {/*
-        The whole consequence of failing, said plainly. Nothing is locked and no
-        progress is taken away — the missed items just come back sooner. A
-        learner who thinks a failed test costs them something will avoid taking
-        one, which defeats the point of having it.
-      */}
-      {result.result.scheduledForReview > 0 ? (
-        <Text
-          style={{
-            fontFamily: theme.families.ui,
-            fontSize: theme.fontSize.small,
-            lineHeight: theme.lineHeight.small,
-            color: theme.colors.inkSoft,
-          }}
-        >
-          {result.result.scheduledForReview === 1 ? 'The item' : 'The items'} you missed{' '}
-          {result.result.scheduledForReview === 1 ? 'is' : 'are'} waiting in your reviews. Nothing is
-          locked — {result.result.passed ? 'this is just what to practise next.' : 'take the test again whenever you like.'}
-        </Text>
-      ) : null}
 
       {lost > 0 ? (
         <FormError

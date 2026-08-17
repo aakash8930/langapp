@@ -29,7 +29,7 @@ export function ProgressSkeleton() {
   );
 }
 
-/** Stands in for the review callout, which is a solid block either way. */
+/** Stands in for the primary callout, which is a solid block either way. */
 export function CalloutSkeleton() {
   const theme = useTheme();
 

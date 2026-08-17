@@ -1,5 +1,8 @@
 # Project rules — GENKŌ client
 
+> **Current product decision (2026-08-17):** The spaced-review/FSRS subsystem and its routes were removed after learner testing. Any older review-specific guidance below is superseded and must not be reintroduced without a new product decision.
+
+
 React Native + Expo client for the shared GENKŌ API.
 The API is already built and live; this repo only consumes it.
 

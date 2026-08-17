@@ -465,7 +465,7 @@ export default function Lesson() {
               `wordReading` prompt asks for the romaji, so the recording *is*
               the answer spoken, and the doubled consonant in がっこう is
               audible; it is withheld until the feedback, where it becomes the
-              correction rather than a hint. Same rule as review cards.
+              correction rather than a hint. Same rule as the final answer check.
             */}
             {hasAudio(question.promptKind) &&
             (!revealsAnswer(question.promptKind) || result !== null) ? (
@@ -748,10 +748,7 @@ function Summary({
     return () => clearTimeout(timer);
   }, [held, onNext, finishedUnit]);
 
-  const cards =
-    summary.cardsCreated > 0
-      ? `${summary.cardsCreated} added to review`
-      : 'Already in your reviews';
+
 
   return (
     <ScrollView
@@ -794,7 +791,6 @@ function Summary({
             equal. */}
         <SummaryRow label="Correct" value={`Clean run — ${total} of ${total}`} />
         <SummaryRow label="XP earned" value={`+${summary.xpAwarded}`} emphasis />
-        <SummaryRow label="Cards" value={cards} />
       </View>
 
       {/*
@@ -870,7 +866,7 @@ function Summary({
               color: theme.colors.inkSoft,
             }}
           >
-            That is the last lesson. Everything from here is review.
+            That is the last lesson in the current course.
           </Text>
         ) : null}
 

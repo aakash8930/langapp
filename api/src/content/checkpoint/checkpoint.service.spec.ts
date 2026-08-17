@@ -2,7 +2,6 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { CheckpointAttemptsService, CHECKPOINT_PASS_MARK } from '../../learning/checkpoint-attempts.service';
 import { LearnerItemStateService } from '../../learning/learner-item-state.service';
-import { LearningService } from '../../learning/learning.service';
 import {
   CheckpointQuestion,
   UnitCheckpointAttemptDocument,
@@ -152,9 +151,6 @@ function build(
   );
   const findEvidenceForItems = jest.fn(() => Promise.resolve(opts.evidence ?? new Map()));
   const recordLearnerItem = jest.fn(() => Promise.resolve());
-  const scheduleItemDue = jest.fn(() =>
-    Promise.resolve({ cardCreated: false, cardAdvanced: true }),
-  );
   const awardXp = jest.fn(() => Promise.resolve({} as never));
 
   const service = new CheckpointService(
@@ -164,11 +160,10 @@ function build(
       findEvidenceForItems,
       record: recordLearnerItem,
     } as unknown as LearnerItemStateService,
-    { scheduleItemDue } as unknown as LearningService,
     { awardXp } as unknown as UserService,
   );
 
-  return { service, attempts, findUnitContent, recordLearnerItem, scheduleItemDue, awardXp, items };
+  return { service, attempts, findUnitContent, recordLearnerItem, awardXp, items };
 }
 
 /** Answer every question in the stored attempt, `correctCount` of them right. */
@@ -482,25 +477,6 @@ describe('CheckpointService.submit', () => {
     expect(result.questionCount).toBe(10);
     expect(result.score).toBe(0.1);
     expect(result.missed.filter((m) => !m.answered)).toHaveLength(9);
-  });
-
-  it('pulls every missed item forward in the SRS, and nothing else', async () => {
-    // The entire consequence of failing. `scheduleItemDue` writes `due` only —
-    // a checkpoint answer is not a graded review and must not reach FSRS.
-    const { service, attempts, scheduleItemDue } = build({
-      items: Array.from({ length: 10 }, (_, i) => kanaItem(i)),
-    });
-    await service.start(UNIT, USER_ID);
-    await answerAll(service, attempts, 6);
-
-    const result = await service.submit(UNIT, 1, USER_ID);
-
-    expect(scheduleItemDue).toHaveBeenCalledTimes(4);
-    expect(result.scheduledForReview).toBe(4);
-    for (const call of scheduleItemDue.mock.calls as unknown as [string, string, string][]) {
-      expect(call[0]).toBe(USER_ID);
-      expect(call[2]).toBe('kana');
-    }
   });
 
   it('releases the answer key for missed items only', async () => {

@@ -12,7 +12,6 @@ const ACTIONS: {
 }[] = [
   { id: 'tutor', label: 'AI tutor', note: 'Ask anything', icon: 'bot', to: '/practice' },
   { id: 'vocabulary', label: 'Vocabulary', note: 'Learn new words', icon: 'library', to: '/vocabulary' },
-  { id: 'review', label: 'Review', note: 'Spaced repetition', icon: 'refresh-cw', to: '/review' },
   { id: 'courses', label: 'Courses', note: 'Continue your path', icon: 'book-open', to: '/courses' },
   { id: 'planner', label: 'Progress', note: 'See your learning', icon: 'calendar', to: '/progress' },
   { id: 'more', label: 'More', note: 'All practice', icon: 'ellipsis', to: '/practice-hub' },

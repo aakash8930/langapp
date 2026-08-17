@@ -3,8 +3,8 @@ import { Link } from '@tanstack/react-router';
 const FAQS = [
   { q: 'Is GENKŌ really free?', a: 'Yes. Every feature released in the public MVP is free, with no payment card or trial expiry. Paid checkout is disabled.' },
   { q: 'Do I need to know any Japanese to start?', a: 'Not at all. GENKŌ starts from absolute zero with hiragana, katakana, and basic vocabulary. Onboarding can also recommend a later starting unit if you already know some Japanese.' },
-  { q: 'How does spaced repetition work?', a: 'GENKŌ uses the FSRS algorithm to schedule your reviews. Cards you find easy appear less often; cards you struggle with come back sooner.' },
-  { q: 'Can I study offline?', a: 'Not yet. The installable web app can reopen its interface, but lessons, account sync, AI, and review grading currently require a connection.' },
+  { q: 'How are lessons structured?', a: 'Each lesson introduces a small set of concepts, checks recognition and recall, and records completion only after every exercise is answered correctly.' },
+  { q: 'Can I study offline?', a: 'Not yet. Lessons, account sync, exercises, and AI currently require a connection.' },
   { q: 'What JLPT content is available?', a: 'The authored course currently contains beginner, N5, and N4-aligned vocabulary, grammar, and kanji. Higher-level onboarding choices explicitly fall back to the highest available N4 material.' },
 ];
 

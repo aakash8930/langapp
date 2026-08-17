@@ -44,7 +44,7 @@ export function KanjiWritingPage() {
 
   return (
     <div className="page kanji-reference kanji-writing-reference">
-      <nav className="kanji-tabs glass" aria-label="Kanji sections"><Link to="/kanji"><Icon name="grid" size={16} /> Kanji list</Link><Link className="is-active" to="/kanji-writing" aria-current="page"><Icon name="pen-tool" size={16} /> Writing</Link><Link to="/kanji-quiz"><Icon name="sparkles" size={16} /> Quiz</Link><Link to="/review"><Icon name="refresh-cw" size={16} /> Review</Link><Link to="/kanji-bookmarks"><Icon name="book-marked" size={16} /> Bookmarks <span className="tabular">{bookmarks.length}</span></Link></nav>
+      <nav className="kanji-tabs glass" aria-label="Kanji sections"><Link to="/kanji"><Icon name="grid" size={16} /> Kanji list</Link><Link className="is-active" to="/kanji-writing" aria-current="page"><Icon name="pen-tool" size={16} /> Writing</Link><Link to="/kanji-quiz"><Icon name="sparkles" size={16} /> Quiz</Link><Link to="/practice-hub"><Icon name="refresh-cw" size={16} /> Practice</Link><Link to="/kanji-bookmarks"><Icon name="book-marked" size={16} /> Bookmarks <span className="tabular">{bookmarks.length}</span></Link></nav>
 
       <section className="kanji-writing-hero glass"><div><p className="kanji-kicker">STROKE-BY-STROKE PRACTICE</p><h1><span className="ja">書</span> Kanji writing</h1><p>Watch real KanjiVG paths, then trace the highlighted strokes in order. Feedback is calculated locally in your browser.</p></div><dl><div><dt>Available kanji</dt><dd className="tabular">{corpus.isPending ? '—' : items.length}</dd></div><div><dt>Current pool</dt><dd className="tabular">{corpus.isPending ? '—' : filtered.length}</dd></div></dl></section>
 

@@ -13,7 +13,7 @@ import { useStrokes } from '../strokes';
  * handwriting has no other feedback channel. Reading a character back is
  * checked by the quiz; *writing* one is checked by nobody, and an unchecked
  * tracing box is a colouring-in exercise. The grading is also entirely local
- * and never leaves the browser: no XP, no SRS, no request.
+ * and never leaves the browser: no XP, no saved mastery, no request.
  *
  * ## Strokes must be drawn in order
  *

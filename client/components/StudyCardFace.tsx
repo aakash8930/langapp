@@ -8,7 +8,7 @@ import { SpeakButton } from '@/components/SpeakButton';
 import { useTheme } from '@/theme';
 
 /**
- * The two halves of a review card, split so the front can stay on screen after
+ * The two halves of a study card, split so the front can stay on screen after
  * the answer appears — you want the character in front of you while you decide
  * how well you knew it.
  *

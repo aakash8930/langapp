@@ -178,7 +178,7 @@ Hiragana surface.
 | Quiz | ✅ | `web/src/components/LessonQuiz.tsx`. |
 | Flashcards | ✅ | `web/src/components/Review.tsx` is the SRS surface; cards cover kana. |
 | Mistakes | 🟡 | `web/src/components/LessonQuiz.tsx` shows per-item feedback; "Mistakes" as a curated list is not built. |
-| Review | ✅ | `web/src/routes/review.tsx` + `api/src/learning/review.controller.ts` (`GET /reviews/due`, `POST /reviews/:cardId/grade`). |
+| Spaced review | ❌ Removed | Removed from web, mobile, and API on 2026-08-17 after learner testing. Lessons, practice, and checkpoints remain. |
 
 ---
 

@@ -36,7 +36,7 @@ function KanjiBookmarkRoute() {
 
   return (
     <div className="page kanji-reference kanji-bookmark-reference">
-      <nav className="kanji-tabs glass" aria-label="Kanji sections"><Link to="/kanji"><Icon name="grid" size={16} /> Kanji list</Link><Link to="/kanji-writing"><Icon name="pen-tool" size={16} /> Writing</Link><Link to="/kanji-quiz"><Icon name="sparkles" size={16} /> Quiz</Link><Link to="/review"><Icon name="refresh-cw" size={16} /> Review</Link><Link className="is-active" to="/kanji-bookmarks" aria-current="page"><Icon name="book-marked" size={16} /> Bookmarks <span className="tabular">{bookmarks.length}</span></Link></nav>
+      <nav className="kanji-tabs glass" aria-label="Kanji sections"><Link to="/kanji"><Icon name="grid" size={16} /> Kanji list</Link><Link to="/kanji-writing"><Icon name="pen-tool" size={16} /> Writing</Link><Link to="/kanji-quiz"><Icon name="sparkles" size={16} /> Quiz</Link><Link to="/practice-hub"><Icon name="refresh-cw" size={16} /> Practice</Link><Link className="is-active" to="/kanji-bookmarks" aria-current="page"><Icon name="book-marked" size={16} /> Bookmarks <span className="tabular">{bookmarks.length}</span></Link></nav>
 
       <section className="kanji-bookmark-hero glass"><div><p className="kanji-kicker">SAVED ON THIS BROWSER</p><h1><span className="ja">栞</span> Bookmarked kanji</h1><p>Return to characters you want to study again. Bookmarks are local to this browser and do not claim mastery or review status.</p></div><div><strong className="tabular">{bookmarks.length}</strong><span>saved character{bookmarks.length === 1 ? '' : 's'}</span></div></section>
 

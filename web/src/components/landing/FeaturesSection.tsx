@@ -1,12 +1,12 @@
 import { Icon } from '../ui/Icon';
 
 const FEATURES = [
-  { icon: 'refresh-cw', title: 'Spaced Repetition', desc: 'FSRS schedules each review from your real learning history so difficult material returns sooner.' },
+  { icon: 'book-open', title: 'Guided Lessons', desc: 'Learn a small set of concepts, practise them immediately, and move through one ordered course.' },
   { icon: 'bot', title: 'AI Tutor', desc: 'Practice conversations and get real-time feedback from an AI that understands Japanese.' },
   { icon: 'book-open', title: 'Structured Courses', desc: 'Move from kana through vocabulary, grammar, and kanji in one prerequisite-aware path.' },
-  { icon: 'trending-up', title: 'Progress Tracking', desc: 'See confirmed lesson, review, streak, and mastery data from your synced account.' },
+  { icon: 'trending-up', title: 'Progress Tracking', desc: 'See completed lessons, checkpoints, XP, and streak data from your synced account.' },
   { icon: 'headphones', title: 'Japanese Audio', desc: 'Hear course readings from generated recordings with a system-voice fallback when needed.' },
-  { icon: 'languages', title: 'Web and Android', desc: 'Continue the same lessons and review schedule across the browser and Android app.' },
+  { icon: 'languages', title: 'Web and Android', desc: 'Continue the same lessons and progress across the browser and Android app.' },
 ] as const;
 
 export function FeaturesSection() {

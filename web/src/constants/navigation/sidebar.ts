@@ -67,14 +67,6 @@ export const sidebarGroups: SidebarGroup[] = [
     id: 'practice',
     title: 'Practice',
     items: [
-      {
-        kind: 'link',
-        id: 'review',
-        label: 'Review (SRS)',
-        icon: 'refresh-cw',
-        to: '/review',
-        badge: 'due',
-      },
       { kind: 'link', id: 'flashcards', label: 'Flashcards', icon: 'layers', to: '/flashcards' },
       { kind: 'link', id: 'quizzes', label: 'Quizzes', icon: 'grid', to: '/quizzes' },
       { kind: 'link', id: 'practice-hub', label: 'Practice Hub', icon: 'pen-square', to: '/practice-hub' },

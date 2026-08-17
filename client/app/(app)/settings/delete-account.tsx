@@ -29,7 +29,7 @@ export default function DeleteAccount() {
     if (nextPasswordError) return;
 
     // A password field is not itself the confirmation — it proves who is
-    // asking, not that they meant to. The account and every review, streak
+    // asking, not that they meant to. The account and every learning record, streak
     // and message it holds is gone the moment the request lands, with
     // nothing to undo it, so the destructive step gets its own explicit tap.
     Alert.alert(
