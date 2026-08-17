@@ -1,5 +1,5 @@
-import { Redirect, Stack, usePathname } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Redirect, Tabs, usePathname } from 'expo-router';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ColorValue } from 'react-native';
 
 import { useAuth } from '@/components/AuthProvider';
 import { useTheme } from '@/theme';
@@ -47,14 +47,47 @@ export default function AppLayout() {
     return <Redirect href="/" />;
   }
 
+  const primary = ['/', '/learn', '/practice', '/profile'].includes(pathname);
+
   return (
-    <Stack
+    <Tabs
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: theme.colors.paper },
+        sceneStyle: { backgroundColor: theme.colors.paper },
+        tabBarActiveTintColor: theme.colors.shu,
+        tabBarInactiveTintColor: theme.colors.inkSoft,
+        tabBarStyle: primary
+          ? {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.hairline,
+              borderTopWidth: theme.hairlineWidth,
+              height: 64,
+              paddingTop: 6,
+              paddingBottom: 8,
+            }
+          : { display: 'none' },
+        tabBarLabelStyle: {
+          fontFamily: theme.families.ui,
+          fontSize: 12,
+        },
       }}
-    />
+    >
+      <Tabs.Screen name="index" options={{ title: 'Today', tabBarIcon: ({ color }) => <TabGlyph glyph="今" color={color} /> }} />
+      <Tabs.Screen name="learn" options={{ title: 'Learn', tabBarIcon: ({ color }) => <TabGlyph glyph="学" color={color} /> }} />
+      <Tabs.Screen name="practice" options={{ title: 'Practice', tabBarIcon: ({ color }) => <TabGlyph glyph="練" color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color }) => <TabGlyph glyph="人" color={color} /> }} />
+      {[
+        'chat', 'combined-test', 'explore', 'friends', 'leaderboard', 'notifications',
+        'onboarding', 'settings', 'verify-email', 'checkpoint/[unit]', 'dm/[userId]',
+        'lesson/[id]', 'study/[id]',
+      ].map((name) => <Tabs.Screen key={name} name={name} options={{ href: null }} />)}
+    </Tabs>
   );
+}
+
+function TabGlyph({ glyph, color }: { glyph: string; color: ColorValue }) {
+  const theme = useTheme();
+  return <Text style={{ fontFamily: theme.families.ja, fontSize: 18, color }}>{glyph}</Text>;
 }
 
 const styles = StyleSheet.create({

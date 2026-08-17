@@ -20,6 +20,8 @@ export type Progress = {
   lessonsCompleted: number;
   /** Drives lesson lock state. See lib/lessons.ts. */
   completedLessonIds: string[];
+  /** Unit slugs with a passed checkpoint. */
+  passedUnits: string[];
 };
 
 export function fetchProgress(): Promise<Progress> {

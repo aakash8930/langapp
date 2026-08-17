@@ -29,6 +29,7 @@ export function ContinueCard({
   onPress: (lesson: LessonWithState) => void;
 }) {
   const theme = useTheme();
+  const minutes = Math.max(3, Math.min(12, Math.ceil(lesson.itemCount * 0.8)));
 
   return (
     <Pressable
@@ -78,7 +79,7 @@ export function ContinueCard({
           theme.tabularFigures,
         ]}
       >
-        {lesson.itemCount} to learn
+        About {minutes} minutes · {lesson.itemCount} items
       </Text>
     </Pressable>
   );
