@@ -554,6 +554,7 @@ export function LessonQuiz({
               {...(question.promptKind === 'kana'
                 ? { kanaId: question.itemId }
                 : { vocabId: question.itemId })}
+              text={question.prompt}
               speed={audioSpeed}
               label={revealsAnswer(question.promptKind) ? 'Hear it' : 'Play'}
             />

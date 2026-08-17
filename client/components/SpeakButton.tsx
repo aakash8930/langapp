@@ -1,56 +1,54 @@
-import { useAudioPlayer } from 'expo-audio';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Pressable, Text } from 'react-native';
 
 import { audioUrlForKana, audioUrlForVocab } from '@/api/audio';
+import { speakJapanese } from '@/lib/japaneseSpeech';
 import { useTheme } from '@/theme';
 
 /**
- * Plays a word aloud.
- *
- * ## Why the URL goes straight to the player
- *
- * The audio route is unauthenticated — shared reference content, like `/lessons`
- * — so `expo-audio` can fetch it itself. Streaming bytes through the app's
- * authenticated `apiFetch` would mean buffering a whole file in JS to hand to a
- * player that is perfectly capable of fetching it, and would lose HTTP caching.
- * The server sends `immutable` with a one-year max-age, so each word is fetched
- * once ever.
- *
- * ## Failure is silence, not an error
- *
- * A word whose audio has not been generated yet 404s, and the API being asleep
- * fails the same way. Neither is worth an error banner in the middle of a quiz:
- * the button is a supplement to a written word that is already on screen, so a
- * dead tap costs the learner nothing. `expo-audio` swallows the load failure and
- * the button simply does not sound.
+ * Plays a stored course recording and falls back to the device's Japanese TTS.
+ * Static audio remains the preferred, consistent voice and receives immutable
+ * HTTP caching. The fallback prevents newly seeded content or a missed audio
+ * deployment from turning a visible play control into a dead tap.
  */
 export function SpeakButton({
   vocabId,
   kanaId,
+  text,
   label = 'Play',
+  speed = 1,
 }: {
   /** A vocabulary item. Exactly one of this and `kanaId` is given. */
   vocabId?: string;
   /** A kana item — same bytes, different route. */
   kanaId?: string;
+  /** Japanese reading used only if the stored recording is unavailable. */
+  text: string;
   /** Overridden on the lesson screen, where the word itself is the context. */
   label?: string;
+  speed?: number;
 }) {
   const theme = useTheme();
   const player = useAudioPlayer(
     vocabId ? audioUrlForVocab(vocabId) : kanaId ? audioUrlForKana(kanaId) : null,
   );
+  const status = useAudioPlayerStatus(player);
 
   return (
     <Pressable
       onPress={() => {
-        // Rewind first: tapping twice should replay from the start, not resume
-        // from wherever the previous play ended.
-        player.seekTo(0);
-        player.play();
+        if (status.isLoaded && !status.error) {
+          // Rewind first: tapping twice replays instead of resuming midway.
+          void player.seekTo(0);
+          player.playbackRate = speed;
+          player.play();
+          return;
+        }
+        speakJapanese(text, { speed });
       }}
       accessibilityRole="button"
-      accessibilityLabel="Play this"
+      accessibilityLabel="Play Japanese pronunciation"
+      accessibilityHint={status.isLoaded ? 'Uses the course recording' : 'Uses the device Japanese voice'}
       hitSlop={theme.spacing.md}
       style={({ pressed }) => ({
         flexDirection: 'row',
@@ -72,8 +70,6 @@ export function SpeakButton({
           color: theme.colors.ai,
         }}
       >
-        {/* A text glyph rather than an icon font — one less dependency, and it
-            takes the palette colour, which an emoji speaker would not. */}
         ▶
       </Text>
       <Text

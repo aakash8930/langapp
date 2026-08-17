@@ -55,36 +55,55 @@ async function verify(): Promise<void> {
   const requiredFiles = REQUIRED_STROKE_CHARACTERS.map(
     (char) => `${char.codePointAt(0)!.toString(16).padStart(5, '0')}.json`,
   );
-  const presentFiles = (await readdir(strokeRoot)).filter((file) => file.endsWith('.json') && file !== 'manifest.json').sort();
-  if (JSON.stringify(presentFiles) !== JSON.stringify(requiredFiles)) {
-    const required = new Set(requiredFiles);
+  const presentFiles = (await readdir(strokeRoot))
+    .filter((file) => file.endsWith('.json') && file !== 'manifest.json')
+    .sort();
+  const manifestedFiles = Object.keys(manifest.files).sort();
+
+  // The repository ships the full normalized KanjiVG pack so dictionary and
+  // future-course characters work without another asset deployment. The
+  // authored curriculum is a guaranteed subset, not an allow-list for the pack.
+  // Every shipped file is still pinned by hash: accepting unmanifested extras
+  // would turn a green verifier into permission to smuggle arbitrary JSON into
+  // the public immutable asset route.
+  if (JSON.stringify(presentFiles) !== JSON.stringify(manifestedFiles)) {
     const present = new Set(presentFiles);
-    const missing = requiredFiles.filter((file) => !present.has(file));
-    const extra = presentFiles.filter((file) => !required.has(file));
-    throw new Error(`Stroke pack mismatch; missing=[${missing.join(',')}], extra=[${extra.join(',')}]`);
+    const manifested = new Set(manifestedFiles);
+    const missing = manifestedFiles.filter((file) => !present.has(file));
+    const unmanifested = presentFiles.filter((file) => !manifested.has(file));
+    throw new Error(
+      `Stroke pack differs from manifest; missing=[${missing.join(',')}], `
+        + `unmanifested=[${unmanifested.join(',')}]`,
+    );
   }
 
-  for (const [index, file] of requiredFiles.entries()) {
+  const present = new Set(presentFiles);
+  const missingRequired = requiredFiles.filter((file) => !present.has(file));
+  if (missingRequired.length > 0) {
+    throw new Error(`Stroke pack is missing taught characters: [${missingRequired.join(',')}]`);
+  }
+
+  for (const file of presentFiles) {
     const bytes = await readFile(resolve(strokeRoot, file));
     const expectedHash = manifest.files[file];
     const hash = createHash('sha256').update(bytes).digest('hex');
     if (!expectedHash || hash !== expectedHash) throw new Error(`Stroke hash mismatch: ${file}`);
 
     const row = JSON.parse(bytes.toString('utf8')) as { char?: string; viewBox?: string; paths?: unknown[] };
-    if (row.char !== REQUIRED_STROKE_CHARACTERS[index]) throw new Error(`Wrong character in ${file}`);
+    const expectedFile = row.char
+      ? `${row.char.codePointAt(0)!.toString(16).padStart(5, '0')}.json`
+      : '';
+    if (expectedFile !== file) throw new Error(`Wrong character in ${file}`);
     if (!row.viewBox || !Array.isArray(row.paths) || row.paths.length === 0
       || row.paths.some((path) => typeof path !== 'string' || path.length === 0)) {
       throw new Error(`Invalid stroke payload: ${file}`);
     }
   }
 
-  if (Object.keys(manifest.files).sort().join('\n') !== requiredFiles.join('\n')) {
-    throw new Error('Stroke manifest file list differs from the required asset set');
-  }
-
   console.log(
     `Required content verified: ${REQUIRED_SEED_BASELINE.lessons} lessons, `
-      + `${REQUIRED_STROKE_CHARACTERS.length} deterministic stroke assets.`,
+      + `${REQUIRED_STROKE_CHARACTERS.length} taught characters within `
+      + `${presentFiles.length} deterministic stroke assets.`,
   );
 }
 

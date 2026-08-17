@@ -9,7 +9,7 @@ const columns = [
       { label: 'JLPT Prep', to: '/jlpt' },
       { label: 'Practice Hub', to: '/practice-hub' },
       { label: 'AI Tutor', to: '/practice' },
-      { label: 'Pricing', to: '/plans' },
+      { label: 'Free MVP access', to: '/plans' },
     ],
   },
   {

@@ -156,7 +156,7 @@ export function KanaFlashcards({ script }: { script: 'hiragana' | 'katakana' }) 
           <div className={`flip-card ${revealed ? 'revealed' : ''}`}>
             <div className="flip-front">
               <p className="quiz-prompt ja quiz-prompt-kana">{current.kana}</p>
-              <SpeakButton kanaId={current.id} label="Hear it" />
+              <SpeakButton kanaId={current.id} text={current.kana} label="Hear it" />
             </div>
             <div className="flip-back">
               <p className="card-back-answer">{current.romaji}</p>

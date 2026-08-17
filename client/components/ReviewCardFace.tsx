@@ -62,7 +62,7 @@ export function CardBack({ item }: { item: ResolvedItem }) {
           would answer the card for you. */}
       {item.kind === 'vocab' ? (
         <View style={{ paddingTop: theme.spacing.sm }}>
-          <SpeakButton vocabId={item.id} label="Hear it" />
+          <SpeakButton vocabId={item.id} text={item.reading || item.lemma} label="Hear it" />
         </View>
       ) : null}
     </View>

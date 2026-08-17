@@ -80,6 +80,24 @@ There is no test runner in `client/` yet, so `typecheck` and a successful
 > `npx expo install` is broken under npm 11 in this repo — resolve version pins
 > from `bundledNativeModules.json` and add them to `package.json` by hand.
 
+### Audio
+
+Kana and vocabulary prefer pre-generated, immutable course WAV files. Web and
+Expo fall back to the device's Japanese voice if a recording is missing, so new
+content never leaves a dead play button. AI tutor replies can also be spoken;
+only their Japanese text is read. Bare kanji are intentionally silent because a
+character's reading depends on its word.
+
+Generate and release-check the full recording pack after seeding the production
+database:
+
+```bash
+tools/tts-venv/bin/python tools/generate-audio.py --out api/storage/audio
+tools/tts-venv/bin/python tools/generate-audio.py --out api/storage/audio --verify-only
+```
+
+See `tools/README.md` for model setup and deployment.
+
 ### The website
 
 ```bash
@@ -330,11 +348,11 @@ Notes:
   Redis queue, worker, retry policy, and provider used by verification/reset mail.
   Terminal jobs are retained and make `/health` return degraded/503 until they
   are investigated, so the existing health monitor is the alerting connection.
-- **The deployed instance has no `GEMINI_API_KEY`**, so `/chat/*` answers 503
-  there while everything else works. That is why `validateEnv` gives the chat
-  vars defaults instead of requiring them: a deploy whose `.env` predates a new
-  variable must still boot. Adding the key to `~/deploy/langapp/api/.env` and
-  restarting the service is all that turns chat on in production.
+- **Production requires `GEMINI_API_KEY`, working mail, `MAIL_SMOKE_TO`,
+  `CONTACT_TO`, and `CORS_ORIGINS`.** `validateEnv` refuses to boot a public
+  process that would advertise AI chat, accept a registration it cannot verify,
+  discard support messages, or reject the browser origin. Development keeps
+  those integrations optional.
 - **Mongo and Redis are shared with dev** and owned by
   `~/Projects/langapp/api/docker-compose.yml`. Never `docker compose up` from the
   deploy clone — that file pins `name: langapp`, so it resolves to the *same*
@@ -361,9 +379,10 @@ scripts/verify-restore.sh      # restore the newest into a scratch database
 systemctl --user status langapp-backup.timer
 ```
 
-⚠️ Same disk as the database. §11 asks for a cloud-synced folder and there is no
-sync client here — point `LANGAPP_BACKUP_ROOT` at one to close it properly.
-Details and the reasoning in `scripts/README.md`.
+Production must set `REQUIRE_OFFSITE_BACKUP=1` and configure either
+`LANGAPP_CLOUD_SYNC_CMD` or `LANGAPP_CLOUD_SYNC_DIR`. The backup service then
+fails if the verified archive cannot be transferred off-device; directory copies
+are byte-compared before success. Details are in `scripts/README.md`.
 
 ## Data model notes
 

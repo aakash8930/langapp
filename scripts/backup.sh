@@ -98,16 +98,33 @@ done
 # ---------------------------------------------------------------------------
 # If LANGAPP_CLOUD_SYNC_CMD (e.g., "rclone sync $ROOT remote:langapp-backups")
 # or LANGAPP_CLOUD_SYNC_DIR (e.g., a mounted cloud drive) is set, sync the backup.
-if [[ -n "${LANGAPP_CLOUD_SYNC_CMD:-}" ]]; command -v bash >/dev/null; then
-  if [[ -n "${LANGAPP_CLOUD_SYNC_CMD:-}" ]]; then
-    echo "[$(date -Is)] Syncing off-device with command: $LANGAPP_CLOUD_SYNC_CMD" >> "$LOG"
-    eval "$LANGAPP_CLOUD_SYNC_CMD" >> "$LOG" 2>&1 || echo "[$(date -Is)] WARNING: cloud sync command failed" >> "$LOG"
+OFFSITE_OK=0
+if [[ -n "${LANGAPP_CLOUD_SYNC_CMD:-}" ]]; then
+  echo "[$(date -Is)] Syncing off-device with configured command" >> "$LOG"
+  if eval "$LANGAPP_CLOUD_SYNC_CMD" >> "$LOG" 2>&1; then
+    OFFSITE_OK=1
+  else
+    echo "[$(date -Is)] FAILED: cloud sync command failed" >> "$LOG"
   fi
 fi
 
 if [[ -n "${LANGAPP_CLOUD_SYNC_DIR:-}" && -d "${LANGAPP_CLOUD_SYNC_DIR:-}" ]]; then
   echo "[$(date -Is)] Copying archive off-device to $LANGAPP_CLOUD_SYNC_DIR" >> "$LOG"
-  cp "$DEST/$DB.archive.gz" "$LANGAPP_CLOUD_SYNC_DIR/" >> "$LOG" 2>&1 || echo "[$(date -Is)] WARNING: cloud dir copy failed" >> "$LOG"
+  REMOTE="$LANGAPP_CLOUD_SYNC_DIR/$TIMESTAMP-$DB.archive.gz"
+  if cp "$DEST/$DB.archive.gz" "$REMOTE" >> "$LOG" 2>&1 \
+      && cmp --silent "$DEST/$DB.archive.gz" "$REMOTE"; then
+    OFFSITE_OK=1
+  else
+    echo "[$(date -Is)] FAILED: off-device copy did not verify" >> "$LOG"
+  fi
+fi
+
+# Set this to 1 in the production timer. A local verified dump is useful during
+# development, but production must fail loudly when disk-loss protection is not
+# configured or a transfer fails.
+if [[ "${REQUIRE_OFFSITE_BACKUP:-0}" == "1" && "$OFFSITE_OK" != "1" ]]; then
+  echo "[$(date -Is)] FAILED: a verified off-device backup is required" >> "$LOG"
+  exit 1
 fi
 
 echo "Backed up $DB to $DEST/$DB.archive.gz ($SIZE)"

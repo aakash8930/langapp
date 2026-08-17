@@ -86,9 +86,7 @@ export function BillingPage() {
         </div>
         <div className="billing-actions">
           {!isPremium ? (
-            <a className="btn btn-primary" href="/#/plans">
-              Upgrade to Pro
-            </a>
+            <p className="billing-note">All public MVP features are included. No payment method is stored or required.</p>
           ) : (
             <>
               <a className="btn btn-secondary" href="/#/plans">

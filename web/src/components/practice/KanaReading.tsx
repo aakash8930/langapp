@@ -195,7 +195,7 @@ export function KanaReading({ script }: { script: 'hiragana' | 'katakana' }) {
         </p>
 
         <div style={{ display: 'flex', gap: 'var(--s-md)', justifyContent: 'center', marginBottom: 'var(--s-md)' }}>
-          <SpeakButton kanaId={activeCurrent.id} label="Hear it" />
+          <SpeakButton kanaId={activeCurrent.id} text={activeCurrent.kana} label="Hear it" />
         </div>
 
         <input

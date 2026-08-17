@@ -473,6 +473,7 @@ export default function Lesson() {
                 {...(question.promptKind === 'kana'
                   ? { kanaId: question.itemId }
                   : { vocabId: question.itemId })}
+                text={question.prompt}
                 label="Hear it"
               />
             ) : null}

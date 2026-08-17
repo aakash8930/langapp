@@ -375,7 +375,7 @@ function VocabRow({
         <div className="vocab-detail-body">
           <div className="vocab-detail-lead">
             <div><p className="vocab-detail-label">WORD DETAILS</p><h3 className="ja" lang="ja">{item.lemma}</h3><p>{item.reading}{item.romaji ? ` · ${item.romaji}` : ''}</p></div>
-            <SpeakButton vocabId={item.id} label="Hear this word" speed={audioSpeed} />
+            <SpeakButton vocabId={item.id} text={item.reading || item.lemma} label="Hear this word" speed={audioSpeed} />
           </div>
 
           <dl className="vocab-detail-facts">

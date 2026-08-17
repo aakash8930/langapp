@@ -139,7 +139,9 @@ export default function Study() {
               {/* Nothing here is graded, so a kana can be heard on sight —
                   which is exactly what the quiz withholds, because its options
                   are the romaji that hearing it would give away. */}
-              {item.kind === 'kana' ? <SpeakButton kanaId={item.id} label="Hear it" /> : null}
+              {item.kind === 'kana' ? (
+                <SpeakButton kanaId={item.id} text={item.kana} label="Hear it" />
+              ) : null}
 
               {/* Yōon are two glyphs: きゃ gets a diagram each, in reading
                   order — the same way the cells above lay it out. */}

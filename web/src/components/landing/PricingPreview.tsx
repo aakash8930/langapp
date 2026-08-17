@@ -16,8 +16,8 @@ export function PricingPreview() {
   return (
     <section className="landing-section landing-section--alt" id="pricing">
       <div className="landing-container">
-        <h2 className="landing-heading">Simple, transparent pricing</h2>
-        <p className="landing-subtitle">Start free. Upgrade when you're ready for more.</p>
+        <h2 className="landing-heading">Free public MVP access</h2>
+        <p className="landing-subtitle">Use every released learning feature without a card or trial expiry.</p>
         <div className="pricing-preview-grid">
           {plans.map((plan: Plan) => (
             <div key={plan.id} className={`pricing-preview-card glass ${plan.highlighted ? 'pricing-preview-card--featured' : ''}`}>
@@ -31,7 +31,7 @@ export function PricingPreview() {
           ))}
         </div>
         <div style={{ textAlign: 'center', marginTop: 'var(--s-lg)' }}>
-          <Link className="btn btn-primary" to="/plans">Compare Plans</Link>
+          <Link className="btn btn-primary" to="/plans">See what is included</Link>
         </div>
       </div>
     </section>

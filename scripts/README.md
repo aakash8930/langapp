@@ -45,18 +45,20 @@ if the live database has users and the archive has none, the backup fails.
 Seeded content can be regenerated with `npm run seed`. Accounts and their
 review cards cannot.
 
-### ⚠️ This is a same-disk backup
+### Off-device production requirement
 
-§11 asks for a **cloud-synced folder**, and no sync client is installed on this
-machine. `~/langapp_backups` is on the same disk as the database, so this
-protects against every failure except the one that loses the disk.
-
-To close that properly, point `LANGAPP_BACKUP_ROOT` at a synced directory:
+The local verified archive protects against bad seeds and accidental deletion,
+but not disk loss. Production therefore sets `REQUIRE_OFFSITE_BACKUP=1` and one
+of these transfer mechanisms:
 
 ```bash
-LANGAPP_BACKUP_ROOT=~/Dropbox/langapp_backups scripts/backup.sh
+LANGAPP_CLOUD_SYNC_CMD='rclone copy "$DEST/langapp.archive.gz" remote:genko-backups/'
+# or a mounted/synchronised destination:
+LANGAPP_CLOUD_SYNC_DIR=/mnt/offsite/genko-backups
 ```
 
-and set the same variable in `~/.config/systemd/user/langapp-backup.service`
-via `Environment=`. Until then this is a partial answer, and OPEN-ITEMS #6 stays
-open for that reason.
+Put the variables in `~/.config/systemd/user/langapp-backup.service` using
+`Environment=`. A configured command must exit successfully. A directory copy
+is byte-compared with the local verified archive. With
+`REQUIRE_OFFSITE_BACKUP=1`, no mechanism or a failed transfer makes the backup
+service fail so monitoring can alert instead of reporting partial safety.
