@@ -3,18 +3,10 @@ import type { SidebarGroup } from '../../types/layout';
 /**
  * The sidebar, as data.
  *
- * ## Why some of this is still `planned`
- *
- * The design this is built from lists twenty-four destinations. Most now have
- * real routes. Rather than silently trim the two that remain, they are declared
- * `planned`: visible, described, locked, and impossible to click. The union in
- * `types/layout/sidebar.ts` enforces that a planned row cannot carry a route, so
- * "looks live, goes nowhere" is not a state this file can express.
- *
- * **What is still locked is locked on missing product behaviour:**
- *
- *   - **Study Groups** — no API at all. `/social` covers friends and messages;
- *     groups are not modelled anywhere.
+ * The public MVP navigation contains only destinations with working product
+ * behaviour. Planned surfaces (including study groups and paid billing) stay
+ * out of navigation until their API and release contracts exist; a disabled
+ * row still reads like a product promise.
  *
  * Speaking and Listening are live. Both use the real course corpus and audio
  * routes with explicit browser fallbacks. Speaking adds local voice recording,
@@ -93,7 +85,6 @@ export const sidebarGroups: SidebarGroup[] = [
     title: 'Community',
     items: [
       { kind: 'link', id: 'community', label: 'Community', icon: 'users', to: '/social' },
-      { kind: 'planned', id: 'study-groups', label: 'Study Groups', icon: 'users-round' },
       { kind: 'link', id: 'leaderboard', label: 'Leaderboard', icon: 'trophy', to: '/leagues' },
     ],
   },
@@ -127,13 +118,6 @@ export const sidebarGroups: SidebarGroup[] = [
         adminOnly: true,
       },
       { kind: 'link', id: 'settings', label: 'Settings', icon: 'settings', to: '/settings' },
-      {
-        kind: 'link',
-        id: 'billing',
-        label: 'Billing',
-        icon: 'crown',
-        to: '/billing',
-      },
       {
         kind: 'link',
         id: 'notifications',

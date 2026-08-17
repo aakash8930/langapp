@@ -1,10 +1,10 @@
 # GENKŌ
 
-AI-native language learning platform. Phase 0 = Japanese only, single learner flow.
+AI-native Japanese language learning platform.
 
-- **`PHASE-0-BLUEPRINT.md`** — the spec. Read it before any architectural decision.
-- **`CLAUDE.md`** — workspace rules; each app has its own on top of it.
-- **`OPEN-ITEMS.md`** — decisions taken on your behalf, deferred work, and debt.
+- **`RELEASE-CHECKLIST.md`** — mandatory public-MVP acceptance, mail, isolation, backup, and rollback gates.
+- **`PLATFORM-AUDIT.md`** — the latest completed platform audit.
+- **`api/CLAUDE.md`, `client/CLAUDE.md`, `web/CLAUDE.md`** — app-specific engineering constraints.
 
 ## Layout
 
@@ -353,18 +353,14 @@ Notes:
   process that would advertise AI chat, accept a registration it cannot verify,
   discard support messages, or reject the browser origin. Development keeps
   those integrations optional.
-- **Mongo and Redis are shared with dev** and owned by
-  `~/Projects/langapp/api/docker-compose.yml`. Never `docker compose up` from the
-  deploy clone — that file pins `name: langapp`, so it resolves to the *same*
-  project from anywhere and would recreate the containers underneath the dev
-  stack. The deploy script only `docker start`s them.
-
-  A consequence worth knowing: **`npm run seed` in dev seeds production too.**
-  There is one database. New content is live the moment it is seeded locally,
-  without waiting for a deploy — and a bad seed is live just as fast.
-- Registration is **open to the internet** by choice. See OPEN-ITEMS #1/#3 for
-  what that exposes. There are real accounts in the database now, not just test
-  ones — which is why the backup below stopped being optional.
+- **The legacy laptop deployment shared Mongo and Redis with development. That
+  topology is not approved for a public MVP.** Production must use distinct
+  Mongo, Redis, and storage credentials/instances, and development seeding must
+  be unable to change public data. Record the isolation evidence in
+  `RELEASE-CHECKLIST.md` before announcing availability.
+- Registration is **open to the internet** by choice. Rate limiting, working
+  verification mail, monitoring, isolated production data, and verified
+  off-device backups are therefore release requirements, not follow-up work.
 
 ## Backups
 
